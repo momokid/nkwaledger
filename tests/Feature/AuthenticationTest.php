@@ -15,6 +15,7 @@ class AuthenticationTest extends TestCase
     {
         $user = User::create([
             'name' => 'Test User',
+            'phone_number' => '233501234567',
             'email' => 'test@nkwaledger.com',
             'password' => Hash::make('secure-password'),
         ]);

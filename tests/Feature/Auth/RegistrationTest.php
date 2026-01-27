@@ -9,11 +9,12 @@ test('registration screen can be rendered', function () {
 test('new users can register', function () {
     $response = $this->post('/register', [
         'name' => 'Test User',
+        'phone_number' => '1234567890',
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $this->assertGuest();
+    $response->assertRedirect(route('login'));
 });
