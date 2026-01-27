@@ -9,6 +9,7 @@ use Carbon\Carbon;
 
 class OtpService
 {
+
     /**
      * Generate and store a new OTP for a phone number.
      *
@@ -50,5 +51,38 @@ class OtpService
 
         // 4. Return raw OTP (ONLY for SMS sending layer)
         return $otp;
+    }
+
+    /**
+     * Verify an OTP for a phone number.
+     *
+     * @return bool True if OTP is valid, false otherwise
+     */
+
+    public function verify(string $phoneNumber, string $otp): bool
+    {
+        $record = DB::table('one_time_passwords')
+            ->where('phone_number', $phoneNumber)
+            ->whereNull('used_at')
+            ->where('expires_at', '>', Carbon::now())
+            ->first();
+
+        if (!$record) return false;
+
+        //Expired OTP
+        if (!Hash::check($otp, $record->otp_hash)) {
+            //Increment attempts
+            DB::table('one_time_passwords')
+                ->where('id', $record->id)
+                ->increment('attempts');
+            return false;
+        }
+
+        //OTP is valid, mark as used
+        DB::table('one_time_passwords')
+            ->where('id', $record->id)
+            ->update(['used_at' => Carbon::now(), "updated_at" => Carbon::now()]);
+
+        return true;
     }
 }
