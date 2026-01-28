@@ -13,7 +13,7 @@ class OtpServiceTest extends TestCase
 
     public function test_it_generates_and_stores_an_otp(): void
     {
-        $service = new OtpService();
+        $service = app(\App\Services\Auth\OtpService::class);
 
         $otp = $service->generate(
             phoneNumber: '233501234567',
@@ -32,7 +32,7 @@ class OtpServiceTest extends TestCase
 
     public function test_old_otps_are_invalidated_when_new_one_is_generated(): void
     {
-        $service = new OtpService();
+        $service = app(\App\Services\Auth\OtpService::class);
 
         // First OTP
         $service->generate('233501234567');

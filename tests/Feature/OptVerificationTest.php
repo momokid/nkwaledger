@@ -7,13 +7,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+
 class OtpVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
     public function test_valid_otp_can_be_verified(): void
     {
-        $service = new OtpService();
+        $service = app(OtpService::class);
 
         $otp = $service->generate('233501234567');
 
@@ -28,7 +29,7 @@ class OtpVerificationTest extends TestCase
 
     public function test_invalid_otp_is_rejected(): void
     {
-        $service = new OtpService();
+        $service = app(OtpService::class);
 
         $service->generate('233501234567');
 
@@ -48,7 +49,7 @@ class OtpVerificationTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $service = new OtpService();
+        $service = app(OtpService::class);;
 
         $this->assertFalse(
             $service->verify('233501234567', '123456')
@@ -57,7 +58,7 @@ class OtpVerificationTest extends TestCase
 
     public function test_otp_cannot_be_used_twice(): void
     {
-        $service = new OtpService();
+        $service = app(OtpService::class);
 
         $otp = $service->generate('233501234567');
 
@@ -73,7 +74,7 @@ class OtpVerificationTest extends TestCase
 
     public function test_otp_is_locked_after_max_attempts(): void
     {
-        $service = new OtpService();
+        $service = app(OtpService::class);
 
         $service->generate('233501234567');
 
