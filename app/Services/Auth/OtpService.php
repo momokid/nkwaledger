@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Services\Sms\SmsSender;
+use App\Services\Auth\PhoneNumberNormalizer;
 
 class OtpService
 {
@@ -19,6 +21,9 @@ class OtpService
      * @param string|null $userAgent
      * @return string  The raw OTP (to be sent via SMS later)
      */
+
+    public function __construct(private SmsSender $smsSender, private PhoneNumberNormalizer $phoneNormalizer) {}
+
     public function generate(
         string $phoneNumber,
         string $channel = 'web',
@@ -49,7 +54,15 @@ class OtpService
             'updated_at'   => now(),
         ]);
 
-        // 4. Return raw OTP (ONLY for SMS sending layer)
+        //4. Send OTP via SMS
+        $message = "Your NkwaLedger login code is {$otp}. Expires in 5 minutes.";
+
+        $this->smsSender->send(
+            $phoneNumber,
+            $message
+        );
+
+        // 5. Return raw OTP (ONLY for SMS sending layer)
         return $otp;
     }
 
@@ -61,6 +74,7 @@ class OtpService
 
     public function verify(string $phoneNumber, string $otp): bool
     {
+        $phoneNumber = $this->phoneNormalizer->normalize($phoneNumber);
         $record = DB::table('one_time_passwords')
             ->where('phone_number', $phoneNumber)
             ->whereNull('used_at')
