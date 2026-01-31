@@ -30,7 +30,21 @@ class OtpService
         ?string $ipAddress = null,
         ?string $userAgent = null
     ): string {
-        // 1. Invalidate existing unused OTPs for this phone
+
+        $lastOtp = DB::table('one_time_passwords')
+            ->where('phone_number', $phoneNumber)
+            ->whereNull('used_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+
+        if ($lastOtp && Carbon::parse($lastOtp->created_at)->diffInSeconds(now()) < 60) {
+            throw new \DomainException(
+                'Please wait before requesting another code.'
+            );
+        }
+
+        // Invalidate existing unused OTPs for this phone
         DB::table('one_time_passwords')
             ->where('phone_number', $phoneNumber)
             ->whereNull('used_at')
@@ -38,10 +52,10 @@ class OtpService
                 'expires_at' => Carbon::now(),
             ]);
 
-        // 2. Generate secure 6-digit numeric OTP
+        // Generate secure 6-digit numeric OTP
         $otp = (string) random_int(100000, 999999);
 
-        // 3. Store hashed OTP
+        // Store hashed OTP
         DB::table('one_time_passwords')->insert([
             'phone_number' => $phoneNumber,
             'otp_hash'     => Hash::make($otp),
@@ -54,7 +68,7 @@ class OtpService
             'updated_at'   => now(),
         ]);
 
-        //4. Send OTP via SMS
+        // Send OTP via SMS
         $message = "Your NkwaLedger login code is {$otp}. Expires in 5 minutes.";
 
         $this->smsSender->send(
@@ -62,7 +76,7 @@ class OtpService
             $message
         );
 
-        // 5. Return raw OTP (ONLY for SMS sending layer)
+        // Return raw OTP (ONLY for SMS sending layer)
         return $otp;
     }
 

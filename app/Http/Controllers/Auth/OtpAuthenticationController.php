@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Auth\OtpService;
+use App\Services\Security\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -40,7 +41,7 @@ class OtpAuthenticationController extends Controller
     /**
      * Verify OTP and authenticate user.
      */
-    public function verifyOtp(Request $request, OtpService $otpService)
+    public function verifyOtp(Request $request, OtpService $otpService, AuditLogger $auditLogger)
     {
         $validated = $request->validate([
             'phone_number' => ['required', 'string', 'max:20'],
@@ -68,6 +69,14 @@ class OtpAuthenticationController extends Controller
         }
 
         Auth::login($user);
+
+        $auditLogger->log(
+            eventType: 'otp_verified',
+            phoneNumber: $validated['phone_number'],
+            userId: $user->id,
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent()
+        );
 
         return response()->json([
             'message' => 'Authenticated successfully',

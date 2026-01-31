@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\Auth\OtpService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -33,9 +34,17 @@ class OtpServiceTest extends TestCase
     public function test_old_otps_are_invalidated_when_new_one_is_generated(): void
     {
         $service = app(\App\Services\Auth\OtpService::class);
+        $phone = '233501234567';
 
         // First OTP
-        $service->generate('233501234567');
+        $service->generate($phone);
+
+        // ⏱ Simulate cooldown expiry (move time forward)
+        DB::table('one_time_passwords')
+            ->where('phone_number', $phone)
+            ->update([
+                'created_at' => Carbon::now()->subSeconds(61),
+            ]);
 
         // Second OTP
         $service->generate('233501234567');
