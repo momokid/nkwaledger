@@ -5,14 +5,7 @@ import {
   webLightTheme,
 } from "@fluentui/react-components";
 
-function Login() {
-  return (
-    <div style={{ maxWidth: 420, margin: "4rem auto" }}>
-      <h2>NkwaLedger Login</h2>
-      <p>This is the React + Fluent UI mount.</p>
-    </div>
-  );
-}
+import Login from "./components/auth/Login";
 
 const container = document.getElementById("react-login");
 
