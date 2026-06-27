@@ -4,49 +4,47 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
+use App\Services\OtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
+    public function __construct(private readonly OtpService $otpService) {}
+
     public function create(): Response
     {
         return Inertia::render('Auth/Register');
     }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws ValidationException
-     */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        $validated = $request->validate([
+            'surname'    => ['required', 'string', 'max:100'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'other_name' => ['nullable', 'string', 'max:100'],
+            'phone'      => ['required', 'string', 'max:20', 'unique:users,phone'],
+            'email'      => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
+            'password'   => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
         ]);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'surname'    => $validated['surname'],
+            'first_name' => $validated['first_name'],
+            'other_name' => $validated['other_name'] ?? null,
+            'phone'      => $validated['phone'],
+            'email'      => $validated['email'] ?? null,
+            'password'   => Hash::make($validated['password']),
         ]);
 
-        event(new Registered($user));
+        $user->assignRole('farmer');
 
-        Auth::login($user);
+        $this->otpService->generate($user->phone, 'registration');
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect('/verify-otp');
     }
 }

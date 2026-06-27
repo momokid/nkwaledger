@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'arkesel' => [
+        'key'    => env('ARKESEL_API_KEY'),
+        'sender' => env('ARKESEL_SENDER_ID', 'NkwaLedger'),
+    ],
+
 ];
