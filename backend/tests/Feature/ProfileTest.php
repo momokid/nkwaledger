@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -18,8 +19,10 @@ test('profile information can be updated', function () {
     $response = $this
         ->actingAs($user)
         ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'surname'    => 'Mensah',
+            'first_name' => 'Kwame',
+            'other_name' => 'Asante',
+            'email'      => 'kwame@example.com',
         ]);
 
     $response
@@ -28,19 +31,22 @@ test('profile information can be updated', function () {
 
     $user->refresh();
 
-    $this->assertSame('Test User', $user->name);
-    $this->assertSame('test@example.com', $user->email);
+    $this->assertSame('Mensah', $user->surname);
+    $this->assertSame('Kwame', $user->first_name);
+    $this->assertSame('Asante', $user->other_name);
+    $this->assertSame('kwame@example.com', $user->email);
     $this->assertNull($user->email_verified_at);
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withEmail()->create();
 
     $response = $this
         ->actingAs($user)
         ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => $user->email,
+            'surname'    => $user->surname,
+            'first_name' => $user->first_name,
+            'email'      => $user->email,
         ]);
 
     $response
@@ -56,7 +62,7 @@ test('user can delete their account', function () {
     $response = $this
         ->actingAs($user)
         ->delete('/profile', [
-            'password' => 'password',
+            'password' => 'Password@123',
         ]);
 
     $response
@@ -74,7 +80,7 @@ test('correct password must be provided to delete account', function () {
         ->actingAs($user)
         ->from('/profile')
         ->delete('/profile', [
-            'password' => 'wrong-password',
+            'password' => 'WrongPassword@123',
         ]);
 
     $response
