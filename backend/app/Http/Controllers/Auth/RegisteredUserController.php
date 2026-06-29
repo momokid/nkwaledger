@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\DB;
 
 class RegisteredUserController extends Controller
 {
@@ -29,21 +30,26 @@ class RegisteredUserController extends Controller
             'other_name' => ['nullable', 'string', 'max:100'],
             'phone'      => ['required', 'string', 'max:20', 'unique:users,phone'],
             'email'      => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password'   => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+            'password'   => ['required', 'confirmed', 'min:6'],
         ]);
 
-        $user = User::create([
-            'surname'    => $validated['surname'],
-            'first_name' => $validated['first_name'],
-            'other_name' => $validated['other_name'] ?? null,
-            'phone'      => $validated['phone'],
-            'email'      => $validated['email'] ?? null,
-            'password'   => Hash::make($validated['password']),
-        ]);
+        DB::transaction(function () use ($validated, $request) {
+            $user = User::create([
+                'surname'    => $validated['surname'],
+                'first_name' => $validated['first_name'],
+                'other_name' => $validated['other_name'] ?? null,
+                'phone'      => $validated['phone'],
+                'email'      => $validated['email'] ?? null,
+                'password'   => Hash::make($validated['password']),
+            ]);
 
-        $user->assignRole('farmer');
+            $user->assignRole('farmer');
 
-        $this->otpService->generate($user->phone, 'registration');
+            $this->otpService->generate($user->phone, 'registration');
+
+            $request->session()->put('auth.login_identifier', $user->phone);
+            $request->session()->put('auth.otp_type', 'registration');
+        });
 
         return redirect('/verify-otp');
     }

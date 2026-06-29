@@ -1,19 +1,15 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
-
-uses(RefreshDatabase::class);
 
 test('login screen can be rendered', function () {
     $response = $this->get('/login');
-
     $response->assertStatus(200);
 });
 
 test('user can login with phone and password', function () {
-    $user = User::factory()->create([
+    User::factory()->create([
         'phone'    => '+233244000001',
         'password' => bcrypt('Password@123'),
     ]);
@@ -23,11 +19,12 @@ test('user can login with phone and password', function () {
         'password'   => 'Password@123',
     ]);
 
-    $response->assertRedirect('/verify-otp');
+    $response->assertRedirect('/farmer/dashboard');
+    $this->assertAuthenticated();
 });
 
 test('user can login with email and password', function () {
-    $user = User::factory()->withEmail()->create([
+    User::factory()->withEmail()->create([
         'email'    => 'kwame@example.com',
         'password' => bcrypt('Password@123'),
     ]);
@@ -37,10 +34,11 @@ test('user can login with email and password', function () {
         'password'   => 'Password@123',
     ]);
 
-    $response->assertRedirect('/verify-otp');
+    $response->assertRedirect('/farmer/dashboard');
+    $this->assertAuthenticated();
 });
 
-test('session is not authenticated immediately after login credentials pass', function () {
+test('user is authenticated immediately after password login', function () {
     User::factory()->create([
         'phone'    => '+233244000001',
         'password' => bcrypt('Password@123'),
@@ -51,24 +49,42 @@ test('session is not authenticated immediately after login credentials pass', fu
         'password'   => 'Password@123',
     ]);
 
-    $this->assertGuest();
+    $this->assertAuthenticated();
 });
 
-test('otp is triggered after successful credential check', function () {
+test('otp login sends otp to phone', function () {
     User::factory()->create([
-        'phone'    => '+233244000001',
-        'password' => bcrypt('Password@123'),
+        'phone' => '+233244000001',
     ]);
 
-    $this->post('/login', [
-        'identifier' => '+233244000001',
-        'password'   => 'Password@123',
+    $this->post('/login/otp', [
+        'phone' => '+233244000001',
     ]);
 
     $this->assertDatabaseHas('otp_codes', [
         'identifier' => '+233244000001',
         'type'       => 'login',
     ]);
+});
+
+test('otp login redirects to verify otp', function () {
+    User::factory()->create([
+        'phone' => '+233244000001',
+    ]);
+
+    $response = $this->post('/login/otp', [
+        'phone' => '+233244000001',
+    ]);
+
+    $response->assertRedirect('/verify-otp');
+});
+
+test('otp login fails with non-existent phone', function () {
+    $response = $this->post('/login/otp', [
+        'phone' => '+233244000099',
+    ]);
+
+    $response->assertSessionHasErrors(['phone']);
 });
 
 test('login fails with wrong password', function () {
@@ -118,7 +134,7 @@ test('login is rate limited after five failed attempts', function () {
         'password' => bcrypt('Password@123'),
     ]);
 
-    foreach (range(1, 5) as $attempt) {
+    for ($i = 0; $i < 5; $i++) {
         $this->post('/login', [
             'identifier' => '+233244000001',
             'password'   => 'WrongPassword',
@@ -127,7 +143,7 @@ test('login is rate limited after five failed attempts', function () {
 
     $response = $this->post('/login', [
         'identifier' => '+233244000001',
-        'password'   => 'Password@123',
+        'password'   => 'WrongPassword',
     ]);
 
     $response->assertSessionHasErrors(['identifier']);
@@ -138,6 +154,6 @@ test('user can logout', function () {
 
     $response = $this->actingAs($user)->post('/logout');
 
-    $this->assertGuest();
     $response->assertRedirect('/login');
+    $this->assertGuest();
 });

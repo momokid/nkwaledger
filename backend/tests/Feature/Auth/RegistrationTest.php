@@ -125,11 +125,11 @@ test('registration fails with duplicate phone', function () {
 
 test('registration fails with weak password', function () {
     $response = $this->post('/register', [
-        'surname' => 'Mensah',
-        'first_name' => 'Kwame',
-        'phone' => '+233244000001',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'surname'              => 'Mensah',
+        'first_name'           => 'Kwame',
+        'phone'                => '+233244000001',
+        'password'             => 'abc12',
+        'password_confirmation' => 'abc12',
     ]);
 
     $response->assertSessionHasErrors(['password']);
