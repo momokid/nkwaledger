@@ -26,14 +26,25 @@ class AuthenticatedSessionController extends Controller
 
     public function store(LoginRequest $request): RedirectResponse
     {
-        $user       = $request->authenticate();
-        $identifier = $user->phone ?? $user->email;
+        $user = $request->authenticate();
 
-        $this->otpService->generate($identifier, 'login');
+        Auth::login($user);
 
-        $request->session()->put('auth.login_identifier', $identifier);
+        $request->session()->regenerate();
 
-        return redirect('/verify-otp');
+        return redirect($this->dashboardFor($user));
+    }
+
+    private function dashboardFor(mixed $user): string
+    {
+        return match (true) {
+            $user?->hasRole('admin')    => '/admin/dashboard',
+            $user?->hasRole('agent')    => '/agent/dashboard',
+            $user?->hasRole('vet')      => '/vet/dashboard',
+            $user?->hasRole('adviser')  => '/adviser/dashboard',
+            $user?->hasRole('supplier') => '/supplier/dashboard',
+            default                     => '/farmer/dashboard',
+        };
     }
 
     public function destroy(Request $request): RedirectResponse

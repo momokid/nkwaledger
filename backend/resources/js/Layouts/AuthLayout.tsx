@@ -13,14 +13,14 @@ export default function AuthLayout({
 }: Props) {
     return (
         <div
-            className="min-h-screen flex items-center justify-center p-4 bg-gray-50"
+            className="min-h-screen flex bg-gray-50"
             style={{
                 fontFamily:
                     "'Inter', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif",
             }}
         >
-            <div className="w-full max-w-3xl">
-                <div className="flex overflow-hidden border border-gray-400">
+            <div className="w-full">
+                <div className="flex overflow-hidden border min-h-[calc(100vh-3rem)]">
                     {showBrandPanel && (
                         <div
                             className="hidden lg:flex flex-col flex-shrink-0 p-8"
