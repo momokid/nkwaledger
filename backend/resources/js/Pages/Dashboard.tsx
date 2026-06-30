@@ -2,10 +2,19 @@ import { Head, router } from "@inertiajs/react";
 import useAuthGuard from "@/hooks/useAuthGuard";
 
 export default function Dashboard() {
-    const logout = () => {
-        router.post(route("logout"));
-    };
+    useAuthGuard();
 
+    const logout = () => {
+        router.post(
+            route("logout"),
+            {},
+            {
+                onSuccess: () => {
+                    window.history.replaceState({ loggedOut: true }, "");
+                },
+            },
+        );
+    };
     return (
         <div
             className="min-h-screen flex flex-col items-center justify-center bg-gray-50"
