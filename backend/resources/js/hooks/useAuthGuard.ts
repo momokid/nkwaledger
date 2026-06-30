@@ -1,31 +1,23 @@
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { useEffect } from "react";
 
 export default function useAuthGuard() {
+    const { auth } = usePage().props as { auth: { user: object | null } };
+
     useEffect(() => {
-        const check = async () => {
-            try {
-                const res = await fetch("/auth/check", {
-                    headers: { "X-Requested-With": "XMLHttpRequest" },
-                    credentials: "same-origin",
-                });
-                if (!res.ok) {
-                    router.visit("/login", { replace: true });
-                }
-            } catch {
-                router.visit("/login", { replace: true });
-            }
-        };
+        if (!auth.user) {
+            router.visit("/login", { replace: true });
+        }
+    }, [auth.user]);
 
-        check();
-
+    useEffect(() => {
         const onPageShow = (e: PageTransitionEvent) => {
-            if (e.persisted) {
-                window.location.reload();
+            if (e.persisted && !auth.user) {
+                router.visit("/login", { replace: true });
             }
         };
 
         window.addEventListener("pageshow", onPageShow);
         return () => window.removeEventListener("pageshow", onPageShow);
-    }, []);
+    }, [auth.user]);
 }

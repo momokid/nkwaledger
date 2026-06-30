@@ -17,6 +17,14 @@ interface Props {
     status?: string;
 }
 
+type Tab = "password" | "otp";
+
+const features = [
+    "MTN MoMo payments integrated",
+    "AI-powered VetAI and CropAI",
+    "Trusted by farmers across Ghana",
+];
+
 function Divider({ label }: { label?: string }) {
     return (
         <div
@@ -44,25 +52,345 @@ function Divider({ label }: { label?: string }) {
     );
 }
 
-const features = [
-    "MTN MoMo payments integrated",
-    "AI-powered VetAI and CropAI",
-    "Trusted by farmers across Ghana",
-];
-
-export default function Login({ canResetPassword, status }: Props) {
+function PasswordForm({ canResetPassword, status }: Props) {
     const [showPassword, setShowPassword] = useState(false);
-
     const { data, setData, post, processing, errors } = useForm({
         identifier: "",
         password: "",
-        remember: false,
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         post(route("login"));
     };
+
+    return (
+        <form onSubmit={submit}>
+            {status && (
+                <div
+                    style={{
+                        marginBottom: "1rem",
+                        fontSize: "17px",
+                        color: "#1D9E75",
+                    }}
+                >
+                    {status}
+                </div>
+            )}
+
+            <div style={{ marginBottom: "16px" }}>
+                <label
+                    style={{
+                        display: "block",
+                        fontSize: "17px",
+                        fontWeight: 600,
+                        color: "#111827",
+                        marginBottom: "6px",
+                    }}
+                >
+                    Phone or email
+                </label>
+                <div style={{ position: "relative" }}>
+                    <span
+                        style={{
+                            position: "absolute",
+                            left: "12px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            pointerEvents: "none",
+                        }}
+                    >
+                        <IconPhone size={18} color="#9CA3AF" />
+                    </span>
+                    <input
+                        type="text"
+                        placeholder="+233 XX XXX XXXX or email"
+                        value={data.identifier}
+                        onChange={(e) => setData("identifier", e.target.value)}
+                        style={{
+                            width: "100%",
+                            border: "1px solid #9CA3AF",
+                            padding: "10px 12px 10px 40px",
+                            fontSize: "17px",
+                            color: "#111827",
+                            background: "#fff",
+                            outline: "none",
+                            fontFamily: "inherit",
+                        }}
+                        onFocus={(e) => {
+                            e.target.style.border = "2px solid #1D9E75";
+                            e.target.style.paddingLeft = "39px";
+                        }}
+                        onBlur={(e) => {
+                            e.target.style.border = "1px solid #9CA3AF";
+                            e.target.style.paddingLeft = "40px";
+                        }}
+                    />
+                </div>
+                {errors.identifier && (
+                    <p
+                        style={{
+                            marginTop: "4px",
+                            fontSize: "15px",
+                            color: "#DC2626",
+                        }}
+                    >
+                        {errors.identifier}
+                    </p>
+                )}
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+                <label
+                    style={{
+                        display: "block",
+                        fontSize: "17px",
+                        fontWeight: 600,
+                        color: "#111827",
+                        marginBottom: "6px",
+                    }}
+                >
+                    Password
+                </label>
+                <div style={{ position: "relative" }}>
+                    <span
+                        style={{
+                            position: "absolute",
+                            left: "12px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            pointerEvents: "none",
+                        }}
+                    >
+                        <IconLock size={18} color="#9CA3AF" />
+                    </span>
+                    <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Your password"
+                        value={data.password}
+                        onChange={(e) => setData("password", e.target.value)}
+                        style={{
+                            width: "100%",
+                            border: "1px solid #9CA3AF",
+                            padding: "10px 40px 10px 40px",
+                            fontSize: "17px",
+                            color: "#111827",
+                            background: "#fff",
+                            outline: "none",
+                            fontFamily: "inherit",
+                        }}
+                        onFocus={(e) => {
+                            e.target.style.border = "2px solid #1D9E75";
+                            e.target.style.paddingLeft = "39px";
+                        }}
+                        onBlur={(e) => {
+                            e.target.style.border = "1px solid #9CA3AF";
+                            e.target.style.paddingLeft = "40px";
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                            position: "absolute",
+                            right: "12px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: 0,
+                            display: "flex",
+                        }}
+                    >
+                        {showPassword ? (
+                            <IconEyeOff size={18} color="#9CA3AF" />
+                        ) : (
+                            <IconEye size={18} color="#9CA3AF" />
+                        )}
+                    </button>
+                </div>
+                {errors.password && (
+                    <p
+                        style={{
+                            marginTop: "4px",
+                            fontSize: "15px",
+                            color: "#DC2626",
+                        }}
+                    >
+                        {errors.password}
+                    </p>
+                )}
+            </div>
+
+            {canResetPassword && (
+                <div style={{ textAlign: "right", margin: "-8px 0 16px" }}>
+                    <Link
+                        href={route("password.request")}
+                        style={{
+                            fontSize: "15px",
+                            fontWeight: 600,
+                            color: "#1D9E75",
+                            textDecoration: "none",
+                        }}
+                    >
+                        Forgot password?
+                    </Link>
+                </div>
+            )}
+
+            <button
+                type="submit"
+                disabled={processing}
+                style={{
+                    width: "100%",
+                    background: processing ? "#6B7280" : "#1D9E75",
+                    color: "#fff",
+                    border: "none",
+                    padding: "13px 20px",
+                    fontSize: "20px",
+                    fontWeight: 600,
+                    cursor: processing ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: "inherit",
+                }}
+                onMouseOver={(e) => {
+                    if (!processing)
+                        e.currentTarget.style.background = "#0F6E56";
+                }}
+                onMouseOut={(e) => {
+                    if (!processing)
+                        e.currentTarget.style.background = "#1D9E75";
+                }}
+            >
+                {processing ? "Signing in..." : "Sign in"}
+            </button>
+        </form>
+    );
+}
+
+function OtpForm() {
+    const { data, setData, post, processing, errors } = useForm({ phone: "" });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        post(route("login.otp"));
+    };
+
+    return (
+        <form onSubmit={submit}>
+            <div style={{ marginBottom: "16px" }}>
+                <label
+                    style={{
+                        display: "block",
+                        fontSize: "17px",
+                        fontWeight: 600,
+                        color: "#111827",
+                        marginBottom: "6px",
+                    }}
+                >
+                    Phone number
+                </label>
+                <div style={{ position: "relative" }}>
+                    <span
+                        style={{
+                            position: "absolute",
+                            left: "12px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            pointerEvents: "none",
+                        }}
+                    >
+                        <IconPhone size={18} color="#9CA3AF" />
+                    </span>
+                    <input
+                        type="tel"
+                        placeholder="+233 XX XXX XXXX"
+                        value={data.phone}
+                        onChange={(e) => setData("phone", e.target.value)}
+                        style={{
+                            width: "100%",
+                            border: "1px solid #9CA3AF",
+                            padding: "10px 12px 10px 40px",
+                            fontSize: "17px",
+                            color: "#111827",
+                            background: "#fff",
+                            outline: "none",
+                            fontFamily: "inherit",
+                        }}
+                        onFocus={(e) => {
+                            e.target.style.border = "2px solid #1D9E75";
+                            e.target.style.paddingLeft = "39px";
+                        }}
+                        onBlur={(e) => {
+                            e.target.style.border = "1px solid #9CA3AF";
+                            e.target.style.paddingLeft = "40px";
+                        }}
+                        autoComplete="off"
+                    />
+                </div>
+                {errors.phone && (
+                    <p
+                        style={{
+                            marginTop: "4px",
+                            fontSize: "15px",
+                            color: "#DC2626",
+                        }}
+                    >
+                        {errors.phone}
+                    </p>
+                )}
+            </div>
+
+            <button
+                type="submit"
+                disabled={processing}
+                style={{
+                    width: "100%",
+                    background: processing ? "#6B7280" : "#1D9E75",
+                    color: "#fff",
+                    border: "none",
+                    padding: "13px 20px",
+                    fontSize: "20px",
+                    fontWeight: 600,
+                    cursor: processing ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    fontFamily: "inherit",
+                }}
+                onMouseOver={(e) => {
+                    if (!processing)
+                        e.currentTarget.style.background = "#0F6E56";
+                }}
+                onMouseOut={(e) => {
+                    if (!processing)
+                        e.currentTarget.style.background = "#1D9E75";
+                }}
+            >
+                <IconDeviceMobileMessage size={20} color="#fff" />
+                {processing ? "Sending..." : "Send one-time code"}
+            </button>
+
+            <p
+                style={{
+                    marginTop: "14px",
+                    fontSize: "15px",
+                    color: "#6B7280",
+                    textAlign: "center",
+                }}
+            >
+                A 6-digit code will be sent to your registered phone number.
+            </p>
+        </form>
+    );
+}
+
+export default function Login({ canResetPassword, status }: Props) {
+    const [tab, setTab] = useState<Tab>("password");
 
     return (
         <div
@@ -226,257 +554,49 @@ export default function Login({ canResetPassword, status }: Props) {
                         to continue to NkwaLedger
                     </p>
 
-                    {status && (
-                        <div
-                            style={{
-                                marginBottom: "1rem",
-                                fontSize: "17px",
-                                color: "#1D9E75",
-                            }}
-                        >
-                            {status}
-                        </div>
-                    )}
-
-                    <form onSubmit={submit}>
-                        <div style={{ marginBottom: "16px" }}>
-                            <label
-                                style={{
-                                    display: "block",
-                                    fontSize: "17px",
-                                    fontWeight: 600,
-                                    color: "#111827",
-                                    marginBottom: "6px",
-                                }}
-                            >
-                                Phone or email
-                            </label>
-                            <div style={{ position: "relative" }}>
-                                <span
-                                    style={{
-                                        position: "absolute",
-                                        left: "12px",
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                        pointerEvents: "none",
-                                    }}
-                                >
-                                    <IconPhone size={18} color="#9CA3AF" />
-                                </span>
-                                <input
-                                    type="text"
-                                    placeholder="+233 XX XXX XXXX or email"
-                                    value={data.identifier}
-                                    onChange={(e) =>
-                                        setData("identifier", e.target.value)
-                                    }
-                                    style={{
-                                        width: "100%",
-                                        border: "1px solid #9CA3AF",
-                                        padding: "10px 12px 10px 40px",
-                                        fontSize: "17px",
-                                        color: "#111827",
-                                        background: "#fff",
-                                        outline: "none",
-                                        fontFamily: "inherit",
-                                    }}
-                                    onFocus={(e) => {
-                                        e.target.style.border =
-                                            "2px solid #1D9E75";
-                                        e.target.style.paddingLeft = "39px";
-                                    }}
-                                    onBlur={(e) => {
-                                        e.target.style.border =
-                                            "1px solid #9CA3AF";
-                                        e.target.style.paddingLeft = "40px";
-                                    }}
-                                />
-                            </div>
-                            {errors.identifier && (
-                                <p
-                                    style={{
-                                        marginTop: "4px",
-                                        fontSize: "15px",
-                                        color: "#DC2626",
-                                    }}
-                                >
-                                    {errors.identifier}
-                                </p>
-                            )}
-                        </div>
-
-                        <div style={{ marginBottom: "16px" }}>
-                            <label
-                                style={{
-                                    display: "block",
-                                    fontSize: "17px",
-                                    fontWeight: 600,
-                                    color: "#111827",
-                                    marginBottom: "6px",
-                                }}
-                            >
-                                Password
-                            </label>
-                            <div style={{ position: "relative" }}>
-                                <span
-                                    style={{
-                                        position: "absolute",
-                                        left: "12px",
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                        pointerEvents: "none",
-                                    }}
-                                >
-                                    <IconLock size={18} color="#9CA3AF" />
-                                </span>
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Your password"
-                                    value={data.password}
-                                    onChange={(e) =>
-                                        setData("password", e.target.value)
-                                    }
-                                    style={{
-                                        width: "100%",
-                                        border: "1px solid #9CA3AF",
-                                        padding: "10px 40px 10px 40px",
-                                        fontSize: "17px",
-                                        color: "#111827",
-                                        background: "#fff",
-                                        outline: "none",
-                                        fontFamily: "inherit",
-                                    }}
-                                    onFocus={(e) => {
-                                        e.target.style.border =
-                                            "2px solid #1D9E75";
-                                        e.target.style.paddingLeft = "39px";
-                                    }}
-                                    onBlur={(e) => {
-                                        e.target.style.border =
-                                            "1px solid #9CA3AF";
-                                        e.target.style.paddingLeft = "40px";
-                                    }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowPassword(!showPassword)
-                                    }
-                                    style={{
-                                        position: "absolute",
-                                        right: "12px",
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                        background: "none",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        padding: 0,
-                                        display: "flex",
-                                    }}
-                                >
-                                    {showPassword ? (
-                                        <IconEyeOff size={18} color="#9CA3AF" />
-                                    ) : (
-                                        <IconEye size={18} color="#9CA3AF" />
-                                    )}
-                                </button>
-                            </div>
-                            {errors.password && (
-                                <p
-                                    style={{
-                                        marginTop: "4px",
-                                        fontSize: "15px",
-                                        color: "#DC2626",
-                                    }}
-                                >
-                                    {errors.password}
-                                </p>
-                            )}
-                        </div>
-
-                        {canResetPassword && (
-                            <div
-                                style={{
-                                    textAlign: "right",
-                                    margin: "-8px 0 16px",
-                                }}
-                            >
-                                <Link
-                                    href={route("password.request")}
-                                    style={{
-                                        fontSize: "15px",
-                                        fontWeight: 600,
-                                        color: "#1D9E75",
-                                        textDecoration: "none",
-                                    }}
-                                >
-                                    Forgot password?
-                                </Link>
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            style={{
-                                width: "100%",
-                                background: processing ? "#6B7280" : "#1D9E75",
-                                color: "#fff",
-                                border: "none",
-                                padding: "13px 20px",
-                                fontSize: "20px",
-                                fontWeight: 600,
-                                cursor: processing ? "not-allowed" : "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontFamily: "inherit",
-                            }}
-                            onMouseOver={(e) => {
-                                if (!processing)
-                                    e.currentTarget.style.background =
-                                        "#0F6E56";
-                            }}
-                            onMouseOut={(e) => {
-                                if (!processing)
-                                    e.currentTarget.style.background =
-                                        "#1D9E75";
-                            }}
-                        >
-                            {processing ? "Signing in..." : "Sign in"}
-                        </button>
-                    </form>
-
-                    <Divider label="or" />
-
-                    <Link
-                        href={route("otp.create")}
+                    <div
                         style={{
-                            width: "100%",
-                            background: "#fff",
-                            color: "#111827",
-                            border: "1px solid #9CA3AF",
-                            padding: "13px 20px",
-                            fontSize: "20px",
-                            fontWeight: 400,
-                            cursor: "pointer",
+                            borderBottom: "1px solid #E5E7EB",
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "8px",
-                            textDecoration: "none",
-                            fontFamily: "inherit",
+                            marginBottom: "1.75rem",
                         }}
-                        onMouseOver={(e) =>
-                            (e.currentTarget.style.background = "#F3F4F6")
-                        }
-                        onMouseOut={(e) =>
-                            (e.currentTarget.style.background = "#fff")
-                        }
                     >
-                        <IconDeviceMobileMessage size={20} color="#6B7280" />
-                        Sign in with a one-time code
-                    </Link>
+                        {(["password", "otp"] as Tab[]).map((key) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setTab(key)}
+                                style={{
+                                    padding: "10px 18px",
+                                    fontSize: "17px",
+                                    fontWeight: tab === key ? 600 : 400,
+                                    color: tab === key ? "#1D9E75" : "#6B7280",
+                                    background: "none",
+                                    border: "none",
+                                    borderBottom:
+                                        tab === key
+                                            ? "2px solid #1D9E75"
+                                            : "2px solid transparent",
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    marginBottom: "-1px",
+                                }}
+                            >
+                                {key === "password"
+                                    ? "Password"
+                                    : "One-time code"}
+                            </button>
+                        ))}
+                    </div>
+
+                    {tab === "password" ? (
+                        <PasswordForm
+                            canResetPassword={canResetPassword}
+                            status={status}
+                        />
+                    ) : (
+                        <OtpForm />
+                    )}
 
                     <Divider label="or continue with" />
 

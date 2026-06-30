@@ -9,7 +9,12 @@ const appName = import.meta.env.VITE_APP_NAME || "NkwaLedger";
 
 window.addEventListener("pageshow", (e: PageTransitionEvent) => {
     if (e.persisted) {
-        window.location.reload();
+        const state = window.history.state;
+        if (state?.loggedOut) {
+            window.location.replace("/login");
+        } else {
+            window.location.reload();
+        }
     }
 });
 
