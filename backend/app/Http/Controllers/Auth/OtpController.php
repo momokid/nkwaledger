@@ -75,6 +75,10 @@ class OtpController extends Controller
             }
         }
 
+        if ($user && ! $user->is_phone_verified) {
+            $user->update(['is_phone_verified' => true]);
+        }
+
         return redirect($this->dashboardFor($user));
     }
 

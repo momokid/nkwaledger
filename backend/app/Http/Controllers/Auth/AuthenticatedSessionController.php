@@ -28,6 +28,17 @@ class AuthenticatedSessionController extends Controller
     {
         $user = $request->authenticate();
 
+        if (! $user->is_phone_verified) {
+            $identifier = $user->phone ?? $user->email;
+
+            $this->otpService->generate($identifier, 'login');
+
+            $request->session()->put('auth.login_identifier', $identifier);
+            $request->session()->put('auth.otp_type', 'login');
+
+            return redirect('/verify-otp');
+        }
+
         Auth::login($user);
 
         $request->session()->regenerate();

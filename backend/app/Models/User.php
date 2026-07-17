@@ -18,6 +18,7 @@ use Spatie\Permission\Traits\HasRoles;
     'email',
     'password',
     'is_active',
+    'is_phone_verified',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -32,6 +33,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'is_active'         => 'boolean',
+            'is_phone_verified'  => 'boolean',
         ];
     }
 }

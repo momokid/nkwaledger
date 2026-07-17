@@ -60,6 +60,28 @@ test('otp is marked as used after successful verification', function () {
     expect(OtpCode::where('identifier', '+233244000001')->first()->used_at)->not->toBeNull();
 });
 
+test('user phone is marked verified after successful otp verification', function () {
+    $user = User::factory()->create([
+        'phone'             => '+233244000001',
+        'is_phone_verified' => false,
+    ]);
+
+    OtpCode::create([
+        'identifier' => '+233244000001',
+        'code'       => Hash::make('123456'),
+        'type'       => 'registration',
+        'expires_at' => now()->addMinutes(10),
+    ]);
+
+    $this->actingAs($user)->post('/verify-otp', [
+        'identifier' => '+233244000001',
+        'code'       => '123456',
+        'type'       => 'registration',
+    ]);
+
+    expect($user->fresh()->is_phone_verified)->toBeTrue();
+});
+
 test('expired otp cannot be verified', function () {
     $user = User::factory()->create([
         'phone' => '+233244000001',

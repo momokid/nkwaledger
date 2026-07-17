@@ -13,16 +13,16 @@ test('registration screen can be rendered', function () {
 
 test('farmer can register with phone', function () {
     $response = $this->post('/register', [
-        'surname' => 'Mensah',
-        'first_name' => 'Kwame',
-        'other_name' => 'Asante',
-        'phone' => '+233244000001',
-        'email' => 'kwame@example.com',
-        'password' => 'Password@123',
+        'surname'              => 'Mensah',
+        'first_name'           => 'Kwame',
+        'phone'                => '+233244000001',
+        'password'             => 'Password@123',
         'password_confirmation' => 'Password@123',
     ]);
 
-    expect(User::where('phone', '+233244000001')->exists())->toBeTrue();
+    $user = User::where('phone', '+233244000001')->first();
+    expect($user)->not->toBeNull();
+    expect($user->is_phone_verified)->toBeFalse();
 });
 
 test('farmer is assigned farmer role on registration', function () {

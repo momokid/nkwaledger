@@ -10,8 +10,9 @@ test('login screen can be rendered', function () {
 
 test('user can login with phone and password', function () {
     User::factory()->create([
-        'phone'    => '+233244000001',
+        'phone' => '+233244000001',
         'password' => bcrypt('Password@123'),
+        'is_phone_verified' => true,
     ]);
 
     $response = $this->post('/login', [
@@ -25,8 +26,9 @@ test('user can login with phone and password', function () {
 
 test('user can login with email and password', function () {
     User::factory()->withEmail()->create([
-        'email'    => 'kwame@example.com',
+        'email' => 'kwame@example.com',
         'password' => bcrypt('Password@123'),
+        'is_phone_verified' => true,
     ]);
 
     $response = $this->post('/login', [
@@ -42,6 +44,7 @@ test('user is authenticated immediately after password login', function () {
     User::factory()->create([
         'phone'    => '+233244000001',
         'password' => bcrypt('Password@123'),
+        'is_phone_verified' => true,
     ]);
 
     $this->post('/login', [
@@ -49,6 +52,38 @@ test('user is authenticated immediately after password login', function () {
         'password'   => 'Password@123',
     ]);
 
+    $this->assertAuthenticated();
+});
+
+test('unverified user is redirected to verify otp on password login', function () {
+    User::factory()->create([
+        'phone'             => '+233244000001',
+        'password'          => bcrypt('Password@123'),
+        'is_phone_verified' => false,
+    ]);
+
+    $response = $this->post('/login', [
+        'identifier' => '+233244000001',
+        'password'   => 'Password@123',
+    ]);
+
+    $response->assertRedirect('/verify-otp');
+    $this->assertGuest();
+});
+
+test('verified user is logged in directly on password login', function () {
+    User::factory()->create([
+        'phone'             => '+233244000001',
+        'password'          => bcrypt('Password@123'),
+        'is_phone_verified' => true,
+    ]);
+
+    $response = $this->post('/login', [
+        'identifier' => '+233244000001',
+        'password'   => 'Password@123',
+    ]);
+
+    $response->assertRedirect('/farmer/dashboard');
     $this->assertAuthenticated();
 });
 
