@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\PhoneNormalizer;
 
 class OtpController extends Controller
 {
@@ -30,18 +31,14 @@ class OtpController extends Controller
             'phone' => ['required', 'string'],
         ]);
 
-        $user = \App\Models\User::where('phone', $validated['phone'])->first();
+        $phone = PhoneNormalizer::normalize($validated['phone']);
+        $user  = User::where('phone', $phone)->first();
 
-        if (! $user) {
-            throw ValidationException::withMessages([
-                'phone' => 'No account found with this phone number.',
-            ]);
+        if ($user) {
+            $this->otpService->generate($phone, 'login');
+            $request->session()->put('auth.login_identifier', $phone);
+            $request->session()->put('auth.otp_type', 'login');
         }
-
-        $this->otpService->generate($validated['phone'], 'login');
-
-        $request->session()->put('auth.login_identifier', $validated['phone']);
-        $request->session()->put('auth.otp_type', 'login');
 
         return redirect('/verify-otp');
     }

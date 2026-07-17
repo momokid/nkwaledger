@@ -79,12 +79,12 @@ test('otp login redirects to verify otp', function () {
     $response->assertRedirect('/verify-otp');
 });
 
-test('otp login fails with non-existent phone', function () {
+test('otp login with non-existent phone still redirects to verify otp', function () {
     $response = $this->post('/login/otp', [
         'phone' => '+233244000099',
     ]);
 
-    $response->assertSessionHasErrors(['phone']);
+    $response->assertRedirect('/verify-otp');
 });
 
 test('login fails with wrong password', function () {

@@ -12,6 +12,7 @@ use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\DB;
+use App\Services\PhoneNormalizer;
 
 class RegisteredUserController extends Controller
 {
@@ -38,7 +39,7 @@ class RegisteredUserController extends Controller
                 'surname'    => $validated['surname'],
                 'first_name' => $validated['first_name'],
                 'other_name' => $validated['other_name'] ?? null,
-                'phone'      => $validated['phone'],
+                'phone' => PhoneNormalizer::normalize($validated['phone']),
                 'email'      => $validated['email'] ?? null,
                 'password'   => Hash::make($validated['password']),
             ]);
