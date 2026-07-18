@@ -1,0 +1,47 @@
+# ───── Environment files — never commit credentials ─────
+backend/.env
+backend/.env.backup
+backend/.env.production
+backend/.env.staging
+backend/.env.testing
+mobile/.env
+mobile/.env.local
+mobile/.env.production
+
+# ───── IDE helper files — generated, not source code ─────
+backend/_ide_helper.php
+backend/_ide_helper_models.php
+backend/.phpstorm.meta.php
+
+# ───── Dependencies — installed, not committed ─────
+backend/vendor/
+mobile/node_modules/
+
+# ───── Build output ─────
+backend/public/build/
+backend/public/hot/
+backend/bootstrap/ssr/
+mobile/.expo/
+mobile/dist/
+
+# ───── Laravel runtime files ─────
+backend/storage/*.key
+backend/storage/pail/
+backend/.phpunit.cache/
+backend/.phpunit.result.cache
+
+# ───── OS files ─────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ───── IDE folders ─────
+.idea/
+.vscode/
+.cursor/
+.zed/
+
+# ───── Project handoff docs — internal only ─────
+HANDOFF.md
+
+Context.md
