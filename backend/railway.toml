@@ -1,10 +1,8 @@
 [build]
-builder = "nixpacks"
-buildCommand = "composer install --no-dev --optimize-autoloader && npm ci && npm run build && php artisan config:cache && php artisan route:cache && php artisan view:cache"
+builder = "dockerfile"
 
 [deploy]
-preDeployCommand = "php artisan migrate --force"
-startCommand = "php artisan serve --host=0.0.0.0 --port=$PORT"
+preDeployCommand = "php artisan migrate --force && php artisan db:seed --class=RolesAndPermissionsSeeder --force"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
