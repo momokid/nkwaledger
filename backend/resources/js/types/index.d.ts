@@ -1,10 +1,13 @@
-import { Config } from 'ziggy-js';
+import { Config } from "ziggy-js";
 
 export interface User {
     id: number;
-    name: string;
-    email: string;
-    email_verified_at?: string;
+    surname: string;
+    first_name: string;
+    other_name: string | null;
+    phone: string;
+    email: string | null;
+    is_active: boolean;
 }
 
 export type PageProps<

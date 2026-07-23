@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Services\AccessControlService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -15,7 +16,8 @@ class MakeAdminCommand extends Command
 
     protected $description = 'Create an admin user account';
 
-    public function handle(): int
+    // added: handle() now receives AccessControlService for the bootstrap safety check
+    public function handle(AccessControlService $accessControl): int
     {
         $surname = $this->ask('Surname');
         $firstName = $this->ask('First name');
@@ -52,7 +54,21 @@ class MakeAdminCommand extends Command
 
         $validated = $validator->validated();
 
-        $user = DB::transaction(function () use ($validated) {
+        // added: ask whether this admin should manage access, then decide if it must be forced
+        $wantsAccessControl = $this->confirm(
+            "Should this admin be able to manage other users' roles and permissions?"
+        );
+
+        $hasEffectiveHolder = $this->hasEffectiveAccessControlHolder($accessControl);
+        $grantAccessControl = $wantsAccessControl || ! $hasEffectiveHolder;
+
+        if (! $wantsAccessControl && ! $hasEffectiveHolder) {
+            $this->warn(
+                'No admin currently holds access-control.manage, so this account is being granted it automatically to avoid locking everyone out.'
+            );
+        }
+
+        $user = DB::transaction(function () use ($validated, $grantAccessControl) {
             $user = User::create([
                 'surname' => $validated['surname'],
                 'first_name' => $validated['first_name'],
@@ -70,11 +86,30 @@ class MakeAdminCommand extends Command
 
             $user->assignRole('admin');
 
+            // added: grant access-control.manage when requested or forced by the bootstrap check
+            if ($grantAccessControl) {
+                $user->givePermissionTo('access-control.manage');
+            }
+
             return $user;
         });
 
         $this->info("Admin account created: {$user->first_name} {$user->surname} ({$user->phone})");
 
         return self::SUCCESS;
+    }
+
+    // added: checks whether anyone can *actually* use access-control.manage right now, accounting for denials
+    protected function hasEffectiveAccessControlHolder(AccessControlService $accessControl): bool
+    {
+        $candidates = User::permission('access-control.manage')->get();
+
+        foreach ($candidates as $candidate) {
+            if ($accessControl->can($candidate, 'access-control.manage')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

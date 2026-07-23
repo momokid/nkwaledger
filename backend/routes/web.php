@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\Admin\UserAccessController; // handles the user search and user detail permission screens
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -57,8 +60,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', fn() => redirect()->route('farmer.dashboard'));
     Route::get('/farmer/dashboard', fn() => Inertia::render('Dashboard'))
         ->name('farmer.dashboard');
-    Route::get('/admin/dashboard', fn() => Inertia::render('Dashboard'))
-        ->name('admin.dashboard');
     Route::get('/agent/dashboard', fn() => Inertia::render('Dashboard'))
         ->name('agent.dashboard');
     Route::get('/vet/dashboard', fn() => Inertia::render('Dashboard'))
@@ -86,4 +87,19 @@ Route::middleware('auth')->group(function () {
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+});
+
+// gated to the admin role only, holds every admin-facing screen
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
+
+    // further gated by the access-control.manage permission, not just the admin role
+    Route::middleware('access:access-control.manage')->prefix('permissions')->name('permissions.')->group(function () {
+        Route::get('/roles', [RolePermissionController::class, 'index'])->name('roles.index');
+        Route::put('/roles/{role}', [RolePermissionController::class, 'update'])->name('roles.update');
+
+        Route::get('/users', [UserAccessController::class, 'index'])->name('users.index');
+        Route::get('/users/{user}', [UserAccessController::class, 'show'])->name('users.show');
+    });
 });
