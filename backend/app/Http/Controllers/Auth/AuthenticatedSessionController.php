@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\LoginAnomalyService;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function __construct(private readonly OtpService $otpService) {}
+    public function __construct(
+        private readonly OtpService $otpService,
+        private readonly LoginAnomalyService $loginAnomaly
+    ) {}
 
     public function create(): Response
     {
@@ -28,7 +32,19 @@ class AuthenticatedSessionController extends Controller
     {
         $user = $request->authenticate();
 
+        // admins must complete an otp step before their session is created, regardless of which tab they logged in from
+        if ($user->hasRole('admin')) {
+            $this->otpService->generate($user->phone, 'login');
+
+            $request->session()->put('auth.login_identifier', $user->phone);
+            $request->session()->put('auth.otp_type', 'login');
+
+            return redirect('/verify-otp');
+        }
+
         Auth::login($user);
+
+        $this->loginAnomaly->checkAndRecord($user, $request); // no-op for roles outside admin/agent
 
         $request->session()->regenerate();
 

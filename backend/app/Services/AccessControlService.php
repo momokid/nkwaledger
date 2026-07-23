@@ -76,6 +76,33 @@ class AccessControlService
         return true;
     }
 
+    // checks a pending role reassignment for any permission that only the user's current role provides
+    public function roleChangeWouldEliminateLastHolder(User $user, string $newRoleName): ?string
+    {
+        $currentRole = $user->roles->first();
+
+        if (! $currentRole) {
+            return null;
+        }
+
+        $newRole = Role::where('name', $newRoleName)->first();
+        $newRolePermissions = $newRole?->permissions->pluck('name') ?? collect();
+
+        $lostPermissions = $currentRole->permissions->pluck('name')->diff($newRolePermissions);
+
+        foreach ($lostPermissions as $permissionName) {
+            if ($user->hasDirectPermission($permissionName)) {
+                continue;
+            }
+
+            if ($this->isLastHolder($user, $permissionName)) {
+                return $permissionName;
+            }
+        }
+
+        return null;
+    }
+
     // does this holder have another path to the permission besides the role being edited?
     protected function wouldRetainAccessWithoutRole(User $holder, Role $role, string $permission): bool
     {

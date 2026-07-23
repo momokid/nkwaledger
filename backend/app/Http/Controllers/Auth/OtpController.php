@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\LoginAnomalyService;
 
 class OtpController extends Controller
 {
-    public function __construct(private readonly OtpService $otpService) {}
+    public function __construct(
+        private readonly OtpService $otpService,
+        private readonly LoginAnomalyService $loginAnomaly, // checks and alerts on unrecognized devices for admins and agents
+    ) {}
 
     public function create(Request $request): Response
     {
@@ -74,6 +78,7 @@ class OtpController extends Controller
 
             if ($user) {
                 Auth::login($user);
+                $this->loginAnomaly->checkAndRecord($user, $request); // no-op for roles outside admin/agent
                 $request->session()->regenerate();
             }
         }

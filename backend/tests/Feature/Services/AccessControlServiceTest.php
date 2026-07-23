@@ -175,3 +175,45 @@ test('removing the permission from a role that does not have it returns false', 
 
     expect($this->service->roleRemovalWouldEliminateLastHolder($role, 'access-control.manage'))->toBeFalse();
 });
+
+test('a role change is safe when the new role already grants the same permission', function () {
+    $agentRole = Role::firstOrCreate(['name' => 'agent', 'guard_name' => 'web']);
+    $farmerRole = Role::firstOrCreate(['name' => 'farmer', 'guard_name' => 'web']);
+
+    // isolates to one permission, since agent carries other view defaults from the seeder
+    $agentRole->syncPermissions(['farm-types.view']);
+    $farmerRole->syncPermissions(['farm-types.view']);
+
+    $user = User::factory()->create();
+    $user->assignRole('agent');
+
+    expect($this->service->roleChangeWouldEliminateLastHolder($user, 'farmer'))->toBeNull();
+});
+
+test('a role change is safe when the user keeps access through a direct grant', function () {
+    $agentRole = Role::firstOrCreate(['name' => 'agent', 'guard_name' => 'web']);
+    $agentRole->syncPermissions(['ledger-accounts.delete']);
+
+    $user = User::factory()->create();
+    $user->assignRole('agent');
+    $user->givePermissionTo('ledger-accounts.delete');
+
+    expect($this->service->roleChangeWouldEliminateLastHolder($user, 'farmer'))->toBeNull();
+});
+
+test('a role change is blocked when it would eliminate the last holder of a permission', function () {
+    $agentRole = Role::firstOrCreate(['name' => 'agent', 'guard_name' => 'web']);
+    $agentRole->syncPermissions(['ledger-accounts.delete']);
+
+    $user = User::factory()->create();
+    $user->assignRole('agent');
+
+    expect($this->service->roleChangeWouldEliminateLastHolder($user, 'farmer'))
+        ->toBe('ledger-accounts.delete');
+});
+
+test('a role change is safe for a user with no current role', function () {
+    $user = User::factory()->create();
+
+    expect($this->service->roleChangeWouldEliminateLastHolder($user, 'farmer'))->toBeNull();
+});

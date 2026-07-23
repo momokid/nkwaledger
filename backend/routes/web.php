@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\RolePermissionController;
-use App\Http\Controllers\Admin\UserAccessController; // handles the user search and user detail permission screens
+use App\Http\Controllers\Admin\UserAccessController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -89,17 +89,23 @@ Route::middleware('auth')->group(function () {
         ->name('logout');
 });
 
-// gated to the admin role only, holds every admin-facing screen
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    // further gated by the access-control.manage permission, not just the admin role
     Route::middleware('access:access-control.manage')->prefix('permissions')->name('permissions.')->group(function () {
         Route::get('/roles', [RolePermissionController::class, 'index'])->name('roles.index');
-        Route::put('/roles/{role}', [RolePermissionController::class, 'update'])->name('roles.update');
-
         Route::get('/users', [UserAccessController::class, 'index'])->name('users.index');
         Route::get('/users/{user}', [UserAccessController::class, 'show'])->name('users.show');
+
+        // sensitive mutations require a recent password confirmation, silently extended by real activity elsewhere in the app
+        Route::middleware('password.confirm')->group(function () {
+            Route::put('/roles/{role}', [RolePermissionController::class, 'update'])->name('roles.update');
+            Route::put('/users/{user}/role', [UserAccessController::class, 'updateRole'])->name('users.role.update');
+            Route::post('/users/{user}/grants', [UserAccessController::class, 'storeGrant'])->name('users.grants.store');
+            Route::delete('/users/{user}/grants/{permission}', [UserAccessController::class, 'destroyGrant'])->name('users.grants.destroy');
+            Route::post('/users/{user}/denials', [UserAccessController::class, 'storeDenial'])->name('users.denials.store');
+            Route::delete('/users/{user}/denials/{permission}', [UserAccessController::class, 'destroyDenial'])->name('users.denials.destroy');
+        });
     });
 });

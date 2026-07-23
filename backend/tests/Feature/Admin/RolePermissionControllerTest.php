@@ -13,6 +13,8 @@ beforeEach(function () {
     $this->authorizedAdmin = User::factory()->create();
     $this->authorizedAdmin->assignRole('admin');
     $this->authorizedAdmin->givePermissionTo('access-control.manage');
+
+    session(['auth.password_confirmed_at' => now()->timestamp]); // mutating routes now require this; view-only tests are unaffected by its presence
 });
 
 test('a guest is redirected to login', function () {
