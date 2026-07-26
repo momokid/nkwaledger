@@ -21,6 +21,15 @@ return [
                 'delete' => 'Delete',
             ],
         ],
+        'farm-type-categories' => [
+            'label' => 'Farm Type Categories',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Add',
+                'update' => 'Edit',
+                'delete' => 'Delete',
+            ],
+        ],
         'ledger-accounts' => [
             'label' => 'Ledger Accounts',
             'actions' => [
@@ -50,11 +59,16 @@ return [
             'ledger-accounts.create',
             'ledger-accounts.update',
             'ledger-accounts.delete',
+            'farm-type-categories.view',
+            'farm-type-categories.create',
+            'farm-type-categories.update',
+            'farm-type-categories.delete',
         ],
         'agent' => [
             'farm-types.view',
             'farmer-groups.view',
             'ledger-accounts.view',
+            'farm-type-categories.view',
         ],
     ],
 
