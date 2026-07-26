@@ -12,6 +12,7 @@ import {
     IconShieldLock,
     IconSun,
     IconUsers,
+    IconUsersGroup,
 } from "@tabler/icons-react";
 import { PageProps } from "@/types";
 import { ThemeContext } from "@/Layouts/AuthenticatedLayout"; // reuses the same theme context shape, not the whole layout
@@ -57,6 +58,11 @@ const navItems: NavEntry[] = [
                 label: "Farm Types",
                 routeName: "admin.farm-types.index",
                 icon: IconPlant,
+            },
+            {
+                label: "Farmer Groups",
+                routeName: "admin.farmer-groups.index",
+                icon: IconUsersGroup,
             },
         ],
     },

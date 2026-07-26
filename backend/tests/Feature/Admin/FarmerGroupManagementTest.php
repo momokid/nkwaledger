@@ -194,3 +194,13 @@ test('a soft-deleted farmer group is excluded from the default index', function 
             ->where('farmerGroups.data.0.name', 'Active Group')
     );
 });
+
+test('creating a farmer group with a duplicate name fails validation', function () {
+    FarmerGroup::factory()->create(['name' => 'Kumbungu Cooperative']);
+    $user = User::factory()->create();
+    $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
+
+    $this->actingAs($user)->post('/admin/farmer-groups', [
+        'name' => 'Kumbungu Cooperative',
+    ])->assertSessionHasErrors('name');
+});

@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\CommunityController;
 use App\Http\Controllers\Admin\DistrictController;
 use App\Http\Controllers\Admin\RegionController;
 use App\Http\Controllers\Admin\FarmerGroupTypeController;
+use App\Http\Controllers\Admin\FarmerGroupController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -198,5 +199,26 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
     Route::middleware('access:farmer-groups.delete')->group(function () {
         Route::delete('/farmer-group-types/{farmerGroupType}', [FarmerGroupTypeController::class, 'destroy'])->name('farmer-group-types.destroy');
+    });
+
+    // farmer groups
+    Route::middleware('access:farmer-groups.view')->group(function () {
+        Route::get('/farmer-groups', [FarmerGroupController::class, 'index'])
+            ->name('farmer-groups.index');
+    });
+
+    Route::middleware('access:farmer-groups.create')->group(function () {
+        Route::post('/farmer-groups', [FarmerGroupController::class, 'store'])
+            ->name('farmer-groups.store');
+    });
+
+    Route::middleware('access:farmer-groups.update')->group(function () {
+        Route::put('/farmer-groups/{farmerGroup}', [FarmerGroupController::class, 'update'])
+            ->name('farmer-groups.update');
+    });
+
+    Route::middleware('access:farmer-groups.delete')->group(function () {
+        Route::delete('/farmer-groups/{farmerGroup}', [FarmerGroupController::class, 'destroy'])
+            ->name('farmer-groups.destroy');
     });
 });
