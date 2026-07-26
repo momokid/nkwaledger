@@ -5,19 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use InvalidArgumentException;
 
 #[Fillable([
     'name',
-    'category',
+    'category_id',
     'is_active',
 ])]
 class FarmType extends Model
 {
     use HasFactory, SoftDeletes;
-
-    public const CATEGORIES = ['crop', 'livestock'];
 
     protected $attributes = [
         'is_active' => true,
@@ -30,14 +28,8 @@ class FarmType extends Model
         ];
     }
 
-    protected static function booted(): void
+    public function category(): BelongsTo
     {
-        static::saving(function (FarmType $farmType) {
-            if (! in_array($farmType->category, self::CATEGORIES, true)) {
-                throw new InvalidArgumentException(
-                    'Farm type category must be one of: ' . implode(', ', self::CATEGORIES)
-                );
-            }
-        });
+        return $this->belongsTo(FarmTypeCategory::class, 'category_id');
     }
 }

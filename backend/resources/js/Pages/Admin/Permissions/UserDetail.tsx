@@ -1,4 +1,5 @@
 import AdminLayout from "@/Layouts/AdminLayout";
+import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 
@@ -36,7 +37,36 @@ export default function UserDetail({
     modules,
     standalone,
 }: Props) {
+    return (
+        <AdminLayout title="User Access">
+            <UserDetailContent
+                user={user}
+                currentRole={currentRole}
+                roles={roles}
+                modules={modules}
+                standalone={standalone}
+            />
+        </AdminLayout>
+    );
+}
+
+function UserDetailContent({
+    user,
+    currentRole,
+    roles,
+    modules,
+    standalone,
+}: Props) {
     const { errors } = usePage<Props>().props;
+    const { dark } = useTheme();
+
+    const surface = dark ? "#1F2937" : "#FFFFFF";
+    const border = dark ? "#374151" : "#E5E7EB";
+    const text = dark ? "#F9FAFB" : "#111827";
+    const textSecondary = dark ? "#9CA3AF" : "#6B7280";
+    const inputBorder = dark ? "#4B5563" : "#9CA3AF";
+    const inputBg = dark ? "#111827" : "#FFFFFF";
+    const groupRowBg = dark ? "#111827" : "#F9FAFB";
 
     const changeRole = (role: string) => {
         router.put(
@@ -94,15 +124,15 @@ export default function UserDetail({
         fontSize: "15px",
         fontWeight: 600,
         padding: "6px 12px",
-        border: `1px solid ${isActive ? activeColor : "#D1D5DB"}`,
-        color: isActive ? "#fff" : "#374151",
-        background: isActive ? activeColor : "#fff",
-        cursor: isActive ? "default" : "pointer",
+        border: `1px solid ${isActive ? activeColor : dark ? "#4B5563" : "#D1D5DB"}`,
+        color: isActive ? "#fff" : text,
+        background: isActive ? activeColor : dark ? "#111827" : "#fff",
+        cursor: isActive ? "not-allowed" : "pointer",
     });
 
     return (
-        <AdminLayout title="User Access">
-            {(errors?.role || errors?.permission) && (
+        <>
+            {errors?.role && (
                 <div
                     className="mb-4 px-4 py-3"
                     style={{
@@ -112,27 +142,23 @@ export default function UserDetail({
                         fontSize: "17px",
                     }}
                 >
-                    {errors.role || errors.permission}
+                    {errors.role}
                 </div>
             )}
 
+            {/* NOTE: this summary card is reconstructed from partial fragments — compare against
+                the actual file, since the exact heading/phone/email layout may differ slightly */}
             <div
-                className="bg-white border p-6 mb-6"
-                style={{ borderColor: "#E5E7EB" }}
+                className="p-6 mb-6"
+                style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <div
-                    style={{
-                        fontSize: "20px",
-                        fontWeight: 700,
-                        color: "#111827",
-                    }}
-                >
+                <h2 style={{ fontSize: "20px", fontWeight: 700, color: text }}>
                     {user.first_name} {user.surname}
-                </div>
+                </h2>
                 <div
                     style={{
-                        fontSize: "15px",
-                        color: "#6B7280",
+                        fontSize: "17px",
+                        color: textSecondary,
                         marginTop: "4px",
                     }}
                 >
@@ -146,7 +172,7 @@ export default function UserDetail({
                             display: "block",
                             fontSize: "17px",
                             fontWeight: 600,
-                            color: "#111827",
+                            color: text,
                             marginBottom: "6px",
                         }}
                     >
@@ -157,10 +183,10 @@ export default function UserDetail({
                         onChange={(event) => changeRole(event.target.value)}
                         style={{
                             fontSize: "17px",
-                            border: "1px solid #9CA3AF",
+                            border: `1px solid ${inputBorder}`,
                             padding: "8px 12px",
-                            color: "#111827",
-                            background: "#fff",
+                            color: text,
+                            background: inputBg,
                             fontFamily: "inherit",
                         }}
                     >
@@ -174,8 +200,8 @@ export default function UserDetail({
             </div>
 
             <div
-                className="bg-white border overflow-x-auto"
-                style={{ borderColor: "#E5E7EB" }}
+                className="overflow-x-auto"
+                style={{ background: surface, border: `1px solid ${border}` }}
             >
                 <table className="min-w-full" style={{ fontSize: "17px" }}>
                     <tbody>
@@ -183,15 +209,15 @@ export default function UserDetail({
                             <>
                                 <tr
                                     key={`group-${group.label}`}
-                                    style={{ borderTop: "1px solid #E5E7EB" }}
+                                    style={{ borderTop: `1px solid ${border}` }}
                                 >
                                     <td
                                         colSpan={2}
                                         className="px-4 py-2"
                                         style={{
-                                            background: "#F9FAFB",
+                                            background: groupRowBg,
                                             fontWeight: 700,
-                                            color: "#111827",
+                                            color: text,
                                         }}
                                     >
                                         {group.label}
@@ -201,17 +227,22 @@ export default function UserDetail({
                                     <tr
                                         key={permission.id}
                                         style={{
-                                            borderTop: "1px solid #E5E7EB",
+                                            borderTop: `1px solid ${border}`,
                                         }}
                                     >
                                         <td
                                             className="px-4 py-2 pl-8"
-                                            style={{ color: "#374151" }}
+                                            style={{ color: textSecondary }}
                                         >
                                             {permission.label}
                                         </td>
-                                        <td className="px-4 py-2 text-right">
-                                            <div className="inline-flex gap-2">
+                                        <td className="px-4 py-2">
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    gap: "8px",
+                                                }}
+                                            >
                                                 <button
                                                     onClick={() =>
                                                         clearOverride(
@@ -271,6 +302,6 @@ export default function UserDetail({
                     </tbody>
                 </table>
             </div>
-        </AdminLayout>
+        </>
     );
 }
