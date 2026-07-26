@@ -36,7 +36,9 @@ export default function Index({ categories, permissions }: Props) {
     );
 }
 
-function IndexContent({ categories, permissions }: Props) {
+type ContentProps = Pick<Props, "categories" | "permissions">;
+
+function IndexContent({ categories, permissions }: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
     const [editingId, setEditingId] = useState<number | null>(null);

@@ -85,12 +85,17 @@ async function fetchScoped(url: string): Promise<QuickAddItem[]> {
     return response.json();
 }
 
+type ContentProps = Pick<
+    Props,
+    "farmerGroups" | "groupTypes" | "regions" | "permissions"
+>;
+
 function IndexContent({
     farmerGroups,
     groupTypes,
     regions,
     permissions,
-}: Props) {
+}: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
 

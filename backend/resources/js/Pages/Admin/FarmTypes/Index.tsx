@@ -48,7 +48,9 @@ export default function Index({ farmTypes, categories, permissions }: Props) {
     );
 }
 
-function IndexContent({ farmTypes, categories, permissions }: Props) {
+type ContentProps = Pick<Props, "farmTypes" | "categories" | "permissions">;
+
+function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
     const [editingId, setEditingId] = useState<number | null>(null);

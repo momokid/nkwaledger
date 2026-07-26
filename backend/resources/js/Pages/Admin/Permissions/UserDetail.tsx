@@ -50,13 +50,18 @@ export default function UserDetail({
     );
 }
 
+type ContentProps = Pick<
+    Props,
+    "user" | "currentRole" | "roles" | "modules" | "standalone"
+>;
+
 function UserDetailContent({
     user,
     currentRole,
     roles,
     modules,
     standalone,
-}: Props) {
+}: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
 

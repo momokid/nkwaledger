@@ -37,7 +37,9 @@ export default function Roles({ roles, modules, standalone }: Props) {
     );
 }
 
-function RolesContent({ roles, modules, standalone }: Props) {
+type ContentProps = Pick<Props, "roles" | "modules" | "standalone">;
+
+function RolesContent({ roles, modules, standalone }: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
 

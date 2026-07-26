@@ -25,7 +25,9 @@ export default function Users({ query, results }: Props) {
     );
 }
 
-function UsersContent({ query, results }: Props) {
+type ContentProps = Pick<Props, "query" | "results">;
+
+function UsersContent({ query, results }: ContentProps) {
     const [search, setSearch] = useState(query);
     const { dark } = useTheme();
 
