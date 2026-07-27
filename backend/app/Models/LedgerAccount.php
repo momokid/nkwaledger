@@ -3,31 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use InvalidArgumentException;
+use RuntimeException;
 
-#[Fillable([
-    'name',
-    'type',
-    'normal_balance',
-    'is_system',
-    'is_active',
-])]
+#[Fillable(['name', 'type_id', 'is_system', 'is_active'])]
 class LedgerAccount extends Model
 {
     use HasFactory, SoftDeletes;
-
-    public const TYPES = ['asset', 'liability', 'equity', 'income', 'expense'];
-
-    public const NORMAL_BALANCE_MAP = [
-        'asset' => 'debit',
-        'expense' => 'debit',
-        'liability' => 'credit',
-        'equity' => 'credit',
-        'income' => 'credit',
-    ];
 
     protected $attributes = [
         'is_system' => false,
@@ -44,14 +30,24 @@ class LedgerAccount extends Model
 
     protected static function booted(): void
     {
-        static::saving(function (LedgerAccount $account) {
-            if (! in_array($account->type, self::TYPES, true)) {
-                throw new InvalidArgumentException(
-                    'Ledger account type must be one of: ' . implode(', ', self::TYPES)
-                );
+        static::deleting(function (LedgerAccount $account) {
+            if ($account->is_system) {
+                throw new RuntimeException('System ledger accounts cannot be deleted.');
             }
-
-            $account->normal_balance = self::NORMAL_BALANCE_MAP[$account->type];
         });
+    }
+
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(LedgerAccountType::class, 'type_id');
+    }
+
+    // always reads live from the related type, never stored — so a type's debit/credit
+    // setting can never drift out of sync with the accounts that reference it
+    protected function normalBalance(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->type?->normal_balance,
+        );
     }
 }

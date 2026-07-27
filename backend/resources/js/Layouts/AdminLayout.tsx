@@ -13,6 +13,7 @@ import {
     IconSun,
     IconUsers,
     IconUsersGroup,
+    IconBook,
 } from "@tabler/icons-react";
 import { PageProps } from "@/types";
 import { ThemeContext } from "@/Layouts/AuthenticatedLayout"; // reuses the same theme context shape, not the whole layout
@@ -63,6 +64,11 @@ const navItems: NavEntry[] = [
                 label: "Farmer Groups",
                 routeName: "admin.farmer-groups.index",
                 icon: IconUsersGroup,
+            },
+            {
+                label: "Ledger Accounts",
+                routeName: "admin.ledger-accounts.index",
+                icon: IconBook,
             },
         ],
     },
