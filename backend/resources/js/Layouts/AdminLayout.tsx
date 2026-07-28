@@ -79,6 +79,11 @@ const navItems: NavEntry[] = [
                 icon: IconListDetails,
             },
             {
+                label: "Ledger Types",
+                routeName: "admin.ledger-types.index",
+                icon: IconListDetails,
+            },
+            {
                 label: "Ledger Controls",
                 routeName: "admin.ledger-controls.index",
                 icon: IconListDetails,
