@@ -15,14 +15,13 @@ class UpdateLedgerCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fundamental_type_id' => ['required', 'integer', 'exists:ledger_fundamental_types,id'],
             'name' => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('ledger_categories', 'name')->ignore($this->route('ledgerCategory')),
             ],
-            'type' => ['required', 'string', 'max:255'],
+            'class_id' => ['required', 'integer', 'exists:ledger_classes,id'],
         ];
     }
 }

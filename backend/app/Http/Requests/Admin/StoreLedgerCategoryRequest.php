@@ -14,9 +14,8 @@ class StoreLedgerCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fundamental_type_id' => ['required', 'integer', 'exists:ledger_fundamental_types,id'],
             'name' => ['required', 'string', 'max:255', 'unique:ledger_categories,name'],
-            'type' => ['required', 'string', 'max:255'],
+            'class_id' => ['required', 'integer', 'exists:ledger_classes,id'],
         ];
     }
 }

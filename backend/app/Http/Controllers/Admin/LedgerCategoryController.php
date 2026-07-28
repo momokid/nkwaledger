@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreLedgerCategoryRequest;
 use App\Http\Requests\Admin\UpdateLedgerCategoryRequest;
 use App\Models\LedgerCategory;
-use App\Models\LedgerFundamentalType;
+use App\Models\LedgerClass;
 use App\Services\AccessControlService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,11 +23,15 @@ class LedgerCategoryController extends Controller
 
         return Inertia::render('Admin/LedgerCategories/Index', [
             'ledgerCategories' => LedgerCategory::query()
-                ->with('fundamentalType')
+                ->with('class')
                 ->orderBy('name')
                 ->paginate(15),
-            // populates the Fundamental Type <select> on the create/edit form — always all five, since this list is fixed
-            'fundamentalTypes' => LedgerFundamentalType::orderBy('name')->get(['id', 'name']),
+            // populates the Class <select> on the create/edit form — only active classes, since a
+            // deactivated one shouldn't be assignable to new categories even though existing references stay intact
+            'classes' => LedgerClass::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'permissions' => [
                 'create' => $this->access->can($user, 'ledger-accounts.create'),
                 'update' => $this->access->can($user, 'ledger-accounts.update'),

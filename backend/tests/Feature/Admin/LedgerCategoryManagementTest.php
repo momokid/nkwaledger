@@ -1,16 +1,14 @@
 <?php
 
 use App\Models\LedgerCategory;
-use App\Models\LedgerFundamentalType;
+use App\Models\LedgerClass;
 use App\Models\User;
-use Database\Seeders\LedgerFundamentalTypeSeeder;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
-    $this->seed(LedgerFundamentalTypeSeeder::class);
 
     $this->admin = User::factory()->create();
     $this->admin->givePermissionTo([
@@ -20,15 +18,14 @@ beforeEach(function () {
         'ledger-accounts.delete',
     ]);
 
-    $this->asset = LedgerFundamentalType::where('name', 'Asset')->first();
-    $this->income = LedgerFundamentalType::where('name', 'Income')->first();
+    $this->drClass = LedgerClass::create(['name' => 'Dr']);
+    $this->crClass = LedgerClass::create(['name' => 'Cr']);
 });
 
 it('lists ledger categories for a user with view permission', function () {
     LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response = $this->actingAs($this->admin)->get(route('admin.ledger-categories.index'));
@@ -51,57 +48,38 @@ it('denies listing to a user without view permission', function () {
 
 it('creates a ledger category with valid data', function () {
     $response = $this->actingAs($this->admin)->post(route('admin.ledger-categories.store'), [
-        'fundamental_type_id' => $this->income->id,
         'name' => 'Income',
-        'type' => 'Income',
+        'class_id' => $this->crClass->id,
     ]);
 
     $response->assertRedirect();
     $this->assertDatabaseHas('ledger_categories', [
         'name' => 'Income',
-        'class' => 'credit',
-    ]);
-});
-
-it('ignores a class value submitted directly and derives it from the fundamental type', function () {
-    $response = $this->actingAs($this->admin)->post(route('admin.ledger-categories.store'), [
-        'fundamental_type_id' => $this->asset->id,
-        'name' => 'Assets',
-        'type' => 'GL',
-        'class' => 'credit',
-    ]);
-
-    $response->assertRedirect();
-    $this->assertDatabaseHas('ledger_categories', [
-        'name' => 'Assets',
-        'class' => 'debit',
+        'class_id' => $this->crClass->id,
     ]);
 });
 
 it('rejects a duplicate ledger category name on create', function () {
     LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response = $this->actingAs($this->admin)->post(route('admin.ledger-categories.store'), [
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response->assertSessionHasErrors('name');
 });
 
-it('rejects a nonexistent fundamental type on create', function () {
+it('rejects a nonexistent class on create', function () {
     $response = $this->actingAs($this->admin)->post(route('admin.ledger-categories.store'), [
-        'fundamental_type_id' => 9999,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => 9999,
     ]);
 
-    $response->assertSessionHasErrors('fundamental_type_id');
+    $response->assertSessionHasErrors('class_id');
 });
 
 it('denies creating to a user without create permission', function () {
@@ -109,9 +87,8 @@ it('denies creating to a user without create permission', function () {
     $user->givePermissionTo('ledger-accounts.view');
 
     $response = $this->actingAs($user)->post(route('admin.ledger-categories.store'), [
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response->assertForbidden();
@@ -120,49 +97,43 @@ it('denies creating to a user without create permission', function () {
 
 it('updates a ledger category with valid data', function () {
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response = $this->actingAs($this->admin)->put(route('admin.ledger-categories.update', $category), [
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Fixed Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response->assertRedirect();
     $this->assertDatabaseHas('ledger_categories', ['id' => $category->id, 'name' => 'Fixed Assets']);
 });
 
-it('re-derives class when the fundamental type changes on update', function () {
+it('updates the class on an existing category', function () {
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response = $this->actingAs($this->admin)->put(route('admin.ledger-categories.update', $category), [
-        'fundamental_type_id' => $this->income->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->crClass->id,
     ]);
 
     $response->assertRedirect();
-    $this->assertDatabaseHas('ledger_categories', ['id' => $category->id, 'class' => 'credit']);
+    $this->assertDatabaseHas('ledger_categories', ['id' => $category->id, 'class_id' => $this->crClass->id]);
 });
 
 it('allows updating a ledger category without changing its name', function () {
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response = $this->actingAs($this->admin)->put(route('admin.ledger-categories.update', $category), [
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response->assertRedirect();
@@ -171,20 +142,17 @@ it('allows updating a ledger category without changing its name', function () {
 
 it('rejects a duplicate name on update', function () {
     LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $this->income->id,
         'name' => 'Income',
-        'type' => 'Income',
+        'class_id' => $this->crClass->id,
     ]);
 
     $response = $this->actingAs($this->admin)->put(route('admin.ledger-categories.update', $category), [
-        'fundamental_type_id' => $this->income->id,
         'name' => 'Assets',
-        'type' => 'Income',
+        'class_id' => $this->crClass->id,
     ]);
 
     $response->assertSessionHasErrors('name');
@@ -192,9 +160,8 @@ it('rejects a duplicate name on update', function () {
 
 it('soft deletes a ledger category', function () {
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response = $this->actingAs($this->admin)->delete(route('admin.ledger-categories.destroy', $category));
@@ -207,9 +174,8 @@ it('denies deleting to a user without delete permission', function () {
     $user = User::factory()->create();
     $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.create', 'ledger-accounts.update']);
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $this->asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $response = $this->actingAs($user)->delete(route('admin.ledger-categories.destroy', $category));

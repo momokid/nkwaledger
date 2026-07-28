@@ -3,8 +3,9 @@ import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { FormEvent, useState } from "react";
+import axios from "axios";
 
-interface FundamentalTypeOption {
+interface ClassOption {
     id: number;
     name: string;
 }
@@ -12,10 +13,8 @@ interface FundamentalTypeOption {
 interface LedgerCategoryData {
     id: number;
     name: string;
-    type: string;
-    class: string;
-    fundamental_type_id: number;
-    fundamental_type: FundamentalTypeOption | null;
+    class_id: number;
+    class: ClassOption | null;
 }
 
 interface PaginationLink {
@@ -29,7 +28,7 @@ interface Props extends PageProps {
         data: LedgerCategoryData[];
         links: PaginationLink[];
     };
-    fundamentalTypes: FundamentalTypeOption[];
+    classes: ClassOption[];
     permissions: {
         create: boolean;
         update: boolean;
@@ -39,36 +38,33 @@ interface Props extends PageProps {
 
 export default function Index({
     ledgerCategories,
-    fundamentalTypes,
+    classes,
     permissions,
 }: Props) {
     return (
         <AdminLayout title="Ledger Categories">
             <IndexContent
                 ledgerCategories={ledgerCategories}
-                fundamentalTypes={fundamentalTypes}
+                classes={classes}
                 permissions={permissions}
             />
         </AdminLayout>
     );
 }
 
-type ContentProps = Pick<
-    Props,
-    "ledgerCategories" | "fundamentalTypes" | "permissions"
->;
+type ContentProps = Pick<Props, "ledgerCategories" | "classes" | "permissions">;
 
 function IndexContent({
     ledgerCategories,
-    fundamentalTypes,
+    classes,
     permissions,
 }: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editName, setEditName] = useState("");
-    const [editType, setEditType] = useState("");
-    const [editFundamentalTypeId, setEditFundamentalTypeId] = useState("");
+    const [editClassId, setEditClassId] = useState("");
+    const [quickAddBusy, setQuickAddBusy] = useState(false);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -80,26 +76,20 @@ function IndexContent({
     const headerText = "#1D9E75";
     const rowAlt = dark ? "#111827" : "#F9FAFB";
 
-    const createForm = useForm({
-        fundamental_type_id: "",
-        name: "",
-        type: "",
-    });
+    const createForm = useForm({ name: "", class_id: "" });
 
     const submitCreate = (event: FormEvent) => {
         event.preventDefault();
         createForm.post(route("admin.ledger-categories.store"), {
             preserveScroll: true,
-            onSuccess: () =>
-                createForm.reset("fundamental_type_id", "name", "type"),
+            onSuccess: () => createForm.reset("name", "class_id"),
         });
     };
 
     const startEdit = (ledgerCategory: LedgerCategoryData) => {
         setEditingId(ledgerCategory.id);
         setEditName(ledgerCategory.name);
-        setEditType(ledgerCategory.type);
-        setEditFundamentalTypeId(String(ledgerCategory.fundamental_type_id));
+        setEditClassId(String(ledgerCategory.class_id));
     };
 
     const cancelEdit = () => {
@@ -110,9 +100,8 @@ function IndexContent({
         router.put(
             route("admin.ledger-categories.update", id),
             {
-                fundamental_type_id: Number(editFundamentalTypeId),
                 name: editName,
-                type: editType,
+                class_id: Number(editClassId),
             },
             { preserveScroll: true, onSuccess: () => setEditingId(null) },
         );
@@ -131,6 +120,23 @@ function IndexContent({
         });
     };
 
+    const quickAddClass = async () => {
+        const name = window.prompt("New class name (e.g. Dr, Cr)");
+        if (!name || !name.trim()) return;
+
+        setQuickAddBusy(true);
+        try {
+            await axios.post(route("admin.ledger-classes.store"), {
+                name: name.trim(),
+            });
+            router.reload({ only: ["classes"] });
+        } catch (error) {
+            window.alert("Could not create the class. It may already exist.");
+        } finally {
+            setQuickAddBusy(false);
+        }
+    };
+
     const hasActions = permissions.update || permissions.delete;
 
     const inputStyle = {
@@ -141,6 +147,18 @@ function IndexContent({
         fontSize: "17px",
         outline: "none",
         fontFamily: "inherit",
+    };
+
+    const quickAddButtonStyle = {
+        border: `1px solid ${inputBorder}`,
+        background: "transparent",
+        color: "#1D9E75",
+        fontWeight: 700,
+        fontSize: "17px",
+        width: "42px",
+        height: "42px",
+        cursor: quickAddBusy ? "not-allowed" : "pointer",
+        opacity: quickAddBusy ? 0.6 : 1,
     };
 
     return (
@@ -169,52 +187,6 @@ function IndexContent({
                                 marginBottom: "6px",
                             }}
                         >
-                            Fundamental type
-                        </label>
-                        <select
-                            value={createForm.data.fundamental_type_id}
-                            onChange={(event) =>
-                                createForm.setData(
-                                    "fundamental_type_id",
-                                    event.target.value,
-                                )
-                            }
-                            style={{ ...inputStyle, width: "180px" }}
-                        >
-                            <option value="">Select one</option>
-                            {fundamentalTypes.map((fundamentalType) => (
-                                <option
-                                    key={fundamentalType.id}
-                                    value={fundamentalType.id}
-                                >
-                                    {fundamentalType.name}
-                                </option>
-                            ))}
-                        </select>
-                        {(errors?.fundamental_type_id ||
-                            createForm.errors.fundamental_type_id) && (
-                            <p
-                                style={{
-                                    color: "#DC2626",
-                                    fontSize: "14px",
-                                    marginTop: "4px",
-                                }}
-                            >
-                                {errors?.fundamental_type_id ??
-                                    createForm.errors.fundamental_type_id}
-                            </p>
-                        )}
-                    </div>
-                    <div>
-                        <label
-                            style={{
-                                display: "block",
-                                fontSize: "15px",
-                                fontWeight: 600,
-                                color: text,
-                                marginBottom: "6px",
-                            }}
-                        >
                             New category name
                         </label>
                         <input
@@ -224,7 +196,7 @@ function IndexContent({
                                 createForm.setData("name", event.target.value)
                             }
                             placeholder="e.g. Assets"
-                            style={{ ...inputStyle, width: "200px" }}
+                            style={{ ...inputStyle, width: "220px" }}
                         />
                         {(errors?.name || createForm.errors.name) && (
                             <p
@@ -248,18 +220,40 @@ function IndexContent({
                                 marginBottom: "6px",
                             }}
                         >
-                            Type
+                            Class
                         </label>
-                        <input
-                            type="text"
-                            value={createForm.data.type}
-                            onChange={(event) =>
-                                createForm.setData("type", event.target.value)
-                            }
-                            placeholder="e.g. GL"
-                            style={{ ...inputStyle, width: "140px" }}
-                        />
-                        {(errors?.type || createForm.errors.type) && (
+                        <div style={{ display: "flex", gap: "8px" }}>
+                            <select
+                                value={createForm.data.class_id}
+                                onChange={(event) =>
+                                    createForm.setData(
+                                        "class_id",
+                                        event.target.value,
+                                    )
+                                }
+                                style={{ ...inputStyle, width: "160px" }}
+                            >
+                                <option value="">Select one</option>
+                                {classes.map((ledgerClass) => (
+                                    <option
+                                        key={ledgerClass.id}
+                                        value={ledgerClass.id}
+                                    >
+                                        {ledgerClass.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={quickAddClass}
+                                disabled={quickAddBusy}
+                                title="Add a new class"
+                                style={quickAddButtonStyle}
+                            >
+                                +
+                            </button>
+                        </div>
+                        {(errors?.class_id || createForm.errors.class_id) && (
                             <p
                                 style={{
                                     color: "#DC2626",
@@ -267,7 +261,7 @@ function IndexContent({
                                     marginTop: "4px",
                                 }}
                             >
-                                {errors?.type ?? createForm.errors.type}
+                                {errors?.class_id ?? createForm.errors.class_id}
                             </p>
                         )}
                     </div>
@@ -309,18 +303,6 @@ function IndexContent({
                                 className="text-left px-4 py-3"
                                 style={{ color: headerText, fontWeight: 700 }}
                             >
-                                Fundamental type
-                            </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
-                                Type
-                            </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
                                 Class
                             </th>
                             {hasActions && (
@@ -340,7 +322,7 @@ function IndexContent({
                         {ledgerCategories.data.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={hasActions ? 5 : 4}
+                                    colSpan={hasActions ? 3 : 2}
                                     className="px-4 py-6 text-center"
                                     style={{ color: textSecondary }}
                                 >
@@ -392,9 +374,9 @@ function IndexContent({
                                     >
                                         {isEditing ? (
                                             <select
-                                                value={editFundamentalTypeId}
+                                                value={editClassId}
                                                 onChange={(event) =>
-                                                    setEditFundamentalTypeId(
+                                                    setEditClassId(
                                                         event.target.value,
                                                     )
                                                 }
@@ -403,26 +385,17 @@ function IndexContent({
                                                     padding: "6px 8px",
                                                 }}
                                             >
-                                                {fundamentalTypes.map(
-                                                    (fundamentalType) => (
-                                                        <option
-                                                            key={
-                                                                fundamentalType.id
-                                                            }
-                                                            value={
-                                                                fundamentalType.id
-                                                            }
-                                                        >
-                                                            {
-                                                                fundamentalType.name
-                                                            }
-                                                        </option>
-                                                    ),
-                                                )}
+                                                {classes.map((ledgerClass) => (
+                                                    <option
+                                                        key={ledgerClass.id}
+                                                        value={ledgerClass.id}
+                                                    >
+                                                        {ledgerClass.name}
+                                                    </option>
+                                                ))}
                                             </select>
                                         ) : (
-                                            (ledgerCategory.fundamental_type
-                                                ?.name ?? (
+                                            (ledgerCategory.class?.name ?? (
                                                 <span
                                                     style={{
                                                         color: textSecondary,
@@ -432,38 +405,6 @@ function IndexContent({
                                                 </span>
                                             ))
                                         )}
-                                    </td>
-                                    <td
-                                        className="px-4 py-3"
-                                        style={{ color: text }}
-                                    >
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                value={editType}
-                                                onChange={(event) =>
-                                                    setEditType(
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                style={{
-                                                    ...inputStyle,
-                                                    width: "100%",
-                                                    padding: "6px 8px",
-                                                }}
-                                            />
-                                        ) : (
-                                            ledgerCategory.type
-                                        )}
-                                    </td>
-                                    <td
-                                        className="px-4 py-3"
-                                        style={{
-                                            color: text,
-                                            textTransform: "capitalize",
-                                        }}
-                                    >
-                                        {ledgerCategory.class}
                                     </td>
                                     {hasActions && (
                                         <td className="px-4 py-3">

@@ -1,86 +1,49 @@
 <?php
 
 use App\Models\LedgerCategory;
-use App\Models\LedgerFundamentalType;
-use Database\Seeders\LedgerFundamentalTypeSeeder;
+use App\Models\LedgerClass;
 use Illuminate\Database\QueryException;
 
 beforeEach(function () {
-    $this->seed(LedgerFundamentalTypeSeeder::class);
+    $this->drClass = LedgerClass::create(['name' => 'Dr']);
+    $this->crClass = LedgerClass::create(['name' => 'Cr']);
 });
 
-it('derives class from the debit normal balance of its fundamental type', function () {
-    $asset = LedgerFundamentalType::where('name', 'Asset')->first();
-
+it('creates a ledger category with a name and class', function () {
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
-    expect($category->class)->toBe('debit');
+    expect($category->name)->toBe('Assets');
+    expect($category->class_id)->toBe($this->drClass->id);
 });
 
-it('derives class from the credit normal balance of its fundamental type', function () {
-    $income = LedgerFundamentalType::where('name', 'Income')->first();
-
+it('belongs to a class', function () {
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $income->id,
-        'name' => 'Income',
-        'type' => 'Income',
-    ]);
-
-    expect($category->class)->toBe('credit');
-});
-
-it('cannot have its class set manually and always derives it from the fundamental type', function () {
-    $asset = LedgerFundamentalType::where('name', 'Asset')->first();
-
-    $category = LedgerCategory::create([
-        'fundamental_type_id' => $asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
-        'class' => 'credit',
+        'class_id' => $this->drClass->id,
     ]);
 
-    expect($category->class)->toBe('debit');
-});
-
-it('belongs to a fundamental type', function () {
-    $liability = LedgerFundamentalType::where('name', 'Liability')->first();
-
-    $category = LedgerCategory::create([
-        'fundamental_type_id' => $liability->id,
-        'name' => 'Liabilities',
-        'type' => 'GL',
-    ]);
-
-    expect($category->fundamentalType->name)->toBe('Liability');
+    expect($category->class->name)->toBe('Dr');
 });
 
 it('enforces unique category names', function () {
-    $asset = LedgerFundamentalType::where('name', 'Asset')->first();
-
     LedgerCategory::create([
-        'fundamental_type_id' => $asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     expect(fn() => LedgerCategory::create([
-        'fundamental_type_id' => $asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->crClass->id,
     ]))->toThrow(QueryException::class);
 });
 
 it('soft deletes a ledger category', function () {
-    $asset = LedgerFundamentalType::where('name', 'Asset')->first();
-
     $category = LedgerCategory::create([
-        'fundamental_type_id' => $asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $this->drClass->id,
     ]);
 
     $category->delete();

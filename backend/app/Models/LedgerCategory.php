@@ -9,23 +9,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'fundamental_type_id',
     'name',
-    'type',
+    'class_id',
 ])]
 class LedgerCategory extends Model
 {
     use HasFactory, SoftDeletes;
 
-    public function fundamentalType(): BelongsTo
+    public function class(): BelongsTo
     {
-        return $this->belongsTo(LedgerFundamentalType::class);
-    }
-
-    protected static function booted(): void
-    {
-        static::saving(function (LedgerCategory $category) {
-            $category->class = $category->fundamentalType->normal_balance;
-        });
+        return $this->belongsTo(LedgerClass::class, 'class_id');
     }
 }
