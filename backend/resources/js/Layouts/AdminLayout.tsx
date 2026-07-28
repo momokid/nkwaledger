@@ -14,6 +14,8 @@ import {
     IconUsers,
     IconUsersGroup,
     IconBook,
+    IconStack2,
+    IconListDetails,
 } from "@tabler/icons-react";
 import { PageProps } from "@/types";
 import { ThemeContext } from "@/Layouts/AuthenticatedLayout"; // reuses the same theme context shape, not the whole layout
@@ -64,6 +66,32 @@ const navItems: NavEntry[] = [
                 label: "Farmer Groups",
                 routeName: "admin.farmer-groups.index",
                 icon: IconUsersGroup,
+            },
+        ],
+    },
+    {
+        label: "Ledger Setup",
+        icon: IconBook,
+        children: [
+            {
+                label: "Ledger Classes",
+                routeName: "admin.ledger-classes.index",
+                icon: IconListDetails,
+            },
+            {
+                label: "Ledger Controls",
+                routeName: "admin.ledger-controls.index",
+                icon: IconListDetails,
+            },
+            {
+                label: "Ledger Categories",
+                routeName: "admin.ledger-categories.index",
+                icon: IconStack2,
+            },
+            {
+                label: "Ledger Subcategories",
+                routeName: "admin.ledger-subcategories.index",
+                icon: IconStack2,
             },
             {
                 label: "Ledger Accounts",

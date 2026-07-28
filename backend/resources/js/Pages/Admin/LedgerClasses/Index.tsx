@@ -4,18 +4,10 @@ import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { FormEvent, useState } from "react";
 
-interface FundamentalTypeOption {
+interface LedgerClassData {
     id: number;
     name: string;
-}
-
-interface LedgerCategoryData {
-    id: number;
-    name: string;
-    type: string;
-    class: string;
-    fundamental_type_id: number;
-    fundamental_type: FundamentalTypeOption | null;
+    is_active: boolean;
 }
 
 interface PaginationLink {
@@ -25,11 +17,10 @@ interface PaginationLink {
 }
 
 interface Props extends PageProps {
-    ledgerCategories: {
-        data: LedgerCategoryData[];
+    ledgerClasses: {
+        data: LedgerClassData[];
         links: PaginationLink[];
     };
-    fundamentalTypes: FundamentalTypeOption[];
     permissions: {
         create: boolean;
         update: boolean;
@@ -37,38 +28,25 @@ interface Props extends PageProps {
     };
 }
 
-export default function Index({
-    ledgerCategories,
-    fundamentalTypes,
-    permissions,
-}: Props) {
+export default function Index({ ledgerClasses, permissions }: Props) {
     return (
-        <AdminLayout title="Ledger Categories">
+        <AdminLayout title="Ledger Classes">
             <IndexContent
-                ledgerCategories={ledgerCategories}
-                fundamentalTypes={fundamentalTypes}
+                ledgerClasses={ledgerClasses}
                 permissions={permissions}
             />
         </AdminLayout>
     );
 }
 
-type ContentProps = Pick<
-    Props,
-    "ledgerCategories" | "fundamentalTypes" | "permissions"
->;
+type ContentProps = Pick<Props, "ledgerClasses" | "permissions">;
 
-function IndexContent({
-    ledgerCategories,
-    fundamentalTypes,
-    permissions,
-}: ContentProps) {
+function IndexContent({ ledgerClasses, permissions }: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editName, setEditName] = useState("");
-    const [editType, setEditType] = useState("");
-    const [editFundamentalTypeId, setEditFundamentalTypeId] = useState("");
+    const [editActive, setEditActive] = useState(true);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -80,26 +58,20 @@ function IndexContent({
     const headerText = "#1D9E75";
     const rowAlt = dark ? "#111827" : "#F9FAFB";
 
-    const createForm = useForm({
-        fundamental_type_id: "",
-        name: "",
-        type: "",
-    });
+    const createForm = useForm({ name: "" });
 
     const submitCreate = (event: FormEvent) => {
         event.preventDefault();
-        createForm.post(route("admin.ledger-categories.store"), {
+        createForm.post(route("admin.ledger-classes.store"), {
             preserveScroll: true,
-            onSuccess: () =>
-                createForm.reset("fundamental_type_id", "name", "type"),
+            onSuccess: () => createForm.reset("name"),
         });
     };
 
-    const startEdit = (ledgerCategory: LedgerCategoryData) => {
-        setEditingId(ledgerCategory.id);
-        setEditName(ledgerCategory.name);
-        setEditType(ledgerCategory.type);
-        setEditFundamentalTypeId(String(ledgerCategory.fundamental_type_id));
+    const startEdit = (ledgerClass: LedgerClassData) => {
+        setEditingId(ledgerClass.id);
+        setEditName(ledgerClass.name);
+        setEditActive(ledgerClass.is_active);
     };
 
     const cancelEdit = () => {
@@ -108,11 +80,10 @@ function IndexContent({
 
     const saveEdit = (id: number) => {
         router.put(
-            route("admin.ledger-categories.update", id),
+            route("admin.ledger-classes.update", id),
             {
-                fundamental_type_id: Number(editFundamentalTypeId),
                 name: editName,
-                type: editType,
+                is_active: editActive,
             },
             { preserveScroll: true, onSuccess: () => setEditingId(null) },
         );
@@ -126,7 +97,7 @@ function IndexContent({
         ) {
             return;
         }
-        router.delete(route("admin.ledger-categories.destroy", id), {
+        router.delete(route("admin.ledger-classes.destroy", id), {
             preserveScroll: true,
         });
     };
@@ -169,53 +140,7 @@ function IndexContent({
                                 marginBottom: "6px",
                             }}
                         >
-                            Fundamental type
-                        </label>
-                        <select
-                            value={createForm.data.fundamental_type_id}
-                            onChange={(event) =>
-                                createForm.setData(
-                                    "fundamental_type_id",
-                                    event.target.value,
-                                )
-                            }
-                            style={{ ...inputStyle, width: "180px" }}
-                        >
-                            <option value="">Select one</option>
-                            {fundamentalTypes.map((fundamentalType) => (
-                                <option
-                                    key={fundamentalType.id}
-                                    value={fundamentalType.id}
-                                >
-                                    {fundamentalType.name}
-                                </option>
-                            ))}
-                        </select>
-                        {(errors?.fundamental_type_id ||
-                            createForm.errors.fundamental_type_id) && (
-                            <p
-                                style={{
-                                    color: "#DC2626",
-                                    fontSize: "14px",
-                                    marginTop: "4px",
-                                }}
-                            >
-                                {errors?.fundamental_type_id ??
-                                    createForm.errors.fundamental_type_id}
-                            </p>
-                        )}
-                    </div>
-                    <div>
-                        <label
-                            style={{
-                                display: "block",
-                                fontSize: "15px",
-                                fontWeight: 600,
-                                color: text,
-                                marginBottom: "6px",
-                            }}
-                        >
-                            New category name
+                            New ledger class name
                         </label>
                         <input
                             type="text"
@@ -223,8 +148,8 @@ function IndexContent({
                             onChange={(event) =>
                                 createForm.setData("name", event.target.value)
                             }
-                            placeholder="e.g. Assets"
-                            style={{ ...inputStyle, width: "200px" }}
+                            placeholder="e.g. Dr"
+                            style={{ ...inputStyle, width: "160px" }}
                         />
                         {(errors?.name || createForm.errors.name) && (
                             <p
@@ -235,39 +160,6 @@ function IndexContent({
                                 }}
                             >
                                 {errors?.name ?? createForm.errors.name}
-                            </p>
-                        )}
-                    </div>
-                    <div>
-                        <label
-                            style={{
-                                display: "block",
-                                fontSize: "15px",
-                                fontWeight: 600,
-                                color: text,
-                                marginBottom: "6px",
-                            }}
-                        >
-                            Type
-                        </label>
-                        <input
-                            type="text"
-                            value={createForm.data.type}
-                            onChange={(event) =>
-                                createForm.setData("type", event.target.value)
-                            }
-                            placeholder="e.g. GL"
-                            style={{ ...inputStyle, width: "140px" }}
-                        />
-                        {(errors?.type || createForm.errors.type) && (
-                            <p
-                                style={{
-                                    color: "#DC2626",
-                                    fontSize: "14px",
-                                    marginTop: "4px",
-                                }}
-                            >
-                                {errors?.type ?? createForm.errors.type}
                             </p>
                         )}
                     </div>
@@ -287,7 +179,7 @@ function IndexContent({
                             opacity: createForm.processing ? 0.7 : 1,
                         }}
                     >
-                        Add category
+                        Add ledger class
                     </button>
                 </form>
             )}
@@ -309,19 +201,7 @@ function IndexContent({
                                 className="text-left px-4 py-3"
                                 style={{ color: headerText, fontWeight: 700 }}
                             >
-                                Fundamental type
-                            </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
-                                Type
-                            </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
-                                Class
+                                Status
                             </th>
                             {hasActions && (
                                 <th
@@ -337,24 +217,24 @@ function IndexContent({
                         </tr>
                     </thead>
                     <tbody>
-                        {ledgerCategories.data.length === 0 && (
+                        {ledgerClasses.data.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={hasActions ? 5 : 4}
+                                    colSpan={hasActions ? 3 : 2}
                                     className="px-4 py-6 text-center"
                                     style={{ color: textSecondary }}
                                 >
-                                    No ledger categories yet.
+                                    No ledger classes yet.
                                 </td>
                             </tr>
                         )}
 
-                        {ledgerCategories.data.map((ledgerCategory, index) => {
-                            const isEditing = editingId === ledgerCategory.id;
+                        {ledgerClasses.data.map((ledgerClass, index) => {
+                            const isEditing = editingId === ledgerClass.id;
 
                             return (
                                 <tr
-                                    key={ledgerCategory.id}
+                                    key={ledgerClass.id}
                                     style={{
                                         borderTop: `1px solid ${border}`,
                                         background:
@@ -383,7 +263,7 @@ function IndexContent({
                                                 }}
                                             />
                                         ) : (
-                                            ledgerCategory.name
+                                            ledgerClass.name
                                         )}
                                     </td>
                                     <td
@@ -391,79 +271,39 @@ function IndexContent({
                                         style={{ color: text }}
                                     >
                                         {isEditing ? (
-                                            <select
-                                                value={editFundamentalTypeId}
-                                                onChange={(event) =>
-                                                    setEditFundamentalTypeId(
-                                                        event.target.value,
-                                                    )
-                                                }
+                                            <label
                                                 style={{
-                                                    ...inputStyle,
-                                                    padding: "6px 8px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "8px",
                                                 }}
                                             >
-                                                {fundamentalTypes.map(
-                                                    (fundamentalType) => (
-                                                        <option
-                                                            key={
-                                                                fundamentalType.id
-                                                            }
-                                                            value={
-                                                                fundamentalType.id
-                                                            }
-                                                        >
-                                                            {
-                                                                fundamentalType.name
-                                                            }
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </select>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editActive}
+                                                    onChange={(event) =>
+                                                        setEditActive(
+                                                            event.target
+                                                                .checked,
+                                                        )
+                                                    }
+                                                />
+                                                Active
+                                            </label>
                                         ) : (
-                                            (ledgerCategory.fundamental_type
-                                                ?.name ?? (
-                                                <span
-                                                    style={{
-                                                        color: textSecondary,
-                                                    }}
-                                                >
-                                                    None
-                                                </span>
-                                            ))
-                                        )}
-                                    </td>
-                                    <td
-                                        className="px-4 py-3"
-                                        style={{ color: text }}
-                                    >
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                value={editType}
-                                                onChange={(event) =>
-                                                    setEditType(
-                                                        event.target.value,
-                                                    )
-                                                }
+                                            <span
                                                 style={{
-                                                    ...inputStyle,
-                                                    width: "100%",
-                                                    padding: "6px 8px",
+                                                    color: ledgerClass.is_active
+                                                        ? "#1D9E75"
+                                                        : textSecondary,
+                                                    fontWeight: 600,
                                                 }}
-                                            />
-                                        ) : (
-                                            ledgerCategory.type
+                                            >
+                                                {ledgerClass.is_active
+                                                    ? "Active"
+                                                    : "Inactive"}
+                                            </span>
                                         )}
-                                    </td>
-                                    <td
-                                        className="px-4 py-3"
-                                        style={{
-                                            color: text,
-                                            textTransform: "capitalize",
-                                        }}
-                                    >
-                                        {ledgerCategory.class}
                                     </td>
                                     {hasActions && (
                                         <td className="px-4 py-3">
@@ -478,7 +318,7 @@ function IndexContent({
                                                         <button
                                                             onClick={() =>
                                                                 saveEdit(
-                                                                    ledgerCategory.id,
+                                                                    ledgerClass.id,
                                                                 )
                                                             }
                                                             style={{
@@ -515,7 +355,7 @@ function IndexContent({
                                                             <button
                                                                 onClick={() =>
                                                                     startEdit(
-                                                                        ledgerCategory,
+                                                                        ledgerClass,
                                                                     )
                                                                 }
                                                                 style={{
@@ -536,8 +376,8 @@ function IndexContent({
                                                             <button
                                                                 onClick={() =>
                                                                     destroy(
-                                                                        ledgerCategory.id,
-                                                                        ledgerCategory.name,
+                                                                        ledgerClass.id,
+                                                                        ledgerClass.name,
                                                                     )
                                                                 }
                                                                 style={{
@@ -565,9 +405,9 @@ function IndexContent({
                 </table>
             </div>
 
-            {ledgerCategories.links.length > 3 && (
+            {ledgerClasses.links.length > 3 && (
                 <div className="flex gap-2 mt-4 flex-wrap">
-                    {ledgerCategories.links.map((link, index) => (
+                    {ledgerClasses.links.map((link, index) => (
                         <button
                             key={index}
                             disabled={!link.url}
