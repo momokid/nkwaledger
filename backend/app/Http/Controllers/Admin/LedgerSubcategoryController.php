@@ -26,7 +26,6 @@ class LedgerSubcategoryController extends Controller
                 ->with('category')
                 ->orderBy('name')
                 ->paginate(15),
-            // populates the parent Category <select> on the create/edit form
             'categories' => LedgerCategory::orderBy('name')->get(['id', 'name']),
             'permissions' => [
                 'create' => $this->access->can($user, 'ledger-accounts.create'),

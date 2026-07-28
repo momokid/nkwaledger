@@ -1,17 +1,15 @@
 <?php
 
 use App\Models\LedgerCategory;
-use App\Models\LedgerFundamentalType;
+use App\Models\LedgerClass;
 use App\Models\LedgerSubcategory;
 use App\Models\User;
-use Database\Seeders\LedgerFundamentalTypeSeeder;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
-    $this->seed(LedgerFundamentalTypeSeeder::class);
 
     $this->admin = User::factory()->create();
     $this->admin->givePermissionTo([
@@ -21,18 +19,17 @@ beforeEach(function () {
         'ledger-accounts.delete',
     ]);
 
-    $asset = LedgerFundamentalType::where('name', 'Asset')->first();
+    $drClass = LedgerClass::create(['name' => 'Dr']);
+    $crClass = LedgerClass::create(['name' => 'Cr']);
+
     $this->assetsCategory = LedgerCategory::create([
-        'fundamental_type_id' => $asset->id,
         'name' => 'Assets',
-        'type' => 'GL',
+        'class_id' => $drClass->id,
     ]);
 
-    $income = LedgerFundamentalType::where('name', 'Income')->first();
     $this->incomeCategory = LedgerCategory::create([
-        'fundamental_type_id' => $income->id,
         'name' => 'Income',
-        'type' => 'Income',
+        'class_id' => $crClass->id,
     ]);
 });
 
