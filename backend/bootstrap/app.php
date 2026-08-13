@@ -25,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'access' => \App\Http\Middleware\CheckPermission::class,
+            // stops unverified users from doing anything but verify
+            'verified.phone' => \App\Http\Middleware\EnsurePhoneIsVerified::class,
         ]);
 
         $middleware->redirectGuestsTo('/login');
