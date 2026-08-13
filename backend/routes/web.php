@@ -23,7 +23,6 @@ use App\Http\Controllers\Admin\DistrictController;
 use App\Http\Controllers\Admin\RegionController;
 use App\Http\Controllers\Admin\FarmerGroupTypeController;
 use App\Http\Controllers\Admin\FarmerGroupController;
-use App\Http\Controllers\Admin\LedgerAccountTypeController;
 use App\Http\Controllers\Admin\LedgerAccountController;
 use App\Http\Controllers\Admin\LedgerControlController;
 use App\Http\Controllers\Admin\LedgerCategoryController;
@@ -227,23 +226,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('access:farmer-groups.delete')->group(function () {
         Route::delete('/farmer-groups/{farmerGroup}', [FarmerGroupController::class, 'destroy'])
             ->name('farmer-groups.destroy');
-    });
-
-    //ledger account types
-    Route::middleware('access:ledger-accounts.view')->group(function () {
-        Route::get('/ledger-account-types', [LedgerAccountTypeController::class, 'index'])->name('ledger-account-types.index');
-    });
-
-    Route::middleware('access:ledger-accounts.create')->group(function () {
-        Route::post('/ledger-account-types', [LedgerAccountTypeController::class, 'store'])->name('ledger-account-types.store');
-    });
-
-    Route::middleware('access:ledger-accounts.update')->group(function () {
-        Route::put('/ledger-account-types/{ledgerAccountType}', [LedgerAccountTypeController::class, 'update'])->name('ledger-account-types.update');
-    });
-
-    Route::middleware('access:ledger-accounts.delete')->group(function () {
-        Route::delete('/ledger-account-types/{ledgerAccountType}', [LedgerAccountTypeController::class, 'destroy'])->name('ledger-account-types.destroy');
     });
 
     // ledger classes
