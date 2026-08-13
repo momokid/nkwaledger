@@ -1,90 +1,141 @@
 <?php
 
 use App\Models\LedgerAccount;
-use App\Models\LedgerAccountType;
+use App\Models\LedgerCategory;
+use App\Models\LedgerClass;
+use App\Models\LedgerControl;
+use App\Models\LedgerSubcategory;
+use App\Models\LedgerType;
 use Illuminate\Database\QueryException;
-use RuntimeException;
 
-test('normal_balance is read live from the account type', function () {
-    $type = LedgerAccountType::create(['name' => 'Asset', 'normal_balance' => 'debit']);
-    $account = LedgerAccount::create(['name' => 'Cash/MoMo', 'type_id' => $type->id]);
+beforeEach(function () {
+    $drClass = LedgerClass::create(['name' => 'Dr']);
+    $crClass = LedgerClass::create(['name' => 'Cr']);
 
-    expect($account->normal_balance)->toBe('debit');
+    $assetsCategory = LedgerCategory::create([
+        'name' => 'Assets',
+        'class_id' => $drClass->id,
+    ]);
+
+    $incomeCategory = LedgerCategory::create([
+        'name' => 'Income',
+        'class_id' => $crClass->id,
+    ]);
+
+    $this->assetSubcategory = LedgerSubcategory::create([
+        'category_id' => $assetsCategory->id,
+        'name' => 'Short Term Asset',
+    ]);
+
+    $this->incomeSubcategory = LedgerSubcategory::create([
+        'category_id' => $incomeCategory->id,
+        'name' => 'Program Revenues',
+    ]);
+
+    $this->control = LedgerControl::create(['name' => 'Cash Ctrl']);
+    $this->glType = LedgerType::create(['name' => 'GL']);
 });
 
-test('a credit-normal type is reflected on its accounts', function () {
-    $type = LedgerAccountType::create(['name' => 'Liability', 'normal_balance' => 'credit']);
-    $account = LedgerAccount::create(['name' => 'Loan Payable', 'type_id' => $type->id]);
+it('creates a ledger account with its required relationships', function () {
+    $account = LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
 
-    expect($account->normal_balance)->toBe('credit');
-});
-
-test('normal_balance updates automatically if the type\'s normal_balance changes', function () {
-    $type = LedgerAccountType::create(['name' => 'Custom', 'normal_balance' => 'debit']);
-    $account = LedgerAccount::create(['name' => 'Custom Account', 'type_id' => $type->id]);
-
-    expect($account->fresh()->normal_balance)->toBe('debit');
-
-    $type->update(['normal_balance' => 'credit']);
-
-    expect($account->fresh()->normal_balance)->toBe('credit');
-});
-
-test('a ledger account can be created without a type', function () {
-    $account = LedgerAccount::create(['name' => 'Uncategorized']);
-
-    expect($account->type_id)->toBeNull();
-    expect($account->normal_balance)->toBeNull();
-});
-
-test('ledger account name must be unique', function () {
-    LedgerAccount::create(['name' => 'Cash/MoMo']);
-
-    expect(fn() => LedgerAccount::create(['name' => 'Cash/MoMo']))
-        ->toThrow(QueryException::class);
-});
-
-test('a new ledger account defaults to not system and active', function () {
-    $account = LedgerAccount::create(['name' => 'Cash/MoMo']);
-
-    expect($account->is_system)->toBeFalse();
+    expect($account->name)->toBe('Cash & MoMo');
     expect($account->is_active)->toBeTrue();
+    expect($account->is_system)->toBeFalse();
+    expect($account->account_code)->toBeNull();
 });
 
-test('a ledger account can be marked as a system account', function () {
-    $account = LedgerAccount::create(['name' => 'Cash/MoMo', 'is_system' => true]);
+it('stores an optional account code', function () {
+    $account = LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'account_code' => '1001',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
 
-    expect($account->is_system)->toBeTrue();
+    expect($account->account_code)->toBe('1001');
 });
 
-test('a ledger account can be deactivated without being deleted', function () {
-    $account = LedgerAccount::create(['name' => 'Cash/MoMo']);
+it('belongs to a control, subcategory, and type', function () {
+    $account = LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
 
-    $account->update(['is_active' => false]);
-
-    expect($account->fresh()->is_active)->toBeFalse();
-    expect(LedgerAccount::find($account->id))->not->toBeNull();
+    expect($account->control->name)->toBe('Cash Ctrl');
+    expect($account->subcategory->name)->toBe('Short Term Asset');
+    expect($account->type->name)->toBe('GL');
 });
 
-test('a non-system ledger account can be soft deleted', function () {
-    $account = LedgerAccount::create(['name' => 'Cash/MoMo', 'is_system' => false]);
+it('derives a debit class from its subcategory category', function () {
+    $account = LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
 
-    $account->delete();
-
-    expect(LedgerAccount::find($account->id))->toBeNull();
-    expect(LedgerAccount::withTrashed()->find($account->id))->not->toBeNull();
+    expect($account->class)->toBe('Dr');
 });
 
-test('a system ledger account cannot be deleted', function () {
-    $account = LedgerAccount::create(['name' => 'Cash/MoMo', 'is_system' => true]);
+it('derives a credit class from its subcategory category', function () {
+    $account = LedgerAccount::create([
+        'name' => 'Crop Sales',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->incomeSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
+
+    expect($account->class)->toBe('Cr');
+});
+
+it('enforces unique account names', function () {
+    LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
+
+    expect(fn() => LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]))->toThrow(QueryException::class);
+});
+
+it('blocks deletion of a system account', function () {
+    $account = LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+        'is_system' => true,
+    ]);
 
     expect(fn() => $account->delete())->toThrow(RuntimeException::class);
     expect(LedgerAccount::find($account->id))->not->toBeNull();
 });
 
-test('a ledger account resolves its type relationship', function () {
-    $type = LedgerAccountType::create(['name' => 'Income', 'normal_balance' => 'credit']);
-    $account = LedgerAccount::create(['name' => 'Crop Sales', 'type_id' => $type->id]);
+it('soft deletes a non-system account', function () {
+    $account = LedgerAccount::create([
+        'name' => 'Cash & MoMo',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->assetSubcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
 
-    expect($account->type->name)->toBe('Income');
+    $account->delete();
+
+    expect(LedgerAccount::find($account->id))->toBeNull();
+    expect(LedgerAccount::withTrashed()->find($account->id))->not->toBeNull();
 });

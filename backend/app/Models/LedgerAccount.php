@@ -10,7 +10,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use RuntimeException;
 
-#[Fillable(['name', 'type_id', 'is_system', 'is_active'])]
+#[Fillable([
+    'name',
+    'account_code',
+    'control_id',
+    'subcategory_id',
+    'type_id',
+    'is_system',
+    'is_active',
+])]
 class LedgerAccount extends Model
 {
     use HasFactory, SoftDeletes;
@@ -37,17 +45,27 @@ class LedgerAccount extends Model
         });
     }
 
-    public function type(): BelongsTo
+    public function control(): BelongsTo
     {
-        return $this->belongsTo(LedgerAccountType::class, 'type_id');
+        return $this->belongsTo(LedgerControl::class, 'control_id');
     }
 
-    // always reads live from the related type, never stored — so a type's debit/credit
-    // setting can never drift out of sync with the accounts that reference it
-    protected function normalBalance(): Attribute
+    public function subcategory(): BelongsTo
+    {
+        return $this->belongsTo(LedgerSubcategory::class, 'subcategory_id');
+    }
+
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(LedgerType::class, 'type_id');
+    }
+
+    // walks subcategory to category to class, never stored — so a category's Dr/Cr
+    // setting can never drift out of sync with the accounts that sit beneath it
+    protected function class(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->type?->normal_balance,
+            get: fn() => $this->subcategory?->category?->class?->name,
         );
     }
 }

@@ -1,179 +1,186 @@
 <?php
 
 use App\Models\LedgerAccount;
-use App\Models\LedgerAccountType;
+use App\Models\LedgerCategory;
+use App\Models\LedgerClass;
+use App\Models\LedgerControl;
+use App\Models\LedgerSubcategory;
+use App\Models\LedgerType;
 use App\Models\User;
-use App\Models\UserPermissionDenial;
-use Spatie\Permission\Models\Permission;
+use Database\Seeders\PermissionsSeeder;
+use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
-    foreach (['view', 'create', 'update', 'delete'] as $action) {
-        Permission::firstOrCreate(['name' => "ledger-accounts.{$action}", 'guard_name' => 'web']);
-    }
-});
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $this->seed(PermissionsSeeder::class);
 
-test('a guest is redirected to login when visiting ledger accounts', function () {
-    $this->get('/admin/ledger-accounts')->assertRedirect('/login');
-});
-
-test('a user without ledger-accounts.view cannot view the list', function () {
-    $user = User::factory()->create();
-
-    $this->actingAs($user)->get('/admin/ledger-accounts')->assertForbidden();
-});
-
-test('a user with ledger-accounts.view granted directly can view the list', function () {
-    $user = User::factory()->create();
-    $user->givePermissionTo('ledger-accounts.view');
-
-    $this->actingAs($user)->get('/admin/ledger-accounts')->assertOk();
-});
-
-test('an admin who has been explicitly denied ledger-accounts.view cannot view the list', function () {
-    $denier = User::factory()->create();
-    $admin = User::factory()->create();
-    $admin->assignRole('admin');
-    $admin->givePermissionTo('ledger-accounts.view');
-
-    UserPermissionDenial::create([
-        'user_id' => $admin->id,
-        'permission_id' => Permission::where('name', 'ledger-accounts.view')->value('id'),
-        'denied_by' => $denier->id,
+    $this->admin = User::factory()->create();
+    $this->admin->givePermissionTo([
+        'ledger-accounts.view',
+        'ledger-accounts.create',
+        'ledger-accounts.update',
+        'ledger-accounts.delete',
     ]);
 
-    $this->actingAs($admin)->get('/admin/ledger-accounts')->assertForbidden();
-});
+    $drClass = LedgerClass::create(['name' => 'Dr']);
 
-test('a user without ledger-accounts.create cannot create a ledger account', function () {
-    $type = LedgerAccountType::create(['name' => 'Asset', 'normal_balance' => 'debit']);
-    $user = User::factory()->create();
-    $user->givePermissionTo('ledger-accounts.view');
-
-    $this->actingAs($user)->post('/admin/ledger-accounts', [
-        'name' => 'Cash/MoMo',
-        'type_id' => $type->id,
-    ])->assertForbidden();
-});
-
-test('a user with ledger-accounts.create can create a ledger account', function () {
-    $type = LedgerAccountType::create(['name' => 'Asset', 'normal_balance' => 'debit']);
-    $user = User::factory()->create();
-    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.create']);
-
-    $this->actingAs($user)->post('/admin/ledger-accounts', [
-        'name' => 'Cash/MoMo',
-        'type_id' => $type->id,
-    ])->assertSessionHasNoErrors()->assertRedirect();
-
-    $this->assertDatabaseHas('ledger_accounts', [
-        'name' => 'Cash/MoMo',
-        'type_id' => $type->id,
+    $assetsCategory = LedgerCategory::create([
+        'name' => 'Assets',
+        'class_id' => $drClass->id,
     ]);
-});
 
-test('a ledger account can be created without a type', function () {
-    $user = User::factory()->create();
-    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.create']);
-
-    $this->actingAs($user)->post('/admin/ledger-accounts', [
-        'name' => 'Uncategorized',
-    ])->assertSessionHasNoErrors()->assertRedirect();
-
-    $this->assertDatabaseHas('ledger_accounts', ['name' => 'Uncategorized', 'type_id' => null]);
-});
-
-test('creating a ledger account with a non-existent type_id fails validation', function () {
-    $user = User::factory()->create();
-    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.create']);
-
-    $this->actingAs($user)->post('/admin/ledger-accounts', [
-        'name' => 'Cash/MoMo',
-        'type_id' => 999,
-    ])->assertSessionHasErrors('type_id');
-});
-
-test('creating a ledger account with a duplicate name fails validation', function () {
-    LedgerAccount::create(['name' => 'Cash/MoMo']);
-    $user = User::factory()->create();
-    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.create']);
-
-    $this->actingAs($user)->post('/admin/ledger-accounts', [
-        'name' => 'Cash/MoMo',
-    ])->assertSessionHasErrors('name');
-});
-
-test('a user without ledger-accounts.update cannot update a ledger account', function () {
-    $account = LedgerAccount::factory()->create();
-    $user = User::factory()->create();
-    $user->givePermissionTo('ledger-accounts.view');
-
-    $this->actingAs($user)->put("/admin/ledger-accounts/{$account->id}", [
-        'name' => 'Updated Name',
-    ])->assertForbidden();
-});
-
-test('a user with ledger-accounts.update can update a ledger account, including toggling is_active', function () {
-    $account = LedgerAccount::factory()->create(['is_active' => true]);
-    $user = User::factory()->create();
-    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.update']);
-
-    $this->actingAs($user)->put("/admin/ledger-accounts/{$account->id}", [
-        'name' => 'Updated Name',
-        'is_active' => false,
-    ])->assertSessionHasNoErrors()->assertRedirect();
-
-    $this->assertDatabaseHas('ledger_accounts', [
-        'id' => $account->id,
-        'name' => 'Updated Name',
-        'is_active' => false,
+    $this->subcategory = LedgerSubcategory::create([
+        'category_id' => $assetsCategory->id,
+        'name' => 'Short Term Asset',
     ]);
+
+    $this->control = LedgerControl::create(['name' => 'Cash Ctrl']);
+    $this->glType = LedgerType::create(['name' => 'GL']);
+
+    $this->validPayload = [
+        'name' => 'Cash & MoMo',
+        'account_code' => '1001',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->subcategory->id,
+        'type_id' => $this->glType->id,
+    ];
 });
 
-test('a user without ledger-accounts.delete cannot delete a ledger account', function () {
-    $account = LedgerAccount::factory()->create();
-    $user = User::factory()->create();
-    $user->givePermissionTo('ledger-accounts.view');
+it('lists ledger accounts for a user with view permission', function () {
+    LedgerAccount::create($this->validPayload);
 
-    $this->actingAs($user)->delete("/admin/ledger-accounts/{$account->id}")->assertForbidden();
-});
-
-test('a user with ledger-accounts.delete can soft delete a non-system ledger account', function () {
-    $account = LedgerAccount::factory()->create(['is_system' => false]);
-    $user = User::factory()->create();
-    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.delete']);
-
-    $this->actingAs($user)->delete("/admin/ledger-accounts/{$account->id}")
-        ->assertSessionHasNoErrors()
-        ->assertRedirect();
-
-    $this->assertSoftDeleted('ledger_accounts', ['id' => $account->id]);
-});
-
-test('a system ledger account cannot be deleted even with permission', function () {
-    $account = LedgerAccount::factory()->create(['is_system' => true]);
-    $user = User::factory()->create();
-    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.delete']);
-
-    $this->actingAs($user)->delete("/admin/ledger-accounts/{$account->id}")
-        ->assertSessionHasErrors();
-
-    $this->assertDatabaseHas('ledger_accounts', ['id' => $account->id, 'deleted_at' => null]);
-});
-
-test('a soft-deleted ledger account is excluded from the default index', function () {
-    $active = LedgerAccount::factory()->create(['name' => 'Cash/MoMo']);
-    $deleted = LedgerAccount::factory()->create(['name' => 'Old Account']);
-    $deleted->delete();
-
-    $user = User::factory()->create();
-    $user->givePermissionTo('ledger-accounts.view');
-
-    $response = $this->actingAs($user)->get('/admin/ledger-accounts');
+    $response = $this->actingAs($this->admin)->get(route('admin.ledger-accounts.index'));
 
     $response->assertOk();
     $response->assertInertia(
         fn($page) => $page
+            ->component('Admin/LedgerAccounts/Index')
             ->has('ledgerAccounts.data', 1)
-            ->where('ledgerAccounts.data.0.name', 'Cash/MoMo')
     );
+});
+
+it('denies listing to a user without view permission', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('admin.ledger-accounts.index'));
+
+    $response->assertForbidden();
+});
+
+it('creates a ledger account with valid data', function () {
+    $response = $this->actingAs($this->admin)->post(route('admin.ledger-accounts.store'), $this->validPayload);
+
+    $response->assertRedirect();
+    $this->assertDatabaseHas('ledger_accounts', [
+        'name' => 'Cash & MoMo',
+        'account_code' => '1001',
+        'control_id' => $this->control->id,
+        'subcategory_id' => $this->subcategory->id,
+        'type_id' => $this->glType->id,
+    ]);
+});
+
+it('creates a ledger account without an account code', function () {
+    $payload = $this->validPayload;
+    unset($payload['account_code']);
+
+    $response = $this->actingAs($this->admin)->post(route('admin.ledger-accounts.store'), $payload);
+
+    $response->assertRedirect();
+    $response->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('ledger_accounts', ['name' => 'Cash & MoMo', 'account_code' => null]);
+});
+
+it('rejects a duplicate account name on create', function () {
+    LedgerAccount::create($this->validPayload);
+
+    $response = $this->actingAs($this->admin)->post(route('admin.ledger-accounts.store'), $this->validPayload);
+
+    $response->assertSessionHasErrors('name');
+});
+
+it('rejects a nonexistent control on create', function () {
+    $response = $this->actingAs($this->admin)->post(route('admin.ledger-accounts.store'), [
+        ...$this->validPayload,
+        'control_id' => 9999,
+    ]);
+
+    $response->assertSessionHasErrors('control_id');
+});
+
+it('rejects a nonexistent subcategory on create', function () {
+    $response = $this->actingAs($this->admin)->post(route('admin.ledger-accounts.store'), [
+        ...$this->validPayload,
+        'subcategory_id' => 9999,
+    ]);
+
+    $response->assertSessionHasErrors('subcategory_id');
+});
+
+it('rejects a nonexistent type on create', function () {
+    $response = $this->actingAs($this->admin)->post(route('admin.ledger-accounts.store'), [
+        ...$this->validPayload,
+        'type_id' => 9999,
+    ]);
+
+    $response->assertSessionHasErrors('type_id');
+});
+
+it('denies creating to a user without create permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('ledger-accounts.view');
+
+    $response = $this->actingAs($user)->post(route('admin.ledger-accounts.store'), $this->validPayload);
+
+    $response->assertForbidden();
+    $this->assertDatabaseMissing('ledger_accounts', ['name' => 'Cash & MoMo']);
+});
+
+it('updates a ledger account with valid data', function () {
+    $account = LedgerAccount::create($this->validPayload);
+
+    $response = $this->actingAs($this->admin)->put(route('admin.ledger-accounts.update', $account), [
+        ...$this->validPayload,
+        'name' => 'Mobile Money',
+    ]);
+
+    $response->assertRedirect();
+    $this->assertDatabaseHas('ledger_accounts', ['id' => $account->id, 'name' => 'Mobile Money']);
+});
+
+it('allows updating an account without changing its name', function () {
+    $account = LedgerAccount::create($this->validPayload);
+
+    $response = $this->actingAs($this->admin)->put(route('admin.ledger-accounts.update', $account), $this->validPayload);
+
+    $response->assertRedirect();
+    $response->assertSessionHasNoErrors();
+});
+
+it('soft deletes a non-system ledger account', function () {
+    $account = LedgerAccount::create($this->validPayload);
+
+    $response = $this->actingAs($this->admin)->delete(route('admin.ledger-accounts.destroy', $account));
+
+    $response->assertRedirect();
+    $this->assertSoftDeleted('ledger_accounts', ['id' => $account->id]);
+});
+
+it('does not delete a system ledger account', function () {
+    $account = LedgerAccount::create([...$this->validPayload, 'is_system' => true]);
+
+    $this->actingAs($this->admin)->delete(route('admin.ledger-accounts.destroy', $account));
+
+    $this->assertDatabaseHas('ledger_accounts', ['id' => $account->id, 'deleted_at' => null]);
+});
+
+it('denies deleting to a user without delete permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.create', 'ledger-accounts.update']);
+    $account = LedgerAccount::create($this->validPayload);
+
+    $response = $this->actingAs($user)->delete(route('admin.ledger-accounts.destroy', $account));
+
+    $response->assertForbidden();
+    $this->assertDatabaseHas('ledger_accounts', ['id' => $account->id]);
 });

@@ -1,25 +1,36 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { router, usePage } from "@inertiajs/react";
+import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { useState } from "react";
-import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
-import QuickAddModal from "@/Components/Admin/QuickAddModal";
+import { FormEvent, useState } from "react";
+import axios from "axios";
 
-interface TypeItem {
+interface Option {
     id: number;
     name: string;
-    normal_balance: "debit" | "credit";
+}
+
+interface SubcategoryOption extends Option {
+    category_id: number;
+    category: Option | null;
 }
 
 interface LedgerAccountData {
     id: number;
     name: string;
-    type_id: number | null;
-    type: TypeItem | null;
-    normal_balance: "debit" | "credit" | null;
+    account_code: string | null;
+    control_id: number;
+    subcategory_id: number;
+    type_id: number;
     is_system: boolean;
     is_active: boolean;
+    control: Option | null;
+    type: Option | null;
+    subcategory: {
+        id: number;
+        name: string;
+        category: { id: number; name: string; class: Option | null } | null;
+    } | null;
 }
 
 interface PaginationLink {
@@ -29,43 +40,49 @@ interface PaginationLink {
 }
 
 interface Props extends PageProps {
-    ledgerAccounts: {
-        data: LedgerAccountData[];
-        links: PaginationLink[];
-    };
-    types: TypeItem[];
-    permissions: {
-        create: boolean;
-        update: boolean;
-        delete: boolean;
-    };
+    ledgerAccounts: { data: LedgerAccountData[]; links: PaginationLink[] };
+    controls: Option[];
+    subcategories: SubcategoryOption[];
+    types: Option[];
+    categories: Option[];
+    permissions: { create: boolean; update: boolean; delete: boolean };
 }
 
-const emptyForm = {
-    id: null as number | null,
-    name: "",
-    type_id: "",
-    is_system: false,
-    is_active: true,
-};
-
-export default function Index({ ledgerAccounts, types, permissions }: Props) {
+export default function Index(props: Props) {
     return (
         <AdminLayout title="Ledger Accounts">
-            <IndexContent
-                ledgerAccounts={ledgerAccounts}
-                types={types}
-                permissions={permissions}
-            />
+            <IndexContent {...props} />
         </AdminLayout>
     );
 }
 
-type ContentProps = Pick<Props, "ledgerAccounts" | "types" | "permissions">;
+type ContentProps = Pick<
+    Props,
+    | "ledgerAccounts"
+    | "controls"
+    | "subcategories"
+    | "types"
+    | "categories"
+    | "permissions"
+>;
 
-function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
+function IndexContent({
+    ledgerAccounts,
+    controls,
+    subcategories,
+    types,
+    categories,
+    permissions,
+}: ContentProps) {
     const { errors } = usePage<Props>().props;
     const { dark } = useTheme();
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editName, setEditName] = useState("");
+    const [editCode, setEditCode] = useState("");
+    const [editControlId, setEditControlId] = useState("");
+    const [editSubcategoryId, setEditSubcategoryId] = useState("");
+    const [editTypeId, setEditTypeId] = useState("");
+    const [quickAddBusy, setQuickAddBusy] = useState(false);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -76,25 +93,105 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
     const headerBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
     const headerText = "#1D9E75";
     const rowAlt = dark ? "#111827" : "#F9FAFB";
-    const errorTextStyle = {
-        color: "#DC2626",
-        fontSize: "14px",
-        marginTop: "4px",
+
+    const createForm = useForm({
+        name: "",
+        account_code: "",
+        control_id: "",
+        subcategory_id: "",
+        type_id: "",
+    });
+
+    const submitCreate = (event: FormEvent) => {
+        event.preventDefault();
+        createForm.post(route("admin.ledger-accounts.store"), {
+            preserveScroll: true,
+            onSuccess: () => createForm.reset("name", "account_code"),
+        });
     };
 
-    const [form, setForm] = useState(emptyForm);
-    const [submitting, setSubmitting] = useState(false);
-    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [submitError, setSubmitError] = useState<string | null>(null);
+    const startEdit = (account: LedgerAccountData) => {
+        setEditingId(account.id);
+        setEditName(account.name);
+        setEditCode(account.account_code ?? "");
+        setEditControlId(String(account.control_id));
+        setEditSubcategoryId(String(account.subcategory_id));
+        setEditTypeId(String(account.type_id));
+    };
 
-    const [navLoading, setNavLoading] = useState(false);
-    const [deletingId, setDeletingId] = useState<number | null>(null);
-    const [rowError, setRowError] = useState<{
-        id: number;
-        message: string;
-    } | null>(null);
+    const saveEdit = (id: number) => {
+        router.put(
+            route("admin.ledger-accounts.update", id),
+            {
+                name: editName,
+                account_code: editCode === "" ? null : editCode,
+                control_id: Number(editControlId),
+                subcategory_id: Number(editSubcategoryId),
+                type_id: Number(editTypeId),
+            },
+            { preserveScroll: true, onSuccess: () => setEditingId(null) },
+        );
+    };
 
-    const [typeModalOpen, setTypeModalOpen] = useState(false);
+    const destroy = (id: number, name: string) => {
+        if (
+            !window.confirm(
+                `Delete "${name}"? This cannot be undone from here.`,
+            )
+        )
+            return;
+        router.delete(route("admin.ledger-accounts.destroy", id), {
+            preserveScroll: true,
+        });
+    };
+
+    const quickAdd = async (
+        label: string,
+        routeName: string,
+        propName: string,
+        extra?: Record<string, unknown>,
+    ) => {
+        const name = window.prompt(`New ${label} name`);
+        if (!name || !name.trim()) return;
+
+        setQuickAddBusy(true);
+        try {
+            await axios.post(route(routeName), { name: name.trim(), ...extra });
+            router.reload({ only: [propName] });
+        } catch {
+            window.alert(
+                `Could not create the ${label}. It may already exist.`,
+            );
+        } finally {
+            setQuickAddBusy(false);
+        }
+    };
+
+    const quickAddSubcategory = async () => {
+        if (categories.length === 0) {
+            window.alert("Create a ledger category first.");
+            return;
+        }
+        const list = categories.map((c) => `${c.id} - ${c.name}`).join("\n");
+        const answer = window.prompt(
+            `Enter the category ID for this subcategory:\n\n${list}`,
+        );
+        if (!answer) return;
+
+        const categoryId = Number(answer.trim());
+        if (!categories.some((c) => c.id === categoryId)) {
+            window.alert("That category ID was not in the list.");
+            return;
+        }
+        await quickAdd(
+            "subcategory",
+            "admin.ledger-subcategories.store",
+            "subcategories",
+            { category_id: categoryId },
+        );
+    };
+
+    const hasActions = permissions.update || permissions.delete;
 
     const inputStyle = {
         border: `1px solid ${inputBorder}`,
@@ -104,300 +201,237 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
         fontSize: "17px",
         outline: "none",
         fontFamily: "inherit",
-        width: "100%",
+    };
+
+    const plusStyle = {
+        border: `1px solid ${inputBorder}`,
+        background: "transparent",
+        color: "#1D9E75",
+        fontWeight: 700,
+        fontSize: "17px",
+        width: "42px",
+        height: "42px",
+        cursor: quickAddBusy ? "not-allowed" : "pointer",
+        opacity: quickAddBusy ? 0.6 : 1,
     };
 
     const labelStyle = {
-        display: "flex",
-        alignItems: "center",
-        gap: "6px",
+        display: "block",
         fontSize: "15px",
         fontWeight: 600,
         color: text,
         marginBottom: "6px",
     };
 
-    const plusButtonStyle = {
-        color: "#1D9E75",
-        background: "transparent",
-        border: `1px solid #1D9E75`,
-        borderRadius: "999px",
-        width: "18px",
-        height: "18px",
-        lineHeight: "16px",
-        fontSize: "13px",
-        fontWeight: 700,
-        cursor: "pointer",
-        padding: 0,
-    };
-
-    const startEdit = (account: LedgerAccountData) => {
-        setForm({
-            id: account.id,
-            name: account.name,
-            type_id: account.type_id ? String(account.type_id) : "",
-            is_system: account.is_system,
-            is_active: account.is_active,
-        });
-        setFormErrors({});
-        setSubmitError(null);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    };
-
-    const cancelEdit = () => {
-        setForm(emptyForm);
-        setFormErrors({});
-        setSubmitError(null);
-    };
-
-    const submitForm = () => {
-        if (!form.name.trim()) {
-            setSubmitError("Name is required.");
-            return;
-        }
-        setSubmitError(null);
-
-        const payload = {
-            name: form.name,
-            type_id: form.type_id || null,
-            is_active: form.is_active,
-            ...(!form.id ? { is_system: form.is_system } : {}),
-        };
-
-        setSubmitting(true);
-
-        const options = {
-            preserveScroll: true,
-            onError: (errs: Record<string, string>) => setFormErrors(errs),
-            onSuccess: () => cancelEdit(),
-            onFinish: () => setSubmitting(false),
-        };
-
-        if (form.id) {
-            router.put(
-                route("admin.ledger-accounts.update", form.id),
-                payload,
-                options,
-            );
-        } else {
-            router.post(route("admin.ledger-accounts.store"), payload, options);
-        }
-    };
-
-    const destroy = (account: LedgerAccountData) => {
-        if (
-            !window.confirm(
-                `Delete "${account.name}"? This cannot be undone from here.`,
-            )
-        )
-            return;
-        setRowError(null);
-        setDeletingId(account.id);
-        router.delete(route("admin.ledger-accounts.destroy", account.id), {
-            preserveScroll: true,
-            onError: (errs) =>
-                setRowError({
-                    id: account.id,
-                    message: errs.name ?? "Could not delete this account.",
-                }),
-            onFinish: () => setDeletingId(null),
-        });
-    };
-
-    const goToPage = (url: string) => {
-        router.get(
-            url,
-            {},
-            {
-                preserveScroll: true,
-                onStart: () => setNavLoading(true),
-                onFinish: () => setNavLoading(false),
-            },
-        );
-    };
-
-    const hasActions = permissions.update || permissions.delete;
+    const errorStyle = { color: "#DC2626", fontSize: "14px", marginTop: "4px" };
+    const thStyle = { color: headerText, fontWeight: 700 };
 
     return (
         <>
-            {permissions.create || form.id ? (
-                <div
+            {permissions.create && (
+                <form
+                    onSubmit={submitCreate}
                     className="mb-6"
                     style={{
                         background: surface,
                         border: `1px solid ${border}`,
                         padding: "20px",
+                        display: "flex",
+                        gap: "12px",
+                        alignItems: "flex-end",
+                        flexWrap: "wrap",
                     }}
                 >
-                    <h3
-                        style={{
-                            fontSize: "18px",
-                            fontWeight: 700,
-                            color: text,
-                            marginBottom: "16px",
-                        }}
-                    >
-                        {form.id ? "Edit ledger account" : "New ledger account"}
-                    </h3>
-
-                    <div className="mb-4">
-                        <label style={labelStyle}>Name</label>
+                    <div>
+                        <label style={labelStyle}>Account name</label>
                         <input
                             type="text"
-                            value={form.name}
-                            onChange={(event) =>
-                                setForm((c) => ({
-                                    ...c,
-                                    name: event.target.value,
-                                }))
+                            value={createForm.data.name}
+                            onChange={(e) =>
+                                createForm.setData("name", e.target.value)
                             }
-                            style={inputStyle}
+                            placeholder="e.g. Cash & MoMo"
+                            style={{ ...inputStyle, width: "200px" }}
                         />
-                        {(errors?.name || formErrors.name) && (
-                            <p style={errorTextStyle}>
-                                {errors?.name ?? formErrors.name}
+                        {(errors?.name || createForm.errors.name) && (
+                            <p style={errorStyle}>
+                                {errors?.name ?? createForm.errors.name}
                             </p>
                         )}
                     </div>
 
-                    <div className="mb-4">
-                        <label style={labelStyle}>
-                            Type
-                            {permissions.create && (
-                                <button
-                                    type="button"
-                                    onClick={() => setTypeModalOpen(true)}
-                                    style={plusButtonStyle}
-                                >
-                                    +
-                                </button>
-                            )}
-                        </label>
-                        <select
-                            value={form.type_id}
-                            onChange={(event) =>
-                                setForm((c) => ({
-                                    ...c,
-                                    type_id: event.target.value,
-                                }))
+                    <div>
+                        <label style={labelStyle}>Account code</label>
+                        <input
+                            type="text"
+                            value={createForm.data.account_code}
+                            onChange={(e) =>
+                                createForm.setData(
+                                    "account_code",
+                                    e.target.value,
+                                )
                             }
-                            style={inputStyle}
-                        >
-                            <option value="">None</option>
-                            {types.map((type) => (
-                                <option key={type.id} value={type.id}>
-                                    {type.name} ({type.normal_balance})
-                                </option>
-                            ))}
-                        </select>
-                        {(errors?.type_id || formErrors.type_id) && (
-                            <p style={errorTextStyle}>
-                                {errors?.type_id ?? formErrors.type_id}
+                            placeholder="Optional"
+                            style={{ ...inputStyle, width: "120px" }}
+                        />
+                        {(errors?.account_code ||
+                            createForm.errors.account_code) && (
+                            <p style={errorStyle}>
+                                {errors?.account_code ??
+                                    createForm.errors.account_code}
                             </p>
                         )}
                     </div>
 
-                    <div className="flex gap-6 mb-6">
-                        {!form.id && (
-                            <label
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px",
-                                    color: text,
-                                    fontSize: "15px",
-                                }}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={form.is_system}
-                                    onChange={(event) =>
-                                        setForm((c) => ({
-                                            ...c,
-                                            is_system: event.target.checked,
-                                        }))
-                                    }
-                                />
-                                System account
-                            </label>
-                        )}
-                        <label
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                color: text,
-                                fontSize: "15px",
-                            }}
-                        >
-                            <input
-                                type="checkbox"
-                                checked={form.is_active}
-                                onChange={(event) =>
-                                    setForm((c) => ({
-                                        ...c,
-                                        is_active: event.target.checked,
-                                    }))
+                    <div>
+                        <label style={labelStyle}>Control</label>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                            <select
+                                value={createForm.data.control_id}
+                                onChange={(e) =>
+                                    createForm.setData(
+                                        "control_id",
+                                        e.target.value,
+                                    )
                                 }
-                            />
-                            Active
-                        </label>
-                    </div>
-
-                    {form.id && form.is_system && (
-                        <p
-                            style={{
-                                color: textSecondary,
-                                fontSize: "14px",
-                                marginBottom: "16px",
-                            }}
-                        >
-                            This is a system account — its "System account"
-                            status can't be changed here.
-                        </p>
-                    )}
-
-                    {submitError && (
-                        <p style={{ ...errorTextStyle, marginBottom: "12px" }}>
-                            {submitError}
-                        </p>
-                    )}
-
-                    <div style={{ display: "flex", gap: "12px" }}>
-                        <button
-                            onClick={submitForm}
-                            disabled={submitting}
-                            style={{
-                                background: "#1D9E75",
-                                color: "#FFFFFF",
-                                border: "none",
-                                padding: "10px 20px",
-                                fontSize: "17px",
-                                fontWeight: 600,
-                                cursor: submitting ? "not-allowed" : "pointer",
-                                opacity: submitting ? 0.7 : 1,
-                            }}
-                        >
-                            {form.id ? "Save changes" : "Add ledger account"}
-                        </button>
-                        {form.id && (
-                            <button
-                                onClick={cancelEdit}
-                                style={{
-                                    background: "transparent",
-                                    color: textSecondary,
-                                    border: `1px solid ${border}`,
-                                    padding: "10px 20px",
-                                    fontSize: "17px",
-                                    cursor: "pointer",
-                                }}
+                                style={{ ...inputStyle, width: "170px" }}
                             >
-                                Cancel
+                                <option value="">Select one</option>
+                                {controls.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    quickAdd(
+                                        "control",
+                                        "admin.ledger-controls.store",
+                                        "controls",
+                                    )
+                                }
+                                disabled={quickAddBusy}
+                                title="Add a new control"
+                                style={plusStyle}
+                            >
+                                +
                             </button>
+                        </div>
+                        {(errors?.control_id ||
+                            createForm.errors.control_id) && (
+                            <p style={errorStyle}>
+                                {errors?.control_id ??
+                                    createForm.errors.control_id}
+                            </p>
                         )}
                     </div>
-                </div>
-            ) : null}
+
+                    <div>
+                        <label style={labelStyle}>Subcategory</label>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                            <select
+                                value={createForm.data.subcategory_id}
+                                onChange={(e) =>
+                                    createForm.setData(
+                                        "subcategory_id",
+                                        e.target.value,
+                                    )
+                                }
+                                style={{ ...inputStyle, width: "230px" }}
+                            >
+                                <option value="">Select one</option>
+                                {subcategories.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.category?.name
+                                            ? `${s.category.name} — ${s.name}`
+                                            : s.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={quickAddSubcategory}
+                                disabled={quickAddBusy}
+                                title="Add a new subcategory"
+                                style={plusStyle}
+                            >
+                                +
+                            </button>
+                        </div>
+                        {(errors?.subcategory_id ||
+                            createForm.errors.subcategory_id) && (
+                            <p style={errorStyle}>
+                                {errors?.subcategory_id ??
+                                    createForm.errors.subcategory_id}
+                            </p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label style={labelStyle}>Type</label>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                            <select
+                                value={createForm.data.type_id}
+                                onChange={(e) =>
+                                    createForm.setData(
+                                        "type_id",
+                                        e.target.value,
+                                    )
+                                }
+                                style={{ ...inputStyle, width: "150px" }}
+                            >
+                                <option value="">Select one</option>
+                                {types.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                        {t.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    quickAdd(
+                                        "type",
+                                        "admin.ledger-types.store",
+                                        "types",
+                                    )
+                                }
+                                disabled={quickAddBusy}
+                                title="Add a new type"
+                                style={plusStyle}
+                            >
+                                +
+                            </button>
+                        </div>
+                        {(errors?.type_id || createForm.errors.type_id) && (
+                            <p style={errorStyle}>
+                                {errors?.type_id ?? createForm.errors.type_id}
+                            </p>
+                        )}
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={createForm.processing}
+                        style={{
+                            background: "#1D9E75",
+                            color: "#FFFFFF",
+                            border: "none",
+                            padding: "10px 20px",
+                            fontSize: "17px",
+                            fontWeight: 600,
+                            cursor: createForm.processing
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity: createForm.processing ? 0.7 : 1,
+                        }}
+                    >
+                        Add account
+                    </button>
+                </form>
+            )}
 
             <div
                 className="overflow-x-auto"
@@ -406,43 +440,28 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
                 <table className="min-w-full" style={{ fontSize: "17px" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
+                            <th className="text-left px-4 py-3" style={thStyle}>
                                 Name
                             </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
+                            <th className="text-left px-4 py-3" style={thStyle}>
+                                Code
+                            </th>
+                            <th className="text-left px-4 py-3" style={thStyle}>
+                                Control
+                            </th>
+                            <th className="text-left px-4 py-3" style={thStyle}>
+                                Subcategory
+                            </th>
+                            <th className="text-left px-4 py-3" style={thStyle}>
                                 Type
                             </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
-                                Normal Balance
-                            </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
-                                System
-                            </th>
-                            <th
-                                className="text-left px-4 py-3"
-                                style={{ color: headerText, fontWeight: 700 }}
-                            >
-                                Status
+                            <th className="text-left px-4 py-3" style={thStyle}>
+                                Class
                             </th>
                             {hasActions && (
                                 <th
                                     className="text-left px-4 py-3"
-                                    style={{
-                                        color: headerText,
-                                        fontWeight: 700,
-                                    }}
+                                    style={thStyle}
                                 >
                                     Actions
                                 </th>
@@ -450,14 +469,10 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
                         </tr>
                     </thead>
                     <tbody>
-                        {navLoading && (
-                            <TableSkeletonRows rows={5} columns={6} />
-                        )}
-
-                        {!navLoading && ledgerAccounts.data.length === 0 && (
+                        {ledgerAccounts.data.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={hasActions ? 7 : 6}
                                     className="px-4 py-6 text-center"
                                     style={{ color: textSecondary }}
                                 >
@@ -466,93 +481,266 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
                             </tr>
                         )}
 
-                        {!navLoading &&
-                            ledgerAccounts.data.map((account, index) =>
-                                deletingId === account.id ? (
-                                    <TableSkeletonRows
-                                        key={account.id}
-                                        rows={1}
-                                        columns={6}
-                                    />
-                                ) : (
-                                    <>
-                                        <tr
-                                            key={account.id}
-                                            style={{
-                                                borderTop: `1px solid ${border}`,
-                                                background:
-                                                    index % 2 === 1
-                                                        ? rowAlt
-                                                        : "transparent",
-                                            }}
-                                        >
-                                            <td
-                                                className="px-4 py-3"
-                                                style={{ color: text }}
-                                            >
-                                                {account.name}
-                                            </td>
-                                            <td
-                                                className="px-4 py-3"
-                                                style={{ color: text }}
-                                            >
-                                                {account.type?.name ?? (
-                                                    <span
-                                                        style={{
-                                                            color: textSecondary,
-                                                        }}
-                                                    >
-                                                        None
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td
-                                                className="px-4 py-3"
+                        {ledgerAccounts.data.map((account, index) => {
+                            const isEditing = editingId === account.id;
+                            const rowStyle = {
+                                borderTop: `1px solid ${border}`,
+                                background:
+                                    index % 2 === 1 ? rowAlt : "transparent",
+                            };
+                            const cellInput = {
+                                ...inputStyle,
+                                width: "100%",
+                                padding: "6px 8px",
+                            };
+
+                            return (
+                                <tr key={account.id} style={rowStyle}>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {isEditing ? (
+                                            <input
+                                                type="text"
+                                                value={editName}
+                                                onChange={(e) =>
+                                                    setEditName(e.target.value)
+                                                }
+                                                style={cellInput}
+                                            />
+                                        ) : (
+                                            <span
                                                 style={{
-                                                    color: text,
-                                                    textTransform: "capitalize",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "8px",
                                                 }}
                                             >
-                                                {account.normal_balance ?? (
+                                                {account.name}
+                                                {account.is_system && (
                                                     <span
                                                         style={{
-                                                            color: textSecondary,
+                                                            fontSize: "12px",
+                                                            fontWeight: 700,
+                                                            color: "#BA7517",
+                                                            border: "1px solid #BA7517",
+                                                            padding: "1px 6px",
                                                         }}
                                                     >
-                                                        —
+                                                        SYSTEM
                                                     </span>
                                                 )}
-                                            </td>
-                                            <td
-                                                className="px-4 py-3"
-                                                style={{ color: text }}
-                                            >
-                                                {account.is_system
-                                                    ? "Yes"
-                                                    : "No"}
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {isEditing ? (
+                                            <input
+                                                type="text"
+                                                value={editCode}
+                                                onChange={(e) =>
+                                                    setEditCode(e.target.value)
+                                                }
+                                                style={cellInput}
+                                            />
+                                        ) : (
+                                            (account.account_code ?? (
                                                 <span
                                                     style={{
-                                                        color: account.is_active
-                                                            ? "#1D9E75"
-                                                            : textSecondary,
-                                                        fontWeight: 600,
+                                                        color: textSecondary,
                                                     }}
                                                 >
-                                                    {account.is_active
-                                                        ? "Active"
-                                                        : "Inactive"}
+                                                    —
                                                 </span>
-                                            </td>
-                                            {hasActions && (
-                                                <td className="px-4 py-3">
-                                                    <div
-                                                        style={{
-                                                            display: "flex",
-                                                            gap: "12px",
-                                                        }}
+                                            ))
+                                        )}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {isEditing ? (
+                                            <select
+                                                value={editControlId}
+                                                onChange={(e) =>
+                                                    setEditControlId(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                style={{
+                                                    ...inputStyle,
+                                                    padding: "6px 8px",
+                                                }}
+                                            >
+                                                {controls.map((c) => (
+                                                    <option
+                                                        key={c.id}
+                                                        value={c.id}
                                                     >
+                                                        {c.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            (account.control?.name ?? (
+                                                <span
+                                                    style={{
+                                                        color: textSecondary,
+                                                    }}
+                                                >
+                                                    None
+                                                </span>
+                                            ))
+                                        )}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {isEditing ? (
+                                            <select
+                                                value={editSubcategoryId}
+                                                onChange={(e) =>
+                                                    setEditSubcategoryId(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                style={{
+                                                    ...inputStyle,
+                                                    padding: "6px 8px",
+                                                }}
+                                            >
+                                                {subcategories.map((s) => (
+                                                    <option
+                                                        key={s.id}
+                                                        value={s.id}
+                                                    >
+                                                        {s.category?.name
+                                                            ? `${s.category.name} — ${s.name}`
+                                                            : s.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            (account.subcategory?.name ?? (
+                                                <span
+                                                    style={{
+                                                        color: textSecondary,
+                                                    }}
+                                                >
+                                                    None
+                                                </span>
+                                            ))
+                                        )}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {isEditing ? (
+                                            <select
+                                                value={editTypeId}
+                                                onChange={(e) =>
+                                                    setEditTypeId(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                style={{
+                                                    ...inputStyle,
+                                                    padding: "6px 8px",
+                                                }}
+                                            >
+                                                {types.map((t) => (
+                                                    <option
+                                                        key={t.id}
+                                                        value={t.id}
+                                                    >
+                                                        {t.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            (account.type?.name ?? (
+                                                <span
+                                                    style={{
+                                                        color: textSecondary,
+                                                    }}
+                                                >
+                                                    None
+                                                </span>
+                                            ))
+                                        )}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text, fontWeight: 600 }}
+                                    >
+                                        {account.subcategory?.category?.class
+                                            ?.name ?? (
+                                            <span
+                                                style={{
+                                                    color: textSecondary,
+                                                    fontWeight: 400,
+                                                }}
+                                            >
+                                                —
+                                            </span>
+                                        )}
+                                    </td>
+                                    {hasActions && (
+                                        <td className="px-4 py-3">
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    gap: "12px",
+                                                }}
+                                            >
+                                                {isEditing ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() =>
+                                                                saveEdit(
+                                                                    account.id,
+                                                                )
+                                                            }
+                                                            style={{
+                                                                color: "#1D9E75",
+                                                                background:
+                                                                    "transparent",
+                                                                border: "none",
+                                                                fontWeight: 600,
+                                                                cursor: "pointer",
+                                                                fontSize:
+                                                                    "15px",
+                                                            }}
+                                                        >
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                setEditingId(
+                                                                    null,
+                                                                )
+                                                            }
+                                                            style={{
+                                                                color: textSecondary,
+                                                                background:
+                                                                    "transparent",
+                                                                border: "none",
+                                                                cursor: "pointer",
+                                                                fontSize:
+                                                                    "15px",
+                                                            }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
                                                         {permissions.update && (
                                                             <button
                                                                 onClick={() =>
@@ -579,7 +767,8 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
                                                                 <button
                                                                     onClick={() =>
                                                                         destroy(
-                                                                            account,
+                                                                            account.id,
+                                                                            account.name,
                                                                         )
                                                                     }
                                                                     style={{
@@ -595,39 +784,14 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
                                                                     Delete
                                                                 </button>
                                                             )}
-                                                        {permissions.delete &&
-                                                            account.is_system && (
-                                                                <span
-                                                                    style={{
-                                                                        color: textSecondary,
-                                                                        fontSize:
-                                                                            "14px",
-                                                                    }}
-                                                                >
-                                                                    System
-                                                                </span>
-                                                            )}
-                                                    </div>
-                                                </td>
-                                            )}
-                                        </tr>
-                                        {rowError?.id === account.id && (
-                                            <tr>
-                                                <td
-                                                    colSpan={6}
-                                                    className="px-4 pb-2"
-                                                    style={{
-                                                        color: "#DC2626",
-                                                        fontSize: "14px",
-                                                    }}
-                                                >
-                                                    {rowError.message}
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </>
-                                ),
-                            )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    )}
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -638,7 +802,14 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
                         <button
                             key={index}
                             disabled={!link.url}
-                            onClick={() => link.url && goToPage(link.url)}
+                            onClick={() =>
+                                link.url &&
+                                router.get(
+                                    link.url,
+                                    {},
+                                    { preserveScroll: true },
+                                )
+                            }
                             dangerouslySetInnerHTML={{ __html: link.label }}
                             style={{
                                 padding: "6px 12px",
@@ -652,86 +823,6 @@ function IndexContent({ ledgerAccounts, types, permissions }: ContentProps) {
                         />
                     ))}
                 </div>
-            )}
-
-            {typeModalOpen && (
-                <QuickAddModal
-                    title="Ledger Account Types"
-                    items={types}
-                    loading={false}
-                    permissions={permissions}
-                    onClose={() => setTypeModalOpen(false)}
-                    extraFieldRequired
-                    extraFieldDefault="debit"
-                    extraField={(value, onChange) => (
-                        <select
-                            value={value || "debit"}
-                            onChange={(event) => onChange(event.target.value)}
-                            style={inputStyle}
-                        >
-                            <option value="debit">Debit normal</option>
-                            <option value="credit">Credit normal</option>
-                        </select>
-                    )}
-                    onCreate={(name, normalBalance) =>
-                        new Promise<void>((resolve, reject) => {
-                            router.post(
-                                route("admin.ledger-account-types.store"),
-                                { name, normal_balance: normalBalance },
-                                {
-                                    preserveScroll: true,
-                                    onSuccess: () => resolve(),
-                                    onError: (errs) =>
-                                        reject(
-                                            new Error(
-                                                errs.name ??
-                                                    errs.normal_balance ??
-                                                    "Could not save. Please try again.",
-                                            ),
-                                        ),
-                                },
-                            );
-                        })
-                    }
-                    onUpdate={(id, name, normalBalance) =>
-                        new Promise<void>((resolve, reject) => {
-                            router.put(
-                                route("admin.ledger-account-types.update", id),
-                                { name, normal_balance: normalBalance },
-                                {
-                                    preserveScroll: true,
-                                    onSuccess: () => resolve(),
-                                    onError: (errs) =>
-                                        reject(
-                                            new Error(
-                                                errs.name ??
-                                                    errs.normal_balance ??
-                                                    "Could not save. Please try again.",
-                                            ),
-                                        ),
-                                },
-                            );
-                        })
-                    }
-                    onDelete={(id) =>
-                        new Promise<void>((resolve, reject) => {
-                            router.delete(
-                                route("admin.ledger-account-types.destroy", id),
-                                {
-                                    preserveScroll: true,
-                                    onSuccess: () => resolve(),
-                                    onError: (errs) =>
-                                        reject(
-                                            new Error(
-                                                errs.name ??
-                                                    "Could not delete — still in use by an account.",
-                                            ),
-                                        ),
-                                },
-                            );
-                        })
-                    }
-                />
             )}
         </>
     );
