@@ -4,20 +4,22 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
+use App\Support\DashboardRouteResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Services\LoginAnomalyService;
 
 class OtpController extends Controller
 {
     public function __construct(
         private readonly OtpService $otpService,
         private readonly LoginAnomalyService $loginAnomaly, // checks and alerts on unrecognized devices for admins and agents
+        private readonly DashboardRouteResolver $dashboard,
     ) {}
 
     public function create(Request $request): Response
@@ -34,15 +36,12 @@ class OtpController extends Controller
             'phone' => ['required', 'string'],
         ]);
 
-        $user = \App\Models\User::where('phone', $validated['phone'])->first();
+        $user = User::where('phone', $validated['phone'])->first();
 
-        if (! $user) {
-            throw ValidationException::withMessages([
-                'phone' => 'No account found with this phone number.',
-            ]);
+        // a code only goes out to a real account, but the reply looks the same either way
+        if ($user) {
+            $this->otpService->generate($validated['phone'], 'login');
         }
-
-        $this->otpService->generate($validated['phone'], 'login');
 
         $request->session()->put('auth.login_identifier', $validated['phone']);
         $request->session()->put('auth.otp_type', 'login');
@@ -83,7 +82,8 @@ class OtpController extends Controller
             }
         }
 
-        return redirect($this->dashboardFor($user));
+        // one shared place decides where each role lands
+        return redirect($this->dashboard->path($user));
     }
 
     public function resend(Request $request): RedirectResponse
@@ -96,17 +96,5 @@ class OtpController extends Controller
         $this->otpService->generate($validated['identifier'], $validated['type']);
 
         return back();
-    }
-
-    private function dashboardFor(mixed $user): string
-    {
-        return match (true) {
-            $user?->hasRole('admin')    => '/admin/dashboard',
-            $user?->hasRole('agent')    => '/agent/dashboard',
-            $user?->hasRole('vet')      => '/vet/dashboard',
-            $user?->hasRole('adviser')  => '/adviser/dashboard',
-            $user?->hasRole('supplier') => '/supplier/dashboard',
-            default                     => '/farmer/dashboard',
-        };
     }
 }
