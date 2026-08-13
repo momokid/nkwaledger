@@ -23,6 +23,12 @@ use App\Http\Controllers\Admin\DistrictController;
 use App\Http\Controllers\Admin\RegionController;
 use App\Http\Controllers\Admin\FarmerGroupTypeController;
 use App\Http\Controllers\Admin\FarmerGroupController;
+use App\Http\Controllers\Admin\LedgerAccountController;
+use App\Http\Controllers\Admin\LedgerControlController;
+use App\Http\Controllers\Admin\LedgerCategoryController;
+use App\Http\Controllers\Admin\LedgerSubcategoryController;
+use App\Http\Controllers\Admin\LedgerClassController;
+use App\Http\Controllers\Admin\LedgerTypeController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -220,5 +226,131 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('access:farmer-groups.delete')->group(function () {
         Route::delete('/farmer-groups/{farmerGroup}', [FarmerGroupController::class, 'destroy'])
             ->name('farmer-groups.destroy');
+    });
+
+    // ledger classes
+    Route::middleware('access:ledger-accounts.view')->group(function () {
+        Route::get('/ledger-classes', [LedgerClassController::class, 'index'])
+            ->name('ledger-classes.index');
+    });
+
+    Route::middleware('access:ledger-accounts.create')->group(function () {
+        Route::post('/ledger-classes', [LedgerClassController::class, 'store'])
+            ->name('ledger-classes.store');
+    });
+
+    Route::middleware('access:ledger-accounts.update')->group(function () {
+        Route::put('/ledger-classes/{ledgerClass}', [LedgerClassController::class, 'update'])
+            ->name('ledger-classes.update');
+    });
+
+    Route::middleware('access:ledger-accounts.delete')->group(function () {
+        Route::delete('/ledger-classes/{ledgerClass}', [LedgerClassController::class, 'destroy'])
+            ->name('ledger-classes.destroy');
+    });
+
+    // ledger types
+    Route::middleware('access:ledger-accounts.view')->group(function () {
+        Route::get('/ledger-types', [LedgerTypeController::class, 'index'])
+            ->name('ledger-types.index');
+    });
+
+    Route::middleware('access:ledger-accounts.create')->group(function () {
+        Route::post('/ledger-types', [LedgerTypeController::class, 'store'])
+            ->name('ledger-types.store');
+    });
+
+    Route::middleware('access:ledger-accounts.update')->group(function () {
+        Route::put('/ledger-types/{ledgerType}', [LedgerTypeController::class, 'update'])
+            ->name('ledger-types.update');
+    });
+
+    Route::middleware('access:ledger-accounts.delete')->group(function () {
+        Route::delete('/ledger-types/{ledgerType}', [LedgerTypeController::class, 'destroy'])
+            ->name('ledger-types.destroy');
+    });
+
+    // ledger controls
+    Route::middleware('access:ledger-accounts.view')->group(function () {
+        Route::get('/ledger-controls', [LedgerControlController::class, 'index'])
+            ->name('ledger-controls.index');
+    });
+
+    Route::middleware('access:ledger-accounts.create')->group(function () {
+        Route::post('/ledger-controls', [LedgerControlController::class, 'store'])
+            ->name('ledger-controls.store');
+    });
+
+    Route::middleware('access:ledger-accounts.update')->group(function () {
+        Route::put('/ledger-controls/{ledgerControl}', [LedgerControlController::class, 'update'])
+            ->name('ledger-controls.update');
+    });
+
+    Route::middleware('access:ledger-accounts.delete')->group(function () {
+        Route::delete('/ledger-controls/{ledgerControl}', [LedgerControlController::class, 'destroy'])
+            ->name('ledger-controls.destroy');
+    });
+
+    // ledger categories
+    Route::middleware('access:ledger-accounts.view')->group(function () {
+        Route::get('/ledger-categories', [LedgerCategoryController::class, 'index'])
+            ->name('ledger-categories.index');
+    });
+
+    Route::middleware('access:ledger-accounts.create')->group(function () {
+        Route::post('/ledger-categories', [LedgerCategoryController::class, 'store'])
+            ->name('ledger-categories.store');
+    });
+
+    Route::middleware('access:ledger-accounts.update')->group(function () {
+        Route::put('/ledger-categories/{ledgerCategory}', [LedgerCategoryController::class, 'update'])
+            ->name('ledger-categories.update');
+    });
+
+    Route::middleware('access:ledger-accounts.delete')->group(function () {
+        Route::delete('/ledger-categories/{ledgerCategory}', [LedgerCategoryController::class, 'destroy'])
+            ->name('ledger-categories.destroy');
+    });
+
+    // ledger subcategories
+    Route::middleware('access:ledger-accounts.view')->group(function () {
+        Route::get('/ledger-subcategories', [LedgerSubcategoryController::class, 'index'])
+            ->name('ledger-subcategories.index');
+    });
+
+    Route::middleware('access:ledger-accounts.create')->group(function () {
+        Route::post('/ledger-subcategories', [LedgerSubcategoryController::class, 'store'])
+            ->name('ledger-subcategories.store');
+    });
+
+    Route::middleware('access:ledger-accounts.update')->group(function () {
+        Route::put('/ledger-subcategories/{ledgerSubcategory}', [LedgerSubcategoryController::class, 'update'])
+            ->name('ledger-subcategories.update');
+    });
+
+    Route::middleware('access:ledger-accounts.delete')->group(function () {
+        Route::delete('/ledger-subcategories/{ledgerSubcategory}', [LedgerSubcategoryController::class, 'destroy'])
+            ->name('ledger-subcategories.destroy');
+    });
+
+    // ledger accounts
+    Route::middleware('access:ledger-accounts.view')->group(function () {
+        Route::get('/ledger-accounts', [LedgerAccountController::class, 'index'])
+            ->name('ledger-accounts.index');
+    });
+
+    Route::middleware('access:ledger-accounts.create')->group(function () {
+        Route::post('/ledger-accounts', [LedgerAccountController::class, 'store'])
+            ->name('ledger-accounts.store');
+    });
+
+    Route::middleware('access:ledger-accounts.update')->group(function () {
+        Route::put('/ledger-accounts/{ledgerAccount}', [LedgerAccountController::class, 'update'])
+            ->name('ledger-accounts.update');
+    });
+
+    Route::middleware('access:ledger-accounts.delete')->group(function () {
+        Route::delete('/ledger-accounts/{ledgerAccount}', [LedgerAccountController::class, 'destroy'])
+            ->name('ledger-accounts.destroy');
     });
 });
