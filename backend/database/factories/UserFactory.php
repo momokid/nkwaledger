@@ -20,7 +20,8 @@ class UserFactory extends Factory
             'other_name'         => null,
             'phone'              => '+233' . fake()->unique()->numerify('2########'),
             'email'              => null,
-            'phone_verified_at'  => now(),
+            // new users start unverified, so a missing gate breaks tests instead of hiding
+            'phone_verified_at'  => null,
             'email_verified_at'  => null,
             'password'           => static::$password ??= Hash::make('Password@123'),
             'is_active'          => true,
@@ -28,16 +29,25 @@ class UserFactory extends Factory
         ];
     }
 
+    // ask for a verified user on purpose
+    public function verified(): static
+    {
+        return $this->state(fn(array $attributes) => [
+            'phone_verified_at' => now(),
+        ]);
+    }
+
+    // already the default, kept so old tests keep working
     public function unverified(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'phone_verified_at' => null,
         ]);
     }
 
     public function withEmail(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'email'              => fake()->unique()->safeEmail(),
             'email_verified_at'  => now(),
         ]);
@@ -45,7 +55,7 @@ class UserFactory extends Factory
 
     public function oauthUser(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'password' => null,
         ]);
     }
