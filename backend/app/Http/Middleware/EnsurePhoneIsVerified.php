@@ -2,22 +2,25 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\DashboardRouteResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsurePhoneIsVerified
 {
-    // the only routes an unverified user may touch
+    public function __construct(
+        private readonly DashboardRouteResolver $dashboard
+    ) {}
+
+    // routes an unverified user may still use
     private const ALLOWED = [
-        'dashboard',
         'logout',
-        'profile.show',
     ];
 
-    // route name groups that are also allowed
+    // whole groups that stay open
     private const ALLOWED_PREFIXES = [
-        'verification.',
+        'otp.',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -28,17 +31,19 @@ class EnsurePhoneIsVerified
             return $next($request);
         }
 
-        if ($this->isAllowed($request->route()?->getName())) {
+        $name = $request->route()?->getName();
+
+        if ($this->isAllowed($name, $user)) {
             return $next($request);
         }
 
         return redirect()
-            ->route('dashboard')
+            ->route($this->dashboard->routeName($user))
             ->with('error', 'Please verify your phone number to continue.');
     }
 
-    // checks the route name against the allow list
-    private function isAllowed(?string $name): bool
+    // says whether this route name is open to an unverified user
+    private function isAllowed(?string $name, $user): bool
     {
         if ($name === null) {
             return false;
@@ -54,6 +59,7 @@ class EnsurePhoneIsVerified
             }
         }
 
-        return false;
+        // their own dashboard stays open so they can see the verify button
+        return $name === $this->dashboard->routeName($user);
     }
 }
