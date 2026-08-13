@@ -28,10 +28,14 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'phone_verified_at' => 'datetime',
-            'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'is_active'         => 'boolean',
+            'phone_verified_at'            => 'datetime',
+            'email_verified_at'            => 'datetime',
+            'password'                     => 'hashed',
+            'is_active'                    => 'boolean',
+            'logins_since_verification'    => 'integer',
+            'verification_login_threshold' => 'integer',
+            // turns the stored text into a date object
+            'next_verification_at'         => 'datetime',
         ];
     }
 }
