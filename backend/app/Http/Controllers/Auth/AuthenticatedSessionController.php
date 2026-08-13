@@ -4,20 +4,22 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
+use App\Support\DashboardRouteResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Services\LoginAnomalyService;
 
 class AuthenticatedSessionController extends Controller
 {
     public function __construct(
         private readonly OtpService $otpService,
-        private readonly LoginAnomalyService $loginAnomaly
+        private readonly LoginAnomalyService $loginAnomaly,
+        private readonly DashboardRouteResolver $dashboard
     ) {}
 
     public function create(): Response
@@ -48,19 +50,8 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect($this->dashboardFor($user));
-    }
-
-    private function dashboardFor(mixed $user): string
-    {
-        return match (true) {
-            $user?->hasRole('admin')    => '/admin/dashboard',
-            $user?->hasRole('agent')    => '/agent/dashboard',
-            $user?->hasRole('vet')      => '/vet/dashboard',
-            $user?->hasRole('adviser')  => '/adviser/dashboard',
-            $user?->hasRole('supplier') => '/supplier/dashboard',
-            default                     => '/farmer/dashboard',
-        };
+        // one shared place decides where each role lands
+        return redirect($this->dashboard->path($user));
     }
 
     public function destroy(Request $request): RedirectResponse
