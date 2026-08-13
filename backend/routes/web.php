@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\LedgerCategoryController;
 use App\Http\Controllers\Admin\LedgerSubcategoryController;
 use App\Http\Controllers\Admin\LedgerClassController;
 use App\Http\Controllers\Admin\LedgerTypeController;
+use App\Http\Controllers\Auth\PhoneVerificationController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -100,6 +101,12 @@ Route::middleware('auth')->group(function () {
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+
+    // lets a signed in user prove they hold their own phone number
+    Route::post('verify-phone/send', [PhoneVerificationController::class, 'send'])
+        ->name('otp.phone.send');
+    Route::post('verify-phone/confirm', [PhoneVerificationController::class, 'confirm'])
+        ->name('otp.phone.confirm');
 });
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
