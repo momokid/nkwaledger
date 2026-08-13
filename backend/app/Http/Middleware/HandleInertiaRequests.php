@@ -52,14 +52,16 @@ class HandleInertiaRequests extends Middleware
         }
 
         return [
-            'id'                 => $user->id,
-            'surname'            => $user->surname,
-            'first_name'         => $user->first_name,
-            'other_name'         => $user->other_name,
-            'phone'              => $user->phone,
-            'email'              => $user->email,
-            'is_active'          => $user->is_active,
-            'is_phone_verified'  => $user->phone_verified_at !== null,
+            'id'                => $user->id,
+            'surname'           => $user->surname,
+            'first_name'        => $user->first_name,
+            'other_name'        => $user->other_name,
+            'phone'             => $user->phone,
+            'email'             => $user->email,
+            'is_active'         => $user->is_active,
+            'is_phone_verified' => $user->phone_verified_at !== null,
+            // role names only, never permission names
+            'roles'             => $user->getRoleNames(),
         ];
     }
 }

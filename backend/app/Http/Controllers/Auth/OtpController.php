@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
+use App\Services\PhoneVerificationService;
 use App\Support\DashboardRouteResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class OtpController extends Controller
         private readonly OtpService $otpService,
         private readonly LoginAnomalyService $loginAnomaly, // checks and alerts on unrecognized devices for admins and agents
         private readonly DashboardRouteResolver $dashboard,
+        private readonly PhoneVerificationService $verification,
     ) {}
 
     public function create(Request $request): Response
@@ -80,6 +82,11 @@ class OtpController extends Controller
                 $this->loginAnomaly->checkAndRecord($user, $request); // no-op for roles outside admin/agent
                 $request->session()->regenerate();
             }
+        }
+
+        // a login code proves they hold the phone, so it counts as verification
+        if ($user && $validated['type'] === 'login') {
+            $this->verification->markVerified($user);
         }
 
         // one shared place decides where each role lands
