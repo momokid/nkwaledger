@@ -110,7 +110,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
@@ -132,7 +132,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 });
 
 // permission-gated: any role can reach these if granted the specific permission, independent of role:admin
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('access:farm-type-categories.view')->group(function () {
         Route::get('/farm-type-categories', [FarmTypeCategoryController::class, 'index'])
             ->name('farm-type-categories.index');

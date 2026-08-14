@@ -19,21 +19,21 @@ test('a verified user passes through', function () {
 });
 
 test('an unverified farmer is sent to the farmer dashboard', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->unverified()->create();
     $user->assignRole('farmer');
 
     $this->actingAs($user)->get('/test-guarded')->assertRedirect('/farmer/dashboard');
 });
 
 test('an unverified admin is sent to the admin dashboard', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->unverified()->create();
     $user->assignRole('admin');
 
     $this->actingAs($user)->get('/test-guarded')->assertRedirect('/admin/dashboard');
 });
 
 test('the block message says nothing technical', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->unverified()->create();
     $user->assignRole('farmer');
 
     $this->actingAs($user)->get('/test-guarded')

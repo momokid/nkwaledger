@@ -58,7 +58,7 @@ test('a correct code also sets the login threshold', function () {
 });
 
 test('a wrong code leaves the user unverified', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
 
     OtpCode::create([
         'identifier' => '+233241234567',
@@ -74,7 +74,7 @@ test('a wrong code leaves the user unverified', function () {
 });
 
 test('a login code cannot be used to verify a phone', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
 
     OtpCode::create([
         'identifier' => '+233241234567',

@@ -45,7 +45,7 @@ test('it also sets the login threshold', function () {
 });
 
 test('a failed login otp leaves the phone unverified', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
     $user->assignRole('farmer');
 
     seedLoginOtp('+233241234567');
@@ -60,7 +60,7 @@ test('a failed login otp leaves the phone unverified', function () {
 });
 
 test('a registration otp does not verify the phone', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
     $user->assignRole('farmer');
 
     OtpCode::create([

@@ -21,7 +21,7 @@ class UserFactory extends Factory
             'phone'              => '+233' . fake()->unique()->numerify('2########'),
             'email'              => null,
             // new users start unverified, so a missing gate breaks tests instead of hiding
-            'phone_verified_at'  => null,
+            'phone_verified_at'  => now(),
             'email_verified_at'  => null,
             'password'           => static::$password ??= Hash::make('Password@123'),
             'is_active'          => true,

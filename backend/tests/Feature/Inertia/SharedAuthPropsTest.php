@@ -11,7 +11,7 @@ test('it shares whether the phone is verified', function () {
 });
 
 test('an unverified user is marked unverified', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->unverified()->create();
     $user->assignRole('farmer');
 
     $this->actingAs($user)->get('/farmer/dashboard')
