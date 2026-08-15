@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Services\OtpService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Facades\DB;
 
 class RegisteredUserController extends Controller
 {
@@ -22,16 +21,9 @@ class RegisteredUserController extends Controller
         return Inertia::render('Auth/Register');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(RegisterRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'surname'    => ['required', 'string', 'max:100'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'other_name' => ['nullable', 'string', 'max:100'],
-            'phone'      => ['required', 'string', 'max:20', 'unique:users,phone'],
-            'email'      => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password'   => ['required', 'confirmed', 'min:6'],
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated, $request) {
             $user = User::create([

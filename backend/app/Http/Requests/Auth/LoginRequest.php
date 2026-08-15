@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Http\Requests\Concerns\NormalisesPhone;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,9 +13,19 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    use NormalisesPhone;
+
     public function authorize(): bool
     {
         return true;
+    }
+
+    // an email identifier is left alone; a phone is cleaned so it matches the stored spelling
+    protected function prepareForValidation(): void
+    {
+        if (! filter_var($this->input('identifier'), FILTER_VALIDATE_EMAIL)) {
+            $this->normalisePhoneField('identifier');
+        }
     }
 
     public function rules(): array
@@ -70,6 +81,7 @@ class LoginRequest extends FormRequest
         ]);
     }
 
+    // reads the normalised identifier, so two spellings of one number cannot buy ten attempts
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->input('identifier')) . '|' . $this->ip());
