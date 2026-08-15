@@ -2,7 +2,6 @@ import { useForm, usePage, router } from "@inertiajs/react";
 import { PropsWithChildren, useState } from "react";
 import { IconShieldLock } from "@tabler/icons-react";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
-import VerificationGate from "@/Components/VerificationGate";
 
 interface GateProps {
     auth: {
