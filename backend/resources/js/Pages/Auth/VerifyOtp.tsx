@@ -3,20 +3,18 @@ import { IconDeviceMobileMessage } from "@tabler/icons-react";
 import { FormEventHandler, useEffect, useRef, useState } from "react";
 
 interface Props {
-    identifier: string;
-    type: "registration" | "login";
+    masked: string | null;
 }
 
-export default function VerifyOtp({ identifier, type }: Props) {
+export default function VerifyOtp({ masked }: Props) {
     const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
     const [countdown, setCountdown] = useState(60);
     const [canResend, setCanResend] = useState(false);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+    // the server knows which number and which purpose; only the code travels
     const { post, setData, processing, errors } = useForm({
-        identifier: identifier,
         code: "",
-        type: type,
     });
 
     useEffect(() => {
@@ -78,10 +76,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
         e.preventDefault();
         router.post(
             route("otp.resend"),
-            {
-                identifier,
-                type,
-            },
+            {},
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -93,6 +88,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
             },
         );
     };
+
     const formatCountdown = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
@@ -156,7 +152,9 @@ export default function VerifyOtp({ identifier, type }: Props) {
                                 color: "rgba(255,255,255,0.62)",
                             }}
                         >
-                            Code sent to {identifier}
+                            {masked
+                                ? `Code sent to ${masked}`
+                                : "We sent you a code"}
                         </p>
                     </div>
 
