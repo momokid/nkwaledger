@@ -1,4 +1,6 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
+import VerificationGate from "@/Components/VerificationGate";
+import useIsVerified from "@/hooks/useIsVerified";
 import { PropsWithChildren, useEffect, useState } from "react";
 import {
     IconCategory,
@@ -132,6 +134,7 @@ export default function AdminLayout({ title, children }: Props) {
     const { auth } = usePage<PageProps>().props;
     const [collapsed, setCollapsed] = useState(false);
     const [dark, setDark] = useState(false);
+    const verified = useIsVerified();
 
     useEffect(() => {
         const saved = localStorage.getItem("nkwa_theme");
@@ -390,8 +393,16 @@ export default function AdminLayout({ title, children }: Props) {
                         )}
                     </div>
 
-                    <nav style={{ flex: 1, overflowY: "auto" }}>
-                        <div>
+                    <nav
+                        style={{
+                            flex: 1,
+                            overflowY: "auto",
+                            // greyed until the phone is proved, the server does the real blocking
+                            opacity: verified ? 1 : 0.4,
+                            pointerEvents: verified ? "auto" : "none",
+                        }}
+                    >
+                        <div style={{ marginBottom: "20px" }}>
                             {navItems.map((item) =>
                                 isGroup(item)
                                     ? renderGroup(item)
@@ -524,7 +535,9 @@ export default function AdminLayout({ title, children }: Props) {
                             </div>
                         </header>
 
-                        <main style={{ padding: "24px" }}>{children}</main>
+                        <main style={{ padding: "24px" }}>
+                            <VerificationGate>{children}</VerificationGate>
+                        </main>
                     </div>
 
                     {/* below the lg breakpoint, sidebar is hidden and content renders full-width, matching admin's web-only scope */}
@@ -546,7 +559,9 @@ export default function AdminLayout({ title, children }: Props) {
                                 {title}
                             </h1>
                         </header>
-                        <main style={{ padding: "24px" }}>{children}</main>
+                        <main style={{ padding: "24px" }}>
+                            <VerificationGate>{children}</VerificationGate>
+                        </main>
                     </div>
                 </div>
             </div>

@@ -25,7 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'access' => \App\Http\Middleware\CheckPermission::class,
-            // stops unverified users from doing anything but verify
+            'otp.pending' => \App\Http\Middleware\EnsureOtpPending::class,
             'verified.phone' => \App\Http\Middleware\EnsurePhoneIsVerified::class,
         ]);
 

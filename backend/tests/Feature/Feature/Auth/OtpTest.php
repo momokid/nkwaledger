@@ -7,16 +7,17 @@ use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
-test('otp verification screen can be rendered', function () {
-    $response = $this->get('/verify-otp');
-
-    $response->assertStatus(200);
-});
+// stands in for the login or registration step that sets these
+function otpSession(string $identifier, string $type): array
+{
+    return [
+        'auth.login_identifier' => $identifier,
+        'auth.otp_type'         => $type,
+    ];
+}
 
 test('user can verify a valid otp', function () {
-    $user = User::factory()->create([
-        'phone' => '+233244000001',
-    ]);
+    User::factory()->create(['phone' => '+233244000001'])->assignRole('farmer');
 
     OtpCode::create([
         'identifier' => '+233244000001',
@@ -25,19 +26,14 @@ test('user can verify a valid otp', function () {
         'expires_at' => now()->addMinutes(5),
     ]);
 
-    $response = $this->actingAs($user)->post('/verify-otp', [
-        'identifier' => '+233244000001',
-        'code'       => '123456',
-        'type'       => 'registration',
-    ]);
+    $response = $this->withSession(otpSession('+233244000001', 'registration'))
+        ->post('/verify-otp', ['code' => '123456']);
 
     $response->assertRedirect('/farmer/dashboard');
 });
 
 test('otp is marked as used after successful verification', function () {
-    $user = User::factory()->create([
-        'phone' => '+233244000001',
-    ]);
+    User::factory()->create(['phone' => '+233244000001'])->assignRole('farmer');
 
     OtpCode::create([
         'identifier' => '+233244000001',
@@ -46,24 +42,14 @@ test('otp is marked as used after successful verification', function () {
         'expires_at' => now()->addMinutes(5),
     ]);
 
-    $this->actingAs($user)->post('/verify-otp', [
-        'identifier' => '+233244000001',
-        'code'       => '123456',
-        'type'       => 'registration',
-    ]);
-
-    $this->assertDatabaseHas('otp_codes', [
-        'identifier' => '+233244000001',
-        'type'       => 'registration',
-    ]);
+    $this->withSession(otpSession('+233244000001', 'registration'))
+        ->post('/verify-otp', ['code' => '123456']);
 
     expect(OtpCode::where('identifier', '+233244000001')->first()->used_at)->not->toBeNull();
 });
 
 test('expired otp cannot be verified', function () {
-    $user = User::factory()->create([
-        'phone' => '+233244000001',
-    ]);
+    User::factory()->create(['phone' => '+233244000001'])->assignRole('farmer');
 
     OtpCode::create([
         'identifier' => '+233244000001',
@@ -72,19 +58,14 @@ test('expired otp cannot be verified', function () {
         'expires_at' => now()->subMinutes(10),
     ]);
 
-    $response = $this->actingAs($user)->post('/verify-otp', [
-        'identifier' => '+233244000001',
-        'code'       => '123456',
-        'type'       => 'registration',
-    ]);
+    $response = $this->withSession(otpSession('+233244000001', 'registration'))
+        ->post('/verify-otp', ['code' => '123456']);
 
     $response->assertSessionHasErrors(['code']);
 });
 
 test('used otp cannot be verified again', function () {
-    $user = User::factory()->create([
-        'phone' => '+233244000001',
-    ]);
+    User::factory()->create(['phone' => '+233244000001'])->assignRole('farmer');
 
     OtpCode::create([
         'identifier' => '+233244000001',
@@ -94,19 +75,14 @@ test('used otp cannot be verified again', function () {
         'used_at'    => now(),
     ]);
 
-    $response = $this->actingAs($user)->post('/verify-otp', [
-        'identifier' => '+233244000001',
-        'code'       => '123456',
-        'type'       => 'registration',
-    ]);
+    $response = $this->withSession(otpSession('+233244000001', 'registration'))
+        ->post('/verify-otp', ['code' => '123456']);
 
     $response->assertSessionHasErrors(['code']);
 });
 
 test('wrong otp increments attempts', function () {
-    $user = User::factory()->create([
-        'phone' => '+233244000001',
-    ]);
+    User::factory()->create(['phone' => '+233244000001'])->assignRole('farmer');
 
     OtpCode::create([
         'identifier' => '+233244000001',
@@ -115,19 +91,14 @@ test('wrong otp increments attempts', function () {
         'expires_at' => now()->addMinutes(5),
     ]);
 
-    $this->actingAs($user)->post('/verify-otp', [
-        'identifier' => '+233244000001',
-        'code'       => '000000',
-        'type'       => 'registration',
-    ]);
+    $this->withSession(otpSession('+233244000001', 'registration'))
+        ->post('/verify-otp', ['code' => '000000']);
 
     expect(OtpCode::where('identifier', '+233244000001')->first()->attempts)->toBe(1);
 });
 
 test('otp is voided after three wrong attempts', function () {
-    $user = User::factory()->create([
-        'phone' => '+233244000001',
-    ]);
+    User::factory()->create(['phone' => '+233244000001'])->assignRole('farmer');
 
     OtpCode::create([
         'identifier' => '+233244000001',
@@ -137,11 +108,8 @@ test('otp is voided after three wrong attempts', function () {
         'attempts'   => 2,
     ]);
 
-    $response = $this->actingAs($user)->post('/verify-otp', [
-        'identifier' => '+233244000001',
-        'code'       => '000000',
-        'type'       => 'registration',
-    ]);
+    $response = $this->withSession(otpSession('+233244000001', 'registration'))
+        ->post('/verify-otp', ['code' => '000000']);
 
     $response->assertSessionHasErrors(['code']);
 
@@ -158,25 +126,23 @@ test('verified user is redirected to correct dashboard by role', function () {
         'supplier' => '/supplier/dashboard',
     ];
 
-    foreach ($roles as $role => $expectedRedirect) {
-        $user = User::factory()->create([
-            'phone' => '+23324400000' . (array_search($role, array_keys($roles)) + 1),
-        ]);
+    $index = 1;
 
+    foreach ($roles as $role => $expectedRedirect) {
+        $phone = '+23324400000' . $index++;
+
+        $user = User::factory()->create(['phone' => $phone]);
         $user->assignRole($role);
 
         OtpCode::create([
-            'identifier' => $user->phone,
+            'identifier' => $phone,
             'code'       => Hash::make('123456'),
             'type'       => 'login',
             'expires_at' => now()->addMinutes(5),
         ]);
 
-        $response = $this->actingAs($user)->post('/verify-otp', [
-            'identifier' => $user->phone,
-            'code'       => '123456',
-            'type'       => 'login',
-        ]);
+        $response = $this->withSession(otpSession($phone, 'login'))
+            ->post('/verify-otp', ['code' => '123456']);
 
         $response->assertRedirect($expectedRedirect);
     }

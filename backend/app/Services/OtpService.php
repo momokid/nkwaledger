@@ -5,13 +5,24 @@ namespace App\Services;
 use App\Contracts\SmsProvider;
 use App\Models\OtpCode;
 use Illuminate\Support\Facades\Hash;
+use InvalidArgumentException;
 
 class OtpService
 {
+    // the only reasons we ever send a code
+    public const TYPES = [
+        'registration',
+        'login',
+        'password_reset',
+        'phone_verification',
+    ];
+
     public function __construct(private readonly SmsProvider $sms) {}
 
     public function generate(string $identifier, string $type): OtpCode
     {
+        $this->guardType($type);
+
         $plainCode = (string) random_int(100000, 999999);
 
         $otp = OtpCode::create([
@@ -28,6 +39,8 @@ class OtpService
 
     public function verify(string $identifier, string $code, string $type): bool
     {
+        $this->guardType($type);
+
         $otp = OtpCode::where('identifier', $identifier)
             ->where('type', $type)
             ->whereNull('used_at')
@@ -52,5 +65,13 @@ class OtpService
     public function markUsed(OtpCode $otp): void
     {
         $otp->update(['used_at' => now()]);
+    }
+
+    // stops a typo becoming a code nobody can ever verify
+    private function guardType(string $type): void
+    {
+        if (! in_array($type, self::TYPES, true)) {
+            throw new InvalidArgumentException('Unknown OTP type.');
+        }
     }
 }

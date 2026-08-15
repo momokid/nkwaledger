@@ -15,7 +15,7 @@ test('a new user has no verification deadline set', function () {
 });
 
 test('a new user is not phone verified', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->unverified()->create();
 
     expect($user->fresh()->phone_verified_at)->toBeNull();
 });

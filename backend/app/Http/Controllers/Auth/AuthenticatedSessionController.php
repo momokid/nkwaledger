@@ -34,8 +34,8 @@ class AuthenticatedSessionController extends Controller
     {
         $user = $request->authenticate();
 
-        // admins must complete an otp step before their session is created, regardless of which tab they logged in from
-        if ($user->hasRole('admin')) {
+        // admins always, and other staff roles on a device we do not recognise, must pass otp before a session exists
+        if ($user->hasRole('admin') || $this->loginAnomaly->requiresOtp($user, $request)) {
             $this->otpService->generate($user->phone, 'login');
 
             $request->session()->put('auth.login_identifier', $user->phone);
@@ -46,7 +46,7 @@ class AuthenticatedSessionController extends Controller
 
         Auth::login($user);
 
-        $this->loginAnomaly->checkAndRecord($user, $request); // no-op for roles outside admin/agent
+        $this->loginAnomaly->checkAndRecord($user, $request); // updates last seen; farmers are skipped inside the service
 
         $request->session()->regenerate();
 

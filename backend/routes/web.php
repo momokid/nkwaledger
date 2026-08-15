@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\LedgerCategoryController;
 use App\Http\Controllers\Admin\LedgerSubcategoryController;
 use App\Http\Controllers\Admin\LedgerClassController;
 use App\Http\Controllers\Admin\LedgerTypeController;
+use App\Http\Controllers\Auth\PhoneVerificationController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -37,9 +38,14 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('verify-otp', [OtpController::class, 'create'])->name('otp.create');
-Route::post('verify-otp', [OtpController::class, 'store'])->name('otp.store');
-Route::post('resend-otp', [OtpController::class, 'resend'])->name('otp.resend');
+// open to guests and to signed-in users re-verifying, so the session is what guards them
+Route::middleware('otp.pending')->group(function () {
+    Route::get('verify-otp', [OtpController::class, 'create'])->name('otp.create');
+    Route::post('verify-otp', [OtpController::class, 'store'])->name('otp.store');
+    Route::post('resend-otp', [OtpController::class, 'resend'])
+        ->middleware('throttle:otp-resend')
+        ->name('otp.resend');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
@@ -49,7 +55,9 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
-    Route::post('login/otp', [OtpController::class, 'requestLogin'])->name('login.otp');
+    Route::post('login/otp', [OtpController::class, 'requestLogin'])
+        ->middleware('throttle:otp-request')
+        ->name('login.otp');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
@@ -100,10 +108,16 @@ Route::middleware('auth')->group(function () {
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+
+    // lets a signed in user prove they hold their own phone number
+    Route::post('verify-phone/send', [PhoneVerificationController::class, 'send'])
+        ->name('otp.phone.send');
+    Route::post('verify-phone/confirm', [PhoneVerificationController::class, 'confirm'])
+        ->name('otp.phone.confirm');
 });
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
@@ -125,7 +139,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 });
 
 // permission-gated: any role can reach these if granted the specific permission, independent of role:admin
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('access:farm-type-categories.view')->group(function () {
         Route::get('/farm-type-categories', [FarmTypeCategoryController::class, 'index'])
             ->name('farm-type-categories.index');

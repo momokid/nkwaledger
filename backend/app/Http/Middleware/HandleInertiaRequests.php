@@ -33,12 +33,35 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $this->userProps($request),
             ],
-            'ziggy' => fn () => [
+            'ziggy' => fn() => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),
             ],
+        ];
+    }
+
+    // only these fields go to the browser, nothing else about the account
+    private function userProps(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        return [
+            'id'                => $user->id,
+            'surname'           => $user->surname,
+            'first_name'        => $user->first_name,
+            'other_name'        => $user->other_name,
+            'phone'             => $user->phone,
+            'email'             => $user->email,
+            'is_active'         => $user->is_active,
+            'is_phone_verified' => $user->phone_verified_at !== null,
+            // role names only, never permission names
+            'roles'             => $user->getRoleNames(),
         ];
     }
 }

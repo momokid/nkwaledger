@@ -11,12 +11,25 @@ use Illuminate\Support\Facades\Mail;
 
 class LoginAnomalyService
 {
+    // farmers are left out on purpose: shared phones and cafe wifi would trip this on almost every login
+    public const TRACKED_ROLES = ['admin', 'agent', 'vet', 'adviser', 'supplier'];
+
     public function __construct(private readonly SmsProvider $sms) {}
 
-    // checks whether this login is from a device not seen before for this user, alerting if so
+    // answers whether this login needs an otp step, without touching the database
+    public function requiresOtp(User $user, Request $request): bool
+    {
+        if (! $this->isTracked($user)) {
+            return false;
+        }
+
+        return ! $this->isKnownDevice($user, $request);
+    }
+
+    // records the device and alerts the user if it has not been seen before
     public function checkAndRecord(User $user, Request $request): void
     {
-        if (! $user->hasRole('admin') && ! $user->hasRole('agent')) {
+        if (! $this->isTracked($user)) {
             return;
         }
 
@@ -33,12 +46,24 @@ class LoginAnomalyService
         }
 
         UserKnownDevice::create([
-            'user_id' => $user->id,
-            'fingerprint' => $fingerprint,
+            'user_id'      => $user->id,
+            'fingerprint'  => $fingerprint,
             'last_seen_at' => now(),
         ]);
 
         $this->alert($user, $request);
+    }
+
+    protected function isTracked(User $user): bool
+    {
+        return $user->hasAnyRole(self::TRACKED_ROLES);
+    }
+
+    protected function isKnownDevice(User $user, Request $request): bool
+    {
+        return UserKnownDevice::where('user_id', $user->id)
+            ->where('fingerprint', $this->fingerprint($request))
+            ->exists();
     }
 
     protected function fingerprint(Request $request): string
@@ -48,7 +73,7 @@ class LoginAnomalyService
 
     protected function alert(User $user, Request $request): void
     {
-        $ip = $request->ip();
+        $ip  = $request->ip();
         $now = now();
 
         $this->sms->send(
