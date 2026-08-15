@@ -39,6 +39,14 @@ return [
                 'delete' => 'Delete',
             ],
         ],
+        // covers agent, vet, adviser and supplier accounts, which only an invite can create
+        'staff' => [
+            'label' => 'Staff Accounts',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Invite',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -63,6 +71,8 @@ return [
             'farm-type-categories.create',
             'farm-type-categories.update',
             'farm-type-categories.delete',
+            'staff.view',
+            'staff.create',
         ],
         'agent' => [
             'farm-types.view',
