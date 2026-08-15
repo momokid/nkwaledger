@@ -3,31 +3,25 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use InvalidArgumentException;
+use RuntimeException;
 
 #[Fillable([
     'name',
-    'type',
-    'normal_balance',
+    'account_code',
+    'control_id',
+    'subcategory_id',
+    'type_id',
     'is_system',
     'is_active',
 ])]
 class LedgerAccount extends Model
 {
     use HasFactory, SoftDeletes;
-
-    public const TYPES = ['asset', 'liability', 'equity', 'income', 'expense'];
-
-    public const NORMAL_BALANCE_MAP = [
-        'asset' => 'debit',
-        'expense' => 'debit',
-        'liability' => 'credit',
-        'equity' => 'credit',
-        'income' => 'credit',
-    ];
 
     protected $attributes = [
         'is_system' => false,
@@ -44,14 +38,34 @@ class LedgerAccount extends Model
 
     protected static function booted(): void
     {
-        static::saving(function (LedgerAccount $account) {
-            if (! in_array($account->type, self::TYPES, true)) {
-                throw new InvalidArgumentException(
-                    'Ledger account type must be one of: ' . implode(', ', self::TYPES)
-                );
+        static::deleting(function (LedgerAccount $account) {
+            if ($account->is_system) {
+                throw new RuntimeException('System ledger accounts cannot be deleted.');
             }
-
-            $account->normal_balance = self::NORMAL_BALANCE_MAP[$account->type];
         });
+    }
+
+    public function control(): BelongsTo
+    {
+        return $this->belongsTo(LedgerControl::class, 'control_id');
+    }
+
+    public function subcategory(): BelongsTo
+    {
+        return $this->belongsTo(LedgerSubcategory::class, 'subcategory_id');
+    }
+
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(LedgerType::class, 'type_id');
+    }
+
+    // walks subcategory to category to class, never stored — so a category's Dr/Cr
+    // setting can never drift out of sync with the accounts that sit beneath it
+    protected function class(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->subcategory?->category?->class?->name,
+        );
     }
 }

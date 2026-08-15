@@ -2,6 +2,10 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+// clears verification once the window has passed
+Schedule::command('verification:expire')->dailyAt('02:00');
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

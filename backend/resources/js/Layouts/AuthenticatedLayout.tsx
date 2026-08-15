@@ -25,6 +25,8 @@ import {
     useRef,
     useState,
 } from "react";
+import VerificationGate from "@/Components/VerificationGate";
+import useIsVerified from "@/hooks/useIsVerified";
 
 interface ThemeValue {
     dark: boolean;
@@ -161,6 +163,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const firstName = user?.first_name ?? "Farmer";
     const surname = user?.surname ?? "";
     const primaryRole = userRoles[0] ?? "farmer";
+    const verified = useIsVerified();
 
     const [dark, setDark] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
@@ -419,7 +422,15 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                             )}
                         </div>
 
-                        <nav style={{ flex: 1, overflowY: "auto" }}>
+                        <nav
+                            style={{
+                                flex: 1,
+                                overflowY: "auto",
+                                // greyed until the phone is proved, the server does the real blocking
+                                opacity: verified ? 1 : 0.4,
+                                pointerEvents: verified ? "auto" : "none",
+                            }}
+                        >
                             {renderSection("Main", navMain)}
                             {renderSection("Tools", navTools)}
                             {renderSection("Account", navAccount)}
@@ -809,7 +820,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                         </div>
                     </header>
 
-                    <main style={{ padding: "24px" }}>{children}</main>
+                    <main style={{ padding: "24px" }}>
+                        <VerificationGate>{children}</VerificationGate>
+                    </main>
                 </div>
 
                 {isMobile && (
