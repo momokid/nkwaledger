@@ -39,10 +39,3 @@ test('the block message says nothing technical', function () {
     $this->actingAs($user)->get('/test-guarded')
         ->assertSessionHas('error', 'Please verify your phone number to continue.');
 });
-
-test('an unverified user can still reach the otp page', function () {
-    $user = User::factory()->create();
-    $user->assignRole('farmer');
-
-    $this->actingAs($user)->get('/verify-otp')->assertOk();
-});

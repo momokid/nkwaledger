@@ -42,7 +42,9 @@ Route::get('/', function () {
 Route::middleware('otp.pending')->group(function () {
     Route::get('verify-otp', [OtpController::class, 'create'])->name('otp.create');
     Route::post('verify-otp', [OtpController::class, 'store'])->name('otp.store');
-    Route::post('resend-otp', [OtpController::class, 'resend'])->name('otp.resend');
+    Route::post('resend-otp', [OtpController::class, 'resend'])
+        ->middleware('throttle:otp-resend')
+        ->name('otp.resend');
 });
 
 Route::middleware('guest')->group(function () {
@@ -53,7 +55,9 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
-    Route::post('login/otp', [OtpController::class, 'requestLogin'])->name('login.otp');
+    Route::post('login/otp', [OtpController::class, 'requestLogin'])
+        ->middleware('throttle:otp-request')
+        ->name('login.otp');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
