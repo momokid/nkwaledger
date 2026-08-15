@@ -26,9 +26,9 @@ class OtpController extends Controller
 
     public function create(Request $request): Response
     {
-        // only the purpose reaches the browser; the number stays on the server
         return Inertia::render('Auth/VerifyOtp', [
-            'type' => $request->session()->get('auth.otp_type'),
+            'type'   => $request->session()->get('auth.otp_type'),
+            'masked' => $this->mask($request->session()->get('auth.login_identifier')),
         ]);
     }
 
@@ -98,5 +98,21 @@ class OtpController extends Controller
         );
 
         return back();
+    }
+
+    // enough for someone to recognise their own number, not enough to learn a stranger's
+    private function mask(?string $identifier): ?string
+    {
+        if (! $identifier) {
+            return null;
+        }
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            [$name, $domain] = explode('@', $identifier, 2);
+
+            return substr($name, 0, 1) . '••••@' . $domain;
+        }
+
+        return '•••• ' . substr($identifier, -4);
     }
 }
