@@ -38,9 +38,12 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('verify-otp', [OtpController::class, 'create'])->name('otp.create');
-Route::post('verify-otp', [OtpController::class, 'store'])->name('otp.store');
-Route::post('resend-otp', [OtpController::class, 'resend'])->name('otp.resend');
+// open to guests and to signed-in users re-verifying, so the session is what guards them
+Route::middleware('otp.pending')->group(function () {
+    Route::get('verify-otp', [OtpController::class, 'create'])->name('otp.create');
+    Route::post('verify-otp', [OtpController::class, 'store'])->name('otp.store');
+    Route::post('resend-otp', [OtpController::class, 'resend'])->name('otp.resend');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
