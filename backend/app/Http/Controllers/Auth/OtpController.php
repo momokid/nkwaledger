@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
 use App\Services\PhoneVerificationService;
-use App\Support\DashboardRouteResolver;
+use App\Support\OtpOutcomeResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +21,7 @@ class OtpController extends Controller
     public function __construct(
         private readonly OtpService $otpService,
         private readonly LoginAnomalyService $loginAnomaly, // records the device and alerts on a first sighting
-        private readonly DashboardRouteResolver $dashboard,
+        private readonly OtpOutcomeResolver $outcome,
         private readonly PhoneVerificationService $verification,
     ) {}
 
@@ -57,7 +57,7 @@ class OtpController extends Controller
             'code' => ['required', 'string', 'digits:6'],
         ]);
 
-        // the step before this decided who is logging in; the browser cannot change it
+        // the step before this decided who is verifying; the browser cannot change it
         $identifier = $request->session()->get('auth.login_identifier');
         $type       = $request->session()->get('auth.otp_type');
 
@@ -72,21 +72,25 @@ class OtpController extends Controller
         $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
         $user  = User::where($field, $identifier)->first();
 
-        if ($user) {
+        // one place decides what a verified code of each type actually means
+        if ($user && $this->outcome->authenticates($type)) {
             Auth::login($user);
             $this->loginAnomaly->checkAndRecord($user, $request);
             $request->session()->regenerate();
 
-            // a login code proves they hold the phone, so it counts as verification
-            if ($type === 'login') {
+            if ($this->outcome->verifiesPhone($type)) {
                 $this->verification->markVerified($user);
             }
         }
 
+        // an invited person is not signed in, so the next step is told who it is acting for
+        if ($user && ! $this->outcome->authenticates($type)) {
+            $request->session()->put('auth.activating_user_id', $user->id);
+        }
+
         $request->session()->forget(['auth.login_identifier', 'auth.otp_type']);
 
-        // one shared place decides where each role lands
-        return redirect($this->dashboard->path($user));
+        return redirect($this->outcome->path($type, $user));
     }
 
     public function resend(Request $request): RedirectResponse

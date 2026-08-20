@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\LedgerSubcategoryController;
 use App\Http\Controllers\Admin\LedgerClassController;
 use App\Http\Controllers\Admin\LedgerTypeController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
+use App\Http\Controllers\Auth\SetPasswordController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -69,6 +70,12 @@ Route::middleware('guest')->group(function () {
         ->name('password.reset');
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    // an invited person lands here once their code checks out, holding a session pass rather than a login
+    Route::middleware('activation.pending')->group(function () {
+        Route::get('set-password', [SetPasswordController::class, 'create'])->name('activation.password.create');
+        Route::post('set-password', [SetPasswordController::class, 'store'])->name('activation.password.store');
+    });
 
     Route::get('auth/{provider}', [SocialAuthController::class, 'redirect'])
         ->name('social.redirect')
