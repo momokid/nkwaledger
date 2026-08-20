@@ -10,12 +10,12 @@ test('login screen can be rendered', function () {
 
 test('user can login with phone and password', function () {
     User::factory()->create([
-        'phone'    => '+233244000001',
+        'phone'    => '0244000001',
         'password' => bcrypt('Password@123'),
     ]);
 
     $response = $this->post('/login', [
-        'identifier' => '+233244000001',
+        'identifier' => '0244000001',
         'password'   => 'Password@123',
     ]);
 
@@ -40,12 +40,12 @@ test('user can login with email and password', function () {
 
 test('user is authenticated immediately after password login', function () {
     User::factory()->create([
-        'phone'    => '+233244000001',
+        'phone'    => '0244000001',
         'password' => bcrypt('Password@123'),
     ]);
 
     $this->post('/login', [
-        'identifier' => '+233244000001',
+        'identifier' => '0244000001',
         'password'   => 'Password@123',
     ]);
 
@@ -54,26 +54,26 @@ test('user is authenticated immediately after password login', function () {
 
 test('otp login sends otp to phone', function () {
     User::factory()->create([
-        'phone' => '+233244000001',
+        'phone' => '0244000001',
     ]);
 
     $this->post('/login/otp', [
-        'phone' => '+233244000001',
+        'phone' => '0244000001',
     ]);
 
     $this->assertDatabaseHas('otp_codes', [
-        'identifier' => '+233244000001',
+        'identifier' => '0244000001',
         'type'       => 'login',
     ]);
 });
 
 test('otp login redirects to verify otp', function () {
     User::factory()->create([
-        'phone' => '+233244000001',
+        'phone' => '0244000001',
     ]);
 
     $response = $this->post('/login/otp', [
-        'phone' => '+233244000001',
+        'phone' => '0244000001',
     ]);
 
     $response->assertRedirect('/verify-otp');
@@ -81,7 +81,7 @@ test('otp login redirects to verify otp', function () {
 
 test('otp login gives the same reply for a non-existent phone', function () {
     $response = $this->post('/login/otp', [
-        'phone' => '+233244000099',
+        'phone' => '0244000099',
     ]);
 
     $response->assertRedirect('/verify-otp');
@@ -90,12 +90,12 @@ test('otp login gives the same reply for a non-existent phone', function () {
 
 test('login fails with wrong password', function () {
     User::factory()->create([
-        'phone'    => '+233244000001',
+        'phone'    => '0244000001',
         'password' => bcrypt('Password@123'),
     ]);
 
     $response = $this->post('/login', [
-        'identifier' => '+233244000001',
+        'identifier' => '0244000001',
         'password'   => 'WrongPassword@123',
     ]);
 
@@ -105,7 +105,7 @@ test('login fails with wrong password', function () {
 
 test('login fails with non-existent phone', function () {
     $response = $this->post('/login', [
-        'identifier' => '+233244000099',
+        'identifier' => '0244000099',
         'password'   => 'Password@123',
     ]);
 
@@ -115,13 +115,13 @@ test('login fails with non-existent phone', function () {
 
 test('inactive user cannot login', function () {
     User::factory()->create([
-        'phone'     => '+233244000001',
+        'phone'     => '0244000001',
         'password'  => bcrypt('Password@123'),
         'is_active' => false,
     ]);
 
     $response = $this->post('/login', [
-        'identifier' => '+233244000001',
+        'identifier' => '0244000001',
         'password'   => 'Password@123',
     ]);
 
@@ -131,19 +131,19 @@ test('inactive user cannot login', function () {
 
 test('login is rate limited after five failed attempts', function () {
     User::factory()->create([
-        'phone'    => '+233244000001',
+        'phone'    => '0244000001',
         'password' => bcrypt('Password@123'),
     ]);
 
     for ($i = 0; $i < 5; $i++) {
         $this->post('/login', [
-            'identifier' => '+233244000001',
+            'identifier' => '0244000001',
             'password'   => 'WrongPassword',
         ]);
     }
 
     $response = $this->post('/login', [
-        'identifier' => '+233244000001',
+        'identifier' => '0244000001',
         'password'   => 'WrongPassword',
     ]);
 

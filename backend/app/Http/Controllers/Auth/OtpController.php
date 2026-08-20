@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\OtpLoginRequest;
 use App\Models\User;
 use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
@@ -26,26 +27,25 @@ class OtpController extends Controller
 
     public function create(Request $request): Response
     {
+        // only the purpose reaches the browser; the number stays on the server
         return Inertia::render('Auth/VerifyOtp', [
-            'type'   => $request->session()->get('auth.otp_type'),
-            'masked' => $this->mask($request->session()->get('auth.login_identifier')),
+            'type' => $request->session()->get('auth.otp_type'),
         ]);
     }
 
-    public function requestLogin(Request $request): RedirectResponse
+    public function requestLogin(OtpLoginRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'phone' => ['required', 'string'],
-        ]);
+        // the request has already cleaned this, so the lookup, the code and the session all share one spelling
+        $phone = $request->validated()['phone'];
 
-        $user = User::where('phone', $validated['phone'])->first();
+        $user = User::where('phone', $phone)->first();
 
         // a code only goes out to a real account, but the reply looks the same either way
         if ($user) {
-            $this->otpService->generate($validated['phone'], 'login');
+            $this->otpService->generate($phone, 'login');
         }
 
-        $request->session()->put('auth.login_identifier', $validated['phone']);
+        $request->session()->put('auth.login_identifier', $phone);
         $request->session()->put('auth.otp_type', 'login');
 
         return redirect('/verify-otp');
@@ -98,21 +98,5 @@ class OtpController extends Controller
         );
 
         return back();
-    }
-
-    // enough for someone to recognise their own number, not enough to learn a stranger's
-    private function mask(?string $identifier): ?string
-    {
-        if (! $identifier) {
-            return null;
-        }
-
-        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
-            [$name, $domain] = explode('@', $identifier, 2);
-
-            return substr($name, 0, 1) . '••••@' . $domain;
-        }
-
-        return '•••• ' . substr($identifier, -4);
     }
 }

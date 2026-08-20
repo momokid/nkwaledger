@@ -22,13 +22,13 @@ function replaceOtpWith(string $phone, string $code): void
 
 test('an agent on an unknown device is sent to otp and is not logged in yet', function () {
     $agent = User::factory()->create([
-        'phone'    => '+233244000061',
+        'phone'    => '0244000061',
         'password' => bcrypt('Password@123'),
     ]);
     $agent->assignRole('agent');
 
     $response = $this->post('/login', [
-        'identifier' => '+233244000061',
+        'identifier' => '0244000061',
         'password'   => 'Password@123',
     ]);
 
@@ -38,13 +38,13 @@ test('an agent on an unknown device is sent to otp and is not logged in yet', fu
 
 test('an agent device is not recorded until the code is verified', function () {
     $agent = User::factory()->create([
-        'phone'    => '+233244000061',
+        'phone'    => '0244000061',
         'password' => bcrypt('Password@123'),
     ]);
     $agent->assignRole('agent');
 
     $this->post('/login', [
-        'identifier' => '+233244000061',
+        'identifier' => '0244000061',
         'password'   => 'Password@123',
     ]);
 
@@ -53,20 +53,20 @@ test('an agent device is not recorded until the code is verified', function () {
 
 test('an agent completing otp is logged in and the device is recorded', function () {
     $agent = User::factory()->create([
-        'phone'    => '+233244000061',
+        'phone'    => '0244000061',
         'password' => bcrypt('Password@123'),
     ]);
     $agent->assignRole('agent');
 
     $this->post('/login', [
-        'identifier' => '+233244000061',
+        'identifier' => '0244000061',
         'password'   => 'Password@123',
     ]);
 
-    replaceOtpWith('+233244000061', '112233');
+    replaceOtpWith('0244000061', '112233');
 
     $response = $this->post('/verify-otp', [
-        'identifier' => '+233244000061',
+        'identifier' => '0244000061',
         'code'       => '112233',
         'type'       => 'login',
     ]);
@@ -78,25 +78,25 @@ test('an agent completing otp is logged in and the device is recorded', function
 
 test('an agent on a device already known logs in without otp', function () {
     $agent = User::factory()->create([
-        'phone'    => '+233244000061',
+        'phone'    => '0244000061',
         'password' => bcrypt('Password@123'),
     ]);
     $agent->assignRole('agent');
 
     $this->post('/login', [
-        'identifier' => '+233244000061',
+        'identifier' => '0244000061',
         'password'   => 'Password@123',
     ]);
-    replaceOtpWith('+233244000061', '112233');
+    replaceOtpWith('0244000061', '112233');
     $this->post('/verify-otp', [
-        'identifier' => '+233244000061',
+        'identifier' => '0244000061',
         'code'       => '112233',
         'type'       => 'login',
     ]);
     $this->post('/logout');
 
     $response = $this->post('/login', [
-        'identifier' => '+233244000061',
+        'identifier' => '0244000061',
         'password'   => 'Password@123',
     ]);
 
@@ -108,7 +108,7 @@ test('vet, adviser and supplier are all sent to otp on an unknown device', funct
     $index = 70;
 
     foreach (['vet', 'adviser', 'supplier'] as $role) {
-        $phone = '+2332440000' . $index++;
+        $phone = '02440005' . random_int(10, 99);
 
         $user = User::factory()->create([
             'phone'    => $phone,
@@ -128,42 +128,42 @@ test('vet, adviser and supplier are all sent to otp on an unknown device', funct
 
 test('a farmer logs in straight away with no otp and no alert', function () {
     $farmer = User::factory()->create([
-        'phone'    => '+233244000062',
+        'phone'    => '0244000062',
         'password' => bcrypt('Password@123'),
     ]);
     $farmer->assignRole('farmer');
 
     $response = $this->post('/login', [
-        'identifier' => '+233244000062',
+        'identifier' => '0244000062',
         'password'   => 'Password@123',
     ]);
 
     $response->assertRedirect('/farmer/dashboard');
     $this->assertAuthenticatedAs($farmer);
-    expect(app(SmsProvider::class)->sentTo('+233244000062'))->toBeFalse();
+    expect(app(SmsProvider::class)->sentTo('0244000062'))->toBeFalse();
 });
 
 test('an admin completing otp login gets a new-device alert after verification', function () {
     $admin = User::factory()->create([
-        'phone'    => '+233244000060',
+        'phone'    => '0244000060',
         'password' => bcrypt('Password@123'),
     ]);
     $admin->assignRole('admin');
 
     $this->post('/login', [
-        'identifier' => '+233244000060',
+        'identifier' => '0244000060',
         'password'   => 'Password@123',
     ]);
 
-    replaceOtpWith('+233244000060', '112233');
+    replaceOtpWith('0244000060', '112233');
 
     $this->post('/verify-otp', [
-        'identifier' => '+233244000060',
+        'identifier' => '0244000060',
         'code'       => '112233',
         'type'       => 'login',
     ]);
 
     // two messages are expected: the login code itself, then the new-device alert
-    $sentToAdmin = collect(app(SmsProvider::class)->sent)->where('phone', '+233244000060');
+    $sentToAdmin = collect(app(SmsProvider::class)->sent)->where('phone', '0244000060');
     expect($sentToAdmin->count())->toBe(2);
 });

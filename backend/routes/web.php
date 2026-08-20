@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FarmTypeCategoryController;
 use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\UserAccessController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
@@ -366,5 +367,12 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:ledger-accounts.delete')->group(function () {
         Route::delete('/ledger-accounts/{ledgerAccount}', [LedgerAccountController::class, 'destroy'])
             ->name('ledger-accounts.destroy');
+    });
+
+    Route::middleware('access:staff.create')->group(function () {
+        // creating an account with system access is as sensitive as editing a role
+        Route::middleware('password.confirm')->group(function () {
+            Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+        });
     });
 });

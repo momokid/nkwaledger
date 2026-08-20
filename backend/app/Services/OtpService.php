@@ -15,6 +15,14 @@ class OtpService
         'login',
         'password_reset',
         'phone_verification',
+        'invitation',
+    ];
+
+    private const DEFAULT_LIFETIME = 5;
+
+    // an invited person may not reach a computer for hours, so their code outlives the rest
+    private const LIFETIMES = [
+        'invitation' => 60,
     ];
 
     public function __construct(private readonly SmsProvider $sms) {}
@@ -29,10 +37,10 @@ class OtpService
             'identifier' => $identifier,
             'code'       => Hash::make($plainCode),
             'type'       => $type,
-            'expires_at' => now()->addMinutes(5),
+            'expires_at' => now()->addMinutes($this->lifetimeFor($type)),
         ]);
 
-        $this->sms->send($identifier, "Your NkwaLedger code is: {$plainCode}. Valid for 5 minutes.");
+        $this->sms->send($identifier, $this->messageFor($type, $plainCode));
 
         return $otp;
     }
@@ -65,6 +73,23 @@ class OtpService
     public function markUsed(OtpCode $otp): void
     {
         $otp->update(['used_at' => now()]);
+    }
+
+    private function lifetimeFor(string $type): int
+    {
+        return self::LIFETIMES[$type] ?? self::DEFAULT_LIFETIME;
+    }
+
+    // an invited person has no idea what a code is for, so their message says where to go
+    private function messageFor(string $type, string $plainCode): string
+    {
+        if ($type === 'invitation') {
+            return "Welcome to NkwaLedger. Visit nkwaledger.com, choose Activate account, and enter code {$plainCode}. Valid for 1 hour.";
+        }
+
+        $minutes = $this->lifetimeFor($type);
+
+        return "Your NkwaLedger code is: {$plainCode}. Valid for {$minutes} minutes.";
     }
 
     // stops a typo becoming a code nobody can ever verify

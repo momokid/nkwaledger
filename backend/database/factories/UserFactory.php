@@ -18,7 +18,7 @@ class UserFactory extends Factory
             'surname'            => fake()->lastName(),
             'first_name'         => fake()->firstName(),
             'other_name'         => null,
-            'phone'              => '+233' . fake()->unique()->numerify('2########'),
+            'phone'              => '024' . fake()->unique()->numerify('#######'),
             'email'              => null,
             // new users start unverified, so a missing gate breaks tests instead of hiding
             'phone_verified_at'  => now(),
