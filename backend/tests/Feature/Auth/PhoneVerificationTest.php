@@ -5,11 +5,11 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 test('a logged in user can request a verification code', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->create(['phone' => '0241234567']);
 
     $this->actingAs($user)->post('/verify-phone/send')->assertRedirect();
 
-    expect(OtpCode::where('identifier', '+233241234567')
+    expect(OtpCode::where('identifier', '0241234567')
         ->where('type', 'phone_verification')
         ->exists())->toBeTrue();
 });
@@ -19,18 +19,18 @@ test('a guest cannot request a verification code', function () {
 });
 
 test('the code always goes to the account phone', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->create(['phone' => '0241234567']);
 
-    $this->actingAs($user)->post('/verify-phone/send', ['phone' => '+233249999999']);
+    $this->actingAs($user)->post('/verify-phone/send', ['phone' => '0249999999']);
 
-    expect(OtpCode::where('identifier', '+233249999999')->exists())->toBeFalse();
+    expect(OtpCode::where('identifier', '0249999999')->exists())->toBeFalse();
 });
 
 test('a correct code verifies the phone', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->create(['phone' => '0241234567']);
 
     OtpCode::create([
-        'identifier' => '+233241234567',
+        'identifier' => '0241234567',
         'code'       => Hash::make('123456'),
         'type'       => 'phone_verification',
         'expires_at' => now()->addMinutes(5),
@@ -42,11 +42,11 @@ test('a correct code verifies the phone', function () {
 });
 
 test('a correct code also sets the login threshold', function () {
-    $user = User::factory()->create(['phone' => '+233241234567']);
+    $user = User::factory()->create(['phone' => '0241234567']);
     $user->assignRole('farmer');
 
     OtpCode::create([
-        'identifier' => '+233241234567',
+        'identifier' => '0241234567',
         'code'       => Hash::make('123456'),
         'type'       => 'phone_verification',
         'expires_at' => now()->addMinutes(5),
@@ -58,10 +58,10 @@ test('a correct code also sets the login threshold', function () {
 });
 
 test('a wrong code leaves the user unverified', function () {
-    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '0241234567']);
 
     OtpCode::create([
-        'identifier' => '+233241234567',
+        'identifier' => '0241234567',
         'code'       => Hash::make('123456'),
         'type'       => 'phone_verification',
         'expires_at' => now()->addMinutes(5),
@@ -74,10 +74,10 @@ test('a wrong code leaves the user unverified', function () {
 });
 
 test('a login code cannot be used to verify a phone', function () {
-    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '0241234567']);
 
     OtpCode::create([
-        'identifier' => '+233241234567',
+        'identifier' => '0241234567',
         'code'       => Hash::make('123456'),
         'type'       => 'login',
         'expires_at' => now()->addMinutes(5),

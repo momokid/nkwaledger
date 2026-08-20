@@ -2,24 +2,24 @@
 
 use App\Support\Phone;
 
-test('a local number becomes international', function () {
-    expect(Phone::normalise('0244445566'))->toBe('+233244445566');
+test('a local number is unchanged', function () {
+    expect(Phone::normalise('0244445566'))->toBe('0244445566');
 });
 
-test('a number already in international form is unchanged', function () {
-    expect(Phone::normalise('+233244445566'))->toBe('+233244445566');
+test('an international number becomes local', function () {
+    expect(Phone::normalise('0244445566'))->toBe('0244445566');
 });
 
-test('a country code without the plus gets one', function () {
-    expect(Phone::normalise('233244445566'))->toBe('+233244445566');
+test('a country code without the plus becomes local', function () {
+    expect(Phone::normalise('233244445566'))->toBe('0244445566');
 });
 
-test('the dialled international prefix is handled', function () {
-    expect(Phone::normalise('00233244445566'))->toBe('+233244445566');
+test('the dialled international prefix becomes local', function () {
+    expect(Phone::normalise('00233244445566'))->toBe('0244445566');
 });
 
 test('spaces, dashes and brackets are ignored', function (string $raw) {
-    expect(Phone::normalise($raw))->toBe('+233244445566');
+    expect(Phone::normalise($raw))->toBe('0244445566');
 })->with([
     '024 444 5566',
     '024-444-5566',
@@ -29,7 +29,7 @@ test('spaces, dashes and brackets are ignored', function (string $raw) {
 ]);
 
 test('every ghanaian mobile prefix is accepted', function (string $prefix) {
-    expect(Phone::normalise($prefix . '4445566'))->toBe('+233' . substr($prefix, 1) . '4445566');
+    expect(Phone::normalise($prefix . '4445566'))->toBe($prefix . '4445566');
 })->with([
     '020',
     '023',

@@ -19,7 +19,7 @@ test('registration stores a local number in international form', function () {
         'password_confirmation' => 'Password@123',
     ]);
 
-    expect(User::where('phone', '+233244445566')->exists())->toBeTrue();
+    expect(User::where('phone', '0244445566')->exists())->toBeTrue();
 });
 
 test('the registration code is sent to the clean number', function () {
@@ -31,12 +31,12 @@ test('the registration code is sent to the clean number', function () {
         'password_confirmation' => 'Password@123',
     ]);
 
-    expect(OtpCode::where('identifier', '+233244445566')->exists())->toBeTrue();
-    expect(OtpCode::where('identifier', '0244445566')->exists())->toBeFalse();
+    expect(OtpCode::where('identifier', '0244445566')->exists())->toBeTrue();
+    expect(OtpCode::where('identifier', '+233244445566')->exists())->toBeFalse();
 });
 
 test('the same person cannot register twice in two spellings', function () {
-    User::factory()->create(['phone' => '+233244445566']);
+    User::factory()->create(['phone' => '0244445566']);
 
     $response = $this->post('/register', [
         'surname'               => 'Boateng',
@@ -63,7 +63,7 @@ test('registration rejects a number that is not a ghanaian mobile', function (st
 
 test('a farmer registered internationally can log in locally', function () {
     User::factory()->create([
-        'phone'    => '+233244445566',
+        'phone'    => '0244445566',
         'password' => bcrypt('Password@123'),
     ])->assignRole('farmer');
 
@@ -83,7 +83,7 @@ test('a farmer registered locally can log in internationally', function () {
     ])->assignRole('farmer');
 
     $response = $this->post('/login', [
-        'identifier' => '+233209998877',
+        'identifier' => '0209998877',
         'password'   => 'Password@123',
     ]);
 
@@ -107,7 +107,7 @@ test('email login is untouched by the normaliser', function () {
 // two spellings of one number must share a rate limit bucket, or five attempts becomes ten
 test('failed attempts in two spellings share one throttle', function () {
     User::factory()->create([
-        'phone'    => '+233244445566',
+        'phone'    => '0244445566',
         'password' => bcrypt('Password@123'),
     ]);
 
@@ -116,11 +116,11 @@ test('failed attempts in two spellings share one throttle', function () {
     }
 
     for ($i = 0; $i < 3; $i++) {
-        $this->post('/login', ['identifier' => '+233244445566', 'password' => 'wrong']);
+        $this->post('/login', ['identifier' => '0244445566', 'password' => 'wrong']);
     }
 
     $response = $this->post('/login', [
-        'identifier' => '+233244445566',
+        'identifier' => '0244445566',
         'password'   => 'Password@123',
     ]);
 
@@ -129,30 +129,30 @@ test('failed attempts in two spellings share one throttle', function () {
 });
 
 test('an otp login request finds an account written the other way', function () {
-    User::factory()->create(['phone' => '+233244445566']);
+    User::factory()->create(['phone' => '0244445566']);
 
     $this->post('/login/otp', ['phone' => '0244445566']);
 
-    expect(OtpCode::where('identifier', '+233244445566')->where('type', 'login')->exists())->toBeTrue();
+    expect(OtpCode::where('identifier', '0244445566')->where('type', 'login')->exists())->toBeTrue();
 });
 
 test('the otp session holds the clean number', function () {
-    User::factory()->create(['phone' => '+233244445566']);
+    User::factory()->create(['phone' => '0244445566']);
 
     $this->post('/login/otp', ['phone' => '0244445566']);
 
-    $this->assertEquals('+233244445566', session('auth.login_identifier'));
+    $this->assertEquals('0244445566', session('auth.login_identifier'));
 });
 
 test('a code requested locally verifies and logs the farmer in', function () {
-    $user = User::factory()->create(['phone' => '+233244445566']);
+    $user = User::factory()->create(['phone' => '0244445566']);
     $user->assignRole('farmer');
 
     $this->post('/login/otp', ['phone' => '0244445566']);
 
-    OtpCode::where('identifier', '+233244445566')->delete();
+    OtpCode::where('identifier', '0244445566')->delete();
     OtpCode::create([
-        'identifier' => '+233244445566',
+        'identifier' => '0244445566',
         'code'       => Illuminate\Support\Facades\Hash::make('112233'),
         'type'       => 'login',
         'expires_at' => now()->addMinutes(5),
@@ -177,5 +177,5 @@ test('an invite accepts the format an admin would type', function () {
         'role'       => 'agent',
     ]);
 
-    expect(User::where('phone', '+233244445566')->exists())->toBeTrue();
+    expect(User::where('phone', '0244445566')->exists())->toBeTrue();
 });

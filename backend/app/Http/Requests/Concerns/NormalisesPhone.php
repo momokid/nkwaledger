@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Concerns;
 
 use App\Support\Phone;
+use Closure;
 
 trait NormalisesPhone
 {
@@ -23,16 +24,20 @@ trait NormalisesPhone
         $this->merge([$field => Phone::normalise($raw) ?? $raw]);
     }
 
-    // one definition of what a usable Ghanaian mobile number is
+    // defers to the normaliser rather than restating it, so a landline or an unissued prefix cannot slip through
     protected function phoneRules(array $extra = []): array
     {
-        return array_merge(['required', 'string', 'regex:/^\+233[0-9]{9}$/'], $extra);
+        $check = function (string $attribute, mixed $value, Closure $fail): void {
+            if (! is_string($value) || Phone::normalise($value) === null) {
+                $fail('That doesn\'t look like a Ghanaian mobile number. Try it the way you\'d dial it, like 0244445566.');
+            }
+        };
+
+        return array_merge(['required', 'string', $check], $extra);
     }
 
     protected function phoneMessages(string $field = 'phone'): array
     {
-        return [
-            "{$field}.regex" => 'That doesn\'t look like a Ghanaian mobile number. Try it the way you\'d dial it, like 0244445566.',
-        ];
+        return [];
     }
 }

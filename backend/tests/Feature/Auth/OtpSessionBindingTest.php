@@ -13,7 +13,7 @@ test('the otp page cannot be opened without a pending code', function () {
 
 test('the otp page opens when a code is pending', function () {
     $response = $this->withSession([
-        'auth.login_identifier' => '+233244000001',
+        'auth.login_identifier' => '0244000001',
         'auth.otp_type'         => 'login',
     ])->get('/verify-otp');
 
@@ -28,14 +28,14 @@ test('a code cannot be submitted without a pending session', function () {
 });
 
 test('the phone in the session is used, not the one posted', function () {
-    $mine = User::factory()->create(['phone' => '+233244000001']);
+    $mine = User::factory()->create(['phone' => '0244000001']);
     $mine->assignRole('farmer');
 
-    $theirs = User::factory()->create(['phone' => '+233244000002']);
+    $theirs = User::factory()->create(['phone' => '0244000002']);
     $theirs->assignRole('farmer');
 
     OtpCode::create([
-        'identifier' => '+233244000002',
+        'identifier' => '0244000002',
         'code'       => Hash::make('654321'),
         'type'       => 'login',
         'expires_at' => now()->addMinutes(5),
@@ -43,10 +43,10 @@ test('the phone in the session is used, not the one posted', function () {
 
     // session says one number, the request body claims another and offers that other number's code
     $response = $this->withSession([
-        'auth.login_identifier' => '+233244000001',
+        'auth.login_identifier' => '0244000001',
         'auth.otp_type'         => 'login',
     ])->post('/verify-otp', [
-        'identifier' => '+233244000002',
+        'identifier' => '0244000002',
         'code'       => '654321',
     ]);
 
@@ -55,18 +55,18 @@ test('the phone in the session is used, not the one posted', function () {
 });
 
 test('a valid code for the session phone logs the user in', function () {
-    $user = User::factory()->create(['phone' => '+233244000001']);
+    $user = User::factory()->create(['phone' => '0244000001']);
     $user->assignRole('farmer');
 
     OtpCode::create([
-        'identifier' => '+233244000001',
+        'identifier' => '0244000001',
         'code'       => Hash::make('123456'),
         'type'       => 'login',
         'expires_at' => now()->addMinutes(5),
     ]);
 
     $response = $this->withSession([
-        'auth.login_identifier' => '+233244000001',
+        'auth.login_identifier' => '0244000001',
         'auth.otp_type'         => 'login',
     ])->post('/verify-otp', ['code' => '123456']);
 
@@ -76,17 +76,17 @@ test('a valid code for the session phone logs the user in', function () {
 
 test('resend sends to the session phone, not the one posted', function () {
     $this->withSession([
-        'auth.login_identifier' => '+233244000001',
+        'auth.login_identifier' => '0244000001',
         'auth.otp_type'         => 'login',
-    ])->post('/resend-otp', ['identifier' => '+233244000002']);
+    ])->post('/resend-otp', ['identifier' => '0244000002']);
 
-    expect(app(SmsProvider::class)->sentTo('+233244000001'))->toBeTrue();
-    expect(app(SmsProvider::class)->sentTo('+233244000002'))->toBeFalse();
+    expect(app(SmsProvider::class)->sentTo('0244000001'))->toBeTrue();
+    expect(app(SmsProvider::class)->sentTo('0244000002'))->toBeFalse();
 });
 
 test('resend does nothing without a pending session', function () {
-    $response = $this->post('/resend-otp', ['identifier' => '+233244000002']);
+    $response = $this->post('/resend-otp', ['identifier' => '0244000002']);
 
     $response->assertRedirect('/login');
-    expect(app(SmsProvider::class)->sentTo('+233244000002'))->toBeFalse();
+    expect(app(SmsProvider::class)->sentTo('0244000002'))->toBeFalse();
 });

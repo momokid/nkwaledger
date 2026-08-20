@@ -48,7 +48,8 @@ class Phone
             return null;
         }
 
-        return '+233' . $national;
+        // stored the way a farmer dials it
+        return '0' . $national;
     }
 
     // strips whichever way the caller wrote the country code, leaving the nine digits that identify the line

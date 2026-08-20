@@ -23,7 +23,7 @@ function staffPayload(array $overrides = []): array
         'surname'    => 'Mensah',
         'first_name' => 'Kofi',
         'other_name' => null,
-        'phone'      => '+233244000501',
+        'phone'      => '0244000501',
         'email'      => 'kofi.mensah@nkwaledger.com',
         'role'       => 'agent',
     ], $overrides);
@@ -49,7 +49,7 @@ test('an authorized admin creates the account', function () {
 
     $response->assertSessionDoesntHaveErrors();
 
-    $staff = User::where('phone', '+233244000501')->first();
+    $staff = User::where('phone', '0244000501')->first();
 
     expect($staff)->not->toBeNull();
     expect($staff->first_name)->toBe('Kofi');
@@ -59,7 +59,7 @@ test('an authorized admin creates the account', function () {
 test('the account starts with no password', function () {
     $this->actingAs($this->admin)->post('/admin/staff', staffPayload());
 
-    expect(User::where('phone', '+233244000501')->first()->password)->toBeNull();
+    expect(User::where('phone', '0244000501')->first()->password)->toBeNull();
 });
 
 test('a password sent in the form is ignored', function () {
@@ -67,19 +67,19 @@ test('a password sent in the form is ignored', function () {
         'password' => 'Attacker@123',
     ]));
 
-    expect(User::where('phone', '+233244000501')->first()->password)->toBeNull();
+    expect(User::where('phone', '0244000501')->first()->password)->toBeNull();
 });
 
 test('the account starts unverified', function () {
     $this->actingAs($this->admin)->post('/admin/staff', staffPayload());
 
-    expect(User::where('phone', '+233244000501')->first()->phone_verified_at)->toBeNull();
+    expect(User::where('phone', '0244000501')->first()->phone_verified_at)->toBeNull();
 });
 
 test('an invitation code is issued', function () {
     $this->actingAs($this->admin)->post('/admin/staff', staffPayload());
 
-    $otp = OtpCode::where('identifier', '+233244000501')
+    $otp = OtpCode::where('identifier', '0244000501')
         ->where('type', 'invitation')
         ->first();
 
@@ -90,11 +90,11 @@ test('an invitation code is issued', function () {
 test('one sms carries the invitation', function () {
     $this->actingAs($this->admin)->post('/admin/staff', staffPayload());
 
-    expect(collect(app(SmsProvider::class)->sent)->where('phone', '+233244000501')->count())->toBe(1);
+    expect(collect(app(SmsProvider::class)->sent)->where('phone', '0244000501')->count())->toBe(1);
 });
 
 test('each staff role can be invited', function (string $role) {
-    $phone = '+2332440005' . random_int(10, 99);
+    $phone = '02440005' . random_int(10, 99);
 
     $this->actingAs($this->admin)->post('/admin/staff', staffPayload([
         'phone' => $phone,
@@ -111,7 +111,7 @@ test('the farmer role cannot be invited', function () {
     ]));
 
     $response->assertSessionHasErrors('role');
-    expect(User::where('phone', '+233244000501')->exists())->toBeFalse();
+    expect(User::where('phone', '0244000501')->exists())->toBeFalse();
 });
 
 test('the admin role cannot be invited', function () {
@@ -123,12 +123,12 @@ test('the admin role cannot be invited', function () {
 });
 
 test('a phone already on file is rejected', function () {
-    User::factory()->create(['phone' => '+233244000501']);
+    User::factory()->create(['phone' => '0244000501']);
 
     $response = $this->actingAs($this->admin)->post('/admin/staff', staffPayload());
 
     $response->assertSessionHasErrors('phone');
-    expect(app(SmsProvider::class)->sentTo('+233244000501'))->toBeFalse();
+    expect(app(SmsProvider::class)->sentTo('0244000501'))->toBeFalse();
 });
 
 test('an email already on file is rejected', function () {

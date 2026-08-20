@@ -42,7 +42,7 @@ test('an authorized admin can view the search screen with no query', function ()
 });
 
 test('searching by phone returns a matching user', function () {
-    $target = User::factory()->create(['phone' => '+233244000077']);
+    $target = User::factory()->create(['phone' => '0244000077']);
 
     $response = $this->actingAs($this->authorizedAdmin)->get('/admin/permissions/users?q=244000077');
 
