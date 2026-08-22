@@ -25,6 +25,7 @@ import {
     useRef,
     useState,
 } from "react";
+import FlashMessages from "@/Components/FlashMessages";
 import VerificationGate from "@/Components/VerificationGate";
 import useIsVerified from "@/hooks/useIsVerified";
 
@@ -352,6 +353,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
     return (
         <ThemeContext.Provider value={{ dark, toggle: toggleTheme }}>
+            <FlashMessages />
             <div
                 style={{
                     minHeight: "100vh",

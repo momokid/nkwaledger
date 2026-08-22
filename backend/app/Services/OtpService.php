@@ -70,6 +70,20 @@ class OtpService
         return true;
     }
 
+    // says whether a code already sent is still usable, so a second one is not sent for nothing
+    public function hasLiveCode(string $identifier, string $type): bool
+    {
+        $this->guardType($type);
+
+        $otp = OtpCode::where('identifier', $identifier)
+            ->where('type', $type)
+            ->whereNull('used_at')
+            ->latest()
+            ->first();
+
+        return $otp !== null && ! $otp->isExpired() && ! $otp->isExhausted();
+    }
+
     public function markUsed(OtpCode $otp): void
     {
         $otp->update(['used_at' => now()]);

@@ -19,6 +19,7 @@ import {
     IconStack2,
     IconListDetails,
 } from "@tabler/icons-react";
+import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
 import { ThemeContext } from "@/Layouts/AuthenticatedLayout"; // reuses the same theme context shape, not the whole layout
 
@@ -565,6 +566,7 @@ export default function AdminLayout({ title, children }: Props) {
                     </div>
                 </div>
             </div>
+            <FlashMessages />
         </ThemeContext.Provider>
     );
 }
