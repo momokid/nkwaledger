@@ -1,5 +1,6 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { type } from "@/theme/typography";
 import { router, useForm } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { FormEvent, useState } from "react";
@@ -73,8 +74,8 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
         border: `1px solid ${inputBorder}`,
         background: inputBg,
         color: text,
-        padding: "10px 12px",
-        fontSize: "17px",
+        padding: "12px 14px",
+        fontSize: type.input,
         outline: "none",
         fontFamily: "inherit",
     };
@@ -160,8 +161,8 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                             background: "#1D9E75",
                             color: "#FFFFFF",
                             border: "none",
-                            padding: "10px 18px",
-                            fontSize: "17px",
+                            padding: "12px 20px",
+                            fontSize: type.button,
                             fontWeight: 600,
                             cursor: "pointer",
                             fontFamily: "inherit",
@@ -176,7 +177,10 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "17px" }}>
+                <table
+                    className="min-w-full"
+                    style={{ fontSize: type.tableCell }}
+                >
                     <thead>
                         <tr style={{ background: headerBg }}>
                             {["Name", "Phone", "Role", "Status", "Invited"].map(
@@ -187,6 +191,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                         style={{
                                             color: headerText,
                                             fontWeight: 700,
+                                            fontSize: type.tableHeader,
                                         }}
                                     >
                                         {label}
@@ -199,6 +204,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                     style={{
                                         color: headerText,
                                         fontWeight: 700,
+                                        fontSize: type.tableHeader,
                                     }}
                                 >
                                     Actions
@@ -218,7 +224,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                             <td key={column} className={cell}>
                                                 <div
                                                     style={{
-                                                        height: "14px",
+                                                        height: "16px",
                                                         width:
                                                             column === 0
                                                                 ? "70%"
@@ -237,7 +243,10 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                 <td
                                     colSpan={columns}
                                     className="px-4 py-6 text-center"
-                                    style={{ color: textSecondary }}
+                                    style={{
+                                        color: textSecondary,
+                                        fontSize: type.body,
+                                    }}
                                 >
                                     No staff accounts yet. Invite your first
                                     agent, vet, adviser or supplier.
@@ -265,7 +274,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                         {member.email && (
                                             <div
                                                 style={{
-                                                    fontSize: "15px",
+                                                    fontSize: type.secondary,
                                                     color: textSecondary,
                                                 }}
                                             >
@@ -291,7 +300,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                     <td className={cell}>
                                         <span
                                             style={{
-                                                fontSize: "15px",
+                                                fontSize: type.secondary,
                                                 fontWeight: 600,
                                                 color: member.is_activated
                                                     ? "#1D9E75"
@@ -307,7 +316,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                         className={cell}
                                         style={{
                                             color: textSecondary,
-                                            fontSize: "15px",
+                                            fontSize: type.secondary,
                                         }}
                                     >
                                         {new Date(
@@ -335,13 +344,15 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                                             "transparent",
                                                         border: "none",
                                                         fontWeight: 600,
-                                                        fontSize: "15px",
+                                                        fontSize:
+                                                            type.secondary,
                                                         cursor:
                                                             resendingId ===
                                                             member.id
                                                                 ? "wait"
                                                                 : "pointer",
                                                         padding: 0,
+                                                        fontFamily: "inherit",
                                                     }}
                                                 >
                                                     {resendingId === member.id
@@ -365,8 +376,8 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                         disabled={!link.url || loading}
                         dangerouslySetInnerHTML={{ __html: link.label }}
                         style={{
-                            padding: "6px 12px",
-                            fontSize: "15px",
+                            padding: "8px 14px",
+                            fontSize: type.secondary,
                             border: `1px solid ${link.active ? "#1D9E75" : border}`,
                             background: link.active ? "#1D9E75" : surface,
                             color: link.active
@@ -405,14 +416,14 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                             background: surface,
                             border: `1px solid ${border}`,
                             width: "100%",
-                            maxWidth: "520px",
-                            padding: "24px",
+                            maxWidth: "540px",
+                            padding: "28px",
                         }}
                     >
                         <h2
                             style={{
                                 margin: 0,
-                                fontSize: "20px",
+                                fontSize: type.sectionTitle,
                                 fontWeight: 700,
                                 color: text,
                             }}
@@ -421,14 +432,15 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                         </h2>
                         <p
                             style={{
-                                margin: "4px 0 20px",
-                                fontSize: "16px",
+                                margin: "6px 0 20px",
+                                fontSize: type.body,
                                 color: textSecondary,
                             }}
                         >
                             They'll get a code by SMS and set their own
                             password. You never choose it for them.
                         </p>
+
                         {Object.keys(form.errors).length > 0 && (
                             <div
                                 role="alert"
@@ -439,7 +451,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                         ? "rgba(220,38,38,0.12)"
                                         : "#FEF2F2",
                                     borderLeft: "4px solid #DC2626",
-                                    fontSize: "16px",
+                                    fontSize: type.body,
                                     color: dark ? "#FCA5A5" : "#991B1B",
                                 }}
                             >
@@ -467,7 +479,6 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                     label="Surname"
                                     error={form.errors.surname}
                                     text={text}
-                                    error_color="#DC2626"
                                 >
                                     <input
                                         type="text"
@@ -487,7 +498,6 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                     label="First name"
                                     error={form.errors.first_name}
                                     text={text}
-                                    error_color="#DC2626"
                                 >
                                     <input
                                         type="text"
@@ -508,7 +518,6 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                 label="Other name (optional)"
                                 error={form.errors.other_name}
                                 text={text}
-                                error_color="#DC2626"
                             >
                                 <input
                                     type="text"
@@ -527,7 +536,6 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                 label="Phone number"
                                 error={form.errors.phone}
                                 text={text}
-                                error_color="#DC2626"
                             >
                                 <input
                                     type="tel"
@@ -545,7 +553,6 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                 label="Email (optional)"
                                 error={form.errors.email}
                                 text={text}
-                                error_color="#DC2626"
                             >
                                 <input
                                     type="email"
@@ -562,7 +569,6 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                 label="Role"
                                 error={form.errors.role}
                                 text={text}
-                                error_color="#DC2626"
                             >
                                 <select
                                     value={form.data.role}
@@ -600,8 +606,8 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                             : "#1D9E75",
                                         color: "#FFFFFF",
                                         border: "none",
-                                        padding: "12px 20px",
-                                        fontSize: "18px",
+                                        padding: "13px 20px",
+                                        fontSize: type.button,
                                         fontWeight: 600,
                                         cursor: form.processing
                                             ? "not-allowed"
@@ -621,8 +627,8 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                         background: "transparent",
                                         color: text,
                                         border: `1px solid ${inputBorder}`,
-                                        padding: "12px 20px",
-                                        fontSize: "18px",
+                                        padding: "13px 20px",
+                                        fontSize: type.button,
                                         cursor: "pointer",
                                         fontFamily: "inherit",
                                     }}
@@ -642,17 +648,16 @@ interface FieldProps {
     label: string;
     error?: string;
     text: string;
-    error_color: string;
     children: React.ReactNode;
 }
 
-function Field({ label, error, text, error_color, children }: FieldProps) {
+function Field({ label, error, text, children }: FieldProps) {
     return (
-        <div style={{ marginBottom: "16px" }}>
+        <div style={{ marginBottom: "18px" }}>
             <label
                 style={{
                     display: "block",
-                    fontSize: "17px",
+                    fontSize: type.body,
                     fontWeight: 600,
                     color: text,
                     marginBottom: "6px",
@@ -664,9 +669,9 @@ function Field({ label, error, text, error_color, children }: FieldProps) {
             {error && (
                 <p
                     style={{
-                        marginTop: "4px",
-                        fontSize: "15px",
-                        color: error_color,
+                        marginTop: "5px",
+                        fontSize: type.secondary,
+                        color: "#DC2626",
                     }}
                 >
                     {error}
