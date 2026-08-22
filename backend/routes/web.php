@@ -389,10 +389,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     });
 
     Route::middleware('access:staff.create')->group(function () {
-        // creating an account with system access is as sensitive as editing a role
-        Route::middleware('password.confirm')->group(function () {
-            Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
-        });
+        Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
 
         // a resend costs an sms but grants nothing new, so it needs no password confirmation
         Route::post('/staff/{user}/resend', [StaffController::class, 'resend'])

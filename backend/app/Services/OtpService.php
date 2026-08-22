@@ -98,7 +98,9 @@ class OtpService
     private function messageFor(string $type, string $plainCode): string
     {
         if ($type === 'invitation') {
-            return "Welcome to NkwaLedger. Visit nkwaledger.com, choose Activate account, and enter code {$plainCode}. Valid for 1 hour.";
+            $link = rtrim(config('app.url'), '/') . '/activate';
+
+            return "Welcome to NkwaLedger. Go to {$link}, enter your phone number, then this code: {$plainCode}. Valid for 1 hour.";
         }
 
         $minutes = $this->lifetimeFor($type);

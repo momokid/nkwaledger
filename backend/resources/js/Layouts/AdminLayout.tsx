@@ -18,6 +18,7 @@ import {
     IconBook,
     IconStack2,
     IconListDetails,
+    IconUserPlus,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
@@ -112,6 +113,11 @@ const navItems: NavEntry[] = [
         label: "Access Control",
         icon: IconShieldLock,
         children: [
+            {
+                label: "Staff Accounts",
+                routeName: "admin.staff.index",
+                icon: IconUserPlus,
+            },
             {
                 label: "Roles & Permissions",
                 routeName: "admin.permissions.roles.index",

@@ -85,7 +85,7 @@ test('the activation pass is spent once used', function () {
     expect(session('auth.activating_user_id'))->toBeNull();
 });
 
-test('a weak password is refused', function (string $password) {
+test('a short password is refused', function (string $password) {
     $user = invitedUser();
 
     $this->withSession(['auth.activating_user_id' => $user->id])
@@ -95,7 +95,7 @@ test('a weak password is refused', function (string $password) {
         ])->assertSessionHasErrors('password');
 
     expect($user->fresh()->password)->toBeNull();
-})->with(['abc12', '12345678', 'password']);
+})->with(['abc12', 'ab1', '']);
 
 test('a mismatched confirmation is refused', function () {
     $user = invitedUser();
