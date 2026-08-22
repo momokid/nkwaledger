@@ -84,7 +84,7 @@ function RolesContent({ roles, modules, standalone }: ContentProps) {
                         background: "#FEF2F2",
                         border: "1px solid #FCA5A5",
                         color: "#B91C1C",
-                        fontSize: "17px",
+                        fontSize: "20px",
                     }}
                 >
                     {errors.permission_ids}
@@ -95,7 +95,7 @@ function RolesContent({ roles, modules, standalone }: ContentProps) {
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "17px" }}>
+                <table className="min-w-full" style={{ fontSize: "20px" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th

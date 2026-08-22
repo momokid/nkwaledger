@@ -116,7 +116,7 @@ function IndexContent({ categories, permissions }: ContentProps) {
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "15px",
+                                fontSize: "18px",
                                 fontWeight: 600,
                                 color: text,
                                 marginBottom: "6px",
@@ -137,7 +137,7 @@ function IndexContent({ categories, permissions }: ContentProps) {
                                 background: dark ? "#111827" : "#FFFFFF",
                                 color: text,
                                 padding: "10px 12px",
-                                fontSize: "17px",
+                                fontSize: "20px",
                                 outline: "none",
                                 fontFamily: "inherit",
                             }}
@@ -146,7 +146,7 @@ function IndexContent({ categories, permissions }: ContentProps) {
                             <p
                                 style={{
                                     color: "#DC2626",
-                                    fontSize: "14px",
+                                    fontSize: "18px",
                                     marginTop: "4px",
                                 }}
                             >
@@ -162,7 +162,7 @@ function IndexContent({ categories, permissions }: ContentProps) {
                             color: "#FFFFFF",
                             border: "none",
                             padding: "10px 20px",
-                            fontSize: "17px",
+                            fontSize: "20px",
                             fontWeight: 600,
                             cursor: createForm.processing
                                 ? "not-allowed"
@@ -179,7 +179,7 @@ function IndexContent({ categories, permissions }: ContentProps) {
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "17px" }}>
+                <table className="min-w-full" style={{ fontSize: "20px" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th
@@ -255,7 +255,7 @@ function IndexContent({ categories, permissions }: ContentProps) {
                                                         : "#FFFFFF",
                                                     color: text,
                                                     padding: "6px 8px",
-                                                    fontSize: "17px",
+                                                    fontSize: "20px",
                                                     outline: "none",
                                                     fontFamily: "inherit",
                                                 }}
@@ -420,7 +420,7 @@ function IndexContent({ categories, permissions }: ContentProps) {
                             dangerouslySetInnerHTML={{ __html: link.label }}
                             style={{
                                 padding: "6px 12px",
-                                fontSize: "14px",
+                                fontSize: "18px",
                                 border: `1px solid ${border}`,
                                 background: link.active ? "#1D9E75" : surface,
                                 color: link.active ? "#FFFFFF" : text,

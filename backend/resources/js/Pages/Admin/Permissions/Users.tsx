@@ -57,7 +57,7 @@ function UsersContent({ query, results }: ContentProps) {
             <label
                 style={{
                     display: "block",
-                    fontSize: "17px",
+                    fontSize: "20px",
                     fontWeight: 600,
                     color: text,
                     marginBottom: "6px",
@@ -76,7 +76,7 @@ function UsersContent({ query, results }: ContentProps) {
                     border: `1px solid ${inputBorder}`,
                     background: inputBg,
                     padding: "10px 12px",
-                    fontSize: "17px",
+                    fontSize: "20px",
                     color: text,
                     outline: "none",
                     fontFamily: "inherit",
@@ -87,7 +87,7 @@ function UsersContent({ query, results }: ContentProps) {
                 <p
                     style={{
                         marginTop: "16px",
-                        fontSize: "17px",
+                        fontSize: "20px",
                         color: textSecondary,
                     }}
                 >
@@ -97,7 +97,7 @@ function UsersContent({ query, results }: ContentProps) {
 
             {results.length > 0 && (
                 <div className="mt-6 overflow-x-auto">
-                    <table className="min-w-full" style={{ fontSize: "17px" }}>
+                    <table className="min-w-full" style={{ fontSize: "20px" }}>
                         <thead>
                             <tr style={{ background: headerBg }}>
                                 <th

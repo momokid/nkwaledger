@@ -22,12 +22,12 @@ function DashboardContent() {
             className="p-6"
             style={{ background: surface, border: `1px solid ${border}` }}
         >
-            <h2 style={{ fontSize: "20px", fontWeight: 700, color: text }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 700, color: text }}>
                 Welcome back
             </h2>
             <p
                 style={{
-                    fontSize: "17px",
+                    fontSize: "20px",
                     color: textSecondary,
                     marginTop: "4px",
                 }}

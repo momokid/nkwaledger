@@ -126,7 +126,7 @@ function UserDetailContent({
     ];
 
     const stateButtonStyle = (isActive: boolean, activeColor: string) => ({
-        fontSize: "15px",
+        fontSize: "18px",
         fontWeight: 600,
         padding: "6px 12px",
         border: `1px solid ${isActive ? activeColor : dark ? "#4B5563" : "#D1D5DB"}`,
@@ -144,7 +144,7 @@ function UserDetailContent({
                         background: "#FEF2F2",
                         border: "1px solid #FCA5A5",
                         color: "#B91C1C",
-                        fontSize: "17px",
+                        fontSize: "20px",
                     }}
                 >
                     {errors.role}
@@ -157,12 +157,12 @@ function UserDetailContent({
                 className="p-6 mb-6"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <h2 style={{ fontSize: "20px", fontWeight: 700, color: text }}>
+                <h2 style={{ fontSize: "22px", fontWeight: 700, color: text }}>
                     {user.first_name} {user.surname}
                 </h2>
                 <div
                     style={{
-                        fontSize: "17px",
+                        fontSize: "20px",
                         color: textSecondary,
                         marginTop: "4px",
                     }}
@@ -175,7 +175,7 @@ function UserDetailContent({
                     <label
                         style={{
                             display: "block",
-                            fontSize: "17px",
+                            fontSize: "20px",
                             fontWeight: 600,
                             color: text,
                             marginBottom: "6px",
@@ -187,7 +187,7 @@ function UserDetailContent({
                         value={currentRole ?? ""}
                         onChange={(event) => changeRole(event.target.value)}
                         style={{
-                            fontSize: "17px",
+                            fontSize: "20px",
                             border: `1px solid ${inputBorder}`,
                             padding: "8px 12px",
                             color: text,
@@ -208,7 +208,7 @@ function UserDetailContent({
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "17px" }}>
+                <table className="min-w-full" style={{ fontSize: "20px" }}>
                     <tbody>
                         {groups.map((group) => (
                             <>
