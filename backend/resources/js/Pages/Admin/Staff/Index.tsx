@@ -1,7 +1,7 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { type } from "@/theme/typography";
-import { router, useForm } from "@inertiajs/react";
+import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { FormEvent, useState } from "react";
 
@@ -27,7 +27,7 @@ interface PaginationLink {
 interface Props extends PageProps {
     staff: { data: StaffData[]; links: PaginationLink[] };
     roles: string[];
-    permissions: { create: boolean };
+    permissions: { create: boolean; update: boolean; delete: boolean };
 }
 
 export default function Index(props: Props) {
@@ -41,9 +41,10 @@ export default function Index(props: Props) {
 type ContentProps = Pick<Props, "staff" | "roles" | "permissions">;
 
 function IndexContent({ staff, roles, permissions }: ContentProps) {
+    const { auth } = usePage<PageProps>().props;
     const { dark } = useTheme();
     const [loading, setLoading] = useState(false);
-    const [resendingId, setResendingId] = useState<number | null>(null);
+    const [busyId, setBusyId] = useState<number | null>(null);
     const [inviting, setInviting] = useState(false);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -57,7 +58,9 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
     const rowAlt = dark ? "#111827" : "#F9FAFB";
     const skeleton = dark ? "#374151" : "#E5E7EB";
 
-    const columns = permissions.create ? 6 : 5;
+    const hasActions =
+        permissions.create || permissions.update || permissions.delete;
+    const columns = hasActions ? 6 : 5;
     const cell = "px-4 py-3";
 
     const form = useForm({
@@ -134,22 +137,65 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
         });
     };
 
-    const resend = (member: StaffData) => {
-        setResendingId(member.id);
-        router.post(
-            route("admin.staff.resend", member.id),
+    const act = (
+        member: StaffData,
+        method: "post" | "patch" | "delete",
+        url: string,
+    ) => {
+        setBusyId(member.id);
+        router[method](
+            url,
             {},
-            {
-                preserveScroll: true,
-                onFinish: () => setResendingId(null),
-            },
+            { preserveScroll: true, onFinish: () => setBusyId(null) },
         );
+    };
+
+    const resend = (member: StaffData) =>
+        act(member, "post", route("admin.staff.resend", member.id));
+
+    const toggleActive = (member: StaffData) =>
+        act(
+            member,
+            "patch",
+            member.is_active
+                ? route("admin.staff.disable", member.id)
+                : route("admin.staff.enable", member.id),
+        );
+
+    const cancel = (member: StaffData) => {
+        if (
+            !window.confirm(
+                `Cancel the invitation to ${member.first_name}? Their code stops working straight away.`,
+            )
+        ) {
+            return;
+        }
+
+        act(member, "delete", route("admin.staff.destroy", member.id));
     };
 
     const fullName = (member: StaffData) =>
         [member.surname, member.first_name, member.other_name]
             .filter(Boolean)
             .join(" ");
+
+    const actionStyle = (colour: string, busy: boolean) => ({
+        color: colour,
+        background: "transparent",
+        border: "none",
+        fontWeight: 600,
+        fontSize: type.secondary,
+        cursor: busy ? "wait" : "pointer",
+        padding: 0,
+        fontFamily: "inherit",
+    });
+
+    const statusLabel = (member: StaffData) => {
+        if (!member.is_activated)
+            return { label: "Awaiting activation", colour: "#BA7517" };
+        if (!member.is_active) return { label: "Disabled", colour: "#DC2626" };
+        return { label: "Active", colour: "#1D9E75" };
+    };
 
     return (
         <>
@@ -198,7 +244,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                     </th>
                                 ),
                             )}
-                            {permissions.create && (
+                            {hasActions && (
                                 <th
                                     className={`text-left ${cell}`}
                                     style={{
@@ -255,115 +301,154 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                         )}
 
                         {!loading &&
-                            staff.data.map((member, index) => (
-                                <tr
-                                    key={member.id}
-                                    style={{
-                                        borderTop: `1px solid ${border}`,
-                                        background:
-                                            index % 2 === 1
-                                                ? rowAlt
-                                                : "transparent",
-                                    }}
-                                >
-                                    <td
-                                        className={cell}
-                                        style={{ color: text }}
-                                    >
-                                        {fullName(member)}
-                                        {member.email && (
-                                            <div
-                                                style={{
-                                                    fontSize: type.secondary,
-                                                    color: textSecondary,
-                                                }}
-                                            >
-                                                {member.email}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td
-                                        className={cell}
-                                        style={{ color: text }}
-                                    >
-                                        {member.phone}
-                                    </td>
-                                    <td
-                                        className={cell}
+                            staff.data.map((member, index) => {
+                                const status = statusLabel(member);
+                                const busy = busyId === member.id;
+                                const isSelf = auth.user?.id === member.id;
+
+                                return (
+                                    <tr
+                                        key={member.id}
                                         style={{
-                                            color: text,
-                                            textTransform: "capitalize",
+                                            borderTop: `1px solid ${border}`,
+                                            background:
+                                                index % 2 === 1
+                                                    ? rowAlt
+                                                    : "transparent",
+                                            opacity: busy ? 0.5 : 1,
                                         }}
                                     >
-                                        {member.role}
-                                    </td>
-                                    <td className={cell}>
-                                        <span
-                                            style={{
-                                                fontSize: type.secondary,
-                                                fontWeight: 600,
-                                                color: member.is_activated
-                                                    ? "#1D9E75"
-                                                    : "#BA7517",
-                                            }}
+                                        <td
+                                            className={cell}
+                                            style={{ color: text }}
                                         >
-                                            {member.is_activated
-                                                ? "Active"
-                                                : "Awaiting activation"}
-                                        </span>
-                                    </td>
-                                    <td
-                                        className={cell}
-                                        style={{
-                                            color: textSecondary,
-                                            fontSize: type.secondary,
-                                        }}
-                                    >
-                                        {new Date(
-                                            member.invited_at,
-                                        ).toLocaleDateString("en-GB", {
-                                            day: "numeric",
-                                            month: "short",
-                                            year: "numeric",
-                                        })}
-                                    </td>
-                                    {permissions.create && (
-                                        <td className={cell}>
-                                            {!member.is_activated && (
-                                                <button
-                                                    onClick={() =>
-                                                        resend(member)
-                                                    }
-                                                    disabled={
-                                                        resendingId ===
-                                                        member.id
-                                                    }
+                                            {fullName(member)}
+                                            {member.email && (
+                                                <div
                                                     style={{
-                                                        color: "#1D9E75",
-                                                        background:
-                                                            "transparent",
-                                                        border: "none",
-                                                        fontWeight: 600,
                                                         fontSize:
                                                             type.secondary,
-                                                        cursor:
-                                                            resendingId ===
-                                                            member.id
-                                                                ? "wait"
-                                                                : "pointer",
-                                                        padding: 0,
-                                                        fontFamily: "inherit",
+                                                        color: textSecondary,
                                                     }}
                                                 >
-                                                    {resendingId === member.id
-                                                        ? "Sending..."
-                                                        : "Resend invite"}
-                                                </button>
+                                                    {member.email}
+                                                </div>
                                             )}
                                         </td>
-                                    )}
-                                </tr>
-                            ))}
+                                        <td
+                                            className={cell}
+                                            style={{ color: text }}
+                                        >
+                                            {member.phone}
+                                        </td>
+                                        <td
+                                            className={cell}
+                                            style={{
+                                                color: text,
+                                                textTransform: "capitalize",
+                                            }}
+                                        >
+                                            {member.role}
+                                        </td>
+                                        <td className={cell}>
+                                            <span
+                                                style={{
+                                                    fontSize: type.secondary,
+                                                    fontWeight: 600,
+                                                    color: status.colour,
+                                                }}
+                                            >
+                                                {status.label}
+                                            </span>
+                                        </td>
+                                        <td
+                                            className={cell}
+                                            style={{
+                                                color: textSecondary,
+                                                fontSize: type.secondary,
+                                            }}
+                                        >
+                                            {new Date(
+                                                member.invited_at,
+                                            ).toLocaleDateString("en-GB", {
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                            })}
+                                        </td>
+                                        {hasActions && (
+                                            <td className={cell}>
+                                                <div
+                                                    style={{
+                                                        display: "flex",
+                                                        gap: "14px",
+                                                        flexWrap: "wrap",
+                                                    }}
+                                                >
+                                                    {!member.is_activated &&
+                                                        permissions.create && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    resend(
+                                                                        member,
+                                                                    )
+                                                                }
+                                                                disabled={busy}
+                                                                style={actionStyle(
+                                                                    "#1D9E75",
+                                                                    busy,
+                                                                )}
+                                                            >
+                                                                Resend invite
+                                                            </button>
+                                                        )}
+
+                                                    {!member.is_activated &&
+                                                        permissions.delete && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    cancel(
+                                                                        member,
+                                                                    )
+                                                                }
+                                                                disabled={busy}
+                                                                style={actionStyle(
+                                                                    "#DC2626",
+                                                                    busy,
+                                                                )}
+                                                            >
+                                                                Cancel invite
+                                                            </button>
+                                                        )}
+
+                                                    {member.is_activated &&
+                                                        permissions.update &&
+                                                        !isSelf && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    toggleActive(
+                                                                        member,
+                                                                    )
+                                                                }
+                                                                disabled={busy}
+                                                                style={actionStyle(
+                                                                    member.is_active
+                                                                        ? "#DC2626"
+                                                                        : "#1D9E75",
+                                                                    busy,
+                                                                )}
+                                                            >
+                                                                {member.is_active
+                                                                    ? "Disable"
+                                                                    : "Enable"}
+                                                            </button>
+                                                        )}
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
                     </tbody>
                 </table>
             </div>
