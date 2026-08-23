@@ -56,7 +56,8 @@ test('an invitation sms explains what to do', function () {
 
     $message = collect(app(App\Contracts\SmsProvider::class)->sent)->last()['message'];
 
-    expect($message)->toContain('Activate');
+    expect($message)->toContain('/activate');
+    expect($message)->toContain('1 hour');
 });
 
 test('a fresh code counts as live', function () {

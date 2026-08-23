@@ -73,18 +73,18 @@ class OtpController extends Controller
         $user  = User::where($field, $identifier)->first();
 
         // one place decides what a verified code of each type actually means
-        if ($user && $this->outcome->authenticates($type)) {
+        if ($user && $this->outcome->authenticates($type, $user)) {
             Auth::login($user);
             $this->loginAnomaly->checkAndRecord($user, $request);
             $request->session()->regenerate();
 
-            if ($this->outcome->verifiesPhone($type)) {
+            if ($this->outcome->verifiesPhone($type, $user)) {
                 $this->verification->markVerified($user);
             }
         }
 
         // an invited person is not signed in, so the next step is told who it is acting for
-        if ($user && ! $this->outcome->authenticates($type)) {
+        if ($user && ! $this->outcome->authenticates($type, $user)) {
             $request->session()->put('auth.activating_user_id', $user->id);
         }
 

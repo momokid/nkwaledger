@@ -45,6 +45,8 @@ return [
             'actions' => [
                 'view' => 'View',
                 'create' => 'Invite',
+                'update' => 'Enable or disable',
+                'delete' => 'Cancel invitation',
             ],
         ],
     ],
@@ -73,6 +75,8 @@ return [
             'farm-type-categories.delete',
             'staff.view',
             'staff.create',
+            'staff.update',
+            'staff.delete',
         ],
         'agent' => [
             'farm-types.view',

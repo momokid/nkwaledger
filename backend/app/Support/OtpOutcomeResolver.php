@@ -25,14 +25,23 @@ class OtpOutcomeResolver
     public function __construct(private readonly DashboardRouteResolver $dashboard) {}
 
     // says whether a session should exist after this code
-    public function authenticates(string $type): bool
+    public function authenticates(string $type, ?User $user = null): bool
     {
+        // an account with no password has not finished activating, whatever code brought them here
+        if ($user && $user->password === null) {
+            return false;
+        }
+
         return $this->outcome($type)['authenticates'];
     }
 
     // says whether holding this code proves the person holds the phone
-    public function verifiesPhone(string $type): bool
+    public function verifiesPhone(string $type, ?User $user = null): bool
     {
+        if ($user && $user->password === null) {
+            return false;
+        }
+
         return $this->outcome($type)['verifies'];
     }
 
@@ -40,6 +49,10 @@ class OtpOutcomeResolver
     public function path(string $type, ?User $user): string
     {
         $this->outcome($type);
+
+        if ($user && $user->password === null) {
+            return '/set-password';
+        }
 
         return self::DESTINATIONS[$type] ?? $this->dashboard->path($user);
     }
