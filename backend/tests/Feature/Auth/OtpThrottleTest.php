@@ -76,6 +76,8 @@ test('a fourth resend for the same number within an hour is blocked', function (
 });
 
 test('a blocked resend sends no sms', function () {
+    User::factory()->create(['phone' => '0244000001']);
+
     for ($i = 0; $i < 4; $i++) {
         $this->withSession(pendingFor('0244000001'))->post('/resend-otp');
     }

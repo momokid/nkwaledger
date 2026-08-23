@@ -15,6 +15,9 @@ class LoginRequest extends FormRequest
 {
     use NormalisesPhone;
 
+    // a real bcrypt hash of a value nobody will guess, used only to keep the timing even
+    private const DECOY_HASH = '$2y$12$LqPZzTMS3Y7hfLLQhaPjfeu5uyv4dQjBRuUYbLNpUQxFmMTXLpO0y';
+
     public function authorize(): bool
     {
         return true;
@@ -44,8 +47,16 @@ class LoginRequest extends FormRequest
         $field      = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
         $user       = User::where($field, $identifier)->first();
 
-        if (! $user || ! Hash::check($this->input('password'), $user->password)) {
+        // hashing runs either way, so an unknown number takes as long as a known one
+        $known = $user && $user->password !== null;
+        $hash  = $known ? $user->password : self::DECOY_HASH;
+
+        $matched = Hash::check($this->input('password'), $hash);
+
+        if (! $known || ! $matched) {
             RateLimiter::hit($this->throttleKey());
+            // counted separately, since trying many accounts once each never trips the per-account limit
+            RateLimiter::hit($this->ipThrottleKey(), 3600);
 
             throw ValidationException::withMessages([
                 'identifier' => trans('auth.failed'),
@@ -58,6 +69,7 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // only the account's own counter clears; the ip counter stands, or one good password would wipe it
         RateLimiter::clear($this->throttleKey());
 
         return $user;
@@ -65,13 +77,19 @@ class LoginRequest extends FormRequest
 
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        $key = match (true) {
+            RateLimiter::tooManyAttempts($this->throttleKey(), 5)   => $this->throttleKey(),
+            RateLimiter::tooManyAttempts($this->ipThrottleKey(), 20) => $this->ipThrottleKey(),
+            default                                                  => null,
+        };
+
+        if ($key === null) {
             return;
         }
 
         event(new Lockout($this));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = RateLimiter::availableIn($key);
 
         throw ValidationException::withMessages([
             'identifier' => trans('auth.throttle', [
@@ -85,5 +103,11 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->input('identifier')) . '|' . $this->ip());
+    }
+
+    // one bucket for the whole machine, whatever account it is reaching for
+    public function ipThrottleKey(): string
+    {
+        return 'login-ip|' . $this->ip();
     }
 }

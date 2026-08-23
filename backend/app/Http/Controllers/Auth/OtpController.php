@@ -96,11 +96,22 @@ class OtpController extends Controller
     public function resend(Request $request): RedirectResponse
     {
         // same source of truth as the check itself
-        $this->otpService->generate(
-            $request->session()->get('auth.login_identifier'),
-            $request->session()->get('auth.otp_type'),
-        );
+        $identifier = $request->session()->get('auth.login_identifier');
+        $type       = $request->session()->get('auth.otp_type');
 
+        if (! $identifier || ! $type) {
+            return back();
+        }
+
+        $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+        // the step before this sets a session for any number, so without this check
+        // resend would send an sms to whatever a stranger typed
+        if (User::where($field, $identifier)->exists()) {
+            $this->otpService->generate($identifier, $type);
+        }
+
+        // silent either way, so this cannot be used to find out which numbers are registered
         return back();
     }
 }

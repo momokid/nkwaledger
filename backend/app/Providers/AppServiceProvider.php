@@ -32,6 +32,16 @@ class AppServiceProvider extends ServiceProvider
                 ->by('otp-ip:' . $request->ip()),
         ]);
 
+        // each registration costs an sms, so one machine cannot run up the bill
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perHour(5)->by($request->ip());
+        });
+
+        // a per-account limit never fires against stuffing, which tries many accounts once each
+        RateLimiter::for('login', function (Request $request) {
+            return Limit::perHour(20)->by($request->ip());
+        });
+
         // the number comes from the session, so a caller cannot spread the count across many keys
         RateLimiter::for('otp-resend', fn(Request $request) => [
             Limit::perHour(config('otp.throttle.resend.per_phone'))
