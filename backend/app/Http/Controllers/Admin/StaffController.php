@@ -4,15 +4,18 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreStaffRequest;
+use App\Models\OtpCode;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\OtpService;
 use App\Services\StaffInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class StaffController extends Controller
 {
@@ -48,6 +51,8 @@ class StaffController extends Controller
             'roles' => StaffInvitationService::INVITABLE_ROLES,
             'permissions' => [
                 'create' => $this->access->can($user, 'staff.create'),
+                'update' => $this->access->can($user, 'staff.update'),
+                'delete' => $this->access->can($user, 'staff.delete'),
             ],
         ]);
     }
@@ -71,5 +76,52 @@ class StaffController extends Controller
         $this->otpService->generate($user->phone, 'invitation');
 
         return back()->with('success', "A fresh code is on its way to {$user->first_name}.");
+    }
+
+    public function disable(Request $request, User $user): RedirectResponse
+    {
+        $this->guardSelf($request, $user);
+
+        $user->update(['is_active' => false]);
+
+        return back()->with('success', "{$user->first_name} can no longer sign in.");
+    }
+
+    public function enable(Request $request, User $user): RedirectResponse
+    {
+        $this->guardSelf($request, $user);
+
+        $user->update(['is_active' => true]);
+
+        return back()->with('success', "{$user->first_name} can sign in again.");
+    }
+
+    public function destroy(User $user): RedirectResponse
+    {
+        // once someone has activated, their name may sit against records that must not lose their owner
+        if ($user->password !== null) {
+            throw ValidationException::withMessages([
+                'destroy' => "{$user->first_name} has already activated. Disable the account instead of cancelling it.",
+            ]);
+        }
+
+        $name = $user->first_name;
+
+        DB::transaction(function () use ($user) {
+            // the invitation code outlives the account unless it goes too
+            OtpCode::where('identifier', $user->phone)->where('type', 'invitation')->delete();
+
+            $user->delete();
+        });
+
+        return back()->with('success', "The invitation to {$name} has been cancelled.");
+    }
+
+    // locking yourself out is never the intent, and with one admin it cannot be undone
+    private function guardSelf(Request $request, User $user): void
+    {
+        if ($request->user()->is($user)) {
+            throw new AccessDeniedHttpException('You cannot change your own account here.');
+        }
     }
 }

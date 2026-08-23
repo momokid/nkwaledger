@@ -396,4 +396,13 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
             ->middleware('throttle:otp-request')
             ->name('staff.resend');
     });
+
+    Route::middleware('access:staff.update')->group(function () {
+        Route::patch('/staff/{user}/disable', [StaffController::class, 'disable'])->name('staff.disable');
+        Route::patch('/staff/{user}/enable', [StaffController::class, 'enable'])->name('staff.enable');
+    });
+
+    Route::middleware('access:staff.delete')->group(function () {
+        Route::delete('/staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
+    });
 });
