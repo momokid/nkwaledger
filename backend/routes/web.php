@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\LedgerTypeController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\SetPasswordController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\AccountingPeriodController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -409,5 +410,22 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
 
     Route::middleware('access:audit.view')->group(function () {
         Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
+    });
+
+    Route::middleware('access:accounting-periods.view')->group(function () {
+        Route::get('/accounting-periods', [AccountingPeriodController::class, 'index'])->name('accounting-periods.index');
+    });
+
+    Route::middleware('access:accounting-periods.create')->group(function () {
+        Route::post('/accounting-periods', [AccountingPeriodController::class, 'store'])->name('accounting-periods.store');
+    });
+
+    Route::middleware('access:accounting-periods.close')->group(function () {
+        Route::patch('/accounting-periods/{accountingPeriod}/close', [AccountingPeriodController::class, 'close'])->name('accounting-periods.close');
+    });
+
+    // kept apart from closing, since reopening changes a period reports were built from
+    Route::middleware('access:accounting-periods.reopen')->group(function () {
+        Route::patch('/accounting-periods/{accountingPeriod}/reopen', [AccountingPeriodController::class, 'reopen'])->name('accounting-periods.reopen');
     });
 });

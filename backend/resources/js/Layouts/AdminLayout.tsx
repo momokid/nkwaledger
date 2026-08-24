@@ -20,6 +20,7 @@ import {
     IconListDetails,
     IconUserPlus,
     IconHistory,
+    IconCalendar,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
@@ -107,6 +108,11 @@ const navItems: NavEntry[] = [
                 label: "Ledger Accounts",
                 routeName: "admin.ledger-accounts.index",
                 icon: IconBook,
+            },
+            {
+                label: "Accounting Periods",
+                routeName: "admin.accounting-periods.index",
+                icon: IconCalendar,
             },
         ],
     },

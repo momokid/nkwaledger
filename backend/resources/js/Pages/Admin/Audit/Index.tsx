@@ -3,7 +3,7 @@ import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { type } from "@/theme/typography";
 import { router } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 interface Entry {
     id: number;
@@ -353,9 +353,8 @@ function IndexContent({ entries, filters, actions, people }: ContentProps) {
 
                         {!loading &&
                             entries.data.map((entry, index) => (
-                                <>
+                                <Fragment key={entry.id}>
                                     <tr
-                                        key={entry.id}
                                         style={{
                                             borderTop: `1px solid ${border}`,
                                             background:
@@ -452,10 +451,7 @@ function IndexContent({ entries, filters, actions, people }: ContentProps) {
                                     </tr>
 
                                     {openId === entry.id && (
-                                        <tr
-                                            key={`detail-${entry.id}`}
-                                            style={{ background: rowAlt }}
-                                        >
+                                        <tr style={{ background: rowAlt }}>
                                             <td
                                                 colSpan={6}
                                                 className="px-4 py-4"
@@ -556,7 +552,7 @@ function IndexContent({ entries, filters, actions, people }: ContentProps) {
                                             </td>
                                         </tr>
                                     )}
-                                </>
+                                </Fragment>
                             ))}
                     </tbody>
                 </table>

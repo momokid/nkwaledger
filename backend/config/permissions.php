@@ -56,6 +56,16 @@ return [
                 'view' => 'View',
             ],
         ],
+        'accounting-periods' => [
+            'label' => 'Accounting Periods',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Add',
+                'close' => 'Close',
+                // reopening changes a period reports were already built from
+                'reopen' => 'Reopen',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -85,6 +95,10 @@ return [
             'staff.update',
             'staff.delete',
             'audit.view',
+            'accounting-periods.view',
+            'accounting-periods.create',
+            'accounting-periods.close',
+            'accounting-periods.reopen',
         ],
         'agent' => [
             'farm-types.view',
