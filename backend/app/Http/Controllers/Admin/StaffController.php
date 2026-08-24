@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreStaffRequest;
 use App\Models\OtpCode;
 use App\Models\User;
 use App\Services\AccessControlService;
+use App\Services\AuditService;
 use App\Services\OtpService;
 use App\Services\StaffInvitationService;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +24,7 @@ class StaffController extends Controller
         private readonly StaffInvitationService $invitations,
         private readonly AccessControlService $access,
         private readonly OtpService $otpService,
+        private readonly AuditService $audit,
     ) {}
 
     public function index(Request $request): Response
@@ -75,6 +77,8 @@ class StaffController extends Controller
 
         $this->otpService->generate($user->phone, 'invitation');
 
+        $this->audit->recordOn('staff.invitation_resent', $user);
+
         return back()->with('success', "A fresh code is on its way to {$user->first_name}.");
     }
 
@@ -84,6 +88,8 @@ class StaffController extends Controller
 
         $user->update(['is_active' => false]);
 
+        $this->audit->recordOn('staff.disabled', $user);
+
         return back()->with('success', "{$user->first_name} can no longer sign in.");
     }
 
@@ -92,6 +98,8 @@ class StaffController extends Controller
         $this->guardSelf($request, $user);
 
         $user->update(['is_active' => true]);
+
+        $this->audit->recordOn('staff.enabled', $user);
 
         return back()->with('success', "{$user->first_name} can sign in again.");
     }
@@ -108,6 +116,14 @@ class StaffController extends Controller
         $name = $user->first_name;
 
         DB::transaction(function () use ($user) {
+            // the account is about to go, so the entry has to hold what was there
+            $this->audit->recordOn('staff.invitation_cancelled', $user, [
+                'phone'      => $user->phone,
+                'surname'    => $user->surname,
+                'first_name' => $user->first_name,
+                'role'       => $user->roles->first()?->name,
+            ]);
+
             // the invitation code outlives the account unless it goes too
             OtpCode::where('identifier', $user->phone)->where('type', 'invitation')->delete();
 

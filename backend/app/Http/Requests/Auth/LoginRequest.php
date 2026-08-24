@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Services\AuditService;
 
 class LoginRequest extends FormRequest
 {
@@ -57,6 +58,11 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
             // counted separately, since trying many accounts once each never trips the per-account limit
             RateLimiter::hit($this->ipThrottleKey(), 3600);
+
+            // the number tried is the useful part; the password never goes near the log
+            app(AuditService::class)->record('login.failed', [
+                'identifier' => $this->input('identifier'),
+            ]);
 
             throw ValidationException::withMessages([
                 'identifier' => trans('auth.failed'),

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\OtpLoginRequest;
 use App\Models\User;
+use App\Services\AuditService;
 use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
 use App\Services\PhoneVerificationService;
@@ -23,6 +24,7 @@ class OtpController extends Controller
         private readonly LoginAnomalyService $loginAnomaly, // records the device and alerts on a first sighting
         private readonly OtpOutcomeResolver $outcome,
         private readonly PhoneVerificationService $verification,
+        private readonly AuditService $audit,
     ) {}
 
     public function create(Request $request): Response
@@ -64,6 +66,8 @@ class OtpController extends Controller
         $verified = $this->otpService->verify($identifier, $validated['code'], $type);
 
         if (! $verified) {
+            $this->audit->record('otp.failed', ['identifier' => $identifier, 'type' => $type]);
+
             throw ValidationException::withMessages([
                 'code' => 'The code is invalid, expired, or has been used.',
             ]);
@@ -75,6 +79,7 @@ class OtpController extends Controller
         // one place decides what a verified code of each type actually means
         if ($user && $this->outcome->authenticates($type, $user)) {
             Auth::login($user);
+            $this->audit->recordSignIn($user);
             $this->loginAnomaly->checkAndRecord($user, $request);
             $request->session()->regenerate();
 
