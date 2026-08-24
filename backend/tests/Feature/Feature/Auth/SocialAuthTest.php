@@ -97,7 +97,7 @@ test('existing user is found and not duplicated on oauth login', function () {
 test('existing oauth user with phone is redirected to dashboard', function () {
     User::factory()->withEmail()->create([
         'email' => 'kwame@example.com',
-        'phone' => '+233244000001',
+        'phone' => '0244000001',
     ]);
 
     mockSocialiteUser('google', ['email' => 'kwame@example.com']);

@@ -13,14 +13,14 @@ test('creates an admin user with valid input', function () {
         ->expectsQuestion('Surname', 'Mensah')
         ->expectsQuestion('First name', 'Kwame')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000099')
+        ->expectsQuestion('Phone number', '0244000099')
         ->expectsQuestion('Email (optional)', 'admin@nkwaledger.com')
         ->expectsQuestion('Password', 'Password@123')
         ->expectsQuestion('Confirm password', 'Password@123')
         ->expectsConfirmation("Should this admin be able to manage other users' roles and permissions?", 'yes') // added
         ->assertExitCode(0);
 
-    $user = User::where('phone', '+233244000099')->first();
+    $user = User::where('phone', '0244000099')->first();
 
     expect($user)->not->toBeNull();
     expect($user->hasRole('admin'))->toBeTrue();
@@ -33,27 +33,27 @@ test('creates an admin without an email', function () {
         ->expectsQuestion('Surname', 'Boateng')
         ->expectsQuestion('First name', 'Ama')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000096')
+        ->expectsQuestion('Phone number', '0244000096')
         ->expectsQuestion('Email (optional)', null)
         ->expectsQuestion('Password', 'Password@123')
         ->expectsQuestion('Confirm password', 'Password@123')
         ->expectsConfirmation("Should this admin be able to manage other users' roles and permissions?", 'yes') // added
         ->assertExitCode(0);
 
-    $user = User::where('phone', '+233244000096')->first();
+    $user = User::where('phone', '0244000096')->first();
 
     expect($user->email)->toBeNull();
     expect($user->hasRole('admin'))->toBeTrue();
 });
 
 test('fails when phone number is already taken', function () {
-    User::factory()->create(['phone' => '+233244000099']);
+    User::factory()->create(['phone' => '0244000099']);
 
     $this->artisan('make:admin')
         ->expectsQuestion('Surname', 'Mensah')
         ->expectsQuestion('First name', 'Kwame')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000099')
+        ->expectsQuestion('Phone number', '0244000099')
         ->expectsQuestion('Email (optional)', null)
         ->expectsQuestion('Password', 'Password@123')
         ->expectsQuestion('Confirm password', 'Password@123')
@@ -65,7 +65,7 @@ test('fails when passwords do not match', function () {
         ->expectsQuestion('Surname', 'Mensah')
         ->expectsQuestion('First name', 'Kwame')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000098')
+        ->expectsQuestion('Phone number', '0244000098')
         ->expectsQuestion('Email (optional)', null)
         ->expectsQuestion('Password', 'Password@123')
         ->expectsQuestion('Confirm password', 'Different@123')
@@ -77,7 +77,7 @@ test('fails when password is too weak', function () {
         ->expectsQuestion('Surname', 'Mensah')
         ->expectsQuestion('First name', 'Kwame')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000097')
+        ->expectsQuestion('Phone number', '0244000097')
         ->expectsQuestion('Email (optional)', null)
         ->expectsQuestion('Password', 'abc123')
         ->expectsQuestion('Confirm password', 'abc123')
@@ -90,14 +90,14 @@ test('the first admin is automatically granted access-control.manage even when d
         ->expectsQuestion('Surname', 'Mensah')
         ->expectsQuestion('First name', 'Kwame')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000095')
+        ->expectsQuestion('Phone number', '0244000095')
         ->expectsQuestion('Email (optional)', null)
         ->expectsQuestion('Password', 'Password@123')
         ->expectsQuestion('Confirm password', 'Password@123')
         ->expectsConfirmation("Should this admin be able to manage other users' roles and permissions?", 'no')
         ->assertExitCode(0);
 
-    $user = User::where('phone', '+233244000095')->first();
+    $user = User::where('phone', '0244000095')->first();
 
     expect($user->hasPermissionTo('access-control.manage'))->toBeTrue();
 });
@@ -111,14 +111,14 @@ test('a new admin can decline access-control.manage when a holder already exists
         ->expectsQuestion('Surname', 'Boateng')
         ->expectsQuestion('First name', 'Ama')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000094')
+        ->expectsQuestion('Phone number', '0244000094')
         ->expectsQuestion('Email (optional)', null)
         ->expectsQuestion('Password', 'Password@123')
         ->expectsQuestion('Confirm password', 'Password@123')
         ->expectsConfirmation("Should this admin be able to manage other users' roles and permissions?", 'no')
         ->assertExitCode(0);
 
-    $user = User::where('phone', '+233244000094')->first();
+    $user = User::where('phone', '0244000094')->first();
 
     expect($user->hasPermissionTo('access-control.manage'))->toBeFalse();
 });
@@ -128,14 +128,14 @@ test('an admin can be granted access-control.manage when requested', function ()
         ->expectsQuestion('Surname', 'Osei')
         ->expectsQuestion('First name', 'Kojo')
         ->expectsQuestion('Other name (optional)', null)
-        ->expectsQuestion('Phone number', '+233244000093')
+        ->expectsQuestion('Phone number', '0244000093')
         ->expectsQuestion('Email (optional)', null)
         ->expectsQuestion('Password', 'Password@123')
         ->expectsQuestion('Confirm password', 'Password@123')
         ->expectsConfirmation("Should this admin be able to manage other users' roles and permissions?", 'yes')
         ->assertExitCode(0);
 
-    $user = User::where('phone', '+233244000093')->first();
+    $user = User::where('phone', '0244000093')->first();
 
     expect($user->hasPermissionTo('access-control.manage'))->toBeTrue();
 });

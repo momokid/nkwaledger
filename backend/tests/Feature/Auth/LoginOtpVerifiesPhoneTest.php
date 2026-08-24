@@ -24,53 +24,53 @@ function pendingOtp(string $phone, string $type = 'login'): array
 }
 
 test('a successful login otp verifies the phone', function () {
-    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '0241234567']);
     $user->assignRole('farmer');
 
-    seedLoginOtp('+233241234567');
+    seedLoginOtp('0241234567');
 
-    $this->withSession(pendingOtp('+233241234567'))
+    $this->withSession(pendingOtp('0241234567'))
         ->post('/verify-otp', ['code' => '123456']);
 
     expect($user->fresh()->phone_verified_at)->not->toBeNull();
 });
 
 test('it also sets the login threshold', function () {
-    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '0241234567']);
     $user->assignRole('farmer');
 
-    seedLoginOtp('+233241234567');
+    seedLoginOtp('0241234567');
 
-    $this->withSession(pendingOtp('+233241234567'))
+    $this->withSession(pendingOtp('0241234567'))
         ->post('/verify-otp', ['code' => '123456']);
 
     expect($user->fresh()->verification_login_threshold)->toBeGreaterThanOrEqual(15);
 });
 
 test('a failed login otp leaves the phone unverified', function () {
-    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '0241234567']);
     $user->assignRole('farmer');
 
-    seedLoginOtp('+233241234567');
+    seedLoginOtp('0241234567');
 
-    $this->withSession(pendingOtp('+233241234567'))
+    $this->withSession(pendingOtp('0241234567'))
         ->post('/verify-otp', ['code' => '999999']);
 
     expect($user->fresh()->phone_verified_at)->toBeNull();
 });
 
 test('a registration otp does not verify the phone', function () {
-    $user = User::factory()->unverified()->create(['phone' => '+233241234567']);
+    $user = User::factory()->unverified()->create(['phone' => '0241234567']);
     $user->assignRole('farmer');
 
     OtpCode::create([
-        'identifier' => '+233241234567',
+        'identifier' => '0241234567',
         'code'       => Hash::make('123456'),
         'type'       => 'registration',
         'expires_at' => now()->addMinutes(5),
     ]);
 
-    $this->withSession(pendingOtp('+233241234567', 'registration'))
+    $this->withSession(pendingOtp('0241234567', 'registration'))
         ->post('/verify-otp', ['code' => '123456']);
 
     expect($user->fresh()->phone_verified_at)->toBeNull();

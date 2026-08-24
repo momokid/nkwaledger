@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
 use App\Support\DashboardRouteResolver;
+use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +20,8 @@ class AuthenticatedSessionController extends Controller
     public function __construct(
         private readonly OtpService $otpService,
         private readonly LoginAnomalyService $loginAnomaly,
-        private readonly DashboardRouteResolver $dashboard
+        private readonly DashboardRouteResolver $dashboard,
+        private readonly AuditService $audit,
     ) {}
 
     public function create(): Response
@@ -45,6 +47,8 @@ class AuthenticatedSessionController extends Controller
         }
 
         Auth::login($user);
+
+        $this->audit->recordSignIn($user); // farmers are skipped inside the service
 
         $this->loginAnomaly->checkAndRecord($user, $request); // updates last seen; farmers are skipped inside the service
 

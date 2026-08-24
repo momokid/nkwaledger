@@ -39,6 +39,33 @@ return [
                 'delete' => 'Delete',
             ],
         ],
+        // covers agent, vet, adviser and supplier accounts, which only an invite can create
+        'staff' => [
+            'label' => 'Staff Accounts',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Invite',
+                'update' => 'Enable or disable',
+                'delete' => 'Cancel invitation',
+            ],
+        ],
+        // reading the trail is its own privilege, separate from managing anything
+        'audit' => [
+            'label' => 'Audit Log',
+            'actions' => [
+                'view' => 'View',
+            ],
+        ],
+        'accounting-periods' => [
+            'label' => 'Accounting Periods',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Add',
+                'close' => 'Close',
+                // reopening changes a period reports were already built from
+                'reopen' => 'Reopen',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -63,6 +90,15 @@ return [
             'farm-type-categories.create',
             'farm-type-categories.update',
             'farm-type-categories.delete',
+            'staff.view',
+            'staff.create',
+            'staff.update',
+            'staff.delete',
+            'audit.view',
+            'accounting-periods.view',
+            'accounting-periods.create',
+            'accounting-periods.close',
+            'accounting-periods.reopen',
         ],
         'agent' => [
             'farm-types.view',

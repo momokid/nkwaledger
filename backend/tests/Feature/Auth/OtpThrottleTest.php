@@ -17,34 +17,34 @@ function pendingFor(string $phone): array
 }
 
 test('a fourth otp login request for the same phone within an hour is blocked', function () {
-    User::factory()->create(['phone' => '+233244000001']);
+    User::factory()->create(['phone' => '0244000001']);
 
     for ($i = 0; $i < 3; $i++) {
-        $this->post('/login/otp', ['phone' => '+233244000001']);
+        $this->post('/login/otp', ['phone' => '0244000001']);
     }
 
-    $this->post('/login/otp', ['phone' => '+233244000001'])->assertStatus(429);
+    $this->post('/login/otp', ['phone' => '0244000001'])->assertStatus(429);
 });
 
 test('a blocked otp login request sends no sms', function () {
-    User::factory()->create(['phone' => '+233244000001']);
+    User::factory()->create(['phone' => '0244000001']);
 
     for ($i = 0; $i < 4; $i++) {
-        $this->post('/login/otp', ['phone' => '+233244000001']);
+        $this->post('/login/otp', ['phone' => '0244000001']);
     }
 
-    expect(smsCountTo('+233244000001'))->toBe(3);
+    expect(smsCountTo('0244000001'))->toBe(3);
 });
 
 test('a different phone from the same ip is still allowed', function () {
-    User::factory()->create(['phone' => '+233244000001']);
-    User::factory()->create(['phone' => '+233244000002']);
+    User::factory()->create(['phone' => '0244000001']);
+    User::factory()->create(['phone' => '0244000002']);
 
     for ($i = 0; $i < 3; $i++) {
-        $this->post('/login/otp', ['phone' => '+233244000001']);
+        $this->post('/login/otp', ['phone' => '0244000001']);
     }
 
-    $this->post('/login/otp', ['phone' => '+233244000002'])->assertRedirect('/verify-otp');
+    $this->post('/login/otp', ['phone' => '0244000002'])->assertRedirect('/verify-otp');
 });
 
 test('one ip is capped at ten otp login requests even across many phones', function () {
@@ -61,26 +61,28 @@ test('one ip is capped at ten otp login requests even across many phones', funct
 
 test('an unknown phone still counts toward the limit', function () {
     for ($i = 0; $i < 3; $i++) {
-        $this->post('/login/otp', ['phone' => '+233249999999']);
+        $this->post('/login/otp', ['phone' => '0249999999']);
     }
 
-    $this->post('/login/otp', ['phone' => '+233249999999'])->assertStatus(429);
+    $this->post('/login/otp', ['phone' => '0249999999'])->assertStatus(429);
 });
 
 test('a fourth resend for the same number within an hour is blocked', function () {
     for ($i = 0; $i < 3; $i++) {
-        $this->withSession(pendingFor('+233244000001'))->post('/resend-otp');
+        $this->withSession(pendingFor('0244000001'))->post('/resend-otp');
     }
 
-    $this->withSession(pendingFor('+233244000001'))->post('/resend-otp')->assertStatus(429);
+    $this->withSession(pendingFor('0244000001'))->post('/resend-otp')->assertStatus(429);
 });
 
 test('a blocked resend sends no sms', function () {
+    User::factory()->create(['phone' => '0244000001']);
+
     for ($i = 0; $i < 4; $i++) {
-        $this->withSession(pendingFor('+233244000001'))->post('/resend-otp');
+        $this->withSession(pendingFor('0244000001'))->post('/resend-otp');
     }
 
-    expect(smsCountTo('+233244000001'))->toBe(3);
+    expect(smsCountTo('0244000001'))->toBe(3);
 });
 
 test('one ip is capped at ten resends even across many numbers', function () {

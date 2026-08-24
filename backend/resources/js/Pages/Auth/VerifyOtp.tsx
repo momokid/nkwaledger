@@ -3,20 +3,18 @@ import { IconDeviceMobileMessage } from "@tabler/icons-react";
 import { FormEventHandler, useEffect, useRef, useState } from "react";
 
 interface Props {
-    identifier: string;
-    type: "registration" | "login";
+    masked: string | null;
 }
 
-export default function VerifyOtp({ identifier, type }: Props) {
+export default function VerifyOtp({ masked }: Props) {
     const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
     const [countdown, setCountdown] = useState(60);
     const [canResend, setCanResend] = useState(false);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+    // the server knows which number and which purpose; only the code travels
     const { post, setData, processing, errors } = useForm({
-        identifier: identifier,
         code: "",
-        type: type,
     });
 
     useEffect(() => {
@@ -78,10 +76,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
         e.preventDefault();
         router.post(
             route("otp.resend"),
-            {
-                identifier,
-                type,
-            },
+            {},
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -93,6 +88,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
             },
         );
     };
+
     const formatCountdown = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
@@ -152,11 +148,13 @@ export default function VerifyOtp({ identifier, type }: Props) {
                         <p
                             style={{
                                 margin: 0,
-                                fontSize: "18px",
+                                fontSize: "21px",
                                 color: "rgba(255,255,255,0.62)",
                             }}
                         >
-                            Code sent to {identifier}
+                            {masked
+                                ? `Code sent to ${masked}`
+                                : "We sent you a code"}
                         </p>
                     </div>
 
@@ -164,7 +162,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
                         <p
                             style={{
                                 margin: "0 0 1.75rem",
-                                fontSize: "20px",
+                                fontSize: "23px",
                                 color: "#6B7280",
                                 lineHeight: 1.6,
                                 textAlign: "center",
@@ -177,7 +175,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
                             <p
                                 style={{
                                     marginBottom: "1rem",
-                                    fontSize: "17px",
+                                    fontSize: "20px",
                                     color: "#DC2626",
                                     textAlign: "center",
                                 }}
@@ -242,7 +240,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
                             <p
                                 style={{
                                     textAlign: "center",
-                                    fontSize: "17px",
+                                    fontSize: "20px",
                                     color: "#6B7280",
                                     margin: "0 0 1.5rem",
                                 }}
@@ -288,7 +286,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
                                         color: "#fff",
                                         border: "none",
                                         padding: "13px 20px",
-                                        fontSize: "20px",
+                                        fontSize: "23px",
                                         fontWeight: 600,
                                         cursor:
                                             processing ||
@@ -328,7 +326,7 @@ export default function VerifyOtp({ identifier, type }: Props) {
                                         color: "#111827",
                                         border: "1px solid #9CA3AF",
                                         padding: "13px 20px",
-                                        fontSize: "20px",
+                                        fontSize: "23px",
                                         fontWeight: 400,
                                         display: "flex",
                                         alignItems: "center",

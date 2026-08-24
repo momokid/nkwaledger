@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'access' => \App\Http\Middleware\CheckPermission::class,
             'otp.pending' => \App\Http\Middleware\EnsureOtpPending::class,
             'verified.phone' => \App\Http\Middleware\EnsurePhoneIsVerified::class,
+            'activation.pending' => \App\Http\Middleware\EnsureActivationPending::class,
         ]);
 
         $middleware->redirectGuestsTo('/login');

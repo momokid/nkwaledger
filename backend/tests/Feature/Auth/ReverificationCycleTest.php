@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Hash;
 
 test('a full cycle resets the counter and rolls a new threshold', function () {
     $user = User::factory()->create([
-        'phone'                        => '+233241234567',
+        'phone'                        => '0241234567',
         'logins_since_verification'    => 19,
         'verification_login_threshold' => 20,
     ]);
@@ -24,7 +24,7 @@ test('a full cycle resets the counter and rolls a new threshold', function () {
         ->assertOk();
 
     OtpCode::create([
-        'identifier' => '+233241234567',
+        'identifier' => '0241234567',
         'code'       => Hash::make('123456'),
         'type'       => 'phone_verification',
         'expires_at' => now()->addMinutes(5),

@@ -35,6 +35,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $this->userProps($request),
             ],
+            // one-shot messages any controller can set with ->with(), read once by the layout
+            'flash' => [
+                'success' => fn() => $request->session()->get('success'),
+                'error'   => fn() => $request->session()->get('error'),
+                'status'  => fn() => $request->session()->get('status'),
+            ],
             'ziggy' => fn() => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),
