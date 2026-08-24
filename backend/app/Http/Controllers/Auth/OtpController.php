@@ -5,10 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\OtpLoginRequest;
 use App\Models\User;
+use App\Services\AuditService;
 use App\Services\LoginAnomalyService;
 use App\Services\OtpService;
 use App\Services\PhoneVerificationService;
-use App\Support\DashboardRouteResolver;
+use App\Support\OtpOutcomeResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,8 +22,9 @@ class OtpController extends Controller
     public function __construct(
         private readonly OtpService $otpService,
         private readonly LoginAnomalyService $loginAnomaly, // records the device and alerts on a first sighting
-        private readonly DashboardRouteResolver $dashboard,
+        private readonly OtpOutcomeResolver $outcome,
         private readonly PhoneVerificationService $verification,
+        private readonly AuditService $audit,
     ) {}
 
     public function create(Request $request): Response
@@ -57,13 +59,15 @@ class OtpController extends Controller
             'code' => ['required', 'string', 'digits:6'],
         ]);
 
-        // the step before this decided who is logging in; the browser cannot change it
+        // the step before this decided who is verifying; the browser cannot change it
         $identifier = $request->session()->get('auth.login_identifier');
         $type       = $request->session()->get('auth.otp_type');
 
         $verified = $this->otpService->verify($identifier, $validated['code'], $type);
 
         if (! $verified) {
+            $this->audit->record('otp.failed', ['identifier' => $identifier, 'type' => $type]);
+
             throw ValidationException::withMessages([
                 'code' => 'The code is invalid, expired, or has been used.',
             ]);
@@ -72,31 +76,47 @@ class OtpController extends Controller
         $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
         $user  = User::where($field, $identifier)->first();
 
-        if ($user) {
+        // one place decides what a verified code of each type actually means
+        if ($user && $this->outcome->authenticates($type, $user)) {
             Auth::login($user);
+            $this->audit->recordSignIn($user);
             $this->loginAnomaly->checkAndRecord($user, $request);
             $request->session()->regenerate();
 
-            // a login code proves they hold the phone, so it counts as verification
-            if ($type === 'login') {
+            if ($this->outcome->verifiesPhone($type, $user)) {
                 $this->verification->markVerified($user);
             }
         }
 
+        // an invited person is not signed in, so the next step is told who it is acting for
+        if ($user && ! $this->outcome->authenticates($type, $user)) {
+            $request->session()->put('auth.activating_user_id', $user->id);
+        }
+
         $request->session()->forget(['auth.login_identifier', 'auth.otp_type']);
 
-        // one shared place decides where each role lands
-        return redirect($this->dashboard->path($user));
+        return redirect($this->outcome->path($type, $user));
     }
 
     public function resend(Request $request): RedirectResponse
     {
         // same source of truth as the check itself
-        $this->otpService->generate(
-            $request->session()->get('auth.login_identifier'),
-            $request->session()->get('auth.otp_type'),
-        );
+        $identifier = $request->session()->get('auth.login_identifier');
+        $type       = $request->session()->get('auth.otp_type');
 
+        if (! $identifier || ! $type) {
+            return back();
+        }
+
+        $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+        // the step before this sets a session for any number, so without this check
+        // resend would send an sms to whatever a stranger typed
+        if (User::where($field, $identifier)->exists()) {
+            $this->otpService->generate($identifier, $type);
+        }
+
+        // silent either way, so this cannot be used to find out which numbers are registered
         return back();
     }
 }

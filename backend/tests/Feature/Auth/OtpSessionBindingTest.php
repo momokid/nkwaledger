@@ -12,6 +12,7 @@ test('the otp page cannot be opened without a pending code', function () {
 });
 
 test('the otp page opens when a code is pending', function () {
+    User::factory()->create(['phone' => '0244000001']);
     $response = $this->withSession([
         'auth.login_identifier' => '0244000001',
         'auth.otp_type'         => 'login',
@@ -75,6 +76,8 @@ test('a valid code for the session phone logs the user in', function () {
 });
 
 test('resend sends to the session phone, not the one posted', function () {
+    User::factory()->create(['phone' => '0244000001']);
+
     $this->withSession([
         'auth.login_identifier' => '0244000001',
         'auth.otp_type'         => 'login',

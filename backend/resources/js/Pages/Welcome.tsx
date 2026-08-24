@@ -66,7 +66,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <div>
                             <div
                                 style={{
-                                    fontSize: "21px",
+                                    fontSize: "23px",
                                     fontWeight: 700,
                                     color: "#fff",
                                     letterSpacing: "-0.2px",
@@ -76,7 +76,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                             </div>
                             <div
                                 style={{
-                                    fontSize: "13px",
+                                    fontSize: "15px",
                                     fontWeight: 600,
                                     color: "rgba(255,255,255,0.45)",
                                     letterSpacing: "0.8px",
@@ -104,7 +104,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <p
                             style={{
                                 margin: "0 0 2rem",
-                                fontSize: "20px",
+                                fontSize: "23px",
                                 color: "rgba(255,255,255,0.65)",
                                 lineHeight: 1.65,
                             }}
@@ -140,7 +140,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                     <div>
                                         <div
                                             style={{
-                                                fontSize: "18px",
+                                                fontSize: "21px",
                                                 fontWeight: 600,
                                                 color: "#fff",
                                                 marginBottom: "2px",
@@ -150,7 +150,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: "17px",
+                                                fontSize: "20px",
                                                 color: "rgba(255,255,255,0.55)",
                                                 lineHeight: 1.5,
                                             }}
@@ -165,7 +165,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
 
                     <div
                         style={{
-                            fontSize: "15px",
+                            fontSize: "18px",
                             color: "rgba(255,255,255,0.35)",
                         }}
                     >
@@ -189,7 +189,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <div>
                             <div
                                 style={{
-                                    fontSize: "20px",
+                                    fontSize: "23px",
                                     fontWeight: 700,
                                     color: "#0F6E56",
                                     letterSpacing: "-0.2px",
@@ -199,7 +199,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                             </div>
                             <div
                                 style={{
-                                    fontSize: "13px",
+                                    fontSize: "15px",
                                     fontWeight: 600,
                                     color: "#0F6E56",
                                     opacity: 0.55,
@@ -229,7 +229,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <p
                             style={{
                                 margin: "0 0 1.75rem",
-                                fontSize: "21px",
+                                fontSize: "23px",
                                 color: "#6B7280",
                                 lineHeight: 1.6,
                             }}
@@ -244,7 +244,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 <span
                                     key={pill}
                                     style={{
-                                        fontSize: "17px",
+                                        fontSize: "20px",
                                         fontWeight: 600,
                                         color: "#0F6E56",
                                         background: "#EAF5F0",
@@ -264,7 +264,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 background: "#1D9E75",
                                 color: "#fff",
                                 padding: "13px 20px",
-                                fontSize: "20px",
+                                fontSize: "23px",
                                 fontWeight: 600,
                                 textDecoration: "none",
                             }}
@@ -285,7 +285,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 background: "#fff",
                                 color: "#111827",
                                 padding: "13px 20px",
-                                fontSize: "20px",
+                                fontSize: "23px",
                                 fontWeight: 400,
                                 border: "1px solid #9CA3AF",
                                 textDecoration: "none",
@@ -303,7 +303,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <p
                             style={{
                                 marginTop: "2rem",
-                                fontSize: "15px",
+                                fontSize: "18px",
                                 color: "#9CA3AF",
                                 textAlign: "center",
                             }}

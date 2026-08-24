@@ -18,7 +18,11 @@ import {
     IconBook,
     IconStack2,
     IconListDetails,
+    IconUserPlus,
+    IconHistory,
+    IconCalendar,
 } from "@tabler/icons-react";
+import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
 import { ThemeContext } from "@/Layouts/AuthenticatedLayout"; // reuses the same theme context shape, not the whole layout
 
@@ -105,12 +109,22 @@ const navItems: NavEntry[] = [
                 routeName: "admin.ledger-accounts.index",
                 icon: IconBook,
             },
+            {
+                label: "Accounting Periods",
+                routeName: "admin.accounting-periods.index",
+                icon: IconCalendar,
+            },
         ],
     },
     {
         label: "Access Control",
         icon: IconShieldLock,
         children: [
+            {
+                label: "Staff Accounts",
+                routeName: "admin.staff.index",
+                icon: IconUserPlus,
+            },
             {
                 label: "Roles & Permissions",
                 routeName: "admin.permissions.roles.index",
@@ -120,6 +134,11 @@ const navItems: NavEntry[] = [
                 label: "User Access",
                 routeName: "admin.permissions.users.index",
                 icon: IconUsers,
+            },
+            {
+                label: "Audit Log",
+                routeName: "admin.audit.index",
+                icon: IconHistory,
             },
         ],
     },
@@ -152,7 +171,8 @@ export default function AdminLayout({ title, children }: Props) {
         navItems.filter(isGroup).find(groupIsActive)?.label ?? null,
     );
 
-    const sidebarWidth = collapsed ? 56 : 220;
+    // wider than before, since the larger labels no longer fit the old width
+    const sidebarWidth = collapsed ? 60 : 260;
     const primary = "#1D9E75";
     const gold = "#BA7517";
     const pageBg = dark ? "#111827" : "#F9FAFB";
@@ -201,9 +221,9 @@ export default function AdminLayout({ title, children }: Props) {
                         gap: "12px",
                         padding:
                             indented && !collapsed
-                                ? "10px 16px 10px 44px"
-                                : "12px 16px",
-                        fontSize: indented ? "14px" : "15px",
+                                ? "11px 16px 11px 48px"
+                                : "13px 16px",
+                        fontSize: indented ? "18px" : "19px",
                         fontWeight: active ? 600 : 400,
                         color: active ? primary : text,
                         background: active ? hoverBg : "transparent",
@@ -216,7 +236,7 @@ export default function AdminLayout({ title, children }: Props) {
                         overflow: "hidden",
                     }}
                 >
-                    {!indented && <Icon size={24} stroke={1.6} />}
+                    {!indented && <Icon size={26} stroke={1.6} />}
                     {!collapsed && item.label}
                 </Link>
 
@@ -224,13 +244,13 @@ export default function AdminLayout({ title, children }: Props) {
                     <span
                         style={{
                             position: "absolute",
-                            left: "60px",
+                            left: "64px",
                             top: "50%",
                             transform: "translateY(-50%)",
                             background: dark ? "#374151" : "#111827",
                             color: "#FFFFFF",
-                            fontSize: "14px",
-                            padding: "6px 12px",
+                            fontSize: "20px",
+                            padding: "7px 14px",
                             whiteSpace: "nowrap",
                             zIndex: 60,
                             fontFamily: "'Inter', system-ui, sans-serif",
@@ -262,8 +282,8 @@ export default function AdminLayout({ title, children }: Props) {
                             alignItems: "center",
                             gap: "12px",
                             width: "100%",
-                            padding: "12px 16px",
-                            fontSize: "15px",
+                            padding: "13px 16px",
+                            fontSize: "21px",
                             fontWeight: active ? 600 : 400,
                             color: active ? primary : text,
                             background: "transparent",
@@ -275,14 +295,14 @@ export default function AdminLayout({ title, children }: Props) {
                             overflow: "hidden",
                         }}
                     >
-                        <Icon size={24} stroke={1.6} />
+                        <Icon size={26} stroke={1.6} />
                         {!collapsed && (
                             <>
                                 <span style={{ flex: 1, textAlign: "left" }}>
                                     {group.label}
                                 </span>
                                 <IconChevronDown
-                                    size={16}
+                                    size={18}
                                     stroke={2}
                                     style={{
                                         transform: isOpen
@@ -299,13 +319,13 @@ export default function AdminLayout({ title, children }: Props) {
                         <span
                             style={{
                                 position: "absolute",
-                                left: "60px",
+                                left: "64px",
                                 top: "50%",
                                 transform: "translateY(-50%)",
                                 background: dark ? "#374151" : "#111827",
                                 color: "#FFFFFF",
-                                fontSize: "14px",
-                                padding: "6px 12px",
+                                fontSize: "20px",
+                                padding: "7px 14px",
                                 whiteSpace: "nowrap",
                                 zIndex: 60,
                                 fontFamily: "'Inter', system-ui, sans-serif",
@@ -359,8 +379,8 @@ export default function AdminLayout({ title, children }: Props) {
                     >
                         <div
                             style={{
-                                width: "34px",
-                                height: "34px",
+                                width: "38px",
+                                height: "38px",
                                 background: gold,
                                 display: "flex",
                                 alignItems: "center",
@@ -368,13 +388,13 @@ export default function AdminLayout({ title, children }: Props) {
                                 flexShrink: 0,
                             }}
                         >
-                            <IconPlant size={22} color="#fff" />
+                            <IconPlant size={24} color="#fff" />
                         </div>
                         {!collapsed && (
                             <div>
                                 <div
                                     style={{
-                                        fontSize: "18px",
+                                        fontSize: "23px",
                                         fontWeight: 700,
                                         color: text,
                                     }}
@@ -383,7 +403,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: "13px",
+                                        fontSize: "20px",
                                         color: textSecondary,
                                     }}
                                 >
@@ -416,7 +436,7 @@ export default function AdminLayout({ title, children }: Props) {
                             <div style={{ marginBottom: "12px" }}>
                                 <div
                                     style={{
-                                        fontSize: "15px",
+                                        fontSize: "21px",
                                         fontWeight: 600,
                                         color: text,
                                     }}
@@ -425,7 +445,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: "13px",
+                                        fontSize: "20px",
                                         color: textSecondary,
                                     }}
                                 >
@@ -443,13 +463,13 @@ export default function AdminLayout({ title, children }: Props) {
                                 background: "transparent",
                                 border: "none",
                                 color: textSecondary,
-                                fontSize: "15px",
+                                fontSize: "21px",
                                 cursor: "pointer",
                                 padding: "8px 0",
                                 fontFamily: "inherit",
                             }}
                         >
-                            <IconLogout size={22} stroke={1.6} />
+                            <IconLogout size={24} stroke={1.6} />
                             {!collapsed && "Sign out"}
                         </button>
                     </div>
@@ -499,14 +519,14 @@ export default function AdminLayout({ title, children }: Props) {
                                     }}
                                 >
                                     {collapsed ? (
-                                        <IconChevronRight size={20} />
+                                        <IconChevronRight size={24} />
                                     ) : (
-                                        <IconChevronLeft size={20} />
+                                        <IconChevronLeft size={24} />
                                     )}
                                 </button>
                                 <h1
                                     style={{
-                                        fontSize: "20px",
+                                        fontSize: "26px",
                                         fontWeight: 700,
                                         color: text,
                                         margin: 0,
@@ -527,9 +547,9 @@ export default function AdminLayout({ title, children }: Props) {
                                     }}
                                 >
                                     {dark ? (
-                                        <IconSun size={20} />
+                                        <IconSun size={24} />
                                     ) : (
-                                        <IconMoon size={20} />
+                                        <IconMoon size={24} />
                                     )}
                                 </button>
                             </div>
@@ -550,7 +570,7 @@ export default function AdminLayout({ title, children }: Props) {
                         >
                             <h1
                                 style={{
-                                    fontSize: "20px",
+                                    fontSize: "26px",
                                     fontWeight: 700,
                                     color: text,
                                     margin: 0,
@@ -565,6 +585,7 @@ export default function AdminLayout({ title, children }: Props) {
                     </div>
                 </div>
             </div>
+            <FlashMessages />
         </ThemeContext.Provider>
     );
 }

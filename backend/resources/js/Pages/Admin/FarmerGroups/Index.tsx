@@ -142,7 +142,7 @@ function IndexContent({
         background: inputBg,
         color: text,
         padding: "10px 12px",
-        fontSize: "17px",
+        fontSize: "20px",
         outline: "none",
         fontFamily: "inherit",
         width: "100%",
@@ -152,7 +152,7 @@ function IndexContent({
         display: "flex",
         alignItems: "center",
         gap: "6px",
-        fontSize: "15px",
+        fontSize: "18px",
         fontWeight: 600,
         color: text,
         marginBottom: "6px",
@@ -166,7 +166,7 @@ function IndexContent({
         width: "18px",
         height: "18px",
         lineHeight: "16px",
-        fontSize: "13px",
+        fontSize: "17px",
         fontWeight: 700,
         cursor: "pointer",
         padding: 0,
@@ -174,7 +174,7 @@ function IndexContent({
 
     const errorTextStyle = {
         color: "#DC2626",
-        fontSize: "14px",
+        fontSize: "18px",
         marginTop: "4px",
     };
 
@@ -400,7 +400,7 @@ function IndexContent({
                 >
                     <h3
                         style={{
-                            fontSize: "18px",
+                            fontSize: "21px",
                             fontWeight: 700,
                             color: text,
                             marginBottom: "16px",
@@ -624,7 +624,7 @@ function IndexContent({
                                 alignItems: "center",
                                 gap: "8px",
                                 color: text,
-                                fontSize: "15px",
+                                fontSize: "18px",
                             }}
                         >
                             <input
@@ -646,7 +646,7 @@ function IndexContent({
                                 alignItems: "center",
                                 gap: "8px",
                                 color: text,
-                                fontSize: "15px",
+                                fontSize: "18px",
                             }}
                         >
                             <input
@@ -678,7 +678,7 @@ function IndexContent({
                                 color: "#FFFFFF",
                                 border: "none",
                                 padding: "10px 20px",
-                                fontSize: "17px",
+                                fontSize: "20px",
                                 fontWeight: 600,
                                 cursor: submitting ? "not-allowed" : "pointer",
                                 opacity: submitting ? 0.7 : 1,
@@ -694,7 +694,7 @@ function IndexContent({
                                     color: textSecondary,
                                     border: `1px solid ${border}`,
                                     padding: "10px 20px",
-                                    fontSize: "17px",
+                                    fontSize: "20px",
                                     cursor: "pointer",
                                 }}
                             >
@@ -709,7 +709,7 @@ function IndexContent({
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "17px" }}>
+                <table className="min-w-full" style={{ fontSize: "20px" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th
@@ -908,7 +908,7 @@ function IndexContent({
                             dangerouslySetInnerHTML={{ __html: link.label }}
                             style={{
                                 padding: "6px 12px",
-                                fontSize: "14px",
+                                fontSize: "18px",
                                 border: `1px solid ${border}`,
                                 background: link.active ? "#1D9E75" : surface,
                                 color: link.active ? "#FFFFFF" : text,

@@ -70,6 +70,20 @@ class OtpService
         return true;
     }
 
+    // says whether a code already sent is still usable, so a second one is not sent for nothing
+    public function hasLiveCode(string $identifier, string $type): bool
+    {
+        $this->guardType($type);
+
+        $otp = OtpCode::where('identifier', $identifier)
+            ->where('type', $type)
+            ->whereNull('used_at')
+            ->latest()
+            ->first();
+
+        return $otp !== null && ! $otp->isExpired() && ! $otp->isExhausted();
+    }
+
     public function markUsed(OtpCode $otp): void
     {
         $otp->update(['used_at' => now()]);
@@ -84,7 +98,9 @@ class OtpService
     private function messageFor(string $type, string $plainCode): string
     {
         if ($type === 'invitation') {
-            return "Welcome to NkwaLedger. Visit nkwaledger.com, choose Activate account, and enter code {$plainCode}. Valid for 1 hour.";
+            $link = rtrim(config('app.url'), '/') . '/activate';
+
+            return "Welcome to NkwaLedger. Go to {$link}, enter your phone number, then this code: {$plainCode}. Valid for 1 hour.";
         }
 
         $minutes = $this->lifetimeFor($type);

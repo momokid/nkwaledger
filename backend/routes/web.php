@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\FarmTypeCategoryController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\UserAccessController;
+use App\Http\Controllers\Auth\ActivationController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -31,6 +32,9 @@ use App\Http\Controllers\Admin\LedgerSubcategoryController;
 use App\Http\Controllers\Admin\LedgerClassController;
 use App\Http\Controllers\Admin\LedgerTypeController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
+use App\Http\Controllers\Auth\SetPasswordController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\AccountingPeriodController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -51,7 +55,8 @@ Route::middleware('otp.pending')->group(function () {
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:register');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
@@ -69,6 +74,18 @@ Route::middleware('guest')->group(function () {
         ->name('password.reset');
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    // an invited person lands here once their code checks out, holding a session pass rather than a login
+    Route::middleware('activation.pending')->group(function () {
+        Route::get('set-password', [SetPasswordController::class, 'create'])->name('activation.password.create');
+        Route::post('set-password', [SetPasswordController::class, 'store'])->name('activation.password.store');
+    });
+
+    // an invited person starts here, since their browser has no session to bind a code to
+    Route::get('activate', [ActivationController::class, 'create'])->name('activation.create');
+    Route::post('activate', [ActivationController::class, 'store'])
+        ->middleware('throttle:otp-request')
+        ->name('activation.store');
 
     Route::get('auth/{provider}', [SocialAuthController::class, 'redirect'])
         ->name('social.redirect')
@@ -369,10 +386,46 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
             ->name('ledger-accounts.destroy');
     });
 
+    Route::middleware('access:staff.view')->group(function () {
+        Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+    });
+
     Route::middleware('access:staff.create')->group(function () {
-        // creating an account with system access is as sensitive as editing a role
-        Route::middleware('password.confirm')->group(function () {
-            Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
-        });
+        Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+
+        // a resend costs an sms but grants nothing new, so it needs no password confirmation
+        Route::post('/staff/{user}/resend', [StaffController::class, 'resend'])
+            ->middleware('throttle:otp-request')
+            ->name('staff.resend');
+    });
+
+    Route::middleware('access:staff.update')->group(function () {
+        Route::patch('/staff/{user}/disable', [StaffController::class, 'disable'])->name('staff.disable');
+        Route::patch('/staff/{user}/enable', [StaffController::class, 'enable'])->name('staff.enable');
+    });
+
+    Route::middleware('access:staff.delete')->group(function () {
+        Route::delete('/staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
+    });
+
+    Route::middleware('access:audit.view')->group(function () {
+        Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
+    });
+
+    Route::middleware('access:accounting-periods.view')->group(function () {
+        Route::get('/accounting-periods', [AccountingPeriodController::class, 'index'])->name('accounting-periods.index');
+    });
+
+    Route::middleware('access:accounting-periods.create')->group(function () {
+        Route::post('/accounting-periods', [AccountingPeriodController::class, 'store'])->name('accounting-periods.store');
+    });
+
+    Route::middleware('access:accounting-periods.close')->group(function () {
+        Route::patch('/accounting-periods/{accountingPeriod}/close', [AccountingPeriodController::class, 'close'])->name('accounting-periods.close');
+    });
+
+    // kept apart from closing, since reopening changes a period reports were built from
+    Route::middleware('access:accounting-periods.reopen')->group(function () {
+        Route::patch('/accounting-periods/{accountingPeriod}/reopen', [AccountingPeriodController::class, 'reopen'])->name('accounting-periods.reopen');
     });
 });

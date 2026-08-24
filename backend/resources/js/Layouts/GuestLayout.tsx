@@ -27,7 +27,7 @@ export default function GuestLayout({ children }: PropsWithChildren) {
                                 className="text-xs font-semibold uppercase tracking-widest"
                                 style={{
                                     color: "rgba(255,255,255,0.45)",
-                                    fontSize: "10px",
+                                    fontSize: "12px",
                                 }}
                             >
                                 Farm Finance Platform
@@ -95,7 +95,7 @@ export default function GuestLayout({ children }: PropsWithChildren) {
                             className="font-semibold uppercase tracking-widest"
                             style={{
                                 color: "#0F6E56",
-                                fontSize: "9px",
+                                fontSize: "12px",
                                 opacity: 0.6,
                             }}
                         >

@@ -139,10 +139,11 @@ test('an email already on file is rejected', function () {
     $response->assertSessionHasErrors('email');
 });
 
-test('a stale password confirmation blocks the request', function () {
+test('an invite needs no password confirmation', function () {
     session()->forget('auth.password_confirmed_at');
 
     $response = $this->actingAs($this->admin)->post('/admin/staff', staffPayload());
 
-    $response->assertRedirect('/confirm-password');
+    $response->assertSessionDoesntHaveErrors();
+    expect(User::where('phone', '0244000501')->exists())->toBeTrue();
 });
