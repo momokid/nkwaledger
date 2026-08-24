@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\Auditable;
 
 #[Fillable([
     'name',
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class FarmType extends Model
 {
     use HasFactory, SoftDeletes;
-
+    use Auditable;
     protected $attributes = [
         'is_active' => true,
     ];

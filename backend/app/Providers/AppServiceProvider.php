@@ -9,9 +9,29 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Observers\AuditableObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
+    // every model whose history has to survive an audit
+    private const AUDITED_MODELS = [
+        \App\Models\User::class,
+        \App\Models\UserPermissionDenial::class,
+        \App\Models\FarmType::class,
+        \App\Models\FarmTypeCategory::class,
+        \App\Models\FarmerGroup::class,
+        \App\Models\FarmerGroupType::class,
+        \App\Models\Region::class,
+        \App\Models\District::class,
+        \App\Models\Community::class,
+        \App\Models\LedgerClass::class,
+        \App\Models\LedgerCategory::class,
+        \App\Models\LedgerSubcategory::class,
+        \App\Models\LedgerType::class,
+        \App\Models\LedgerControl::class,
+        \App\Models\LedgerAccount::class,
+    ];
+
     public function register(): void
     {
         $this->app->bind(SmsProvider::class, fn() => new ArkeselSmsProvider(
@@ -49,5 +69,10 @@ class AppServiceProvider extends ServiceProvider
             Limit::perHour(config('otp.throttle.resend.per_ip'))
                 ->by('resend-ip:' . $request->ip()),
         ]);
+
+        // registered here rather than in the model, since observing during boot re-enters the cycle
+        foreach (self::AUDITED_MODELS as $model) {
+            $model::observe(AuditableObserver::class);
+        }
     }
 }
