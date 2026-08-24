@@ -33,7 +33,7 @@ use App\Http\Controllers\Admin\LedgerClassController;
 use App\Http\Controllers\Admin\LedgerTypeController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\SetPasswordController;
-
+use App\Http\Controllers\Admin\AuditLogController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -405,5 +405,9 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
 
     Route::middleware('access:staff.delete')->group(function () {
         Route::delete('/staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
+    });
+
+    Route::middleware('access:audit.view')->group(function () {
+        Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
     });
 });

@@ -19,6 +19,7 @@ import {
     IconStack2,
     IconListDetails,
     IconUserPlus,
+    IconHistory,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
@@ -127,6 +128,11 @@ const navItems: NavEntry[] = [
                 label: "User Access",
                 routeName: "admin.permissions.users.index",
                 icon: IconUsers,
+            },
+            {
+                label: "Audit Log",
+                routeName: "admin.audit.index",
+                icon: IconHistory,
             },
         ],
     },

@@ -49,6 +49,13 @@ return [
                 'delete' => 'Cancel invitation',
             ],
         ],
+        // reading the trail is its own privilege, separate from managing anything
+        'audit' => [
+            'label' => 'Audit Log',
+            'actions' => [
+                'view' => 'View',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -77,6 +84,7 @@ return [
             'staff.create',
             'staff.update',
             'staff.delete',
+            'audit.view',
         ],
         'agent' => [
             'farm-types.view',
