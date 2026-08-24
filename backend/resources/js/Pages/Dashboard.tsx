@@ -103,7 +103,7 @@ function DashboardContent() {
         <>
             <p
                 style={{
-                    fontSize: "22px",
+                    fontSize: "23px",
                     fontWeight: 600,
                     color: text,
                     marginBottom: "4px",
@@ -113,7 +113,7 @@ function DashboardContent() {
             </p>
             <p
                 style={{
-                    fontSize: "15px",
+                    fontSize: "18px",
                     color: textSecondary,
                     marginBottom: "24px",
                 }}
@@ -154,7 +154,7 @@ function DashboardContent() {
                         >
                             <p
                                 style={{
-                                    fontSize: "14px",
+                                    fontSize: "18px",
                                     color: textSecondary,
                                     marginBottom: "8px",
                                 }}
@@ -177,7 +177,7 @@ function DashboardContent() {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "4px",
-                                    fontSize: "13px",
+                                    fontSize: "15px",
                                     color: trendColor,
                                 }}
                             >
@@ -205,7 +205,7 @@ function DashboardContent() {
                 >
                     <p
                         style={{
-                            fontSize: "17px",
+                            fontSize: "20px",
                             fontWeight: 600,
                             color: text,
                             marginBottom: "16px",
@@ -231,7 +231,7 @@ function DashboardContent() {
                             <div>
                                 <p
                                     style={{
-                                        fontSize: "15px",
+                                        fontSize: "18px",
                                         fontWeight: 500,
                                         color: text,
                                         margin: 0,
@@ -241,7 +241,7 @@ function DashboardContent() {
                                 </p>
                                 <p
                                     style={{
-                                        fontSize: "13px",
+                                        fontSize: "15px",
                                         color: textSecondary,
                                         margin: "2px 0 0",
                                     }}
@@ -251,7 +251,7 @@ function DashboardContent() {
                             </div>
                             <span
                                 style={{
-                                    fontSize: "15px",
+                                    fontSize: "18px",
                                     fontWeight: 600,
                                     color: t.income ? primary : danger,
                                 }}
@@ -278,7 +278,7 @@ function DashboardContent() {
                     >
                         <p
                             style={{
-                                fontSize: "17px",
+                                fontSize: "20px",
                                 fontWeight: 600,
                                 color: text,
                                 marginBottom: "12px",
@@ -299,7 +299,7 @@ function DashboardContent() {
                         </p>
                         <p
                             style={{
-                                fontSize: "13px",
+                                fontSize: "15px",
                                 color: textSecondary,
                                 marginBottom: "12px",
                             }}
@@ -332,7 +332,7 @@ function DashboardContent() {
                     >
                         <p
                             style={{
-                                fontSize: "17px",
+                                fontSize: "20px",
                                 fontWeight: 600,
                                 color: text,
                                 marginBottom: "12px",
@@ -351,7 +351,7 @@ function DashboardContent() {
                                 <div key={l.type}>
                                     <p
                                         style={{
-                                            fontSize: "22px",
+                                            fontSize: "23px",
                                             fontWeight: 700,
                                             color: text,
                                             margin: 0,
@@ -361,7 +361,7 @@ function DashboardContent() {
                                     </p>
                                     <p
                                         style={{
-                                            fontSize: "14px",
+                                            fontSize: "18px",
                                             color: textSecondary,
                                             margin: "2px 0 0",
                                         }}
@@ -397,7 +397,7 @@ function DashboardContent() {
                             />
                             <p
                                 style={{
-                                    fontSize: "16px",
+                                    fontSize: "20px",
                                     fontWeight: 600,
                                     color: dark ? "#4ADE80" : "#0F6E56",
                                     margin: 0,
@@ -408,7 +408,7 @@ function DashboardContent() {
                         </div>
                         <p
                             style={{
-                                fontSize: "15px",
+                                fontSize: "18px",
                                 color: dark
                                     ? "rgba(74,222,128,0.85)"
                                     : "#0F6E56",

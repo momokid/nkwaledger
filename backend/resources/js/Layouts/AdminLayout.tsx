@@ -249,7 +249,7 @@ export default function AdminLayout({ title, children }: Props) {
                             transform: "translateY(-50%)",
                             background: dark ? "#374151" : "#111827",
                             color: "#FFFFFF",
-                            fontSize: "17px",
+                            fontSize: "20px",
                             padding: "7px 14px",
                             whiteSpace: "nowrap",
                             zIndex: 60,
@@ -283,7 +283,7 @@ export default function AdminLayout({ title, children }: Props) {
                             gap: "12px",
                             width: "100%",
                             padding: "13px 16px",
-                            fontSize: "19px",
+                            fontSize: "21px",
                             fontWeight: active ? 600 : 400,
                             color: active ? primary : text,
                             background: "transparent",
@@ -324,7 +324,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 transform: "translateY(-50%)",
                                 background: dark ? "#374151" : "#111827",
                                 color: "#FFFFFF",
-                                fontSize: "17px",
+                                fontSize: "20px",
                                 padding: "7px 14px",
                                 whiteSpace: "nowrap",
                                 zIndex: 60,
@@ -394,7 +394,7 @@ export default function AdminLayout({ title, children }: Props) {
                             <div>
                                 <div
                                     style={{
-                                        fontSize: "22px",
+                                        fontSize: "23px",
                                         fontWeight: 700,
                                         color: text,
                                     }}
@@ -403,7 +403,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: "17px",
+                                        fontSize: "20px",
                                         color: textSecondary,
                                     }}
                                 >
@@ -436,7 +436,7 @@ export default function AdminLayout({ title, children }: Props) {
                             <div style={{ marginBottom: "12px" }}>
                                 <div
                                     style={{
-                                        fontSize: "19px",
+                                        fontSize: "21px",
                                         fontWeight: 600,
                                         color: text,
                                     }}
@@ -445,7 +445,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: "17px",
+                                        fontSize: "20px",
                                         color: textSecondary,
                                     }}
                                 >
@@ -463,7 +463,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 background: "transparent",
                                 border: "none",
                                 color: textSecondary,
-                                fontSize: "19px",
+                                fontSize: "21px",
                                 cursor: "pointer",
                                 padding: "8px 0",
                                 fontFamily: "inherit",

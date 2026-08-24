@@ -39,7 +39,7 @@ function Divider({ label }: { label?: string }) {
             {label && (
                 <span
                     style={{
-                        fontSize: "17px",
+                        fontSize: "20px",
                         color: "#9CA3AF",
                         whiteSpace: "nowrap",
                     }}
@@ -70,7 +70,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                 <div
                     style={{
                         marginBottom: "1rem",
-                        fontSize: "17px",
+                        fontSize: "20px",
                         color: "#1D9E75",
                     }}
                 >
@@ -82,7 +82,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "17px",
+                        fontSize: "20px",
                         fontWeight: 600,
                         color: "#111827",
                         marginBottom: "6px",
@@ -111,7 +111,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                             width: "100%",
                             border: "1px solid #9CA3AF",
                             padding: "10px 12px 10px 40px",
-                            fontSize: "17px",
+                            fontSize: "20px",
                             color: "#111827",
                             background: "#fff",
                             outline: "none",
@@ -131,7 +131,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             marginTop: "4px",
-                            fontSize: "15px",
+                            fontSize: "18px",
                             color: "#DC2626",
                         }}
                     >
@@ -144,7 +144,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "17px",
+                        fontSize: "20px",
                         fontWeight: 600,
                         color: "#111827",
                         marginBottom: "6px",
@@ -173,7 +173,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                             width: "100%",
                             border: "1px solid #9CA3AF",
                             padding: "10px 40px 10px 40px",
-                            fontSize: "17px",
+                            fontSize: "20px",
                             color: "#111827",
                             background: "#fff",
                             outline: "none",
@@ -214,7 +214,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             marginTop: "4px",
-                            fontSize: "15px",
+                            fontSize: "18px",
                             color: "#DC2626",
                         }}
                     >
@@ -228,7 +228,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     <Link
                         href={route("password.request")}
                         style={{
-                            fontSize: "15px",
+                            fontSize: "18px",
                             fontWeight: 600,
                             color: "#1D9E75",
                             textDecoration: "none",
@@ -248,7 +248,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     color: "#fff",
                     border: "none",
                     padding: "13px 20px",
-                    fontSize: "20px",
+                    fontSize: "23px",
                     fontWeight: 600,
                     cursor: processing ? "not-allowed" : "pointer",
                     display: "flex",
@@ -285,7 +285,7 @@ function OtpForm() {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "17px",
+                        fontSize: "20px",
                         fontWeight: 600,
                         color: "#111827",
                         marginBottom: "6px",
@@ -314,7 +314,7 @@ function OtpForm() {
                             width: "100%",
                             border: "1px solid #9CA3AF",
                             padding: "10px 12px 10px 40px",
-                            fontSize: "17px",
+                            fontSize: "20px",
                             color: "#111827",
                             background: "#fff",
                             outline: "none",
@@ -335,7 +335,7 @@ function OtpForm() {
                     <p
                         style={{
                             marginTop: "4px",
-                            fontSize: "15px",
+                            fontSize: "18px",
                             color: "#DC2626",
                         }}
                     >
@@ -353,7 +353,7 @@ function OtpForm() {
                     color: "#fff",
                     border: "none",
                     padding: "13px 20px",
-                    fontSize: "20px",
+                    fontSize: "23px",
                     fontWeight: 600,
                     cursor: processing ? "not-allowed" : "pointer",
                     display: "flex",
@@ -378,7 +378,7 @@ function OtpForm() {
             <p
                 style={{
                     marginTop: "14px",
-                    fontSize: "15px",
+                    fontSize: "18px",
                     color: "#6B7280",
                     textAlign: "center",
                 }}
@@ -420,7 +420,7 @@ export default function Login({ canResetPassword, status }: Props) {
                     <div>
                         <div
                             style={{
-                                fontSize: "21px",
+                                fontSize: "23px",
                                 fontWeight: 700,
                                 color: "#fff",
                                 letterSpacing: "-0.2px",
@@ -430,7 +430,7 @@ export default function Login({ canResetPassword, status }: Props) {
                         </div>
                         <div
                             style={{
-                                fontSize: "13px",
+                                fontSize: "15px",
                                 fontWeight: 600,
                                 color: "rgba(255,255,255,0.45)",
                                 letterSpacing: "0.8px",
@@ -458,7 +458,7 @@ export default function Login({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             margin: "0 0 2rem",
-                            fontSize: "20px",
+                            fontSize: "23px",
                             color: "rgba(255,255,255,0.65)",
                             lineHeight: 1.65,
                         }}
@@ -490,7 +490,7 @@ export default function Login({ canResetPassword, status }: Props) {
                                 </div>
                                 <span
                                     style={{
-                                        fontSize: "17px",
+                                        fontSize: "20px",
                                         color: "rgba(255,255,255,0.75)",
                                     }}
                                 >
@@ -503,7 +503,7 @@ export default function Login({ canResetPassword, status }: Props) {
 
                 <div
                     style={{
-                        fontSize: "15px",
+                        fontSize: "18px",
                         color: "rgba(255,255,255,0.35)",
                     }}
                 >
@@ -518,7 +518,7 @@ export default function Login({ canResetPassword, status }: Props) {
                         href="/"
                         className="inline-flex items-center gap-2 mb-8"
                         style={{
-                            fontSize: "17px",
+                            fontSize: "20px",
                             color: "#6B7280",
                             textDecoration: "none",
                         }}
@@ -547,7 +547,7 @@ export default function Login({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             margin: "0 0 1.75rem",
-                            fontSize: "20px",
+                            fontSize: "23px",
                             color: "#6B7280",
                         }}
                     >
@@ -568,7 +568,7 @@ export default function Login({ canResetPassword, status }: Props) {
                                 onClick={() => setTab(key)}
                                 style={{
                                     padding: "10px 18px",
-                                    fontSize: "17px",
+                                    fontSize: "20px",
                                     fontWeight: tab === key ? 600 : 400,
                                     color: tab === key ? "#1D9E75" : "#6B7280",
                                     background: "none",
@@ -614,7 +614,7 @@ export default function Login({ canResetPassword, status }: Props) {
                                 padding: "13px 12px",
                                 background: "#fff",
                                 border: "1px solid #9CA3AF",
-                                fontSize: "17px",
+                                fontSize: "20px",
                                 color: "#111827",
                                 cursor: "pointer",
                                 display: "flex",
@@ -658,7 +658,7 @@ export default function Login({ canResetPassword, status }: Props) {
                                 padding: "13px 12px",
                                 background: "#1877F2",
                                 border: "none",
-                                fontSize: "17px",
+                                fontSize: "20px",
                                 color: "#fff",
                                 cursor: "pointer",
                                 display: "flex",
@@ -683,7 +683,7 @@ export default function Login({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             textAlign: "center",
-                            fontSize: "17px",
+                            fontSize: "20px",
                             color: "#6B7280",
                             margin: 0,
                         }}

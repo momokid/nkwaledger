@@ -271,7 +271,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                 {!collapsed && (
                     <p
                         style={{
-                            fontSize: "12px",
+                            fontSize: "15px",
                             fontWeight: 600,
                             color: textSecondary,
                             textTransform: "uppercase",
@@ -302,7 +302,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     padding: collapsed
                                         ? "12px 16px"
                                         : "12px 16px",
-                                    fontSize: "15px",
+                                    fontSize: "18px",
                                     fontWeight: active ? 600 : 400,
                                     color: active ? primary : text,
                                     background: active
@@ -333,7 +333,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                             ? "#374151"
                                             : "#111827",
                                         color: "#FFFFFF",
-                                        fontSize: "14px",
+                                        fontSize: "18px",
                                         padding: "6px 12px",
                                         whiteSpace: "nowrap",
                                         zIndex: 60,
@@ -402,7 +402,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                 <div>
                                     <div
                                         style={{
-                                            fontSize: "18px",
+                                            fontSize: "21px",
                                             fontWeight: 700,
                                             color: dark ? "#A8D9C8" : "#0F6E56",
                                             lineHeight: 1.2,
@@ -412,7 +412,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     </div>
                                     <div
                                         style={{
-                                            fontSize: "10px",
+                                            fontSize: "12px",
                                             color: textSecondary,
                                             textTransform: "uppercase",
                                             letterSpacing: "0.8px",
@@ -456,7 +456,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "center",
-                                        fontSize: "15px",
+                                        fontSize: "18px",
                                         fontWeight: 600,
                                         flexShrink: 0,
                                     }}
@@ -467,7 +467,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     <div style={{ overflow: "hidden" }}>
                                         <div
                                             style={{
-                                                fontSize: "15px",
+                                                fontSize: "18px",
                                                 fontWeight: 600,
                                                 whiteSpace: "nowrap",
                                             }}
@@ -476,7 +476,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: "12px",
+                                                fontSize: "15px",
                                                 color: textSecondary,
                                                 textTransform: "capitalize",
                                             }}
@@ -497,7 +497,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     background: "transparent",
                                     border: "none",
                                     color: textSecondary,
-                                    fontSize: "15px",
+                                    fontSize: "18px",
                                     cursor: "pointer",
                                     padding: "8px 0",
                                     fontFamily:
@@ -557,7 +557,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                             )}
                             <h1
                                 style={{
-                                    fontSize: "20px",
+                                    fontSize: "23px",
                                     fontWeight: 600,
                                     color: text,
                                     margin: 0,
@@ -615,7 +615,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 right: "-4px",
                                                 background: "#DC2626",
                                                 color: "#FFFFFF",
-                                                fontSize: "10px",
+                                                fontSize: "12px",
                                                 fontWeight: 600,
                                                 width: "16px",
                                                 height: "16px",
@@ -652,7 +652,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         >
                                             <span
                                                 style={{
-                                                    fontSize: "15px",
+                                                    fontSize: "18px",
                                                     fontWeight: 600,
                                                 }}
                                             >
@@ -664,7 +664,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                     background: "transparent",
                                                     border: "none",
                                                     color: primary,
-                                                    fontSize: "13px",
+                                                    fontSize: "15px",
                                                     cursor: "pointer",
                                                     fontFamily:
                                                         "'Inter', system-ui, sans-serif",
@@ -687,7 +687,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                             >
                                                 <p
                                                     style={{
-                                                        fontSize: "15px",
+                                                        fontSize: "18px",
                                                         fontWeight: 600,
                                                         margin: 0,
                                                     }}
@@ -696,7 +696,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 </p>
                                                 <p
                                                     style={{
-                                                        fontSize: "14px",
+                                                        fontSize: "18px",
                                                         color: textSecondary,
                                                         margin: "4px 0 0",
                                                         lineHeight: 1.5,
@@ -706,7 +706,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 </p>
                                                 <p
                                                     style={{
-                                                        fontSize: "12px",
+                                                        fontSize: "15px",
                                                         color: textSecondary,
                                                         margin: "6px 0 0",
                                                     }}
@@ -756,7 +756,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         >
                                             <p
                                                 style={{
-                                                    fontSize: "15px",
+                                                    fontSize: "18px",
                                                     fontWeight: 600,
                                                     margin: 0,
                                                 }}
@@ -765,7 +765,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                             </p>
                                             <p
                                                 style={{
-                                                    fontSize: "12px",
+                                                    fontSize: "15px",
                                                     color: textSecondary,
                                                     margin: "2px 0 0",
                                                     textTransform: "capitalize",
@@ -786,7 +786,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 style={{
                                                     display: "block",
                                                     padding: "12px 16px",
-                                                    fontSize: "15px",
+                                                    fontSize: "18px",
                                                     color: text,
                                                     textDecoration: "none",
                                                     fontFamily:
@@ -804,7 +804,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 width: "100%",
                                                 textAlign: "left",
                                                 padding: "12px 16px",
-                                                fontSize: "15px",
+                                                fontSize: "18px",
                                                 color: "#DC2626",
                                                 background: "transparent",
                                                 border: "none",
@@ -854,7 +854,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         flexDirection: "column",
                                         alignItems: "center",
                                         color: active ? primary : textSecondary,
-                                        fontSize: "13px",
+                                        fontSize: "15px",
                                         fontWeight: active ? 600 : 400,
                                         paddingTop: "6px",
                                         textDecoration: "none",

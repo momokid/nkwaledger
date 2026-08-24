@@ -148,7 +148,7 @@ export default function VerifyOtp({ masked }: Props) {
                         <p
                             style={{
                                 margin: 0,
-                                fontSize: "18px",
+                                fontSize: "21px",
                                 color: "rgba(255,255,255,0.62)",
                             }}
                         >
@@ -162,7 +162,7 @@ export default function VerifyOtp({ masked }: Props) {
                         <p
                             style={{
                                 margin: "0 0 1.75rem",
-                                fontSize: "20px",
+                                fontSize: "23px",
                                 color: "#6B7280",
                                 lineHeight: 1.6,
                                 textAlign: "center",
@@ -175,7 +175,7 @@ export default function VerifyOtp({ masked }: Props) {
                             <p
                                 style={{
                                     marginBottom: "1rem",
-                                    fontSize: "17px",
+                                    fontSize: "20px",
                                     color: "#DC2626",
                                     textAlign: "center",
                                 }}
@@ -240,7 +240,7 @@ export default function VerifyOtp({ masked }: Props) {
                             <p
                                 style={{
                                     textAlign: "center",
-                                    fontSize: "17px",
+                                    fontSize: "20px",
                                     color: "#6B7280",
                                     margin: "0 0 1.5rem",
                                 }}
@@ -286,7 +286,7 @@ export default function VerifyOtp({ masked }: Props) {
                                         color: "#fff",
                                         border: "none",
                                         padding: "13px 20px",
-                                        fontSize: "20px",
+                                        fontSize: "23px",
                                         fontWeight: 600,
                                         cursor:
                                             processing ||
@@ -326,7 +326,7 @@ export default function VerifyOtp({ masked }: Props) {
                                         color: "#111827",
                                         border: "1px solid #9CA3AF",
                                         padding: "13px 20px",
-                                        fontSize: "20px",
+                                        fontSize: "23px",
                                         fontWeight: 400,
                                         display: "flex",
                                         alignItems: "center",
