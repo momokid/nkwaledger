@@ -155,8 +155,35 @@ function groupIsActive(group: NavGroup): boolean {
     return group.children.some((child) => route().current(child.routeName));
 }
 
+// keeps only what this user may open, and drops a group once all its children are gone
+function visibleNavItems(allowed: string[]): NavEntry[] {
+    const result: NavEntry[] = [];
+
+    for (const entry of navItems) {
+        if (!isGroup(entry)) {
+            if (allowed.includes(entry.routeName)) {
+                result.push(entry);
+            }
+            continue;
+        }
+
+        const children = entry.children.filter((child) =>
+            allowed.includes(child.routeName),
+        );
+
+        if (children.length > 0) {
+            result.push({ ...entry, children });
+        }
+    }
+
+    return result;
+}
+
 export default function AdminLayout({ title, children }: Props) {
     const { auth } = usePage<PageProps>().props;
+    const allowedRoutes = (auth as unknown as { nav?: string[] })?.nav ?? [];
+    const items = visibleNavItems(allowedRoutes);
+
     const [collapsed, setCollapsed] = useState(false);
     const [dark, setDark] = useState(false);
     const verified = useIsVerified();
@@ -174,7 +201,7 @@ export default function AdminLayout({ title, children }: Props) {
     };
     const [hovered, setHovered] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(
-        navItems.filter(isGroup).find(groupIsActive)?.label ?? null,
+        items.filter(isGroup).find(groupIsActive)?.label ?? null,
     );
 
     // wider than before, since the larger labels no longer fit the old width
@@ -429,7 +456,7 @@ export default function AdminLayout({ title, children }: Props) {
                         }}
                     >
                         <div style={{ marginBottom: "20px" }}>
-                            {navItems.map((item) =>
+                            {items.map((item) =>
                                 isGroup(item)
                                     ? renderGroup(item)
                                     : renderLeaf(item, false),

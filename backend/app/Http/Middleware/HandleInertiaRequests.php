@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\NavigationAccessService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -14,6 +15,8 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'app';
+
+    public function __construct(private NavigationAccessService $navigation) {}
 
     /**
      * Determine the current asset version.
@@ -34,6 +37,8 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $this->userProps($request),
+                // route names this user may open, so the sidebar can hide the rest
+                'nav'  => fn() => $this->navigation->allowedRouteNames($request->user()),
             ],
             // one-shot messages any controller can set with ->with(), read once by the layout
             'flash' => [
@@ -66,7 +71,6 @@ class HandleInertiaRequests extends Middleware
             'email'             => $user->email,
             'is_active'         => $user->is_active,
             'is_phone_verified' => $user->phone_verified_at !== null,
-            // role names only, never permission names
             'roles'             => $user->getRoleNames(),
         ];
     }
