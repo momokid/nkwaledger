@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\SmsProvider;
 use App\Services\Sms\ArkeselSmsProvider;
 use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -70,6 +71,8 @@ class AppServiceProvider extends ServiceProvider
                 ->by('resend-ip:' . $request->ip()),
         ]);
 
+        Route::model('farmer', \App\Models\FarmerProfile::class);
+        
         // registered here rather than in the model, since observing during boot re-enters the cycle
         foreach (self::AUDITED_MODELS as $model) {
             $model::observe(AuditableObserver::class);

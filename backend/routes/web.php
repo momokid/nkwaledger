@@ -36,6 +36,7 @@ use App\Http\Controllers\Auth\SetPasswordController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AccountingPeriodController;
 use App\Http\Controllers\Admin\TransactionTemplateController;
+use App\Http\Controllers\Admin\FarmerController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -449,5 +450,25 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:transaction-templates.delete')->group(function () {
         Route::delete('/transaction-templates/{transactionTemplate}', [TransactionTemplateController::class, 'destroy'])
             ->name('transaction-templates.destroy');
+    });
+
+    // farmers
+    Route::middleware('access:farmers.view')->group(function () {
+        Route::get('/farmers', [FarmerController::class, 'index'])->name('farmers.index');
+        Route::get('/farmers/{farmer}', [FarmerController::class, 'show'])->name('farmers.show');
+    });
+
+    Route::middleware('access:farmers.create')->group(function () {
+        Route::post('/farmers', [FarmerController::class, 'store'])->name('farmers.store');
+    });
+
+    Route::middleware('access:farmers.update')->group(function () {
+        Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
+        Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
+    });
+
+    // kept apart from editing, since verifying opens credit scoring and bank facing reports
+    Route::middleware('access:farmers.verify')->group(function () {
+        Route::patch('/farmers/{farmer}/identity/verify', [FarmerController::class, 'verifyIdentity'])->name('farmers.identity.verify');
     });
 });
