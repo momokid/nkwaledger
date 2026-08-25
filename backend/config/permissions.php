@@ -30,6 +30,17 @@ return [
                 'delete' => 'Delete',
             ],
         ],
+        // farmer accounts are never removed, only disabled, so there is no delete action
+        'farmers' => [
+            'label' => 'Farmers',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Register',
+                'update' => 'Edit',
+                // opens credit scoring and bank facing reports, so it stands apart from editing
+                'verify' => 'Verify identity',
+            ],
+        ],
         'ledger-accounts' => [
             'label' => 'Ledger Accounts',
             'actions' => [
@@ -99,6 +110,10 @@ return [
             'farm-type-categories.create',
             'farm-type-categories.update',
             'farm-type-categories.delete',
+            'farmers.view',
+            'farmers.create',
+            'farmers.update',
+            'farmers.verify',
             'staff.view',
             'staff.create',
             'staff.update',
@@ -119,6 +134,9 @@ return [
             'ledger-accounts.view',
             'farm-type-categories.view',
             'transaction-templates.view',
+            'farmers.view',
+            'farmers.create',
+            'farmers.update',
         ],
     ],
 
