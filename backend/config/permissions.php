@@ -108,6 +108,10 @@ return [
             'accounting-periods.create',
             'accounting-periods.close',
             'accounting-periods.reopen',
+            'transaction-templates.view',
+            'transaction-templates.create',
+            'transaction-templates.update',
+            'transaction-templates.delete',
         ],
         'agent' => [
             'farm-types.view',

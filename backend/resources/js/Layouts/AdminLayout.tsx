@@ -21,6 +21,7 @@ import {
     IconUserPlus,
     IconHistory,
     IconCalendar,
+    IconArrowsExchange,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
@@ -113,6 +114,11 @@ const navItems: NavEntry[] = [
                 label: "Accounting Periods",
                 routeName: "admin.accounting-periods.index",
                 icon: IconCalendar,
+            },
+            {
+                label: "Transaction Templates",
+                routeName: "admin.transaction-templates.index",
+                icon: IconArrowsExchange,
             },
         ],
     },
