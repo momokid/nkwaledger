@@ -35,6 +35,7 @@ use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\SetPasswordController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AccountingPeriodController;
+use App\Http\Controllers\Admin\TransactionTemplateController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -427,5 +428,26 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     // kept apart from closing, since reopening changes a period reports were built from
     Route::middleware('access:accounting-periods.reopen')->group(function () {
         Route::patch('/accounting-periods/{accountingPeriod}/reopen', [AccountingPeriodController::class, 'reopen'])->name('accounting-periods.reopen');
+    });
+
+    // transaction templates
+    Route::middleware('access:transaction-templates.view')->group(function () {
+        Route::get('/transaction-templates', [TransactionTemplateController::class, 'index'])
+            ->name('transaction-templates.index');
+    });
+
+    Route::middleware('access:transaction-templates.create')->group(function () {
+        Route::post('/transaction-templates', [TransactionTemplateController::class, 'store'])
+            ->name('transaction-templates.store');
+    });
+
+    Route::middleware('access:transaction-templates.update')->group(function () {
+        Route::put('/transaction-templates/{transactionTemplate}', [TransactionTemplateController::class, 'update'])
+            ->name('transaction-templates.update');
+    });
+
+    Route::middleware('access:transaction-templates.delete')->group(function () {
+        Route::delete('/transaction-templates/{transactionTemplate}', [TransactionTemplateController::class, 'destroy'])
+            ->name('transaction-templates.destroy');
     });
 });
