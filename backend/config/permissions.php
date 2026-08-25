@@ -66,6 +66,15 @@ return [
                 'reopen' => 'Reopen',
             ],
         ],
+        'transaction-templates' => [
+            'label' => 'Transaction Templates',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Add',
+                'update' => 'Edit',
+                'delete' => 'Delete',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -99,12 +108,17 @@ return [
             'accounting-periods.create',
             'accounting-periods.close',
             'accounting-periods.reopen',
+            'transaction-templates.view',
+            'transaction-templates.create',
+            'transaction-templates.update',
+            'transaction-templates.delete',
         ],
         'agent' => [
             'farm-types.view',
             'farmer-groups.view',
             'ledger-accounts.view',
             'farm-type-categories.view',
+            'transaction-templates.view',
         ],
     ],
 
