@@ -63,6 +63,7 @@ jobs:
           echo "QUEUE_CONNECTION=sync" >> .env.testing
           echo "ARKESEL_API_KEY=fake-key" >> .env.testing
           echo "ARKESEL_SENDER=NkwaLedger" >> .env.testing
+           echo "IDENTITY_PEPPER=ci-identity-pepper" >> .env.testing
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
