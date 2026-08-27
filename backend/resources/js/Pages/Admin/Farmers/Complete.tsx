@@ -50,7 +50,9 @@ function Frame({
     children: ReactNode;
 }) {
     if (layout === "agent") {
-        return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+        return (
+            <AuthenticatedLayout title={title}>{children}</AuthenticatedLayout>
+        );
     }
 
     return <AdminLayout title={title}>{children}</AdminLayout>;
