@@ -254,6 +254,23 @@ function ShowContent({
                 <p style={{ color: textSecondary, fontSize: "16px" }}>
                     Produces: {farmer.farm_types.join(", ") || "not yet stated"}
                 </p>
+
+                <button
+                    onClick={() =>
+                        router.visit(`${basePath}/${farmer.id}/units`)
+                    }
+                    style={{
+                        background: "none",
+                        border: "none",
+                        color: headerText,
+                        fontSize: "17px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        padding: 0,
+                    }}
+                >
+                    Farm units
+                </button>
             </div>
 
             <form

@@ -37,7 +37,7 @@ enum MovementReason: string
             self::Death => 'Died',
             self::Theft => 'Stolen',
             self::Sale => 'Sold',
-            self::Cull => 'Culled',
+            self::Cull => 'Removed on purpose',
             self::Correction => 'Fixing a miscount',
         };
     }

@@ -41,6 +41,19 @@ return [
                 'verify' => 'Verify identity',
             ],
         ],
+        // pens, plots and ponds, plus what is in them
+        'farm-units' => [
+            'label' => 'Farm Units',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Add',
+                'update' => 'Edit',
+                // someone has been to the farm and seen the pen
+                'approve' => 'Approve a unit',
+                // someone has counted what is in it
+                'confirm' => 'Confirm a count',
+            ],
+        ],
         'ledger-accounts' => [
             'label' => 'Ledger Accounts',
             'actions' => [
@@ -114,6 +127,11 @@ return [
             'farmers.create',
             'farmers.update',
             'farmers.verify',
+            'farm-units.view',
+            'farm-units.create',
+            'farm-units.update',
+            'farm-units.approve',
+            'farm-units.confirm',
             'staff.view',
             'staff.create',
             'staff.update',
@@ -137,6 +155,12 @@ return [
             'farmers.view',
             'farmers.create',
             'farmers.update',
+            // inspecting pens and counting stock is field work, so agents hold all of it
+            'farm-units.view',
+            'farm-units.create',
+            'farm-units.update',
+            'farm-units.approve',
+            'farm-units.confirm',
         ],
     ],
 

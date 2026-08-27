@@ -44,7 +44,8 @@ class FarmerController extends Controller
                 ->paginate(15)
                 ->withQueryString()
                 ->through(fn(FarmerProfile $profile) => [
-                    'id' => $profile->id,
+                    // the browser only ever sees the uuid
+                    'id' => $profile->uuid,
                     'name' => "{$profile->user?->surname} {$profile->user?->first_name}",
                     'phone' => $profile->user?->phone,
                     'phone_verified' => $profile->user?->phone_verified_at !== null,
@@ -325,9 +326,10 @@ class FarmerController extends Controller
             ->when(! $user->hasRole('admin'), fn(Builder $query) => $query->where('assigned_agent_id', $user->id));
     }
 
+    // a farmer they do not hold simply is not there, so nothing is learned by guessing
     private function guardVisibility(User $user, FarmerProfile $farmer): void
     {
-        abort_if(! $user->hasRole('admin') && $farmer->assigned_agent_id !== $user->id, 403);
+        abort_if(! $user->hasRole('admin') && $farmer->assigned_agent_id !== $user->id, 404);
     }
 
     // an agent keeps the farmers they bring in, so the posted value is ignored for them

@@ -37,6 +37,8 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AccountingPeriodController;
 use App\Http\Controllers\Admin\TransactionTemplateController;
 use App\Http\Controllers\Admin\FarmerController;
+use App\Http\Controllers\Admin\FarmUnitController;
+use App\Http\Controllers\Admin\FarmUnitStockController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -154,6 +156,38 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
     Route::middleware('access:farmers.update')->group(function () {
         Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
         Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
+    });
+
+    // farm units
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units', [FarmUnitController::class, 'index'])->name('farm-units.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units', [FarmUnitController::class, 'store'])->name('farm-units.store');
+    });
+
+    Route::middleware('access:farm-units.update')->group(function () {
+        Route::put('/farmers/{farmer}/units/{farmUnit}', [FarmUnitController::class, 'update'])->name('farm-units.update');
+    });
+
+    Route::middleware('access:farm-units.approve')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/approve', [FarmUnitController::class, 'approve'])->name('farm-units.approve');
+    });
+
+    // what is in each unit
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'index'])->name('farm-units.stocks.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'storeStock'])->name('farm-units.stocks.store');
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements', [FarmUnitStockController::class, 'storeMovement'])->name('farm-units.movements.store');
+    });
+
+    Route::middleware('access:farm-units.confirm')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
     });
 });
 
@@ -499,5 +533,37 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     // kept apart from editing, since verifying opens credit scoring and bank facing reports
     Route::middleware('access:farmers.verify')->group(function () {
         Route::patch('/farmers/{farmer}/identity/verify', [FarmerController::class, 'verifyIdentity'])->name('farmers.identity.verify');
+    });
+
+    // farm units
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units', [FarmUnitController::class, 'index'])->name('farm-units.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units', [FarmUnitController::class, 'store'])->name('farm-units.store');
+    });
+
+    Route::middleware('access:farm-units.update')->group(function () {
+        Route::put('/farmers/{farmer}/units/{farmUnit}', [FarmUnitController::class, 'update'])->name('farm-units.update');
+    });
+
+    Route::middleware('access:farm-units.approve')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/approve', [FarmUnitController::class, 'approve'])->name('farm-units.approve');
+    });
+
+    // what is in each unit
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'index'])->name('farm-units.stocks.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'storeStock'])->name('farm-units.stocks.store');
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements', [FarmUnitStockController::class, 'storeMovement'])->name('farm-units.movements.store');
+    });
+
+    Route::middleware('access:farm-units.confirm')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
     });
 });

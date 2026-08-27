@@ -62,7 +62,7 @@ test('an agent sees only farmers assigned to them', function () {
 test('an agent can open a farmer they hold', function () {
     $profile = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agent->id]);
 
-    $this->actingAs($this->agent)->get("/agent/farmers/{$profile->id}")
+    $this->actingAs($this->agent)->get("/agent/farmers/{$profile->uuid}")
         ->assertOk()
         ->assertInertia(fn($page) => $page->component('Admin/Farmers/Show')
             ->where('layout', 'agent'));
@@ -71,7 +71,7 @@ test('an agent can open a farmer they hold', function () {
 test('an agent cannot open a farmer held by someone else', function () {
     $profile = FarmerProfile::factory()->create();
 
-    $this->actingAs($this->agent)->get("/agent/farmers/{$profile->id}")->assertForbidden();
+    $this->actingAs($this->agent)->get("/agent/farmers/{$profile->uuid}")->assertNotFound();
 });
 
 test('an agent can register a farmer here', function () {
@@ -96,7 +96,7 @@ test('an agent can register a farmer here', function () {
 test('an agent can capture a document here', function () {
     $profile = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agent->id]);
 
-    $this->actingAs($this->agent)->post("/agent/farmers/{$profile->id}/identity", [
+    $this->actingAs($this->agent)->post("/agent/farmers/{$profile->uuid}/identity", [
         'identity_type' => 'ghana_card',
         'identity_number' => 'GHA-123456789-0',
     ])->assertSessionDoesntHaveErrors();
@@ -108,7 +108,7 @@ test('an agent can capture a document here', function () {
 test('an agent cannot verify here', function () {
     $profile = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agent->id]);
 
-    $this->actingAs($this->agent)->patch("/agent/farmers/{$profile->id}/identity/verify")->assertNotFound();
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$profile->uuid}/identity/verify")->assertNotFound();
 });
 
 test('an agent can complete a pending profile here', function () {

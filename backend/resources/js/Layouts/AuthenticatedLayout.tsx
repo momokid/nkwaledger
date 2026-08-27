@@ -1,4 +1,4 @@
-import { Link, router, usePage } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     IconBell,
     IconChevronLeft,
@@ -474,6 +474,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
     return (
         <ThemeContext.Provider value={{ dark, toggle: toggleTheme }}>
+            <Head title={title} />
             <FlashMessages />
             <div
                 style={{

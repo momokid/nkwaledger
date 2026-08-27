@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id',
@@ -49,6 +50,21 @@ class FarmerProfile extends Model
             'opening_balance_posted_at' => 'datetime',
             'is_active' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (FarmerProfile $profile) {
+            if ($profile->uuid === null) {
+                $profile->uuid = (string) Str::uuid7();
+            }
+        });
+    }
+
+    // urls carry the uuid, so a farmer cannot be found by counting upward
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 
     // write only, the raw number is hashed on the way in and can never be read back
