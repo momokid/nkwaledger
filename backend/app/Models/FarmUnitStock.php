@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\MovementReason;
 use App\Enums\StockSource;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -42,12 +44,41 @@ class FarmUnitStock extends Model
 
     protected static function booted(): void
     {
-        // a new batch starts with everything it came with
         static::creating(function (FarmUnitStock $stock) {
             if ($stock->current_quantity === null) {
                 $stock->current_quantity = $stock->opening_quantity;
             }
         });
+
+        // the sum has to start somewhere, so the first batch writes its own movement
+        static::created(function (FarmUnitStock $stock) {
+            $stock->movements()->create([
+                'reason' => MovementReason::Opening,
+                'quantity' => $stock->opening_quantity,
+                'is_increase' => true,
+                'occurred_on' => $stock->started_on,
+                'recorded_by' => $stock->recorded_by,
+                'confirmed_at' => $stock->confirmed_at,
+                'confirmed_by' => $stock->confirmed_by,
+            ]);
+        });
+    }
+
+    // the count is the sum of every movement, so it can never drift
+    public function refreshCount(): void
+    {
+        $total = $this->movements()
+            ->get(['quantity', 'is_increase'])
+            ->reduce(
+                fn(float $carry, FarmUnitStockMovement $movement) => $movement->is_increase
+                    ? $carry + (float) $movement->quantity
+                    : $carry - (float) $movement->quantity,
+                0.0,
+            );
+
+        $this->newQuery()->whereKey($this->getKey())->update([
+            'current_quantity' => max($total, 0),
+        ]);
     }
 
     public function isOpeningBalance(): bool
@@ -65,7 +96,6 @@ class FarmUnitStock extends Model
         return $this->confirmed_at !== null;
     }
 
-    // whoever wrote the number down is not the one who checks it
     public function conflictedUserId(): ?int
     {
         return $this->recorded_by;
@@ -92,6 +122,11 @@ class FarmUnitStock extends Model
     public function scopeConfirmed(Builder $query): Builder
     {
         return $query->whereNotNull('confirmed_at');
+    }
+
+    public function movements(): HasMany
+    {
+        return $this->hasMany(FarmUnitStockMovement::class, 'farm_unit_stock_id');
     }
 
     public function farmUnit(): BelongsTo
