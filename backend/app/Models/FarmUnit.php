@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -63,6 +64,11 @@ class FarmUnit extends Model
     public function scopeApproved(Builder $query): Builder
     {
         return $query->whereNotNull('approved_at');
+    }
+
+    public function stocks(): HasMany
+    {
+        return $this->hasMany(FarmUnitStock::class);
     }
 
     public function farmerProfile(): BelongsTo
