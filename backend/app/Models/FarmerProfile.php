@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'user_id',
     'gender',
     'date_of_birth',
+    'home_address',
     'community_id',
     'farmer_group_id',
     'identity_type',
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'identity_verified_at',
     'identity_verified_by',
     'registered_by',
+    'assigned_agent_id',
     'onboarded_at',
     'opening_balance_posted_at',
     'is_active',
@@ -59,6 +61,12 @@ class FarmerProfile extends Model
         );
     }
 
+    // the party who may not vouch for this farmer's document, falling back to whoever typed the row
+    public function conflictedUserId(): ?int
+    {
+        return $this->assigned_agent_id ?? $this->registered_by;
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -87,5 +95,11 @@ class FarmerProfile extends Model
     public function registeredBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registered_by');
+    }
+
+    // the agent who serves this farmer, which is what an agent's list is scoped by
+    public function assignedAgent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_agent_id');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CompleteFarmerProfileRequest;
 use App\Http\Requests\Admin\StoreFarmerIdentityRequest;
 use App\Http\Requests\Admin\StoreFarmerRequest;
 use App\Http\Requests\Admin\UpdateFarmerRequest;
@@ -16,6 +17,8 @@ use App\Services\AuditService;
 use App\Services\OtpService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -36,7 +39,7 @@ class FarmerController extends Controller
 
         return Inertia::render('Admin/Farmers/Index', [
             'farmers' => $this->visibleTo($user)
-                ->with(['user:id,surname,first_name,phone,phone_verified_at', 'community:id,name'])
+                ->with(['user:id,surname,first_name,phone,phone_verified_at', 'community:id,name', 'assignedAgent:id,surname,first_name'])
                 ->orderByDesc('id')
                 ->paginate(15)
                 ->withQueryString()
@@ -46,16 +49,22 @@ class FarmerController extends Controller
                     'phone' => $profile->user?->phone,
                     'phone_verified' => $profile->user?->phone_verified_at !== null,
                     'community' => $profile->community?->name,
+                    'agent' => $profile->assignedAgent
+                        ? "{$profile->assignedAgent->surname} {$profile->assignedAgent->first_name}"
+                        : null,
                     'identity_verified' => $profile->identity_verified_at !== null,
                     'is_active' => $profile->is_active,
                 ]),
+            'pending' => $this->pendingFarmers(),
             'permissions' => [
                 'create' => $this->access->can($user, 'farmers.create'),
                 'update' => $this->access->can($user, 'farmers.update'),
                 'verify' => $this->access->can($user, 'farmers.verify'),
+                'assign' => $user->hasRole('admin'),
             ],
+            'agents' => $this->agentOptions($user),
             'communities' => Community::orderBy('name')->get(['id', 'name']),
-            'farmerGroups' => FarmerGroup::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'farmerGroups' => FarmerGroup::where('is_active', true)->orderBy('name')->get(['id', 'name', 'community_id']),
             'farmTypes' => FarmType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -64,7 +73,15 @@ class FarmerController extends Controller
     {
         $this->guardVisibility($request->user(), $farmer);
 
-        $farmer->load(['user:id,surname,first_name,other_name,phone,phone_verified_at,is_active', 'community:id,name', 'farmerGroup:id,name', 'farmTypes:id,name', 'registeredBy:id,surname,first_name', 'identityVerifiedBy:id,surname,first_name']);
+        $farmer->load([
+            'user:id,surname,first_name,other_name,phone,phone_verified_at,is_active',
+            'community:id,name',
+            'farmerGroup:id,name',
+            'farmTypes:id,name',
+            'registeredBy:id,surname,first_name',
+            'assignedAgent:id,surname,first_name',
+            'identityVerifiedBy:id,surname,first_name',
+        ]);
 
         return Inertia::render('Admin/Farmers/Show', [
             'farmer' => [
@@ -74,9 +91,14 @@ class FarmerController extends Controller
                 'phone_verified' => $farmer->user?->phone_verified_at !== null,
                 'gender' => $farmer->gender,
                 'date_of_birth' => $farmer->date_of_birth,
+                'home_address' => $farmer->home_address,
                 'community_id' => $farmer->community_id,
                 'community' => $farmer->community?->name,
                 'farmer_group_id' => $farmer->farmer_group_id,
+                'assigned_agent_id' => $farmer->assigned_agent_id,
+                'agent' => $farmer->assignedAgent
+                    ? "{$farmer->assignedAgent->surname} {$farmer->assignedAgent->first_name}"
+                    : null,
                 'farm_type_ids' => $farmer->farmTypes->pluck('id'),
                 'farm_types' => $farmer->farmTypes->pluck('name'),
                 'identity_type' => $farmer->identity_type?->value,
@@ -89,10 +111,13 @@ class FarmerController extends Controller
             ],
             'permissions' => [
                 'update' => $this->access->can($request->user(), 'farmers.update'),
-                'verify' => $this->access->can($request->user(), 'farmers.verify'),
+                'verify' => $this->access->can($request->user(), 'farmers.verify')
+                    && $farmer->conflictedUserId() !== $request->user()->id,
+                'assign' => $request->user()->hasRole('admin'),
             ],
+            'agents' => $this->agentOptions($request->user()),
             'communities' => Community::orderBy('name')->get(['id', 'name']),
-            'farmerGroups' => FarmerGroup::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'farmerGroups' => FarmerGroup::where('is_active', true)->orderBy('name')->get(['id', 'name', 'community_id']),
             'farmTypes' => FarmType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -100,8 +125,9 @@ class FarmerController extends Controller
     public function store(StoreFarmerRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $actor = $request->user();
 
-        $user = DB::transaction(function () use ($data, $request) {
+        $user = DB::transaction(function () use ($data, $actor) {
             $user = User::create([
                 'surname' => $data['surname'],
                 'first_name' => $data['first_name'],
@@ -116,9 +142,11 @@ class FarmerController extends Controller
                 'user_id' => $user->id,
                 'gender' => $data['gender'] ?? null,
                 'date_of_birth' => $data['date_of_birth'] ?? null,
+                'home_address' => $data['home_address'] ?? null,
                 'community_id' => $data['community_id'],
                 'farmer_group_id' => $data['farmer_group_id'] ?? null,
-                'registered_by' => $request->user()->id,
+                'registered_by' => $actor->id,
+                'assigned_agent_id' => $this->agentFor($actor, $data['assigned_agent_id'] ?? null),
                 'onboarded_at' => now(),
             ]);
 
@@ -133,6 +161,56 @@ class FarmerController extends Controller
         return back()->with('success', "{$user->first_name} is registered. We sent a code to their phone to confirm the number.");
     }
 
+    public function complete(Request $request, int $user): Response
+    {
+        $account = $this->pendingAccount($user);
+
+        return Inertia::render('Admin/Farmers/Complete', [
+            'account' => [
+                'id' => $account->id,
+                'surname' => $account->surname,
+                'first_name' => $account->first_name,
+                'other_name' => $account->other_name,
+                'phone' => $account->phone,
+                'phone_verified' => $account->phone_verified_at !== null,
+            ],
+            'permissions' => [
+                'assign' => $request->user()->hasRole('admin'),
+            ],
+            'agents' => $this->agentOptions($request->user()),
+            'communities' => Community::orderBy('name')->get(['id', 'name']),
+            'farmerGroups' => FarmerGroup::where('is_active', true)->orderBy('name')->get(['id', 'name', 'community_id']),
+            'farmTypes' => FarmType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function storeComplete(CompleteFarmerProfileRequest $request, int $user): RedirectResponse
+    {
+        $account = $this->pendingAccount($user);
+
+        $data = $request->validated();
+        $actor = $request->user();
+
+        DB::transaction(function () use ($account, $data, $actor) {
+            $profile = FarmerProfile::create([
+                'user_id' => $account->id,
+                'gender' => $data['gender'] ?? null,
+                'date_of_birth' => $data['date_of_birth'] ?? null,
+                'home_address' => $data['home_address'] ?? null,
+                'community_id' => $data['community_id'],
+                'farmer_group_id' => $data['farmer_group_id'] ?? null,
+                'registered_by' => $actor->id,
+                'assigned_agent_id' => $this->agentFor($actor, $data['assigned_agent_id'] ?? null),
+                'onboarded_at' => now(),
+            ]);
+
+            $profile->farmTypes()->sync($data['farm_type_ids']);
+        });
+
+        return redirect('/admin/farmers')
+            ->with('success', "{$account->first_name}'s profile is complete.");
+    }
+
     public function update(UpdateFarmerRequest $request, FarmerProfile $farmer): RedirectResponse
     {
         $this->guardVisibility($request->user(), $farmer);
@@ -142,8 +220,13 @@ class FarmerController extends Controller
         $farmer->update([
             'gender' => $data['gender'] ?? null,
             'date_of_birth' => $data['date_of_birth'] ?? null,
+            'home_address' => $data['home_address'] ?? null,
             'community_id' => $data['community_id'],
             'farmer_group_id' => $data['farmer_group_id'] ?? null,
+            // only an admin moves a farmer between agents, so anyone else keeps the current holder
+            'assigned_agent_id' => $request->user()->hasRole('admin')
+                ? ($data['assigned_agent_id'] ?? null)
+                : $farmer->assigned_agent_id,
             'is_active' => $data['is_active'],
         ]);
 
@@ -179,10 +262,10 @@ class FarmerController extends Controller
             ]);
         }
 
-        // the person who registered a farmer cannot also vouch for their document
-        if ($farmer->registered_by === $request->user()->id) {
+        // whoever serves this farmer cannot also vouch for their document
+        if ($farmer->conflictedUserId() === $request->user()->id) {
             throw ValidationException::withMessages([
-                'identity_number' => 'Someone other than the person who registered this farmer needs to verify the document.',
+                'identity_number' => 'Someone other than the person who holds this farmer needs to verify the document.',
             ]);
         }
 
@@ -196,15 +279,57 @@ class FarmerController extends Controller
         return back()->with('success', 'The document is verified.');
     }
 
-    // an agent sees only the farmers they brought in; an admin sees the whole book
+    // a farmer account with no profile, which is what signing up on its own leaves behind
+    private function pendingAccount(int $id): User
+    {
+        return User::role('farmer')
+            ->whereDoesntHave('farmerProfile')
+            ->whereKey($id)
+            ->firstOrFail();
+    }
+
+    // nobody holds these yet, so every user who may register sees the whole list
+    private function pendingFarmers(): SupportCollection
+    {
+        return User::role('farmer')
+            ->whereDoesntHave('farmerProfile')
+            ->orderBy('surname')
+            ->get(['id', 'surname', 'first_name', 'phone', 'phone_verified_at'])
+            ->map(fn(User $user) => [
+                'id' => $user->id,
+                'name' => "{$user->surname} {$user->first_name}",
+                'phone' => $user->phone,
+                'phone_verified' => $user->phone_verified_at !== null,
+            ]);
+    }
+
+    // an agent sees the farmers they hold; an admin sees the whole book
     private function visibleTo(User $user): Builder
     {
         return FarmerProfile::query()
-            ->when(! $user->hasRole('admin'), fn(Builder $query) => $query->where('registered_by', $user->id));
+            ->when(! $user->hasRole('admin'), fn(Builder $query) => $query->where('assigned_agent_id', $user->id));
     }
 
     private function guardVisibility(User $user, FarmerProfile $farmer): void
     {
-        abort_if(! $user->hasRole('admin') && $farmer->registered_by !== $user->id, 403);
+        abort_if(! $user->hasRole('admin') && $farmer->assigned_agent_id !== $user->id, 403);
+    }
+
+    // an agent keeps the farmers they bring in, so the posted value is ignored for them
+    private function agentFor(User $actor, ?int $chosen): ?int
+    {
+        return $actor->hasRole('admin') ? $chosen : $actor->id;
+    }
+
+    private function agentOptions(User $user): Collection
+    {
+        if (! $user->hasRole('admin')) {
+            return new Collection();
+        }
+
+        return User::role('agent')
+            ->where('is_active', true)
+            ->orderBy('surname')
+            ->get(['id', 'surname', 'first_name']);
     }
 }

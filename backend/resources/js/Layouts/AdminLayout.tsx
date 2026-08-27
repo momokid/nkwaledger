@@ -22,6 +22,7 @@ import {
     IconHistory,
     IconCalendar,
     IconArrowsExchange,
+    IconUserCheck,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
@@ -73,6 +74,11 @@ const navItems: NavEntry[] = [
                 label: "Farmer Groups",
                 routeName: "admin.farmer-groups.index",
                 icon: IconUsersGroup,
+            },
+            {
+                label: "Farmers Account",
+                routeName: "admin.farmers.index",
+                icon: IconUserCheck,
             },
         ],
     },

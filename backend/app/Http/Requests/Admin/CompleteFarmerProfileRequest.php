@@ -3,32 +3,20 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\User;
-use App\Support\Phone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreFarmerRequest extends FormRequest
+class CompleteFarmerProfileRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
     }
 
-    // matches the spelling the model stores, so the unique check cannot be sidestepped by formatting
-    protected function prepareForValidation(): void
-    {
-        if ($this->filled('phone')) {
-            $this->merge(['phone' => Phone::normalise($this->input('phone')) ?? $this->input('phone')]);
-        }
-    }
-
+    // no name or phone fields here, so an agent completing a profile cannot move the account
     public function rules(): array
     {
         return [
-            'surname' => ['required', 'string', 'max:100'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'other_name' => ['nullable', 'string', 'max:100'],
-            'phone' => ['required', 'string', 'max:20', Rule::unique(User::class, 'phone')],
             'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'home_address' => ['nullable', 'string', 'max:255'],
@@ -64,7 +52,6 @@ class StoreFarmerRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'phone.unique' => 'This phone number already belongs to an account. Try searching for the farmer instead.',
             'community_id.required' => 'Please choose the community this farmer works in.',
             'farm_type_ids.required' => 'Please choose at least one thing this farmer produces.',
             'farm_type_ids.min' => 'Please choose at least one thing this farmer produces.',

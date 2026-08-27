@@ -245,6 +245,10 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:farmer-groups.view')->group(function () {
         Route::get('/farmer-groups', [FarmerGroupController::class, 'index'])
             ->name('farmer-groups.index');
+
+        // feeds the cascading group picker once a community is chosen
+        Route::get('/farmer-groups/by-community/{community}', [FarmerGroupController::class, 'byCommunity'])
+            ->name('farmer-groups.by-community');
     });
 
     Route::middleware('access:farmer-groups.create')->group(function () {
@@ -453,13 +457,17 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     });
 
     // farmers
+    Route::middleware('access:farmers.create')->group(function () {
+        Route::post('/farmers', [FarmerController::class, 'store'])->name('farmers.store');
+
+        // declared before the {farmer} routes so the word pending is never read as a profile id
+        Route::get('/farmers/pending/{user}', [FarmerController::class, 'complete'])->name('farmers.complete');
+        Route::post('/farmers/pending/{user}', [FarmerController::class, 'storeComplete'])->name('farmers.complete.store');
+    });
+
     Route::middleware('access:farmers.view')->group(function () {
         Route::get('/farmers', [FarmerController::class, 'index'])->name('farmers.index');
         Route::get('/farmers/{farmer}', [FarmerController::class, 'show'])->name('farmers.show');
-    });
-
-    Route::middleware('access:farmers.create')->group(function () {
-        Route::post('/farmers', [FarmerController::class, 'store'])->name('farmers.store');
     });
 
     Route::middleware('access:farmers.update')->group(function () {
