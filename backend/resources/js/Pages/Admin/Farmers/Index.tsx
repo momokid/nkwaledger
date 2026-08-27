@@ -3,11 +3,21 @@ import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 interface Option {
     id: number;
     name: string;
+}
+
+interface GroupOption extends Option {
+    community_id: number;
+}
+
+interface AgentOption {
+    id: number;
+    surname: string;
+    first_name: string;
 }
 
 interface FarmerRow {
@@ -16,8 +26,16 @@ interface FarmerRow {
     phone: string | null;
     phone_verified: boolean;
     community: string | null;
+    agent: string | null;
     identity_verified: boolean;
     is_active: boolean;
+}
+
+interface PendingRow {
+    id: number;
+    name: string;
+    phone: string | null;
+    phone_verified: boolean;
 }
 
 interface PaginationLink {
@@ -28,10 +46,17 @@ interface PaginationLink {
 
 interface Props extends PageProps {
     farmers: { data: FarmerRow[]; links: PaginationLink[] };
+    pending: PendingRow[];
     communities: Option[];
-    farmerGroups: Option[];
+    farmerGroups: GroupOption[];
     farmTypes: Option[];
-    permissions: { create: boolean; update: boolean; verify: boolean };
+    agents: AgentOption[];
+    permissions: {
+        create: boolean;
+        update: boolean;
+        verify: boolean;
+        assign: boolean;
+    };
 }
 
 export default function Index(props: Props) {
@@ -44,14 +69,22 @@ export default function Index(props: Props) {
 
 type ContentProps = Pick<
     Props,
-    "farmers" | "communities" | "farmerGroups" | "farmTypes" | "permissions"
+    | "farmers"
+    | "pending"
+    | "communities"
+    | "farmerGroups"
+    | "farmTypes"
+    | "agents"
+    | "permissions"
 >;
 
 function IndexContent({
     farmers,
+    pending,
     communities,
     farmerGroups,
     farmTypes,
+    agents,
     permissions,
 }: ContentProps) {
     const { errors } = usePage<Props>().props;
@@ -64,6 +97,7 @@ function IndexContent({
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
     const headerBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
+    const pendingBg = dark ? "rgba(180,83,9,0.15)" : "#FEF6E7";
     const headerText = "#1D9E75";
 
     const [showForm, setShowForm] = useState(false);
@@ -85,10 +119,22 @@ function IndexContent({
         phone: "",
         gender: "",
         date_of_birth: "",
+        home_address: "",
         community_id: "",
         farmer_group_id: "",
+        assigned_agent_id: "",
         farm_type_ids: [] as number[],
     });
+
+    // a group belongs to one community, so the list only makes sense once a community is chosen
+    const groupOptions = useMemo(
+        () =>
+            farmerGroups.filter(
+                (group) =>
+                    String(group.community_id) === form.data.community_id,
+            ),
+        [farmerGroups, form.data.community_id],
+    );
 
     const toggleFarmType = (id: number) => {
         const chosen = form.data.farm_type_ids.includes(id)
@@ -126,23 +172,106 @@ function IndexContent({
         border: `1px solid ${inputBorder}`,
     };
     const errorStyle = { color: "#DC2626", fontSize: "15px", marginTop: "4px" };
+    const buttonStyle = {
+        background: "#1D9E75",
+        color: "#FFFFFF",
+        border: "none",
+        padding: "10px 20px",
+        fontSize: "17px",
+        fontWeight: 600,
+        cursor: "pointer",
+    };
 
-    const columnCount = permissions.update ? 6 : 5;
+    const columnCount = permissions.update ? 7 : 6;
 
     return (
         <div className="space-y-6">
+            {pending.length > 0 && permissions.create && (
+                <div
+                    style={{
+                        background: surface,
+                        border: `1px solid ${border}`,
+                    }}
+                >
+                    <div
+                        style={{ background: pendingBg, padding: "12px 16px" }}
+                    >
+                        <p
+                            style={{
+                                color: text,
+                                fontSize: "18px",
+                                fontWeight: 700,
+                            }}
+                        >
+                            Waiting for a farm profile
+                        </p>
+                        <p style={{ color: textSecondary, fontSize: "15px" }}>
+                            These farmers signed up on their own. They cannot
+                            record anything until their profile is filled in.
+                        </p>
+                    </div>
+
+                    <table className="min-w-full" style={{ fontSize: "18px" }}>
+                        <tbody>
+                            {pending.map((row) => (
+                                <tr
+                                    key={row.id}
+                                    style={{ borderTop: `1px solid ${border}` }}
+                                >
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {row.name}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {row.phone}
+                                        {!row.phone_verified && (
+                                            <span
+                                                style={{
+                                                    color: "#B45309",
+                                                    fontSize: "15px",
+                                                    display: "block",
+                                                }}
+                                            >
+                                                Not confirmed yet
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <button
+                                            onClick={() =>
+                                                router.visit(
+                                                    `/admin/farmers/pending/${row.id}`,
+                                                )
+                                            }
+                                            style={{
+                                                background: "none",
+                                                border: "none",
+                                                color: headerText,
+                                                fontSize: "17px",
+                                                fontWeight: 600,
+                                                cursor: "pointer",
+                                                padding: 0,
+                                            }}
+                                        >
+                                            Fill in profile
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
             {permissions.create && (
                 <button
                     onClick={() => setShowForm(!showForm)}
-                    style={{
-                        background: "#1D9E75",
-                        color: "#FFFFFF",
-                        border: "none",
-                        padding: "10px 20px",
-                        fontSize: "17px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                    }}
+                    style={buttonStyle}
                 >
                     {showForm ? "Close" : "Register a farmer"}
                 </button>
@@ -275,15 +404,40 @@ function IndexContent({
                         </div>
 
                         <div>
-                            <label style={labelStyle}>Home community</label>
-                            <select
-                                value={form.data.community_id}
+                            <label style={labelStyle}>Home address</label>
+                            <input
+                                value={form.data.home_address}
                                 onChange={(event) =>
                                     form.setData(
-                                        "community_id",
+                                        "home_address",
                                         event.target.value,
                                     )
                                 }
+                                placeholder="Where the farmer lives"
+                                style={fieldStyle}
+                            />
+                            {(form.errors.home_address ||
+                                errors.home_address) && (
+                                <p style={errorStyle}>
+                                    {form.errors.home_address ||
+                                        errors.home_address}
+                                </p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label style={labelStyle}>
+                                Community the farm is in
+                            </label>
+                            <select
+                                value={form.data.community_id}
+                                onChange={(event) => {
+                                    form.setData(
+                                        "community_id",
+                                        event.target.value,
+                                    );
+                                    form.setData("farmer_group_id", "");
+                                }}
                                 style={fieldStyle}
                             >
                                 <option value="">Choose a community</option>
@@ -315,10 +469,15 @@ function IndexContent({
                                         event.target.value,
                                     )
                                 }
+                                disabled={!form.data.community_id}
                                 style={fieldStyle}
                             >
-                                <option value="">None</option>
-                                {farmerGroups.map((group) => (
+                                <option value="">
+                                    {form.data.community_id
+                                        ? "None"
+                                        : "Choose a community first"}
+                                </option>
+                                {groupOptions.map((group) => (
                                     <option key={group.id} value={group.id}>
                                         {group.name}
                                     </option>
@@ -332,6 +491,36 @@ function IndexContent({
                                 </p>
                             )}
                         </div>
+
+                        {permissions.assign && (
+                            <div>
+                                <label style={labelStyle}>Agent</label>
+                                <select
+                                    value={form.data.assigned_agent_id}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            "assigned_agent_id",
+                                            event.target.value,
+                                        )
+                                    }
+                                    style={fieldStyle}
+                                >
+                                    <option value="">Not assigned yet</option>
+                                    {agents.map((agent) => (
+                                        <option key={agent.id} value={agent.id}>
+                                            {agent.surname} {agent.first_name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {(form.errors.assigned_agent_id ||
+                                    errors.assigned_agent_id) && (
+                                    <p style={errorStyle}>
+                                        {form.errors.assigned_agent_id ||
+                                            errors.assigned_agent_id}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -382,13 +571,7 @@ function IndexContent({
                         type="submit"
                         disabled={form.processing}
                         style={{
-                            background: "#1D9E75",
-                            color: "#FFFFFF",
-                            border: "none",
-                            padding: "10px 20px",
-                            fontSize: "17px",
-                            fontWeight: 600,
-                            cursor: form.processing ? "not-allowed" : "pointer",
+                            ...buttonStyle,
                             opacity: form.processing ? 0.7 : 1,
                         }}
                     >
@@ -412,6 +595,9 @@ function IndexContent({
                             </th>
                             <th className="text-left px-4 py-3" style={thStyle}>
                                 Community
+                            </th>
+                            <th className="text-left px-4 py-3" style={thStyle}>
+                                Agent
                             </th>
                             <th className="text-left px-4 py-3" style={thStyle}>
                                 Document
@@ -485,8 +671,18 @@ function IndexContent({
                                     <td
                                         className="px-4 py-3"
                                         style={{
+                                            color: farmer.agent
+                                                ? text
+                                                : "#B45309",
+                                        }}
+                                    >
+                                        {farmer.agent ?? "Not assigned"}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{
                                             color: farmer.identity_verified
-                                                ? "#1D9E75"
+                                                ? headerText
                                                 : textSecondary,
                                         }}
                                     >

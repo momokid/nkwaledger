@@ -2,11 +2,21 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent } from "react";
+import { FormEvent, useMemo } from "react";
 
 interface Option {
     id: number;
     name: string;
+}
+
+interface GroupOption extends Option {
+    community_id: number;
+}
+
+interface AgentOption {
+    id: number;
+    surname: string;
+    first_name: string;
 }
 
 interface FarmerData {
@@ -16,9 +26,12 @@ interface FarmerData {
     phone_verified: boolean;
     gender: string | null;
     date_of_birth: string | null;
+    home_address: string | null;
     community_id: number;
     community: string | null;
     farmer_group_id: number | null;
+    assigned_agent_id: number | null;
+    agent: string | null;
     farm_type_ids: number[];
     farm_types: string[];
     identity_type: string | null;
@@ -33,9 +46,10 @@ interface FarmerData {
 interface Props extends PageProps {
     farmer: FarmerData;
     communities: Option[];
-    farmerGroups: Option[];
+    farmerGroups: GroupOption[];
     farmTypes: Option[];
-    permissions: { update: boolean; verify: boolean };
+    agents: AgentOption[];
+    permissions: { update: boolean; verify: boolean; assign: boolean };
 }
 
 export default function Show(props: Props) {
@@ -48,7 +62,12 @@ export default function Show(props: Props) {
 
 type ContentProps = Pick<
     Props,
-    "farmer" | "communities" | "farmerGroups" | "farmTypes" | "permissions"
+    | "farmer"
+    | "communities"
+    | "farmerGroups"
+    | "farmTypes"
+    | "agents"
+    | "permissions"
 >;
 
 function ShowContent({
@@ -56,6 +75,7 @@ function ShowContent({
     communities,
     farmerGroups,
     farmTypes,
+    agents,
     permissions,
 }: ContentProps) {
     const { errors } = usePage<Props>().props;
@@ -74,9 +94,13 @@ function ShowContent({
         date_of_birth: farmer.date_of_birth
             ? farmer.date_of_birth.slice(0, 10)
             : "",
+        home_address: farmer.home_address ?? "",
         community_id: String(farmer.community_id),
         farmer_group_id: farmer.farmer_group_id
             ? String(farmer.farmer_group_id)
+            : "",
+        assigned_agent_id: farmer.assigned_agent_id
+            ? String(farmer.assigned_agent_id)
             : "",
         farm_type_ids: farmer.farm_type_ids,
         is_active: farmer.is_active,
@@ -86,6 +110,16 @@ function ShowContent({
         identity_type: farmer.identity_type ?? "",
         identity_number: "",
     });
+
+    // a group belongs to one community, so changing the community empties the group choice
+    const groupOptions = useMemo(
+        () =>
+            farmerGroups.filter(
+                (group) =>
+                    String(group.community_id) === details.data.community_id,
+            ),
+        [farmerGroups, details.data.community_id],
+    );
 
     const toggleFarmType = (id: number) => {
         const chosen = details.data.farm_type_ids.includes(id)
@@ -147,7 +181,6 @@ function ShowContent({
         cursor: "pointer",
     };
 
-    // the person who registered a farmer may not vouch for the document, so the button is not offered to them
     const canVerifyNow =
         permissions.verify &&
         farmer.has_identity &&
@@ -184,8 +217,16 @@ function ShowContent({
                     )}
                 </p>
                 <p style={{ color: textSecondary, fontSize: "16px" }}>
-                    {farmer.community} · Registered by{" "}
+                    Farms in {farmer.community} · Registered by{" "}
                     {farmer.registered_by ?? "themselves"}
+                </p>
+                <p
+                    style={{
+                        color: farmer.agent ? textSecondary : "#B45309",
+                        fontSize: "16px",
+                    }}
+                >
+                    Agent: {farmer.agent ?? "not assigned"}
                 </p>
                 <p style={{ color: textSecondary, fontSize: "16px" }}>
                     Produces: {farmer.farm_types.join(", ") || "not yet stated"}
@@ -247,15 +288,41 @@ function ShowContent({
                     </div>
 
                     <div>
-                        <label style={labelStyle}>Home community</label>
-                        <select
-                            value={details.data.community_id}
+                        <label style={labelStyle}>Home address</label>
+                        <input
+                            value={details.data.home_address}
                             onChange={(event) =>
                                 details.setData(
-                                    "community_id",
+                                    "home_address",
                                     event.target.value,
                                 )
                             }
+                            disabled={!permissions.update}
+                            placeholder="Where the farmer lives"
+                            style={fieldStyle}
+                        />
+                        {(details.errors.home_address ||
+                            errors.home_address) && (
+                            <p style={errorStyle}>
+                                {details.errors.home_address ||
+                                    errors.home_address}
+                            </p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label style={labelStyle}>
+                            Community the farm is in
+                        </label>
+                        <select
+                            value={details.data.community_id}
+                            onChange={(event) => {
+                                details.setData(
+                                    "community_id",
+                                    event.target.value,
+                                );
+                                details.setData("farmer_group_id", "");
+                            }}
                             disabled={!permissions.update}
                             style={fieldStyle}
                         >
@@ -288,7 +355,7 @@ function ShowContent({
                             style={fieldStyle}
                         >
                             <option value="">None</option>
-                            {farmerGroups.map((group) => (
+                            {groupOptions.map((group) => (
                                 <option key={group.id} value={group.id}>
                                     {group.name}
                                 </option>
@@ -302,6 +369,37 @@ function ShowContent({
                             </p>
                         )}
                     </div>
+
+                    {permissions.assign && (
+                        <div>
+                            <label style={labelStyle}>Agent</label>
+                            <select
+                                value={details.data.assigned_agent_id}
+                                onChange={(event) =>
+                                    details.setData(
+                                        "assigned_agent_id",
+                                        event.target.value,
+                                    )
+                                }
+                                disabled={!permissions.update}
+                                style={fieldStyle}
+                            >
+                                <option value="">Not assigned yet</option>
+                                {agents.map((agent) => (
+                                    <option key={agent.id} value={agent.id}>
+                                        {agent.surname} {agent.first_name}
+                                    </option>
+                                ))}
+                            </select>
+                            {(details.errors.assigned_agent_id ||
+                                errors.assigned_agent_id) && (
+                                <p style={errorStyle}>
+                                    {details.errors.assigned_agent_id ||
+                                        errors.assigned_agent_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div>
