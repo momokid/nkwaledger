@@ -56,6 +56,7 @@ class FarmerController extends Controller
                     'is_active' => $profile->is_active,
                 ]),
             'pending' => $this->pendingFarmers(),
+            ...$this->frame($request),
             'permissions' => [
                 'create' => $this->access->can($user, 'farmers.create'),
                 'update' => $this->access->can($user, 'farmers.update'),
@@ -109,6 +110,7 @@ class FarmerController extends Controller
                 'registered_by' => $farmer->registeredBy?->surname,
                 'is_active' => $farmer->is_active,
             ],
+            ...$this->frame($request),
             'permissions' => [
                 'update' => $this->access->can($request->user(), 'farmers.update'),
                 'verify' => $this->access->can($request->user(), 'farmers.verify')
@@ -174,6 +176,7 @@ class FarmerController extends Controller
                 'phone' => $account->phone,
                 'phone_verified' => $account->phone_verified_at !== null,
             ],
+            ...$this->frame($request),
             'permissions' => [
                 'assign' => $request->user()->hasRole('admin'),
             ],
@@ -207,7 +210,7 @@ class FarmerController extends Controller
             $profile->farmTypes()->sync($data['farm_type_ids']);
         });
 
-        return redirect('/admin/farmers')
+        return redirect($this->frame($request)['basePath'])
             ->with('success', "{$account->first_name}'s profile is complete.");
     }
 
@@ -301,6 +304,18 @@ class FarmerController extends Controller
                 'phone' => $user->phone,
                 'phone_verified' => $user->phone_verified_at !== null,
             ]);
+    }
+
+    // the frame and the address the current route group belongs to, so one page serves both
+    private function frame(Request $request): array
+    {
+        $name = $request->route()?->getName() ?? '';
+        $group = str_starts_with($name, 'agent.') ? 'agent' : 'admin';
+
+        return [
+            'layout' => $group,
+            'basePath' => "/{$group}/farmers",
+        ];
     }
 
     // an agent sees the farmers they hold; an admin sees the whole book

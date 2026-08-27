@@ -1,9 +1,9 @@
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
 interface Option {
     id: number;
@@ -51,6 +51,8 @@ interface Props extends PageProps {
     farmerGroups: GroupOption[];
     farmTypes: Option[];
     agents: AgentOption[];
+    layout: "admin" | "agent";
+    basePath: string;
     permissions: {
         create: boolean;
         update: boolean;
@@ -59,11 +61,28 @@ interface Props extends PageProps {
     };
 }
 
+// the same page wears whichever frame the current route group belongs to
+function Frame({
+    layout,
+    title,
+    children,
+}: {
+    layout: "admin" | "agent";
+    title: string;
+    children: ReactNode;
+}) {
+    if (layout === "agent") {
+        return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+    }
+
+    return <AdminLayout title={title}>{children}</AdminLayout>;
+}
+
 export default function Index(props: Props) {
     return (
-        <AdminLayout title="Farmers">
+        <Frame layout={props.layout} title="Farmers">
             <IndexContent {...props} />
-        </AdminLayout>
+        </Frame>
     );
 }
 
@@ -75,6 +94,7 @@ type ContentProps = Pick<
     | "farmerGroups"
     | "farmTypes"
     | "agents"
+    | "basePath"
     | "permissions"
 >;
 
@@ -85,6 +105,7 @@ function IndexContent({
     farmerGroups,
     farmTypes,
     agents,
+    basePath,
     permissions,
 }: ContentProps) {
     const { errors } = usePage<Props>().props;
@@ -146,7 +167,7 @@ function IndexContent({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        form.post("/admin/farmers", {
+        form.post(basePath, {
             preserveScroll: true,
             onSuccess: () => {
                 form.reset();
@@ -245,7 +266,7 @@ function IndexContent({
                                         <button
                                             onClick={() =>
                                                 router.visit(
-                                                    `/admin/farmers/pending/${row.id}`,
+                                                    `${basePath}/pending/${row.id}`,
                                                 )
                                             }
                                             style={{
@@ -707,7 +728,7 @@ function IndexContent({
                                             <button
                                                 onClick={() =>
                                                     router.visit(
-                                                        `/admin/farmers/${farmer.id}`,
+                                                        `${basePath}/${farmer.id}`,
                                                     )
                                                 }
                                                 style={{

@@ -16,6 +16,7 @@ import {
     IconSun,
     IconUser,
     IconUserCircle,
+    IconUserCheck,
 } from "@tabler/icons-react";
 import {
     createContext,
@@ -56,6 +57,12 @@ const navMain: NavItem[] = [
         href: "/farmer/dashboard",
         icon: IconLayoutDashboard,
         roles: ["farmer", "agent", "vet", "adviser", "admin", "supplier"],
+    },
+    {
+        label: "Farmers",
+        href: "/agent/farmers",
+        icon: IconUserCheck,
+        roles: ["agent"],
     },
     {
         label: "Ledger",

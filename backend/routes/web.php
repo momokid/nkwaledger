@@ -136,6 +136,27 @@ Route::middleware('auth')->group(function () {
         ->name('otp.phone.confirm');
 });
 
+// the agent's own address for the same controller, so the frame and the url match their role
+Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->group(function () {
+    Route::middleware('access:farmers.create')->group(function () {
+        Route::post('/farmers', [FarmerController::class, 'store'])->name('farmers.store');
+
+        // declared before the {farmer} routes so the word pending is never read as a profile id
+        Route::get('/farmers/pending/{user}', [FarmerController::class, 'complete'])->name('farmers.complete');
+        Route::post('/farmers/pending/{user}', [FarmerController::class, 'storeComplete'])->name('farmers.complete.store');
+    });
+
+    Route::middleware('access:farmers.view')->group(function () {
+        Route::get('/farmers', [FarmerController::class, 'index'])->name('farmers.index');
+        Route::get('/farmers/{farmer}', [FarmerController::class, 'show'])->name('farmers.show');
+    });
+
+    Route::middleware('access:farmers.update')->group(function () {
+        Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
+        Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
+    });
+});
+
 // role-gated: only the admin role may reach these, regardless of any permission grant
 Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])

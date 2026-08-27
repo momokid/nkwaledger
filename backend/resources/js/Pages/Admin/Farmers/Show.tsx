@@ -1,8 +1,8 @@
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent, useMemo } from "react";
+import { FormEvent, ReactNode, useMemo } from "react";
 
 interface Option {
     id: number;
@@ -49,14 +49,33 @@ interface Props extends PageProps {
     farmerGroups: GroupOption[];
     farmTypes: Option[];
     agents: AgentOption[];
+    layout: "admin" | "agent";
+    basePath: string;
     permissions: { update: boolean; verify: boolean; assign: boolean };
+}
+
+// the same page wears whichever frame the current route group belongs to
+function Frame({
+    layout,
+    title,
+    children,
+}: {
+    layout: "admin" | "agent";
+    title: string;
+    children: ReactNode;
+}) {
+    if (layout === "agent") {
+        return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+    }
+
+    return <AdminLayout title={title}>{children}</AdminLayout>;
 }
 
 export default function Show(props: Props) {
     return (
-        <AdminLayout title={props.farmer.name}>
+        <Frame layout={props.layout} title={props.farmer.name}>
             <ShowContent {...props} />
-        </AdminLayout>
+        </Frame>
     );
 }
 
@@ -67,6 +86,7 @@ type ContentProps = Pick<
     | "farmerGroups"
     | "farmTypes"
     | "agents"
+    | "basePath"
     | "permissions"
 >;
 
@@ -76,6 +96,7 @@ function ShowContent({
     farmerGroups,
     farmTypes,
     agents,
+    basePath,
     permissions,
 }: ContentProps) {
     const { errors } = usePage<Props>().props;
@@ -131,12 +152,12 @@ function ShowContent({
 
     const saveDetails = (event: FormEvent) => {
         event.preventDefault();
-        details.put(`/admin/farmers/${farmer.id}`, { preserveScroll: true });
+        details.put(`${basePath}/${farmer.id}`, { preserveScroll: true });
     };
 
     const saveIdentity = (event: FormEvent) => {
         event.preventDefault();
-        identity.post(`/admin/farmers/${farmer.id}/identity`, {
+        identity.post(`${basePath}/${farmer.id}/identity`, {
             preserveScroll: true,
             onSuccess: () => identity.setData("identity_number", ""),
         });
@@ -144,7 +165,7 @@ function ShowContent({
 
     const verify = () => {
         router.patch(
-            `/admin/farmers/${farmer.id}/identity/verify`,
+            `${basePath}/${farmer.id}/identity/verify`,
             {},
             { preserveScroll: true },
         );
@@ -189,7 +210,7 @@ function ShowContent({
     return (
         <div className="space-y-6">
             <button
-                onClick={() => router.visit("/admin/farmers")}
+                onClick={() => router.visit(basePath)}
                 style={{
                     background: "none",
                     border: "none",

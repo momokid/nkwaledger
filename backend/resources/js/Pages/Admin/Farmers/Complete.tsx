@@ -1,8 +1,8 @@
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useMemo } from "react";
 
 interface Option {
     id: number;
@@ -34,14 +34,33 @@ interface Props extends PageProps {
     farmerGroups: GroupOption[];
     farmTypes: Option[];
     agents: AgentOption[];
+    layout: "admin" | "agent";
+    basePath: string;
     permissions: { assign: boolean };
+}
+
+// the same page wears whichever frame the current route group belongs to
+function Frame({
+    layout,
+    title,
+    children,
+}: {
+    layout: "admin" | "agent";
+    title: string;
+    children: ReactNode;
+}) {
+    if (layout === "agent") {
+        return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+    }
+
+    return <AdminLayout title={title}>{children}</AdminLayout>;
 }
 
 export default function Complete(props: Props) {
     return (
-        <AdminLayout title="Complete a farmer profile">
+        <Frame layout={props.layout} title="Complete a farmer profile">
             <CompleteContent {...props} />
-        </AdminLayout>
+        </Frame>
     );
 }
 
@@ -52,6 +71,7 @@ type ContentProps = Pick<
     | "farmerGroups"
     | "farmTypes"
     | "agents"
+    | "basePath"
     | "permissions"
 >;
 
@@ -61,6 +81,7 @@ function CompleteContent({
     farmerGroups,
     farmTypes,
     agents,
+    basePath,
     permissions,
 }: ContentProps) {
     const { errors } = usePage<Props>().props;
@@ -85,22 +106,15 @@ function CompleteContent({
         farm_type_ids: [] as number[],
     });
 
-    const [groupOptions, setGroupOptions] = useState<Option[]>([]);
-
     // a group belongs to one community, so the list only makes sense once a community is chosen
-    useEffect(() => {
-        if (!form.data.community_id) {
-            setGroupOptions([]);
-            return;
-        }
-
-        setGroupOptions(
+    const groupOptions = useMemo(
+        () =>
             farmerGroups.filter(
                 (group) =>
                     String(group.community_id) === form.data.community_id,
             ),
-        );
-    }, [form.data.community_id, farmerGroups]);
+        [farmerGroups, form.data.community_id],
+    );
 
     const toggleFarmType = (id: number) => {
         const chosen = form.data.farm_type_ids.includes(id)
@@ -112,7 +126,7 @@ function CompleteContent({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        form.post(`/admin/farmers/pending/${account.id}`);
+        form.post(`${basePath}/pending/${account.id}`);
     };
 
     const labelStyle = {
@@ -145,7 +159,7 @@ function CompleteContent({
     return (
         <div className="space-y-6">
             <button
-                onClick={() => router.visit("/admin/farmers")}
+                onClick={() => router.visit(basePath)}
                 style={{
                     background: "none",
                     border: "none",

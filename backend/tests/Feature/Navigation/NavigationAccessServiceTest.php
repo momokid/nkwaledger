@@ -64,6 +64,21 @@ it('lists only routes that can be opened in a browser', function () {
     expect($names)->not->toContain('admin.ledger-accounts.store');
 });
 
+// each role group carries its own sidebar, so the agent addresses are listed too
+it('includes agent routes for an agent', function () {
+    $agent = User::factory()->create();
+    $agent->assignRole('agent');
+
+    expect($this->service->allowedRouteNames($agent))->toContain('agent.farmers.index');
+});
+
+it('excludes agent routes from someone without the permission', function () {
+    $vet = User::factory()->create();
+    $vet->assignRole('vet');
+
+    expect($this->service->allowedRouteNames($vet))->not->toContain('agent.farmers.index');
+});
+
 it('never returns a permission name', function () {
     $user = User::factory()->create();
     $user->assignRole('admin');
@@ -71,6 +86,6 @@ it('never returns a permission name', function () {
     $names = $this->service->allowedRouteNames($user);
 
     foreach ($names as $name) {
-        expect(str_starts_with($name, 'admin.'))->toBeTrue();
+        expect(str_starts_with($name, 'admin.') || str_starts_with($name, 'agent.'))->toBeTrue();
     }
 });
