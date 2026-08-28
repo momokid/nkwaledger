@@ -87,7 +87,7 @@ class FarmerController extends Controller
 
         return Inertia::render('Admin/Farmers/Show', [
             'farmer' => [
-                'id' => $farmer->id,
+                'id' => $farmer->uuid,
                 'name' => "{$farmer->user?->surname} {$farmer->user?->first_name}",
                 'phone' => $farmer->user?->phone,
                 'phone_verified' => $farmer->user?->phone_verified_at !== null,

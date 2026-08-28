@@ -158,7 +158,16 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
     });
 
-    // farm units
+    // every unit across the farmers this person can reach
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farm-units', [FarmUnitController::class, 'all'])->name('farm-units.all');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farm-units', [FarmUnitController::class, 'storeFromList'])->name('farm-units.all.store');
+    });
+
+    // farm units under one farmer
     Route::middleware('access:farm-units.view')->group(function () {
         Route::get('/farmers/{farmer}/units', [FarmUnitController::class, 'index'])->name('farm-units.index');
     });
@@ -535,7 +544,16 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
         Route::patch('/farmers/{farmer}/identity/verify', [FarmerController::class, 'verifyIdentity'])->name('farmers.identity.verify');
     });
 
-    // farm units
+    // every unit across the farmers this person can reach
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farm-units', [FarmUnitController::class, 'all'])->name('farm-units.all');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farm-units', [FarmUnitController::class, 'storeFromList'])->name('farm-units.all.store');
+    });
+
+    // farm units under one farmer
     Route::middleware('access:farm-units.view')->group(function () {
         Route::get('/farmers/{farmer}/units', [FarmUnitController::class, 'index'])->name('farm-units.index');
     });

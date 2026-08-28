@@ -83,13 +83,13 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconUserCheck,
                 ready: true,
             },
-            { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
             {
-                label: "Farm Visits",
-                href: "#",
+                label: "Farm Units",
+                href: "/agent/farm-units",
                 icon: IconClipboardList,
-                ready: false,
+                ready: true,
             },
+            { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
             {
                 label: "Reports",
                 href: "#",

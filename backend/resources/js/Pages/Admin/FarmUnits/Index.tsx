@@ -193,12 +193,12 @@ function IndexContent({
     };
     const linkStyle = {
         background: "none",
-        border: "none",
+        border: "1px",
         color: headerText,
         fontSize: "17px",
         fontWeight: 600,
         cursor: "pointer",
-        padding: 0,
+        padding: "0 6px",
     };
 
     const columnCount = permissions.update || permissions.approve ? 6 : 5;

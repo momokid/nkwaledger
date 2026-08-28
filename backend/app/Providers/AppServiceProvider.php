@@ -72,7 +72,9 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         Route::model('farmer', \App\Models\FarmerProfile::class);
-        
+        // anything that is not a uuid is not an address, so it never reaches the database
+        Route::pattern('farmer', '[0-9a-fA-F-]{36}');
+
         // registered here rather than in the model, since observing during boot re-enters the cycle
         foreach (self::AUDITED_MODELS as $model) {
             $model::observe(AuditableObserver::class);
