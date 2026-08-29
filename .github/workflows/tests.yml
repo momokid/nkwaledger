@@ -45,5 +45,6 @@ jobs:
       - name: Run tests
         run: php artisan test
         env:
+          APP_KEY: base64:F1r449od4TXHLr3QZQeiIktfBhYAETMewO01fWfWCM0=
           ARKESEL_API_KEY: fake-key
           ARKESEL_SENDER: NkwaLedger
