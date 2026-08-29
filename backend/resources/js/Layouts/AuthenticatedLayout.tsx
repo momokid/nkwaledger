@@ -1,21 +1,26 @@
-import { Link, router, usePage } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     IconBell,
     IconChevronLeft,
     IconChevronRight,
+    IconClipboardList,
     IconCloudRain,
     IconCreditCard,
+    IconHelpCircle,
     IconLayoutDashboard,
     IconLogout,
     IconMoon,
-    IconNotebook,
+    IconPencilPlus,
     IconPlant,
+    IconReportAnalytics,
     IconSettings,
     IconShoppingCart,
     IconStethoscope,
     IconSun,
     IconUser,
+    IconUserCheck,
     IconUserCircle,
+    IconWallet,
 } from "@tabler/icons-react";
 import {
     createContext,
@@ -47,77 +52,161 @@ interface NavItem {
     label: string;
     href: string;
     icon: typeof IconLayoutDashboard;
-    roles: string[];
+    // false means the page is not built, so the item shows but cannot be opened
+    ready: boolean;
 }
 
-const navMain: NavItem[] = [
-    {
-        label: "Dashboard",
-        href: "/farmer/dashboard",
-        icon: IconLayoutDashboard,
-        roles: ["farmer", "agent", "vet", "adviser", "admin", "supplier"],
-    },
-    {
-        label: "Ledger",
-        href: "#",
-        icon: IconNotebook,
-        roles: ["farmer", "agent", "admin"],
-    },
-    {
-        label: "Crops",
-        href: "#",
-        icon: IconPlant,
-        roles: ["farmer", "agent", "adviser", "admin"],
-    },
-    {
-        label: "Livestock",
-        href: "#",
-        icon: IconStethoscope,
-        roles: ["farmer", "agent", "vet", "admin"],
-    },
-    {
-        label: "Credit",
-        href: "#",
-        icon: IconCreditCard,
-        roles: ["farmer", "agent", "admin"],
-    },
+interface NavSet {
+    main: NavItem[];
+    tools: NavItem[];
+    account: NavItem[];
+}
+
+const account = (): NavItem[] => [
+    { label: "Profile", href: "#", icon: IconUser, ready: false },
+    { label: "Settings", href: "#", icon: IconSettings, ready: false },
 ];
 
-const navTools: NavItem[] = [
-    {
-        label: "Weather",
-        href: "#",
-        icon: IconCloudRain,
-        roles: ["farmer", "agent", "adviser", "admin"],
-    },
-    {
-        label: "Marketplace",
-        href: "#",
-        icon: IconShoppingCart,
-        roles: ["farmer", "agent", "supplier", "admin"],
-    },
-    {
-        label: "Consultations",
-        href: "#",
-        icon: IconStethoscope,
-        roles: ["farmer", "vet", "adviser", "admin"],
-    },
-];
+// each role gets its own menu, since the same word can mean different things to different people
+const navSets: Record<string, (dashboard: string) => NavSet> = {
+    agent: (dashboard) => ({
+        main: [
+            {
+                label: "Dashboard",
+                href: dashboard,
+                icon: IconLayoutDashboard,
+                ready: true,
+            },
+            {
+                label: "Farmers",
+                href: "/agent/farmers",
+                icon: IconUserCheck,
+                ready: true,
+            },
+            {
+                label: "Farm Units",
+                href: "/agent/farm-units",
+                icon: IconClipboardList,
+                ready: true,
+            },
+            { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
+            {
+                label: "Reports",
+                href: "#",
+                icon: IconReportAnalytics,
+                ready: false,
+            },
+        ],
+        tools: [
+            {
+                label: "Marketplace",
+                href: "#",
+                icon: IconShoppingCart,
+                ready: false,
+            },
+            {
+                label: "Requests",
+                href: "#",
+                icon: IconHelpCircle,
+                ready: false,
+            },
+        ],
+        account: account(),
+    }),
 
-const navAccount: NavItem[] = [
-    {
-        label: "Profile",
-        href: "#",
-        icon: IconUser,
-        roles: ["farmer", "agent", "vet", "adviser", "admin", "supplier"],
-    },
-    {
-        label: "Settings",
-        href: "#",
-        icon: IconSettings,
-        roles: ["farmer", "agent", "vet", "adviser", "admin", "supplier"],
-    },
-];
+    farmer: (dashboard) => ({
+        main: [
+            {
+                label: "Dashboard",
+                href: dashboard,
+                icon: IconLayoutDashboard,
+                ready: true,
+            },
+            { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
+            // no accounting words reach a farmer, so the ledger is called what they would call it
+            { label: "My Money", href: "#", icon: IconWallet, ready: false },
+            { label: "My Farm", href: "#", icon: IconPlant, ready: false },
+            { label: "Credit", href: "#", icon: IconCreditCard, ready: false },
+        ],
+        tools: [
+            { label: "Help", href: "#", icon: IconHelpCircle, ready: false },
+            { label: "Weather", href: "#", icon: IconCloudRain, ready: false },
+            {
+                label: "Marketplace",
+                href: "#",
+                icon: IconShoppingCart,
+                ready: false,
+            },
+        ],
+        account: account(),
+    }),
+
+    vet: (dashboard) => ({
+        main: [
+            {
+                label: "Dashboard",
+                href: dashboard,
+                icon: IconLayoutDashboard,
+                ready: true,
+            },
+            {
+                label: "Livestock",
+                href: "#",
+                icon: IconStethoscope,
+                ready: false,
+            },
+            {
+                label: "Consultations",
+                href: "#",
+                icon: IconHelpCircle,
+                ready: false,
+            },
+        ],
+        tools: [],
+        account: account(),
+    }),
+
+    adviser: (dashboard) => ({
+        main: [
+            {
+                label: "Dashboard",
+                href: dashboard,
+                icon: IconLayoutDashboard,
+                ready: true,
+            },
+            { label: "Crops", href: "#", icon: IconPlant, ready: false },
+            {
+                label: "Consultations",
+                href: "#",
+                icon: IconHelpCircle,
+                ready: false,
+            },
+        ],
+        tools: [
+            { label: "Weather", href: "#", icon: IconCloudRain, ready: false },
+        ],
+        account: account(),
+    }),
+
+    supplier: (dashboard) => ({
+        main: [
+            {
+                label: "Dashboard",
+                href: dashboard,
+                icon: IconLayoutDashboard,
+                ready: true,
+            },
+            {
+                label: "Marketplace",
+                href: "#",
+                icon: IconShoppingCart,
+                ready: false,
+            },
+        ],
+        tools: [],
+        account: account(),
+    }),
+};
 
 const sampleNotifications = [
     {
@@ -255,16 +344,80 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const currentPath =
         typeof window !== "undefined" ? window.location.pathname : "";
 
-    const visible = (items: NavItem[]) =>
-        items.filter((item) =>
-            item.roles.some((role) => userRoles.includes(role)),
-        );
+    // every role has its own home page, so the link follows whoever is signed in
+    const dashboardHref = `/${primaryRole}/dashboard`;
+    const nav = (navSets[primaryRole] ?? navSets.farmer)(dashboardHref);
 
-    const mobileNav = visible(navMain).slice(0, 5);
+    const mobileNav = nav.main.slice(0, 5);
+
+    const renderItem = (item: NavItem) => {
+        const Icon = item.icon;
+        const active = currentPath === item.href;
+
+        const shared = {
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            padding: "12px 16px",
+            fontSize: "18px",
+            fontFamily: "'Inter', system-ui, sans-serif",
+            whiteSpace: "nowrap" as const,
+            overflow: "hidden",
+        };
+
+        if (!item.ready) {
+            return (
+                <div
+                    style={{
+                        ...shared,
+                        color: textSecondary,
+                        opacity: 0.55,
+                        cursor: "default",
+                        borderLeft: "3px solid transparent",
+                    }}
+                >
+                    <Icon size={24} stroke={1.6} />
+                    {!collapsed && (
+                        <>
+                            {item.label}
+                            <span
+                                style={{
+                                    fontSize: "13px",
+                                    padding: "1px 6px",
+                                    border: `1px solid ${textSecondary}`,
+                                    marginLeft: "auto",
+                                }}
+                            >
+                                soon
+                            </span>
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        return (
+            <Link
+                href={item.href}
+                style={{
+                    ...shared,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? primary : text,
+                    background: active ? hoverBg : "transparent",
+                    borderLeft: active
+                        ? `3px solid ${primary}`
+                        : "3px solid transparent",
+                    textDecoration: "none",
+                }}
+            >
+                <Icon size={24} stroke={1.6} />
+                {!collapsed && item.label}
+            </Link>
+        );
+    };
 
     const renderSection = (label: string, items: NavItem[]) => {
-        const shown = visible(items);
-        if (shown.length === 0) return null;
+        if (items.length === 0) return null;
 
         return (
             <div style={{ marginBottom: "20px" }}>
@@ -283,76 +436,45 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                         {label}
                     </p>
                 )}
-                {shown.map((item) => {
-                    const Icon = item.icon;
-                    const active = currentPath === item.href;
-                    return (
-                        <div
-                            key={item.label}
-                            style={{ position: "relative" }}
-                            onMouseEnter={() => setHovered(item.label)}
-                            onMouseLeave={() => setHovered(null)}
-                        >
-                            <Link
-                                href={item.href}
+                {items.map((item) => (
+                    <div
+                        key={item.label}
+                        style={{ position: "relative" }}
+                        onMouseEnter={() => setHovered(item.label)}
+                        onMouseLeave={() => setHovered(null)}
+                    >
+                        {renderItem(item)}
+
+                        {collapsed && hovered === item.label && (
+                            <span
                                 style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "12px",
-                                    padding: collapsed
-                                        ? "12px 16px"
-                                        : "12px 16px",
+                                    position: "absolute",
+                                    left: "60px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    background: dark ? "#374151" : "#111827",
+                                    color: "#FFFFFF",
                                     fontSize: "18px",
-                                    fontWeight: active ? 600 : 400,
-                                    color: active ? primary : text,
-                                    background: active
-                                        ? hoverBg
-                                        : "transparent",
-                                    borderLeft: active
-                                        ? `3px solid ${primary}`
-                                        : "3px solid transparent",
-                                    textDecoration: "none",
+                                    padding: "6px 12px",
+                                    whiteSpace: "nowrap",
+                                    zIndex: 60,
                                     fontFamily:
                                         "'Inter', system-ui, sans-serif",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
                                 }}
                             >
-                                <Icon size={24} stroke={1.6} />
-                                {!collapsed && item.label}
-                            </Link>
-
-                            {collapsed && hovered === item.label && (
-                                <span
-                                    style={{
-                                        position: "absolute",
-                                        left: "60px",
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                        background: dark
-                                            ? "#374151"
-                                            : "#111827",
-                                        color: "#FFFFFF",
-                                        fontSize: "18px",
-                                        padding: "6px 12px",
-                                        whiteSpace: "nowrap",
-                                        zIndex: 60,
-                                        fontFamily:
-                                            "'Inter', system-ui, sans-serif",
-                                    }}
-                                >
-                                    {item.label}
-                                </span>
-                            )}
-                        </div>
-                    );
-                })}
+                                {item.label}
+                                {!item.ready && " (soon)"}
+                            </span>
+                        )}
+                    </div>
+                ))}
             </div>
         );
     };
 
     return (
         <ThemeContext.Provider value={{ dark, toggle: toggleTheme }}>
+            <Head title={title} />
             <FlashMessages />
             <div
                 style={{
@@ -433,9 +555,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                 pointerEvents: verified ? "auto" : "none",
                             }}
                         >
-                            {renderSection("Main", navMain)}
-                            {renderSection("Tools", navTools)}
-                            {renderSection("Account", navAccount)}
+                            {renderSection("Main", nav.main)}
+                            {renderSection("Tools", nav.tools)}
+                            {renderSection("Account", nav.account)}
                         </nav>
 
                         <div style={{ padding: "16px" }}>
@@ -845,21 +967,41 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                         {mobileNav.map((item) => {
                             const Icon = item.icon;
                             const active = currentPath === item.href;
+
+                            const style = {
+                                display: "flex",
+                                flexDirection: "column" as const,
+                                alignItems: "center",
+                                fontSize: "15px",
+                                paddingTop: "6px",
+                                textDecoration: "none",
+                                fontFamily: "'Inter', system-ui, sans-serif",
+                            };
+
+                            if (!item.ready) {
+                                return (
+                                    <div
+                                        key={item.label}
+                                        style={{
+                                            ...style,
+                                            color: textSecondary,
+                                            opacity: 0.5,
+                                        }}
+                                    >
+                                        <Icon size={24} stroke={1.6} />
+                                        {item.label}
+                                    </div>
+                                );
+                            }
+
                             return (
                                 <Link
                                     key={item.label}
                                     href={item.href}
                                     style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
+                                        ...style,
                                         color: active ? primary : textSecondary,
-                                        fontSize: "15px",
                                         fontWeight: active ? 600 : 400,
-                                        paddingTop: "6px",
-                                        textDecoration: "none",
-                                        fontFamily:
-                                            "'Inter', system-ui, sans-serif",
                                     }}
                                 >
                                     <Icon size={24} stroke={1.6} />

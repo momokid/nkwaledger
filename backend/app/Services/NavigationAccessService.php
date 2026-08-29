@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Route as RouteFacade;
 
 class NavigationAccessService
 {
+    // route groups that carry a sidebar, so a new group joins by adding its prefix here
+    private const PREFIXES = ['admin.', 'agent.'];
+
     public function __construct(private AccessControlService $access) {}
 
     /**
@@ -24,7 +27,7 @@ class NavigationAccessService
         foreach (RouteFacade::getRoutes() as $route) {
             $name = $route->getName();
 
-            if ($name === null || ! str_starts_with($name, 'admin.')) {
+            if ($name === null || ! $this->isNavigable($name)) {
                 continue;
             }
 
@@ -39,6 +42,17 @@ class NavigationAccessService
         }
 
         return array_values(array_unique($names));
+    }
+
+    private function isNavigable(string $name): bool
+    {
+        foreach (self::PREFIXES as $prefix) {
+            if (str_starts_with($name, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function passes(User $user, Route $route): bool
