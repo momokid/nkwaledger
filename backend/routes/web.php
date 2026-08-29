@@ -36,6 +36,9 @@ use App\Http\Controllers\Auth\SetPasswordController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AccountingPeriodController;
 use App\Http\Controllers\Admin\TransactionTemplateController;
+use App\Http\Controllers\Admin\FarmerController;
+use App\Http\Controllers\Admin\FarmUnitController;
+use App\Http\Controllers\Admin\FarmUnitStockController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -133,6 +136,68 @@ Route::middleware('auth')->group(function () {
         ->name('otp.phone.send');
     Route::post('verify-phone/confirm', [PhoneVerificationController::class, 'confirm'])
         ->name('otp.phone.confirm');
+});
+
+// the agent's own address for the same controller, so the frame and the url match their role
+Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->group(function () {
+    Route::middleware('access:farmers.create')->group(function () {
+        Route::post('/farmers', [FarmerController::class, 'store'])->name('farmers.store');
+
+        // declared before the {farmer} routes so the word pending is never read as a profile id
+        Route::get('/farmers/pending/{user}', [FarmerController::class, 'complete'])->name('farmers.complete');
+        Route::post('/farmers/pending/{user}', [FarmerController::class, 'storeComplete'])->name('farmers.complete.store');
+    });
+
+    Route::middleware('access:farmers.view')->group(function () {
+        Route::get('/farmers', [FarmerController::class, 'index'])->name('farmers.index');
+        Route::get('/farmers/{farmer}', [FarmerController::class, 'show'])->name('farmers.show');
+    });
+
+    Route::middleware('access:farmers.update')->group(function () {
+        Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
+        Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
+    });
+
+    // every unit across the farmers this person can reach
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farm-units', [FarmUnitController::class, 'all'])->name('farm-units.all');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farm-units', [FarmUnitController::class, 'storeFromList'])->name('farm-units.all.store');
+    });
+
+    // farm units under one farmer
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units', [FarmUnitController::class, 'index'])->name('farm-units.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units', [FarmUnitController::class, 'store'])->name('farm-units.store');
+    });
+
+    Route::middleware('access:farm-units.update')->group(function () {
+        Route::put('/farmers/{farmer}/units/{farmUnit}', [FarmUnitController::class, 'update'])->name('farm-units.update');
+    });
+
+    Route::middleware('access:farm-units.approve')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/approve', [FarmUnitController::class, 'approve'])->name('farm-units.approve');
+    });
+
+    // what is in each unit
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'index'])->name('farm-units.stocks.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'storeStock'])->name('farm-units.stocks.store');
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements', [FarmUnitStockController::class, 'storeMovement'])->name('farm-units.movements.store');
+    });
+
+    Route::middleware('access:farm-units.confirm')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
+    });
 });
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
@@ -244,6 +309,10 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:farmer-groups.view')->group(function () {
         Route::get('/farmer-groups', [FarmerGroupController::class, 'index'])
             ->name('farmer-groups.index');
+
+        // feeds the cascading group picker once a community is chosen
+        Route::get('/farmer-groups/by-community/{community}', [FarmerGroupController::class, 'byCommunity'])
+            ->name('farmer-groups.by-community');
     });
 
     Route::middleware('access:farmer-groups.create')->group(function () {
@@ -449,5 +518,70 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:transaction-templates.delete')->group(function () {
         Route::delete('/transaction-templates/{transactionTemplate}', [TransactionTemplateController::class, 'destroy'])
             ->name('transaction-templates.destroy');
+    });
+
+    // farmers
+    Route::middleware('access:farmers.create')->group(function () {
+        Route::post('/farmers', [FarmerController::class, 'store'])->name('farmers.store');
+
+        // declared before the {farmer} routes so the word pending is never read as a profile id
+        Route::get('/farmers/pending/{user}', [FarmerController::class, 'complete'])->name('farmers.complete');
+        Route::post('/farmers/pending/{user}', [FarmerController::class, 'storeComplete'])->name('farmers.complete.store');
+    });
+
+    Route::middleware('access:farmers.view')->group(function () {
+        Route::get('/farmers', [FarmerController::class, 'index'])->name('farmers.index');
+        Route::get('/farmers/{farmer}', [FarmerController::class, 'show'])->name('farmers.show');
+    });
+
+    Route::middleware('access:farmers.update')->group(function () {
+        Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
+        Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
+    });
+
+    // kept apart from editing, since verifying opens credit scoring and bank facing reports
+    Route::middleware('access:farmers.verify')->group(function () {
+        Route::patch('/farmers/{farmer}/identity/verify', [FarmerController::class, 'verifyIdentity'])->name('farmers.identity.verify');
+    });
+
+    // every unit across the farmers this person can reach
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farm-units', [FarmUnitController::class, 'all'])->name('farm-units.all');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farm-units', [FarmUnitController::class, 'storeFromList'])->name('farm-units.all.store');
+    });
+
+    // farm units under one farmer
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units', [FarmUnitController::class, 'index'])->name('farm-units.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units', [FarmUnitController::class, 'store'])->name('farm-units.store');
+    });
+
+    Route::middleware('access:farm-units.update')->group(function () {
+        Route::put('/farmers/{farmer}/units/{farmUnit}', [FarmUnitController::class, 'update'])->name('farm-units.update');
+    });
+
+    Route::middleware('access:farm-units.approve')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/approve', [FarmUnitController::class, 'approve'])->name('farm-units.approve');
+    });
+
+    // what is in each unit
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'index'])->name('farm-units.stocks.index');
+    });
+
+    Route::middleware('access:farm-units.create')->group(function () {
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks', [FarmUnitStockController::class, 'storeStock'])->name('farm-units.stocks.store');
+        Route::post('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements', [FarmUnitStockController::class, 'storeMovement'])->name('farm-units.movements.store');
+    });
+
+    Route::middleware('access:farm-units.confirm')->group(function () {
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
     });
 });

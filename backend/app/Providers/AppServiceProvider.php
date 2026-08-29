@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\SmsProvider;
 use App\Services\Sms\ArkeselSmsProvider;
 use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -69,6 +70,10 @@ class AppServiceProvider extends ServiceProvider
             Limit::perHour(config('otp.throttle.resend.per_ip'))
                 ->by('resend-ip:' . $request->ip()),
         ]);
+
+        Route::model('farmer', \App\Models\FarmerProfile::class);
+        // anything that is not a uuid is not an address, so it never reaches the database
+        Route::pattern('farmer', '[0-9a-fA-F-]{36}');
 
         // registered here rather than in the model, since observing during boot re-enters the cycle
         foreach (self::AUDITED_MODELS as $model) {
