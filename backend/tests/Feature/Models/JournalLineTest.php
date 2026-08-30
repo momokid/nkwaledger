@@ -57,8 +57,10 @@ beforeEach(function () {
         'ends_on' => now()->endOfYear()->toDateString(),
     ]);
 
-    $transaction = Transaction::create([
-        'farmer_profile_id' => FarmerProfile::factory()->create()->id,
+    $this->profile = FarmerProfile::factory()->create();
+
+    $this->transaction = Transaction::create([
+        'farmer_profile_id' => $this->profile->id,
         'transaction_template_id' => $template->id,
         'transaction_type' => 'INCOME',
         'accounting_period_id' => $period->id,
@@ -72,13 +74,16 @@ beforeEach(function () {
 
     // a line cannot exist without the entry it hangs off
     $this->entry = JournalEntry::create([
-        'transaction_id' => $transaction->id,
+        'transaction_id' => $this->transaction->id,
         'posted_at' => now(),
     ]);
 
     $this->debitSide = [
         'journal_entry_id' => $this->entry->id,
         'ledger_account_id' => $this->cash->id,
+        // copied from the transaction so one farmer's books read in a single pass
+        'farmer_profile_id' => $this->profile->id,
+        'transaction_date' => now()->toDateString(),
         'debit_minor' => 25000,
         'credit_minor' => 0,
         'line_number' => 1,
@@ -87,6 +92,8 @@ beforeEach(function () {
     $this->creditSide = [
         'journal_entry_id' => $this->entry->id,
         'ledger_account_id' => $this->sales->id,
+        'farmer_profile_id' => $this->profile->id,
+        'transaction_date' => now()->toDateString(),
         'debit_minor' => 0,
         'credit_minor' => 25000,
         'line_number' => 2,
@@ -105,6 +112,31 @@ it('records a line on the credit side', function () {
 
     expect($line->debit_minor)->toBe(0);
     expect($line->credit_minor)->toBe(25000);
+});
+
+// every report starts from one farmer over a range of days
+it('carries the farmer and the date it happened', function () {
+    $line = JournalLine::create($this->debitSide);
+
+    expect($line->farmer_profile_id)->toBe($this->profile->id);
+    expect($line->transaction_date->toDateString())->toBe(now()->toDateString());
+});
+
+// a line with no farmer is money nobody can see
+it('refuses a line with no farmer', function () {
+    expect(fn() => JournalLine::create(['farmer_profile_id' => null] + $this->debitSide))
+        ->toThrow(QueryException::class);
+});
+
+it('refuses a line with no date', function () {
+    expect(fn() => JournalLine::create(['transaction_date' => null] + $this->debitSide))
+        ->toThrow(QueryException::class);
+});
+
+it('belongs to a farmer', function () {
+    $line = JournalLine::create($this->debitSide);
+
+    expect($line->farmerProfile->id)->toBe($this->profile->id);
 });
 
 // a line sitting on both sides at once means nobody decided what happened

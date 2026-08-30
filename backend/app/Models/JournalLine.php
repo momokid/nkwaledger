@@ -18,6 +18,8 @@ class JournalLine extends Model
     protected $fillable = [
         'journal_entry_id',
         'ledger_account_id',
+        'farmer_profile_id',
+        'transaction_date',
         'debit_minor',
         'credit_minor',
         'line_number',
@@ -31,6 +33,7 @@ class JournalLine extends Model
     protected function casts(): array
     {
         return [
+            'transaction_date' => 'date',
             'debit_minor' => 'integer',
             'credit_minor' => 'integer',
             'line_number' => 'integer',
@@ -56,6 +59,17 @@ class JournalLine extends Model
     public function ledgerAccount(): BelongsTo
     {
         return $this->belongsTo(LedgerAccount::class);
+    }
+
+    // copied from the transaction, so every report reads one table
+    public function farmerProfile(): BelongsTo
+    {
+        return $this->belongsTo(FarmerProfile::class);
+    }
+
+    public function journalEntry(): BelongsTo
+    {
+        return $this->belongsTo(JournalEntry::class);
     }
 
     public function isDebit(): bool

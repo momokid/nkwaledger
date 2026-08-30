@@ -74,6 +74,9 @@ beforeEach(function () {
         return JournalLine::create([
             'journal_entry_id' => $entry->id,
             'ledger_account_id' => $account ?? $this->cash->id,
+            // a line carries the farmer and the date its transaction happened on
+            'farmer_profile_id' => $entry->transaction->farmer_profile_id,
+            'transaction_date' => $entry->transaction->transaction_date,
             'debit_minor' => $debit,
             'credit_minor' => $credit,
             'line_number' => $number,
