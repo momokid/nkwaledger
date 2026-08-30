@@ -167,17 +167,13 @@ class AccountStatementService
             ->when($accountId !== null, fn(Builder $query) => $query->where('settlement_account_id', $accountId));
     }
 
-    // cash, momo and bank are all money the farmer holds
+    // reads the few ticked accounts instead of scanning every transaction ever made
     private function settlementAccounts(?int $accountId): Collection
     {
         if ($accountId !== null) {
             return collect([$accountId]);
         }
 
-        return Transaction::query()
-            ->whereNotNull('settlement_account_id')
-            ->distinct()
-            ->pluck('settlement_account_id')
-            ->map(fn($id) => (int) $id);
+        return LedgerAccount::settlement()->pluck('id')->map(fn($id) => (int) $id);
     }
 }

@@ -31,17 +31,19 @@ beforeEach(function () {
     $control = LedgerControl::create(['name' => 'Cash Ctrl']);
     $type = LedgerType::create(['name' => 'GL']);
 
-    $account = function (string $name, int $subcategoryId) use ($control, $type) {
+    $account = function (string $name, int $subcategoryId, bool $isSettlement = false) use ($control, $type) {
         return LedgerAccount::create([
             'name' => $name,
             'control_id' => $control->id,
             'subcategory_id' => $subcategoryId,
             'type_id' => $type->id,
+            // only a ticked account counts as money the farmer holds
+            'is_settlement' => $isSettlement,
         ]);
     };
 
-    $this->cash = $account('Cash on Hand', $assetSub->id);
-    $this->momo = $account('Mobile Money', $assetSub->id);
+    $this->cash = $account('Cash on Hand', $assetSub->id, true);
+    $this->momo = $account('Mobile Money', $assetSub->id, true);
     $this->sales = $account('Crop Sales', $incomeSub->id);
     $this->feed = $account('Feed Expense', $expenseSub->id);
     $this->livestock = $account('Livestock', $assetSub->id);

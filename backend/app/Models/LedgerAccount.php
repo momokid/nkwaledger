@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ use RuntimeException;
     'subcategory_id',
     'type_id',
     'is_system',
+    'is_settlement',
     'is_active',
 ])]
 class LedgerAccount extends Model
@@ -25,6 +27,7 @@ class LedgerAccount extends Model
 
     protected $attributes = [
         'is_system' => false,
+        'is_settlement' => false,
         'is_active' => true,
     ];
 
@@ -32,6 +35,7 @@ class LedgerAccount extends Model
     {
         return [
             'is_system' => 'boolean',
+            'is_settlement' => 'boolean',
             'is_active' => 'boolean',
         ];
     }
@@ -58,6 +62,12 @@ class LedgerAccount extends Model
     public function type(): BelongsTo
     {
         return $this->belongsTo(LedgerType::class, 'type_id');
+    }
+
+    // the places a farmer's money can sit, and only the ones still in use
+    public function scopeSettlement(Builder $query): Builder
+    {
+        return $query->where('is_settlement', true)->where('is_active', true);
     }
 
     // walks subcategory to category to class, never stored — so a category's Dr/Cr
