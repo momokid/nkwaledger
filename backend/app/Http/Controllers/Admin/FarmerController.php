@@ -91,6 +91,10 @@ class FarmerController extends Controller
                 'name' => "{$farmer->user?->surname} {$farmer->user?->first_name}",
                 'phone' => $farmer->user?->phone,
                 'phone_verified' => $farmer->user?->phone_verified_at !== null,
+                // the page only offers a resend when the last code has run out
+                'has_live_code' => $farmer->user
+                    ? $this->otp->hasLiveCode($farmer->user->phone, 'invitation')
+                    : false,
                 'gender' => $farmer->gender,
                 'date_of_birth' => $farmer->date_of_birth,
                 'home_address' => $farmer->home_address,
@@ -159,9 +163,10 @@ class FarmerController extends Controller
         });
 
         // sent only once the rows are safely committed, so a rollback never costs an SMS
-        $this->otp->generate($user->phone, 'phone_verification');
+        // the same invitation staff get, since it carries the link and lets them set a password
+        $this->otp->generate($user->phone, 'invitation');
 
-        return back()->with('success', "{$user->first_name} is registered. We sent a code to their phone to confirm the number.");
+        return back()->with('success', "{$user->first_name} is registered. We sent them a code and a link to set their password.");
     }
 
     public function complete(Request $request, int $user): Response
@@ -213,6 +218,26 @@ class FarmerController extends Controller
 
         return redirect($this->frame($request)['basePath'])
             ->with('success', "{$account->first_name}'s profile is complete.");
+    }
+
+    public function resendActivation(Request $request, FarmerProfile $farmer): RedirectResponse
+    {
+        $this->guardVisibility($request->user(), $farmer);
+
+        if ($farmer->user?->phone_verified_at !== null) {
+            throw ValidationException::withMessages([
+                'resend' => 'This farmer has already confirmed their number.',
+            ]);
+        }
+
+        // each message costs money, so a code that still works is left alone
+        if ($this->otp->hasLiveCode($farmer->user->phone, 'invitation')) {
+            return back()->with('success', 'They still have a code that works. Ask them to check their messages.');
+        }
+
+        $this->otp->generate($farmer->user->phone, 'invitation');
+
+        return back()->with('success', 'A fresh code is on its way.');
     }
 
     public function update(UpdateFarmerRequest $request, FarmerProfile $farmer): RedirectResponse

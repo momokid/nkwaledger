@@ -136,7 +136,8 @@ test('completing cannot change the account details', function () {
         ->and($user->phone)->toBe('0277778899');
 });
 
-test('completing does not send a verification code', function () {
+// the account already exists, so nothing new is sent
+test('completing does not send a code', function () {
     $this->selfRegistered->forceFill(['phone_verified_at' => now()])->save();
 
     $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload());

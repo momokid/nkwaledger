@@ -187,11 +187,12 @@ test('a registered farmer starts unverified', function () {
     expect(User::where('phone', '0244445566')->first()->phone_verified_at)->toBeNull();
 });
 
-test('registering sends a phone verification code', function () {
+// the same invitation staff get, so the farmer can set a password and sign in
+test('registering sends an invitation code', function () {
     $this->actingAs($this->admin)->post('/admin/farmers', farmerPayload());
 
     expect(OtpCode::where('identifier', '0244445566')
-        ->where('type', 'phone_verification')
+        ->where('type', 'invitation')
         ->exists())->toBeTrue();
 });
 
