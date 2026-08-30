@@ -24,6 +24,7 @@ interface FarmerData {
     name: string;
     phone: string | null;
     phone_verified: boolean;
+    has_live_code: boolean;
     gender: string | null;
     date_of_birth: string | null;
     home_address: string | null;
@@ -173,6 +174,14 @@ function ShowContent({
         );
     };
 
+    const resend = () => {
+        router.post(
+            `${basePath}/${farmer.id}/resend`,
+            {},
+            { preserveScroll: true },
+        );
+    };
+
     const labelStyle = {
         color: text,
         fontSize: "16px",
@@ -239,6 +248,29 @@ function ShowContent({
                         </span>
                     )}
                 </p>
+
+                {!farmer.phone_verified &&
+                    (farmer.has_live_code ? (
+                        <p style={{ color: textSecondary, fontSize: "16px" }}>
+                            A code is already on their phone. Ask them to check
+                            their messages.
+                        </p>
+                    ) : (
+                        <button
+                            onClick={resend}
+                            style={{
+                                background: "none",
+                                border: "none",
+                                color: headerText,
+                                fontSize: "17px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                padding: 0,
+                            }}
+                        >
+                            Send them a new code
+                        </button>
+                    ))}
                 <p style={{ color: textSecondary, fontSize: "16px" }}>
                     Farms in {farmer.community} · Registered by{" "}
                     {farmer.registered_by ?? "themselves"}

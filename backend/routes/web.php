@@ -146,6 +146,11 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         // declared before the {farmer} routes so the word pending is never read as a profile id
         Route::get('/farmers/pending/{user}', [FarmerController::class, 'complete'])->name('farmers.complete');
         Route::post('/farmers/pending/{user}', [FarmerController::class, 'storeComplete'])->name('farmers.complete.store');
+
+        // a farmer who never acted on their first code needs another one
+        Route::post('/farmers/{farmer}/resend', [FarmerController::class, 'resendActivation'])
+            ->middleware('throttle:otp-request')
+            ->name('farmers.resend');
     });
 
     Route::middleware('access:farmers.view')->group(function () {
@@ -527,6 +532,11 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
         // declared before the {farmer} routes so the word pending is never read as a profile id
         Route::get('/farmers/pending/{user}', [FarmerController::class, 'complete'])->name('farmers.complete');
         Route::post('/farmers/pending/{user}', [FarmerController::class, 'storeComplete'])->name('farmers.complete.store');
+
+        // a farmer who never acted on their first code needs another one
+        Route::post('/farmers/{farmer}/resend', [FarmerController::class, 'resendActivation'])
+            ->middleware('throttle:otp-request')
+            ->name('farmers.resend');
     });
 
     Route::middleware('access:farmers.view')->group(function () {
