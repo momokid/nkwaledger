@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // signs every printed report, so a changed figure breaks the code
+    'report_secret' => env('REPORT_SECRET'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
