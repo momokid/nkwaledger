@@ -17,6 +17,9 @@ use App\Services\Ledger\Reports\TrialBalance;
 use App\Services\Ledger\Reports\TrialBalanceService;
 
 beforeEach(function () {
+    // reports refuse to build without a secret to sign them
+    config(['app.report_secret' => 'testing-secret']);
+
     $drClass = LedgerClass::create(['name' => 'Dr']);
     $crClass = LedgerClass::create(['name' => 'Cr']);
 
@@ -289,4 +292,32 @@ it('reads the same twice in a row', function () {
     ($this->buyFeed)('100');
 
     expect(($this->run)()->totalDebitMinor)->toBe(($this->run)()->totalDebitMinor);
+});
+
+// every printed report needs the same top and bottom
+it('carries a header', function () {
+    ($this->sell)('250');
+
+    $header = ($this->run)()->header;
+
+    expect($header->title)->toBe('Trial Balance');
+    expect($header->farmerReference)->toBe($this->profile->uuid);
+    expect($header->verificationCode)->toMatch('/^[A-Z0-9]{12}$/');
+});
+
+it('signs the header with its own totals', function () {
+    ($this->sell)('250');
+
+    $first = ($this->run)()->header->verificationCode;
+
+    ($this->sell)('100');
+
+    expect(($this->run)()->header->verificationCode)->not->toBe($first);
+});
+
+it('says in the header whether provisional records were let in', function () {
+    ($this->sell)('250');
+
+    expect(($this->run)()->header->includeProvisional)->toBeFalse();
+    expect(($this->run)(['includeProvisional' => true])->header->includeProvisional)->toBeTrue();
 });

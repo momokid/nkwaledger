@@ -2,6 +2,7 @@
 
 namespace App\Services\Ledger\Reports;
 
+use App\Models\FarmerProfile;
 use App\Models\LedgerAccount;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
@@ -40,6 +41,10 @@ class AccountStatementService
             ->forPage($page, $perPage)
             ->get();
 
+        $rows = $this->rows($transactions, $opening, $settlementAccounts);
+
+        $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
+
         return new AccountStatement(
             farmerProfileId: $farmerProfileId,
             from: $from,
@@ -48,10 +53,25 @@ class AccountStatementService
             includeProvisional: $includeProvisional,
             openingBalanceMinor: $opening,
             generatedAt: now(),
-            rows: $this->rows($transactions, $opening, $settlementAccounts),
+            rows: $rows,
             total: $total,
             page: $page,
             perPage: $perPage,
+            header: ReportHeader::make(
+                title: 'Account Statement',
+                farmerProfile: $profile,
+                from: $from,
+                to: $to,
+                includeProvisional: $includeProvisional,
+                // the page number is in here, so two pages never sign the same
+                figures: [
+                    'opening' => $opening,
+                    'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $rows)),
+                    'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
+                    'closing' => $rows === [] ? $opening : $rows[array_key_last($rows)]->balanceMinor,
+                    'page' => $page,
+                ],
+            ),
         );
     }
 

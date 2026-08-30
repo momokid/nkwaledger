@@ -28,6 +28,7 @@ class AccountStatement
         public readonly int $total,
         public readonly int $page,
         public readonly int $perPage,
+        public readonly ReportHeader $header,
     ) {
         $this->totalInMinor = array_sum(array_map(fn($row) => $row->moneyInMinor, $rows));
         $this->totalOutMinor = array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows));

@@ -2,6 +2,7 @@
 
 namespace App\Services\Ledger\Reports;
 
+use App\Models\FarmerProfile;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
 use App\Models\Transaction;
@@ -26,6 +27,12 @@ class IncomeAndExpenditureService
             ->get()
             ->keyBy('id');
 
+        $incomeRows = $this->rows($totals, $accounts, Transaction::INCOME);
+        $expenseRows = $this->rows($totals, $accounts, Transaction::EXPENSE);
+        $lossRows = $this->rows($totals, $accounts, Transaction::LOSS);
+
+        $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
+
         return new IncomeAndExpenditure(
             farmerProfileId: $farmerProfileId,
             from: $from,
@@ -35,10 +42,29 @@ class IncomeAndExpenditureService
                 ? 0
                 : $this->heldBack($farmerProfileId, $from, $to),
             generatedAt: now(),
-            incomeRows: $this->rows($totals, $accounts, Transaction::INCOME),
-            expenseRows: $this->rows($totals, $accounts, Transaction::EXPENSE),
-            lossRows: $this->rows($totals, $accounts, Transaction::LOSS),
+            incomeRows: $incomeRows,
+            expenseRows: $expenseRows,
+            lossRows: $lossRows,
+            header: ReportHeader::make(
+                title: 'Income and Expenditure',
+                farmerProfile: $profile,
+                from: $from,
+                to: $to,
+                includeProvisional: $includeProvisional,
+                // the three sections sign apart, so a loss never looks like an expense
+                figures: [
+                    'income' => $this->sum($incomeRows),
+                    'expense' => $this->sum($expenseRows),
+                    'loss' => $this->sum($lossRows),
+                ],
+            ),
         );
+    }
+
+    /** @param array<int, IncomeLine> $rows */
+    private function sum(array $rows): int
+    {
+        return array_sum(array_map(fn(IncomeLine $row) => $row->amountMinor, $rows));
     }
 
     /** @return array<int, IncomeLine> */

@@ -17,6 +17,9 @@ use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 
 beforeEach(function () {
+    // reports refuse to build without a secret to sign them
+    config(['app.report_secret' => 'testing-secret']);
+
     $drClass = LedgerClass::create(['name' => 'Dr']);
     $crClass = LedgerClass::create(['name' => 'Cr']);
 
@@ -321,4 +324,36 @@ it('reads the same twice in a row', function () {
     ($this->post)($this->feedTemplate, '100');
 
     expect(($this->run)()->netMinor)->toBe(($this->run)()->netMinor);
+});
+
+// every printed report needs the same top and bottom
+it('carries a header', function () {
+    ($this->post)($this->saleTemplate, '250');
+
+    $header = ($this->run)()->header;
+
+    expect($header->title)->toBe('Income and Expenditure');
+    expect($header->farmerReference)->toBe($this->profile->uuid);
+    expect($header->verificationCode)->toMatch('/^[A-Z0-9]{12}$/');
+});
+
+it('signs the header with its own totals', function () {
+    ($this->post)($this->saleTemplate, '250');
+
+    $first = ($this->run)()->header->verificationCode;
+
+    ($this->post)($this->feedTemplate, '100');
+
+    expect(($this->run)()->header->verificationCode)->not->toBe($first);
+});
+
+// a loss and an expense of the same size must not sign the same
+it('signs losses apart from expenses', function () {
+    ($this->post)($this->feedTemplate, '100');
+
+    $first = ($this->run)()->header->verificationCode;
+
+    ($this->post)($this->lossTemplate, '100');
+
+    expect(($this->run)()->header->verificationCode)->not->toBe($first);
 });

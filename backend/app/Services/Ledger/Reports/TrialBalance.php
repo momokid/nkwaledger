@@ -20,6 +20,8 @@ class TrialBalance
         public readonly Carbon $generatedAt,
         /** @var array<int, TrialBalanceRow> */
         public readonly array $rows,
+        // the top and bottom every printed report carries
+        public readonly ReportHeader $header,
     ) {
         $this->totalDebitMinor = array_sum(array_map(fn($row) => $row->debitMinor, $rows));
         $this->totalCreditMinor = array_sum(array_map(fn($row) => $row->creditMinor, $rows));

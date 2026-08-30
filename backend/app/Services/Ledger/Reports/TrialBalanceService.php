@@ -2,6 +2,7 @@
 
 namespace App\Services\Ledger\Reports;
 
+use App\Models\FarmerProfile;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,8 @@ class TrialBalanceService
             creditMinor: (int) $totals[$account->id]->credit_minor,
         ))->values()->all();
 
+        $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
+
         return new TrialBalance(
             farmerProfileId: $farmerProfileId,
             from: $from,
@@ -42,6 +45,18 @@ class TrialBalanceService
                 : $this->provisionalHeldBack($farmerProfileId, $from, $to),
             generatedAt: now(),
             rows: $rows,
+            header: ReportHeader::make(
+                title: 'Trial Balance',
+                farmerProfile: $profile,
+                from: $from,
+                to: $to,
+                includeProvisional: $includeProvisional,
+                // the two totals the whole report rests on
+                figures: [
+                    'debit' => array_sum(array_map(fn($row) => $row->debitMinor, $rows)),
+                    'credit' => array_sum(array_map(fn($row) => $row->creditMinor, $rows)),
+                ],
+            ),
         );
     }
 

@@ -17,6 +17,9 @@ use App\Services\Ledger\Reports\AccountStatement;
 use App\Services\Ledger\Reports\AccountStatementService;
 
 beforeEach(function () {
+    // reports refuse to build without a secret to sign them
+    config(['app.report_secret' => 'testing-secret']);
+
     $drClass = LedgerClass::create(['name' => 'Dr']);
     $crClass = LedgerClass::create(['name' => 'Cr']);
 
@@ -400,4 +403,37 @@ it('reads the same twice in a row', function () {
     ($this->spend)('100');
 
     expect(($this->run)()->closingBalanceMinor)->toBe(($this->run)()->closingBalanceMinor);
+});
+
+// every printed report needs the same top and bottom
+it('carries a header', function () {
+    ($this->sell)('250');
+
+    $header = ($this->run)()->header;
+
+    expect($header->title)->toBe('Account Statement');
+    expect($header->farmerReference)->toBe($this->profile->uuid);
+    expect($header->verificationCode)->toMatch('/^[A-Z0-9]{12}$/');
+});
+
+it('signs the header with its own figures', function () {
+    ($this->sell)('250');
+
+    $first = ($this->run)()->header->verificationCode;
+
+    ($this->sell)('100');
+
+    expect(($this->run)()->header->verificationCode)->not->toBe($first);
+});
+
+// two pages of one statement are two different documents
+it('signs each page differently', function () {
+    foreach (range(1, 5) as $day) {
+        ($this->sell)('100', now()->subDays(10 - $day)->toDateString());
+    }
+
+    $first = ($this->run)(['perPage' => 2, 'page' => 1])->header->verificationCode;
+    $second = ($this->run)(['perPage' => 2, 'page' => 2])->header->verificationCode;
+
+    expect($second)->not->toBe($first);
 });

@@ -28,6 +28,8 @@ class IncomeAndExpenditure
         public readonly array $expenseRows,
         /** @var array<int, IncomeLine> */
         public readonly array $lossRows,
+        // the top and bottom every printed report carries
+        public readonly ReportHeader $header,
     ) {
         $this->totalIncomeMinor = $this->sum($incomeRows);
         $this->totalExpenseMinor = $this->sum($expenseRows);
