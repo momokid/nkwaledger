@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\AccountingPeriod;
+use App\Models\FarmerProfile;
+use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
 use App\Models\LedgerCategory;
@@ -7,6 +10,9 @@ use App\Models\LedgerClass;
 use App\Models\LedgerControl;
 use App\Models\LedgerSubcategory;
 use App\Models\LedgerType;
+use App\Models\Transaction;
+use App\Models\TransactionTemplate;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 
 beforeEach(function () {
@@ -36,9 +42,42 @@ beforeEach(function () {
         'type_id' => $type->id,
     ]);
 
-    // the entry this line hangs off does not exist yet, so the line is tested on its own
+    $template = TransactionTemplate::create([
+        'name' => 'I sold crops',
+        'slug' => 'crop_sale',
+        'transaction_type' => 'INCOME',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->sales->id,
+        'settlement_side' => 'debit',
+    ]);
+
+    $period = AccountingPeriod::create([
+        'name' => 'Test Period',
+        'starts_on' => now()->startOfYear()->toDateString(),
+        'ends_on' => now()->endOfYear()->toDateString(),
+    ]);
+
+    $transaction = Transaction::create([
+        'farmer_profile_id' => FarmerProfile::factory()->create()->id,
+        'transaction_template_id' => $template->id,
+        'transaction_type' => 'INCOME',
+        'accounting_period_id' => $period->id,
+        'transaction_date' => now()->toDateString(),
+        'amount_minor' => 25000,
+        'settlement_account_id' => $this->cash->id,
+        'channel' => 'web',
+        'recorded_by' => User::factory()->create()->id,
+        'posted_at' => now(),
+    ]);
+
+    // a line cannot exist without the entry it hangs off
+    $this->entry = JournalEntry::create([
+        'transaction_id' => $transaction->id,
+        'posted_at' => now(),
+    ]);
+
     $this->debitSide = [
-        'journal_entry_id' => 1,
+        'journal_entry_id' => $this->entry->id,
         'ledger_account_id' => $this->cash->id,
         'debit_minor' => 25000,
         'credit_minor' => 0,
@@ -46,7 +85,7 @@ beforeEach(function () {
     ];
 
     $this->creditSide = [
-        'journal_entry_id' => 1,
+        'journal_entry_id' => $this->entry->id,
         'ledger_account_id' => $this->sales->id,
         'debit_minor' => 0,
         'credit_minor' => 25000,
@@ -92,6 +131,12 @@ it('refuses a negative credit', function () {
 
 it('needs an account to post against', function () {
     expect(fn() => JournalLine::create(['ledger_account_id' => null] + $this->debitSide))
+        ->toThrow(QueryException::class);
+});
+
+// a line pointing at an entry that is not there belongs to nobody
+it('needs an entry to hang off', function () {
+    expect(fn() => JournalLine::create(['journal_entry_id' => 99999] + $this->debitSide))
         ->toThrow(QueryException::class);
 });
 
