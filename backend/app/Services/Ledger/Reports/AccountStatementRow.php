@@ -19,5 +19,6 @@ class AccountStatementRow
         // the cash position after this row
         public readonly int $balanceMinor,
         public readonly bool $isProvisional,
+        public readonly string $cancelState,
     ) {}
 }

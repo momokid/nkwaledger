@@ -19,6 +19,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use App\Services\Ledger\Reports\AccountStatementService;
 use Illuminate\Support\Carbon;
+use App\Models\Transaction;
 
 class RecordTransactionController extends Controller
 {
@@ -61,6 +62,7 @@ class RecordTransactionController extends Controller
                     'money_out' => $row->moneyOutMinor,
                     'balance' => $row->balanceMinor,
                     'is_provisional' => $row->isProvisional,
+                    'cancel_state' => $row->cancelState,
                 ]),
                 'opening_balance' => $statement->openingBalanceMinor,
                 'closing_balance' => $statement->closingBalanceMinor,
@@ -153,7 +155,12 @@ class RecordTransactionController extends Controller
     {
         return TransactionTemplate::query()
             ->where('is_active', true)
-            ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
+            // a farmer never cancels their own record
+            ->where('transaction_type', '!=', Transaction::ADJUSTMENT)
+            ->where(fn($query) => $query
+                ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
+                // some things are true on every farm, so they belong to no category
+                ->orWhereNull('farm_type_category_id'))
             ->orderBy('name')
             ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit']);
     }

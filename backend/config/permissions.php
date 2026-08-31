@@ -193,6 +193,7 @@ return [
         'farmer' => [
             'transactions.view',
             'transactions.create',
+            'transactions.reverse-request',
         ],
     ],
 

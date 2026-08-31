@@ -25,6 +25,7 @@ interface TemplateData {
     requires_farm_unit: boolean;
     farm_type_category_id: number | null;
     is_system: boolean;
+    is_used: boolean;
     is_active: boolean;
     debit_account: Option | null;
     credit_account: Option | null;
@@ -526,6 +527,9 @@ function IndexContent({
                                 }
 
                                 const isEditing = editingId === template.id;
+                                // the words stay open, the books do not
+                                const locked =
+                                    template.is_system || template.is_used;
                                 const rowStyle = {
                                     borderTop: `1px solid ${border}`,
                                     background:
@@ -541,16 +545,34 @@ function IndexContent({
                                             style={{ color: text }}
                                         >
                                             {isEditing ? (
-                                                <input
-                                                    type="text"
-                                                    value={editName}
-                                                    onChange={(e) =>
-                                                        setEditName(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    style={cellInput}
-                                                />
+                                                <>
+                                                    <input
+                                                        type="text"
+                                                        value={editName}
+                                                        onChange={(e) =>
+                                                            setEditName(
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        style={cellInput}
+                                                    />
+                                                    {locked && (
+                                                        <span
+                                                            style={{
+                                                                display:
+                                                                    "block",
+                                                                fontSize:
+                                                                    "15px",
+                                                                color: textSecondary,
+                                                                marginTop:
+                                                                    "4px",
+                                                            }}
+                                                        >
+                                                            Only the words can
+                                                            change here.
+                                                        </span>
+                                                    )}
+                                                </>
                                             ) : (
                                                 <span
                                                     style={{
@@ -604,6 +626,7 @@ function IndexContent({
                                             {isEditing ? (
                                                 <select
                                                     value={editType}
+                                                    disabled={locked}
                                                     onChange={(e) =>
                                                         setEditType(
                                                             e.target.value,
@@ -864,30 +887,30 @@ function IndexContent({
                                                         </>
                                                     ) : (
                                                         <>
-                                                            {permissions.update &&
-                                                                !template.is_system && (
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            startEdit(
-                                                                                template,
-                                                                            )
-                                                                        }
-                                                                        style={{
-                                                                            color: "#1D9E75",
-                                                                            background:
-                                                                                "transparent",
-                                                                            border: "none",
-                                                                            fontWeight: 600,
-                                                                            cursor: "pointer",
-                                                                            fontSize:
-                                                                                "15px",
-                                                                        }}
-                                                                    >
-                                                                        Edit
-                                                                    </button>
-                                                                )}
+                                                            {permissions.update && (
+                                                                <button
+                                                                    onClick={() =>
+                                                                        startEdit(
+                                                                            template,
+                                                                        )
+                                                                    }
+                                                                    style={{
+                                                                        color: "#1D9E75",
+                                                                        background:
+                                                                            "transparent",
+                                                                        border: "none",
+                                                                        fontWeight: 600,
+                                                                        cursor: "pointer",
+                                                                        fontSize:
+                                                                            "15px",
+                                                                    }}
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                            )}
                                                             {permissions.delete &&
-                                                                !template.is_system && (
+                                                                !template.is_system &&
+                                                                !template.is_used && (
                                                                     <button
                                                                         onClick={() =>
                                                                             destroy(

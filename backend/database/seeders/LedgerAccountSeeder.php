@@ -36,6 +36,8 @@ class LedgerAccountSeeder extends Seeder
         ['1002', 'Momo A/C', 'Money', true],
         ['1003', 'Bank A/C', 'Money', true],
         ['1201', 'Livestock A/C', 'Farm Assets', false],
+        // fish are not goats, so a bank sees them apart
+        ['1204', 'Fish Stock A/C', 'Farm Assets', false],
         ['1202', 'Crops in Field A/C', 'Farm Assets', false],
         ['1203', 'Harvested Produce A/C', 'Farm Assets', false],
         ['4001', 'Income on Sales', 'Farm Income', false],

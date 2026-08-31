@@ -33,6 +33,8 @@ class AccountStatementService
 
         $transactions = (clone $base)
             ->with('template:id,name')
+            ->withExists('reversedBy as is_cancelled')
+            ->withExists(['reversalRequests as has_pending_cancel' => fn($query) => $query->where('status', 'pending')])
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
             // two records on one day need a tiebreak, or pages drift between reads
@@ -76,6 +78,23 @@ class AccountStatementService
         );
     }
 
+    private function cancelState(Transaction $transaction): string
+    {
+        if ($transaction->transaction_type === Transaction::ADJUSTMENT) {
+            return 'correction';
+        }
+
+        if ($transaction->is_cancelled) {
+            return 'cancelled';
+        }
+
+        if ($transaction->has_pending_cancel) {
+            return 'waiting';
+        }
+
+        return 'open';
+    }
+
     /** @return array<int, AccountStatementRow> */
     private function rows(Collection $transactions, int $opening, Collection $settlementAccounts): array
     {
@@ -100,6 +119,7 @@ class AccountStatementService
                 moneyOutMinor: $out,
                 balanceMinor: $balance,
                 isProvisional: (bool) $transaction->is_provisional,
+                cancelState: $this->cancelState($transaction),
             );
         }
 

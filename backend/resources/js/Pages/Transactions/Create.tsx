@@ -2,6 +2,7 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { FormEvent, useMemo } from "react";
+import Button from "@/Components/Button";
 
 interface Template {
     id: number;
@@ -335,20 +336,13 @@ function CreateContent({
                     )}
                 </div>
 
-                <button
+                <Button
                     type="submit"
-                    disabled={form.processing}
-                    style={{
-                        padding: "12px 24px",
-                        background: brand,
-                        color: "#FFFFFF",
-                        fontSize: "18px",
-                        fontWeight: 600,
-                        opacity: form.processing ? 0.6 : 1,
-                    }}
+                    busy={form.processing}
+                    busyLabel="Saving..."
                 >
-                    {form.processing ? "Saving..." : "Save this record"}
-                </button>
+                    Save this record
+                </Button>
             </form>
         </div>
     );

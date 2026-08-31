@@ -2,6 +2,7 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { useState } from "react";
+import Button from "@/Components/Button";
 
 interface Row {
     uuid: string;
@@ -191,18 +192,13 @@ function IndexContent({
                         onChange={(event) => setTo(event.target.value)}
                     />
                 </div>
-                <button
+                <Button
                     onClick={() => visit({ page: 1 })}
-                    style={{
-                        padding: "9px 20px",
-                        background: brand,
-                        color: "#FFFFFF",
-                        fontSize: "17px",
-                        fontWeight: 600,
-                    }}
+                    busy={loading}
+                    busyLabel="Loading..."
                 >
                     Show
-                </button>
+                </Button>
             </div>
 
             <div className="mt-5 overflow-x-auto">
@@ -347,34 +343,25 @@ function IndexContent({
 
             {statement.last_page > 1 && (
                 <div className="mt-4 flex items-center gap-3">
-                    <button
+                    <Button
+                        look="secondary"
+                        size="small"
                         disabled={statement.page <= 1}
                         onClick={() => visit({ page: statement.page - 1 })}
-                        style={{
-                            padding: "8px 16px",
-                            border: `1px solid ${inputBorder}`,
-                            color: text,
-                            opacity: statement.page <= 1 ? 0.4 : 1,
-                        }}
                     >
                         Back
-                    </button>
+                    </Button>
                     <span style={{ color: textSecondary, fontSize: "16px" }}>
                         Page {statement.page} of {statement.last_page}
                     </span>
-                    <button
+                    <Button
+                        look="secondary"
+                        size="small"
                         disabled={statement.page >= statement.last_page}
                         onClick={() => visit({ page: statement.page + 1 })}
-                        style={{
-                            padding: "8px 16px",
-                            border: `1px solid ${inputBorder}`,
-                            color: text,
-                            opacity:
-                                statement.page >= statement.last_page ? 0.4 : 1,
-                        }}
                     >
                         Next
-                    </button>
+                    </Button>
                 </div>
             )}
         </div>

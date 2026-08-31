@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
+use App\Http\Controllers\Transactions\ReversalController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -150,6 +151,10 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
         Route::get('/create', [RecordTransactionController::class, 'create'])->name('create');
         Route::post('/', [RecordTransactionController::class, 'store'])->name('store');
     });
+
+    Route::middleware('access:transactions.reverse-request')->group(function () {
+        Route::post('/{transaction}/cancel', [ReversalController::class, 'store'])->name('cancel');
+    });
 });
 
 // the agent's own address for the same controller, so the frame and the url match their role
@@ -223,6 +228,15 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     });
 
+    Route::middleware('access:transactions.reverse-approve')->group(function () {
+        Route::patch('/reversals/{reversal}/approve', [ReversalController::class, 'approve'])->name('reversals.approve');
+        Route::patch('/reversals/{reversal}/reject', [ReversalController::class, 'reject'])->name('reversals.reject');
+    });
+    // everything waiting on somebody, in one list
+    Route::middleware('access:approvals.view')->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    });
+
     // recording on a farmer's behalf
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
@@ -232,9 +246,9 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
         Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
     });
-    // everything waiting on somebody, in one list
-    Route::middleware('access:approvals.view')->group(function () {
-        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+
+    Route::middleware('access:transactions.reverse-request')->group(function () {
+        Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
     });
 });
 
@@ -631,5 +645,24 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     // everything waiting on somebody, in one list
     Route::middleware('access:approvals.view')->group(function () {
         Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    });
+
+    Route::middleware('access:transactions.reverse-approve')->group(function () {
+        Route::patch('/reversals/{reversal}/approve', [ReversalController::class, 'approve'])->name('reversals.approve');
+        Route::patch('/reversals/{reversal}/reject', [ReversalController::class, 'reject'])->name('reversals.reject');
+    });
+
+    // recording on a farmer's behalf
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
+    });
+
+    Route::middleware('access:transactions.create')->group(function () {
+        Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
+        Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
+    });
+
+    Route::middleware('access:transactions.reverse-request')->group(function () {
+        Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
     });
 });

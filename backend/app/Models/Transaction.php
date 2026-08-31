@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Transaction extends Model
 {
@@ -126,6 +127,11 @@ class Transaction extends Model
     public function reversedBy(): HasOne
     {
         return $this->hasOne(self::class, 'reverses_transaction_id');
+    }
+
+    public function reversalRequests(): HasMany
+    {
+        return $this->hasMany(ReversalRequest::class);
     }
 
     public function isAdjustment(): bool

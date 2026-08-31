@@ -145,6 +145,39 @@ it('sends the farmer their own templates', function () {
             ->where('templates.0.id', $this->cropTemplate->id));
 });
 
+// some things are true on every farm, so they are not tagged to any kind of farming
+it('sends a template that belongs to no particular kind of farming', function () {
+    $anyFarm = TransactionTemplate::create([
+        'name' => 'I paid for transport',
+        'slug' => 'transport_cost',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->feed->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+    ]);
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records/create')
+        ->assertInertia(fn($page) => $page->where('templates', function ($templates) use ($anyFarm) {
+            return collect($templates)->pluck('id')->contains($anyFarm->id);
+        }));
+});
+
+it('accepts a template that belongs to no particular kind of farming', function () {
+    $anyFarm = TransactionTemplate::create([
+        'name' => 'I paid for transport',
+        'slug' => 'transport_cost',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->feed->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+    ]);
+
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', ['transaction_template_id' => $anyFarm->id] + $this->payload)
+        ->assertSessionDoesntHaveErrors();
+});
+
 // a crop farmer has no animals to feed
 it('leaves out templates for a kind of farming they do not do', function () {
     $this->actingAs($this->farmerUser)
@@ -153,13 +186,21 @@ it('leaves out templates for a kind of farming they do not do', function () {
             ->where('templates.0.name', 'I sold my produce'));
 });
 
-// a farmer never cancels their own record
+// a farmer never cancels their own record, whatever kind of farming they do
 it('never offers a correction in the picker', function () {
     $this->profile->farmTypes()->detach();
 
     $this->actingAs($this->farmerUser)
         ->get('/my-records/create')
-        ->assertInertia(fn($page) => $page->has('templates', 0));
+        ->assertInertia(fn($page) => $page->where('templates', function ($templates) {
+            return collect($templates)->pluck('transaction_type')->doesntContain('ADJUSTMENT');
+        }));
+});
+
+it('refuses a correction sent straight to the form', function () {
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', ['transaction_template_id' => $this->correctionTemplate->id] + $this->payload)
+        ->assertSessionHasErrors('transaction_template_id');
 });
 
 it('sends only the accounts money can sit in', function () {

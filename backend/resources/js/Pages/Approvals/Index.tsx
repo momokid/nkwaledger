@@ -1,9 +1,10 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
+import Button from "@/Components/Button";
 import { router } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { ReactNode, useState } from "react";
+import { Fragment, ReactNode, useState } from "react";
 
 interface Details {
     [key: string]: string | number | boolean | null;
@@ -154,16 +155,6 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
 
     const thStyle = { color: brand, fontWeight: 700, fontSize: "16px" };
 
-    const buttonStyle = {
-        background: brand,
-        color: "#FFFFFF",
-        border: "none",
-        padding: "8px 18px",
-        fontSize: "16px",
-        fontWeight: 600,
-        cursor: "pointer",
-    } as const;
-
     const canAct = permissions.approve || permissions.confirm;
 
     return (
@@ -280,26 +271,17 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                             </td>
                                             <td className="px-4 py-3">
                                                 {canAct && item.can_approve && (
-                                                    <button
+                                                    <Button
+                                                        size="small"
+                                                        busy={busy === rowKey}
+                                                        busyLabel="Saving..."
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             sign(item);
                                                         }}
-                                                        disabled={
-                                                            busy === rowKey
-                                                        }
-                                                        style={{
-                                                            ...buttonStyle,
-                                                            opacity:
-                                                                busy === rowKey
-                                                                    ? 0.6
-                                                                    : 1,
-                                                        }}
                                                     >
-                                                        {busy === rowKey
-                                                            ? "Saving..."
-                                                            : "Check it"}
-                                                    </button>
+                                                        Check it
+                                                    </Button>
                                                 )}
                                                 {!item.can_approve && (
                                                     <span
@@ -384,20 +366,17 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
             {items.links.length > 3 && (
                 <div className="flex flex-wrap gap-2">
                     {items.links.map((link, index) => (
-                        <button
+                        <Button
                             key={index}
+                            size="small"
+                            look={link.active ? "primary" : "secondary"}
                             onClick={() => page(link.url)}
                             disabled={!link.url}
-                            style={{
-                                padding: "8px 14px",
-                                border: `1px solid ${border}`,
-                                background: link.active ? brand : "transparent",
-                                color: link.active ? "#FFFFFF" : text,
-                                fontSize: "16px",
-                                opacity: link.url ? 1 : 0.4,
-                            }}
-                            dangerouslySetInnerHTML={{ __html: link.label }}
-                        />
+                        >
+                            <span
+                                dangerouslySetInnerHTML={{ __html: link.label }}
+                            />
+                        </Button>
                     ))}
                 </div>
             )}

@@ -9,6 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use InvalidArgumentException;
+use App\Models\Transaction;
 
 class RecordTransactionRequest extends FormRequest
 {
@@ -99,7 +100,12 @@ class RecordTransactionRequest extends FormRequest
     {
         return TransactionTemplate::query()
             ->where('is_active', true)
-            ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
+            // a farmer never cancels their own record
+            ->where('transaction_type', '!=', Transaction::ADJUSTMENT)
+            ->where(fn($query) => $query
+                ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
+                // some things are true on every farm, so they belong to no category
+                ->orWhereNull('farm_type_category_id'))
             ->pluck('id')
             ->all();
     }

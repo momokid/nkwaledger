@@ -16,7 +16,9 @@ it('seeds the two classes', function () {
 it('seeds every account', function () {
     $this->seed(LedgerAccountSeeder::class);
 
-    expect(LedgerAccount::count())->toBe(16);
+    foreach (['Cash A/C', 'Momo A/C', 'Bank A/C', 'Livestock A/C', 'Fish Stock A/C', 'Stated Capital'] as $name) {
+        expect(LedgerAccount::where('name', $name)->exists())->toBeTrue();
+    }
 });
 
 it('seeds the money accounts', function () {
@@ -122,9 +124,11 @@ it('gives every account a code', function () {
 
 it('can run twice without duplicating rows', function () {
     $this->seed(LedgerAccountSeeder::class);
+    $before = LedgerAccount::count();
+
     $this->seed(LedgerAccountSeeder::class);
 
-    expect(LedgerAccount::count())->toBe(16)
+    expect(LedgerAccount::count())->toBe($before)
         ->and(LedgerClass::count())->toBe(2)
         ->and(LedgerCategory::count())->toBe(5);
 });

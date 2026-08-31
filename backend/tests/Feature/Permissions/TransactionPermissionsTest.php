@@ -24,11 +24,12 @@ it('lets a farmer view and record', function () {
     expect($farmer->hasPermissionTo('transactions.create'))->toBeTrue();
 });
 
-it('does not let a farmer cancel anything', function () {
-    $farmer = Role::findByName('farmer');
+it('lets a farmer ask to cancel their own record', function () {
+    expect(Role::findByName('farmer')->hasPermissionTo('transactions.reverse-request'))->toBeTrue();
+});
 
-    expect($farmer->hasPermissionTo('transactions.reverse-request'))->toBeFalse();
-    expect($farmer->hasPermissionTo('transactions.reverse-approve'))->toBeFalse();
+it('does not let a farmer agree to a cancellation', function () {
+    expect(Role::findByName('farmer')->hasPermissionTo('transactions.reverse-approve'))->toBeFalse();
 });
 
 it('lets an agent record and ask for a cancellation', function () {

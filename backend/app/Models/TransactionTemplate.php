@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use InvalidArgumentException;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TransactionTemplate extends Model
 {
@@ -66,6 +67,23 @@ class TransactionTemplate extends Model
     public function farmTypeCategory(): BelongsTo
     {
         return $this->belongsTo(FarmTypeCategory::class);
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    // once a record points at it, moving the accounts changes what happens next
+    public function isUsed(): bool
+    {
+        return $this->transactions()->exists();
+    }
+
+    // the words are for the farmer to read, the accounts are the books
+    public function accountingIsLocked(): bool
+    {
+        return $this->is_system || $this->isUsed();
     }
 
     // money cannot move from an account into itself

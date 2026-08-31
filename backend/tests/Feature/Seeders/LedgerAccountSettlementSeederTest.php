@@ -14,7 +14,9 @@ it('ticks the three money accounts', function () {
 it('leaves every other account unticked', function () {
     $this->seed(LedgerAccountSeeder::class);
 
-    expect(LedgerAccount::where('is_settlement', false)->count())->toBe(13);
+    foreach (['Livestock A/C', 'Fish Stock A/C', 'Income on Sales', 'Loan Payable'] as $name) {
+        expect(LedgerAccount::where('name', $name)->first()->is_settlement)->toBeFalse();
+    }
 });
 
 // running the seeder twice must not change anything

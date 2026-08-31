@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use App\Models\ReversalRequest;
 
 class ApprovalQueueService
 {
@@ -23,6 +24,7 @@ class ApprovalQueueService
         return $this->units($user, $farmerIds, $limit)
             ->concat($this->stocks($user, $farmerIds, $limit))
             ->concat($this->movements($user, $farmerIds, $limit))
+            ->concat($this->reversals($user, $farmerIds, $limit))
             // the thing waiting longest needs you most
             ->sortBy('waiting_since')
             ->values();
@@ -139,6 +141,41 @@ class ApprovalQueueService
                     'occurred_on' => $movement->occurred_on?->toDateString(),
                     'note' => $movement->note,
                     'count_now' => $movement->stock?->current_quantity,
+                ],
+            ]);
+    }
+
+    private function reversals(User $user, array $farmerIds, int $limit): Collection
+    {
+        if (! $this->access->can($user, 'approvals.view')) {
+            return collect();
+        }
+
+        $mayApprove = $this->access->can($user, 'transactions.reverse-approve');
+
+        return ReversalRequest::query()
+            ->where('status', ReversalRequest::PENDING)
+            ->whereHas('transaction', fn(Builder $query) => $query->whereIn('farmer_profile_id', $farmerIds))
+            ->with(['transaction.farmerProfile.user:id,surname,first_name', 'transaction.template:id,name', 'requestedBy:id,surname'])
+            ->orderBy('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn(ReversalRequest $request) => [
+                'kind' => 'reversal',
+                'id' => $request->id,
+                'uuid' => $request->uuid,
+                'farmer' => $this->farmerName($request->transaction?->farmerProfile),
+                'farmer_id' => $request->transaction?->farmerProfile?->uuid,
+                'what' => "Cancel {$request->transaction?->reference}",
+                'added_by' => $request->requestedBy?->surname,
+                'waiting_since' => $request->created_at?->toIso8601String(),
+                'can_approve' => $mayApprove && (int) $request->requested_by !== $user->id,
+                'details' => [
+                    'reason' => $request->reason,
+                    'reference' => $request->transaction?->reference,
+                    'what_happened' => $request->transaction?->template?->name,
+                    'amount' => $request->transaction?->amount_minor,
+                    'recorded_on' => $request->transaction?->transaction_date?->toDateString(),
                 ],
             ]);
     }
