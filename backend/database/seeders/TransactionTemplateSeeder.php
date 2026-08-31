@@ -58,3 +58,4 @@ class TransactionTemplateSeeder extends Seeder
         }
     }
 }
+
