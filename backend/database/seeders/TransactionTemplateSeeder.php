@@ -27,6 +27,16 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
         ],
+        [
+            // every cancellation hangs off this one, and its lines are copied from the record it undoes
+            'name' => 'Correction of an earlier record',
+            'slug' => 'correction',
+            'transaction_type' => 'ADJUSTMENT',
+            'debit_account' => 'Cash A/C',
+            'credit_account' => 'Income on Sales',
+            'settlement_side' => 'none',
+            'requires_farm_unit' => false,
+        ],
     ];
 
     public function run(): void

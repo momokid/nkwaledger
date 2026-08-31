@@ -130,9 +130,12 @@ it('can run twice without duplicating rows', function () {
 });
 
 // the templates look accounts up by name, so both seeders have to work together
+// the seeder skips a template whose accounts are missing, so none should be skipped here
 it('leaves the transaction templates able to find their accounts', function () {
     $this->seed(LedgerAccountSeeder::class);
     $this->seed(Database\Seeders\TransactionTemplateSeeder::class);
 
-    expect(App\Models\TransactionTemplate::count())->toBe(2);
+    foreach (['produce_sale', 'input_purchase', 'correction'] as $slug) {
+        $this->assertDatabaseHas('transaction_templates', ['slug' => $slug]);
+    }
 });
