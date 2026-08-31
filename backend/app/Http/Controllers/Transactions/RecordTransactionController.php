@@ -17,10 +17,64 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\Ledger\Reports\AccountStatementService;
+use Illuminate\Support\Carbon;
 
 class RecordTransactionController extends Controller
 {
-    public function __construct(private readonly PostingService $posting) {}
+    public function __construct(
+        private readonly PostingService $posting,
+        private readonly AccountStatementService $statements,
+    ) {}
+
+    public function index(Request $request, ?FarmerProfile $farmer = null): Response
+    {
+        $farmer = $this->resolveFarmer($request, $farmer);
+
+        // this month unless they ask for something else
+        $from = $request->query('from', Carbon::now()->startOfMonth()->toDateString());
+        $to = $request->query('to', Carbon::now()->endOfMonth()->toDateString());
+
+        $statement = $this->statements->for(
+            farmerProfileId: $farmer->id,
+            from: $from,
+            to: $to,
+            // the farmer sees everything of their own, marked
+            includeProvisional: true,
+            page: (int) $request->query('page', 1),
+            perPage: (int) $request->query('per_page', 25),
+        );
+
+        return Inertia::render('Transactions/Index', [
+            'farmer' => [
+                'id' => $farmer->uuid,
+                'name' => "{$farmer->user?->surname} {$farmer->user?->first_name}",
+            ],
+            'statement' => [
+                'rows' => collect($statement->rows)->map(fn($row) => [
+                    'uuid' => $row->uuid,
+                    'reference' => $row->reference,
+                    'date' => $row->transactionDate,
+                    'description' => $row->description,
+                    'type' => $row->transactionType,
+                    'money_in' => $row->moneyInMinor,
+                    'money_out' => $row->moneyOutMinor,
+                    'balance' => $row->balanceMinor,
+                    'is_provisional' => $row->isProvisional,
+                ]),
+                'opening_balance' => $statement->openingBalanceMinor,
+                'closing_balance' => $statement->closingBalanceMinor,
+                'total_in' => $statement->totalInMinor,
+                'total_out' => $statement->totalOutMinor,
+                'provisional_held_back' => $statement->provisionalHeldBackMinor,
+                'total' => $statement->total,
+                'page' => $statement->page,
+                'last_page' => $statement->lastPage,
+            ],
+            'filters' => ['from' => $from, 'to' => $to],
+            ...$this->frame($request),
+        ]);
+    }
 
     public function create(Request $request, ?FarmerProfile $farmer = null): Response
     {

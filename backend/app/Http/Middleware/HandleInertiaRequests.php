@@ -6,6 +6,7 @@ use App\Services\NavigationAccessService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
+use App\Services\ApprovalQueueService;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -16,7 +17,10 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
-    public function __construct(private NavigationAccessService $navigation) {}
+    public function __construct(
+        private NavigationAccessService $navigation,
+        private ApprovalQueueService $approvals,
+    ) {}
 
     /**
      * Determine the current asset version.
@@ -39,6 +43,10 @@ class HandleInertiaRequests extends Middleware
                 'user' => $this->userProps($request),
                 // route names this user may open, so the sidebar can hide the rest
                 'nav'  => fn() => $this->navigation->allowedRouteNames($request->user()),
+                // only what this person can actually sign off, so the badge never lies
+                'pendingApprovals' => fn() => $request->user()
+                    ? $this->approvals->countFor($request->user())
+                    : 0,
             ],
             // one-shot messages any controller can set with ->with(), read once by the layout
             'flash' => [

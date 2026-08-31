@@ -40,6 +40,7 @@ use App\Http\Controllers\Admin\FarmerController;
 use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
+use App\Http\Controllers\Admin\ApprovalController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -141,6 +142,10 @@ Route::middleware('auth')->group(function () {
 
 // the farmer's own book, with nobody named in the address
 Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-records.')->group(function () {
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/', [RecordTransactionController::class, 'index'])->name('index');
+    });
+
     Route::middleware('access:transactions.create')->group(function () {
         Route::get('/create', [RecordTransactionController::class, 'create'])->name('create');
         Route::post('/', [RecordTransactionController::class, 'store'])->name('store');
@@ -213,10 +218,23 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
     });
 
+    // everything waiting on somebody, in one list
+    Route::middleware('access:approvals.view')->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    });
+
     // recording on a farmer's behalf
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
+    });
+
     Route::middleware('access:transactions.create')->group(function () {
         Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
         Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
+    });
+    // everything waiting on somebody, in one list
+    Route::middleware('access:approvals.view')->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     });
 });
 
@@ -608,5 +626,10 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:farm-units.confirm')->group(function () {
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
+    });
+
+    // everything waiting on somebody, in one list
+    Route::middleware('access:approvals.view')->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     });
 });

@@ -99,6 +99,13 @@ return [
                 'delete' => 'Delete',
             ],
         ],
+        // one page listing everything waiting on somebody
+        'approvals' => [
+            'label' => 'Approvals',
+            'actions' => [
+                'view' => 'View the queue',
+            ],
+        ],
         // records are never edited or removed, only cancelled by a correction
         'transactions' => [
             'label' => 'Transactions',
@@ -160,6 +167,7 @@ return [
             'transactions.create',
             'transactions.reverse-request',
             'transactions.reverse-approve',
+            'approvals.view',
         ],
         'agent' => [
             'farm-types.view',
@@ -179,7 +187,9 @@ return [
             'transactions.view',
             'transactions.create',
             'transactions.reverse-request',
+            'approvals.view',
         ],
+        // a farmer keeps their own books and nothing else
         'farmer' => [
             'transactions.view',
             'transactions.create',

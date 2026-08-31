@@ -51,6 +51,7 @@ class AccountStatementService
             to: $to,
             accountId: $accountId,
             includeProvisional: $includeProvisional,
+            provisionalHeldBackMinor: $this->heldBack($farmerProfileId, $from, $to, $accountId, $settlementAccounts),
             openingBalanceMinor: $opening,
             generatedAt: now(),
             rows: $rows,
@@ -167,6 +168,28 @@ class AccountStatementService
             ->get();
 
         return $balance + $this->netOf($skipped, $settlementAccounts);
+    }
+
+    // counted whether or not the rows are shown, so the farmer always knows what is waiting
+    private function heldBack(
+        int $farmerProfileId,
+        string $from,
+        string $to,
+        ?int $accountId,
+        Collection $settlementAccounts,
+    ): int {
+        $waiting = $this->scope($farmerProfileId, true, $accountId)
+            ->where('is_provisional', true)
+            ->whereDate('transaction_date', '>=', $from)
+            ->whereDate('transaction_date', '<=', $to)
+            ->get();
+
+        return $waiting->reduce(
+            fn(int $carry, Transaction $transaction) => $carry
+                + $this->moneyIn($transaction, $settlementAccounts)
+                + $this->moneyOut($transaction, $settlementAccounts),
+            0,
+        );
     }
 
     private function netOf(Collection $transactions, Collection $settlementAccounts): int

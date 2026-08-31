@@ -21,6 +21,7 @@ import {
     IconUserCheck,
     IconUserCircle,
     IconWallet,
+    IconChecklist,
 } from "@tabler/icons-react";
 import {
     createContext,
@@ -54,6 +55,9 @@ interface NavItem {
     icon: typeof IconLayoutDashboard;
     // false means the page is not built, so the item shows but cannot be opened
     ready: boolean;
+    // names which count this item wants beside its label
+    badge?: string;
+    count?: number;
 }
 
 interface NavSet {
@@ -89,6 +93,13 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconClipboardList,
                 ready: true,
             },
+            {
+                label: "Approvals",
+                href: "/agent/approvals",
+                icon: IconChecklist,
+                ready: true,
+                badge: "approvals",
+            },
             { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
             {
                 label: "Reports",
@@ -122,9 +133,19 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconLayoutDashboard,
                 ready: true,
             },
-            { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
+            {
+                label: "Record",
+                href: "/my-records/create",
+                icon: IconPencilPlus,
+                ready: true,
+            },
             // no accounting words reach a farmer, so the ledger is called what they would call it
-            { label: "My Money", href: "#", icon: IconWallet, ready: false },
+            {
+                label: "My Money",
+                href: "/my-records",
+                icon: IconWallet,
+                ready: true,
+            },
             { label: "My Farm", href: "#", icon: IconPlant, ready: false },
             { label: "Credit", href: "#", icon: IconCreditCard, ready: false },
         ],
@@ -253,6 +274,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const firstName = user?.first_name ?? "Farmer";
     const surname = user?.surname ?? "";
     const primaryRole = userRoles[0] ?? "farmer";
+    // only what this person can sign off, counted on the server
+    const pendingApprovals =
+        (auth as { pendingApprovals?: number })?.pendingApprovals ?? 0;
     const verified = useIsVerified();
 
     const [dark, setDark] = useState(false);
@@ -346,7 +370,20 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
     // every role has its own home page, so the link follows whoever is signed in
     const dashboardHref = `/${primaryRole}/dashboard`;
-    const nav = (navSets[primaryRole] ?? navSets.farmer)(dashboardHref);
+    const built = (navSets[primaryRole] ?? navSets.farmer)(dashboardHref);
+
+    const withCount = (items: NavItem[]) =>
+        items.map((item) =>
+            item.badge === "approvals"
+                ? { ...item, count: pendingApprovals }
+                : item,
+        );
+
+    const nav = {
+        ...built,
+        main: withCount(built.main),
+        tools: withCount(built.tools),
+    };
 
     const mobileNav = nav.main.slice(0, 5);
 
@@ -412,6 +449,21 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             >
                 <Icon size={24} stroke={1.6} />
                 {!collapsed && item.label}
+                {/* a zero means nothing is waiting, so the badge stays away */}
+                {!collapsed && (item.count ?? 0) > 0 && (
+                    <span
+                        style={{
+                            marginLeft: "auto",
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            color: "#FFFFFF",
+                            background: gold,
+                            padding: "1px 8px",
+                        }}
+                    >
+                        {item.count}
+                    </span>
+                )}
             </Link>
         );
     };

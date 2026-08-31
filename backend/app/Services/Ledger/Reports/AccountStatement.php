@@ -19,8 +19,8 @@ class AccountStatement
         public readonly string $from,
         public readonly string $to,
         public readonly ?int $accountId,
-        // a report that cannot say what it left out is a report nobody can defend
         public readonly bool $includeProvisional,
+        public readonly int $provisionalHeldBackMinor,
         public readonly int $openingBalanceMinor,
         public readonly Carbon $generatedAt,
         /** @var array<int, AccountStatementRow> */
