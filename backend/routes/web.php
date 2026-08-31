@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\TransactionTemplateController;
 use App\Http\Controllers\Admin\FarmerController;
 use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
+use App\Http\Controllers\Transactions\RecordTransactionController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -138,6 +139,14 @@ Route::middleware('auth')->group(function () {
         ->name('otp.phone.confirm');
 });
 
+// the farmer's own book, with nobody named in the address
+Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-records.')->group(function () {
+    Route::middleware('access:transactions.create')->group(function () {
+        Route::get('/create', [RecordTransactionController::class, 'create'])->name('create');
+        Route::post('/', [RecordTransactionController::class, 'store'])->name('store');
+    });
+});
+
 // the agent's own address for the same controller, so the frame and the url match their role
 Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->group(function () {
     Route::middleware('access:farmers.create')->group(function () {
@@ -202,6 +211,12 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
     Route::middleware('access:farm-units.confirm')->group(function () {
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
+    });
+
+    // recording on a farmer's behalf
+    Route::middleware('access:transactions.create')->group(function () {
+        Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
+        Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
     });
 });
 
