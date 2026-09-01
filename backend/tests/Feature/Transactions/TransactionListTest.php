@@ -377,3 +377,48 @@ it('shows every account when none is picked', function () {
         ->get('/my-records')
         ->assertInertia(fn($page) => $page->where('statement.total_in', 35000));
 });
+// a row with dashes looks broken, so the farmer sees what was lost
+it('says what a loss was worth', function () {
+    app(PostingService::class)->post(new PostingRequest(
+        farmerProfileId: $this->profile->id,
+        transactionTemplateId: $this->lossTemplate->id,
+        amount: '80',
+        settlementAccountId: null,
+        transactionDate: now()->toDateString(),
+        farmUnitId: $this->approvedUnit->id,
+        recordedBy: $this->farmerUser->id,
+    ));
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page->where('statement.rows.0.value_lost', 8000));
+});
+
+it('says nothing was lost on an ordinary record', function () {
+    ($this->sell)('250');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page->where('statement.rows.0.value_lost', 0));
+});
+
+// what was lost is not money out, so it stays out of the totals
+it('keeps a loss out of the money totals', function () {
+    ($this->sell)('250');
+
+    app(PostingService::class)->post(new PostingRequest(
+        farmerProfileId: $this->profile->id,
+        transactionTemplateId: $this->lossTemplate->id,
+        amount: '80',
+        settlementAccountId: null,
+        transactionDate: now()->toDateString(),
+        farmUnitId: $this->approvedUnit->id,
+        recordedBy: $this->farmerUser->id,
+    ));
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page
+            ->where('statement.total_out', 0)
+            ->where('statement.closing_balance', 25000));
+});

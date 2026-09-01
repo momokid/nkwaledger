@@ -65,6 +65,7 @@ class RecordTransactionController extends Controller
                     'is_provisional' => $row->isProvisional,
                     'cancel_state' => $row->cancelState,
                     'account' => $row->accountName,
+                    'value_lost' => $row->valueLostMinor,
                 ]),
                 'opening_balance' => $statement->openingBalanceMinor,
                 'closing_balance' => $statement->closingBalanceMinor,

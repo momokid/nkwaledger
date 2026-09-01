@@ -12,14 +12,13 @@ class AccountStatementRow
         public readonly string $transactionDate,
         public readonly string $transactionType,
         public readonly string $templateName,
-        // the farmer's own words, or the template name if they wrote none
         public readonly string $description,
         public readonly int $moneyInMinor,
         public readonly int $moneyOutMinor,
-        // the cash position after this row
         public readonly int $balanceMinor,
         public readonly bool $isProvisional,
         public readonly string $cancelState,
         public readonly ?string $accountName,
+        public readonly int $valueLostMinor,
     ) {}
 }

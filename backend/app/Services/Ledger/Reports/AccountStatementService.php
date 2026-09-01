@@ -122,6 +122,9 @@ class AccountStatementService
                 isProvisional: (bool) $transaction->is_provisional,
                 cancelState: $this->cancelState($transaction),
                 accountName: $transaction->settlementAccount?->name,
+                valueLostMinor: $transaction->transaction_type === Transaction::LOSS
+                    ? (int) $transaction->amount_minor
+                    : 0,
             );
         }
 

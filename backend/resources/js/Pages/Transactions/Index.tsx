@@ -16,6 +16,7 @@ interface Row {
     is_provisional: boolean;
     cancel_state: "open" | "waiting" | "cancelled" | "correction";
     account: string | null;
+    value_lost: number;
 }
 
 interface AccountOption {
@@ -410,6 +411,19 @@ function IndexContent({
                                                 }}
                                             >
                                                 {row.account}
+                                            </span>
+                                        )}
+                                        {row.value_lost > 0 && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "15px",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                Worth GHS{" "}
+                                                {cedis(row.value_lost)}, no
+                                                money moved
                                             </span>
                                         )}
                                         {row.is_provisional && (
