@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
+import NotificationBell from "@/Components/NotificationBell";
 import {
     IconBell,
     IconChevronLeft,
@@ -229,30 +230,6 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
     }),
 };
 
-const sampleNotifications = [
-    {
-        id: 1,
-        title: "Rain expected",
-        body: "Heavy rainfall in your region within 48 hours.",
-        time: "10 min ago",
-        unread: true,
-    },
-    {
-        id: 2,
-        title: "Loan repayment due",
-        body: "GH 500 due in 14 days.",
-        time: "2 hours ago",
-        unread: true,
-    },
-    {
-        id: 3,
-        title: "Vet consultation confirmed",
-        body: "Dr Mensah will call you tomorrow at 9am.",
-        time: "Yesterday",
-        unread: false,
-    },
-];
-
 interface PageProps {
     auth: {
         user: {
@@ -283,11 +260,8 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const [collapsed, setCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [hovered, setHovered] = useState<string | null>(null);
-    const [bellOpen, setBellOpen] = useState(false);
     const [cogOpen, setCogOpen] = useState(false);
-    const [notifications, setNotifications] = useState(sampleNotifications);
 
-    const bellRef = useRef<HTMLDivElement>(null);
     const cogRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -306,12 +280,6 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
-            if (
-                bellRef.current &&
-                !bellRef.current.contains(e.target as Node)
-            ) {
-                setBellOpen(false);
-            }
             if (cogRef.current && !cogRef.current.contains(e.target as Node)) {
                 setCogOpen(false);
             }
@@ -348,12 +316,6 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             },
         );
     };
-
-    const markAllRead = () => {
-        setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-    };
-
-    const unreadCount = notifications.filter((n) => n.unread).length;
 
     const pageBg = dark ? "#111827" : "#F9FAFB";
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -765,140 +727,11 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                 )}
                             </button>
 
-                            <div ref={bellRef} style={{ position: "relative" }}>
-                                <button
-                                    onClick={() => {
-                                        setBellOpen(!bellOpen);
-                                        setCogOpen(false);
-                                    }}
-                                    style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        color: textSecondary,
-                                        display: "flex",
-                                        position: "relative",
-                                    }}
-                                >
-                                    <IconBell size={24} stroke={1.6} />
-                                    {unreadCount > 0 && (
-                                        <span
-                                            style={{
-                                                position: "absolute",
-                                                top: "-4px",
-                                                right: "-4px",
-                                                background: "#DC2626",
-                                                color: "#FFFFFF",
-                                                fontSize: "12px",
-                                                fontWeight: 600,
-                                                width: "16px",
-                                                height: "16px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                            }}
-                                        >
-                                            {unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-
-                                {bellOpen && (
-                                    <div
-                                        style={{
-                                            position: "absolute",
-                                            right: 0,
-                                            top: "36px",
-                                            width: "320px",
-                                            background: surface,
-                                            border: `1px solid ${dark ? "#374151" : "#E5E7EB"}`,
-                                            zIndex: 50,
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "space-between",
-                                                padding: "12px 16px",
-                                                borderBottom: `1px solid ${dark ? "#374151" : "#E5E7EB"}`,
-                                            }}
-                                        >
-                                            <span
-                                                style={{
-                                                    fontSize: "18px",
-                                                    fontWeight: 600,
-                                                }}
-                                            >
-                                                Notifications
-                                            </span>
-                                            <button
-                                                onClick={markAllRead}
-                                                style={{
-                                                    background: "transparent",
-                                                    border: "none",
-                                                    color: primary,
-                                                    fontSize: "15px",
-                                                    cursor: "pointer",
-                                                    fontFamily:
-                                                        "'Inter', system-ui, sans-serif",
-                                                }}
-                                            >
-                                                Mark all read
-                                            </button>
-                                        </div>
-
-                                        {notifications.map((n) => (
-                                            <div
-                                                key={n.id}
-                                                style={{
-                                                    padding: "12px 16px",
-                                                    borderBottom: `1px solid ${dark ? "#374151" : "#F3F4F6"}`,
-                                                    background: n.unread
-                                                        ? hoverBg
-                                                        : "transparent",
-                                                }}
-                                            >
-                                                <p
-                                                    style={{
-                                                        fontSize: "18px",
-                                                        fontWeight: 600,
-                                                        margin: 0,
-                                                    }}
-                                                >
-                                                    {n.title}
-                                                </p>
-                                                <p
-                                                    style={{
-                                                        fontSize: "18px",
-                                                        color: textSecondary,
-                                                        margin: "4px 0 0",
-                                                        lineHeight: 1.5,
-                                                    }}
-                                                >
-                                                    {n.body}
-                                                </p>
-                                                <p
-                                                    style={{
-                                                        fontSize: "15px",
-                                                        color: textSecondary,
-                                                        margin: "6px 0 0",
-                                                    }}
-                                                >
-                                                    {n.time}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            <NotificationBell dark={dark} />
 
                             <div ref={cogRef} style={{ position: "relative" }}>
                                 <button
-                                    onClick={() => {
-                                        setCogOpen(!cogOpen);
-                                        setBellOpen(false);
-                                    }}
+                                    onClick={() => setCogOpen(!cogOpen)}
                                     style={{
                                         background: "transparent",
                                         border: "none",

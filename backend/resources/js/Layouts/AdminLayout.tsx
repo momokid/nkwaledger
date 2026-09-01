@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import VerificationGate from "@/Components/VerificationGate";
+import NotificationBell from "@/Components/NotificationBell";
 import useIsVerified from "@/hooks/useIsVerified";
 import { PropsWithChildren, useEffect, useState } from "react";
 import {
@@ -623,6 +624,8 @@ export default function AdminLayout({ title, children }: Props) {
                                     )}
                                 </button>
                             </div>
+
+                            <NotificationBell dark={dark} />
                         </header>
 
                         <main style={{ padding: "24px" }}>
