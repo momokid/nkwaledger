@@ -129,7 +129,7 @@ class RecordTransactionController extends Controller
                 recordedBy: $request->user()->id,
             ));
         } catch (PostingFailed $failure) {
-            return back()->with('error', $failure->getMessage());
+            return back()->withInput()->with('error', $failure->getMessage());
         }
 
         return back()

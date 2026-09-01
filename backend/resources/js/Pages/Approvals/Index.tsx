@@ -1,8 +1,9 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
-import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
 import Button from "@/Components/Button";
-import { router } from "@inertiajs/react";
+import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
+import { cedis, shortDate } from "@/lib/format";
+import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { Fragment, ReactNode, useState } from "react";
 
@@ -63,9 +64,15 @@ const DETAIL_LABELS: Record<string, string> = {
     occurred_on: "Happened",
     note: "Note",
     count_now: "Count now",
+    reference: "Reference",
+    what_happened: "What happened",
+    amount: "Amount",
+    recorded_on: "Recorded on",
 };
 
-// how long a thing has sat there, in words
+const MONEY_KEYS = ["amount", "acquisition_cost"];
+const DATE_KEYS = ["started_on", "occurred_on", "recorded_on"];
+
 const waiting = (iso: string) => {
     const hours = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000);
 
@@ -74,6 +81,15 @@ const waiting = (iso: string) => {
 
     const days = Math.floor(hours / 24);
     return `${days} day${days === 1 ? "" : "s"}`;
+};
+
+const showValue = (name: string, value: Details[string]) => {
+    if (value === null || value === "") return "—";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (MONEY_KEYS.includes(name)) return `GHS ${cedis(Number(value))}`;
+    if (DATE_KEYS.includes(name)) return shortDate(String(value));
+
+    return String(value);
 };
 
 function Frame({
@@ -105,10 +121,15 @@ export default function Index(props: Props) {
 type ContentProps = Pick<Props, "items" | "basePath" | "permissions">;
 
 function IndexContent({ items, basePath, permissions }: ContentProps) {
+    const { errors } = usePage<Props>().props as ContentProps & {
+        errors: Record<string, string>;
+    };
     const { dark } = useTheme();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
+    const inputBorder = dark ? "#4B5563" : "#9CA3AF";
+    const inputBg = dark ? "#111827" : "#FFFFFF";
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
     const headerBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
@@ -119,6 +140,9 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
     const [openRow, setOpenRow] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [refusing, setRefusing] = useState<Item | null>(null);
+
+    const form = useForm({ reason: "" });
 
     const key = (item: Item) => `${item.kind}:${item.id}`;
 
@@ -148,6 +172,18 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
         );
     };
 
+    const refuse = () => {
+        if (refusing === null) return;
+
+        form.patch(`${basePath}/reversals/${refusing.uuid}/reject`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setRefusing(null);
+            },
+        });
+    };
+
     const page = (url: string | null) => {
         if (!url) return;
 
@@ -159,6 +195,14 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
     };
 
     const thStyle = { color: brand, fontWeight: 700, fontSize: "16px" };
+
+    const field = {
+        padding: "8px 10px",
+        border: `1px solid ${inputBorder}`,
+        background: inputBg,
+        color: text,
+        fontSize: "17px",
+    } as const;
 
     const canAct = permissions.approve || permissions.confirm;
 
@@ -276,20 +320,44 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                             </td>
                                             <td className="px-4 py-3">
                                                 {canAct && item.can_approve && (
-                                                    <Button
-                                                        size="small"
-                                                        busy={busy === rowKey}
-                                                        busyLabel="Saving..."
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            sign(item);
-                                                        }}
-                                                    >
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            size="small"
+                                                            busy={
+                                                                busy === rowKey
+                                                            }
+                                                            busyLabel="Saving..."
+                                                            onClick={(
+                                                                event,
+                                                            ) => {
+                                                                event.stopPropagation();
+                                                                sign(item);
+                                                            }}
+                                                        >
+                                                            {item.kind ===
+                                                            "reversal"
+                                                                ? "Agree"
+                                                                : "Check it"}
+                                                        </Button>
+
                                                         {item.kind ===
-                                                        "reversal"
-                                                            ? "Agree"
-                                                            : "Check it"}
-                                                    </Button>
+                                                            "reversal" && (
+                                                            <Button
+                                                                look="danger"
+                                                                size="small"
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    event.stopPropagation();
+                                                                    setRefusing(
+                                                                        item,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                Refuse
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 {!item.can_approve && (
                                                     <span
@@ -343,19 +411,10 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                                                 "2px",
                                                                         }}
                                                                     >
-                                                                        {value ===
-                                                                            null ||
-                                                                        value ===
-                                                                            ""
-                                                                            ? "—"
-                                                                            : typeof value ===
-                                                                                "boolean"
-                                                                              ? value
-                                                                                  ? "Yes"
-                                                                                  : "No"
-                                                                              : String(
-                                                                                    value,
-                                                                                )}
+                                                                        {showValue(
+                                                                            name,
+                                                                            value,
+                                                                        )}
                                                                     </p>
                                                                 </div>
                                                             ),
@@ -386,6 +445,109 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                             />
                         </Button>
                     ))}
+                </div>
+            )}
+
+            {refusing !== null && (
+                <div
+                    className="fixed inset-0 flex items-center justify-center p-4"
+                    style={{ background: "rgba(0,0,0,0.5)", zIndex: 50 }}
+                >
+                    <div
+                        className="p-6"
+                        style={{
+                            background: surface,
+                            border: `1px solid ${border}`,
+                            maxWidth: "460px",
+                            width: "100%",
+                        }}
+                    >
+                        <h3
+                            style={{
+                                fontSize: "20px",
+                                fontWeight: 700,
+                                color: text,
+                            }}
+                        >
+                            Turn this cancellation down?
+                        </h3>
+
+                        <p
+                            style={{
+                                fontSize: "17px",
+                                color: textSecondary,
+                                marginTop: "6px",
+                            }}
+                        >
+                            {refusing.what} for {refusing.farmer}.
+                        </p>
+
+                        <p
+                            style={{
+                                fontSize: "16px",
+                                color: textSecondary,
+                                marginTop: "10px",
+                            }}
+                        >
+                            The original record stays exactly as it is. Whoever
+                            asked will be told why.
+                        </p>
+
+                        <label
+                            style={{
+                                display: "block",
+                                fontSize: "17px",
+                                fontWeight: 600,
+                                color: text,
+                                marginTop: "16px",
+                                marginBottom: "6px",
+                            }}
+                        >
+                            Why are you turning it down?
+                        </label>
+                        <textarea
+                            rows={3}
+                            style={{ ...field, width: "100%" }}
+                            value={form.data.reason}
+                            onChange={(event) =>
+                                form.setData("reason", event.target.value)
+                            }
+                        />
+                        {errors.reason && (
+                            <p
+                                style={{
+                                    fontSize: "15px",
+                                    color: "#B91C1C",
+                                    marginTop: "4px",
+                                }}
+                            >
+                                {errors.reason}
+                            </p>
+                        )}
+
+                        <div
+                            className="flex gap-3"
+                            style={{ marginTop: "18px" }}
+                        >
+                            <Button
+                                look="danger"
+                                onClick={refuse}
+                                busy={form.processing}
+                                busyLabel="Sending..."
+                            >
+                                Turn it down
+                            </Button>
+                            <Button
+                                look="secondary"
+                                onClick={() => {
+                                    form.reset();
+                                    setRefusing(null);
+                                }}
+                            >
+                                Go back
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

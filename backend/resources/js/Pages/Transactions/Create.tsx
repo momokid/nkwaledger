@@ -58,9 +58,10 @@ function CreateContent({
     layout,
     basePath,
 }: ContentProps) {
-    const { errors, flash } = usePage<Props>().props as ContentProps & {
+    const { errors, flash, old } = usePage<Props>().props as ContentProps & {
         errors: Record<string, string>;
         flash: { success?: string; reference?: string };
+        old: Record<string, string>;
     };
     const { dark } = useTheme();
 
@@ -77,12 +78,12 @@ function CreateContent({
     const today = new Date().toISOString().slice(0, 10);
 
     const form = useForm({
-        transaction_template_id: "",
-        amount: "",
-        settlement_account_id: "",
-        transaction_date: today,
-        farm_unit_id: "",
-        narration: "",
+        transaction_template_id: old.transaction_template_id ?? "",
+        amount: old.amount ?? "",
+        settlement_account_id: old.settlement_account_id ?? "",
+        transaction_date: old.transaction_date ?? today,
+        farm_unit_id: old.farm_unit_id ?? "",
+        narration: old.narration ?? "",
     });
 
     const chosen = useMemo(
@@ -111,7 +112,7 @@ function CreateContent({
 
         form.post(postUrl, {
             preserveScroll: true,
-            // agents enter several at a time, so the form clears and stays put
+            preserveState: true,
             onSuccess: () => form.reset("amount", "narration"),
         });
     };

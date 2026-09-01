@@ -57,6 +57,8 @@ class HandleInertiaRequests extends Middleware
                 'error'   => fn() => $request->session()->get('error'),
                 'status'  => fn() => $request->session()->get('status'),
             ],
+            // what the person typed, sent back when a save fails on the server
+            'old' => fn() => $request->session()->getOldInput(),
             'ziggy' => fn() => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),
