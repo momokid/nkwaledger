@@ -42,6 +42,7 @@ use App\Http\Controllers\Admin\FarmUnitStockController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -155,6 +156,12 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
     Route::middleware('access:transactions.reverse-request')->group(function () {
         Route::post('/{transaction}/cancel', [ReversalController::class, 'store'])->name('cancel');
     });
+});
+
+Route::middleware(['auth', 'verified.phone'])->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::patch('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
 });
 
 // the agent's own address for the same controller, so the frame and the url match their role

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 use App\Services\ApprovalQueueService;
+use App\Services\NotificationService;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -20,6 +21,7 @@ class HandleInertiaRequests extends Middleware
     public function __construct(
         private NavigationAccessService $navigation,
         private ApprovalQueueService $approvals,
+        private NotificationService $notifications,
     ) {}
 
     /**
@@ -47,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'pendingApprovals' => fn() => $request->user()
                     ? $this->approvals->countFor($request->user())
                     : 0,
+                'unreadNotifications' => fn() => $this->notifications->unreadCountFor($request->user()),
             ],
             // one-shot messages any controller can set with ->with(), read once by the layout
             'flash' => [

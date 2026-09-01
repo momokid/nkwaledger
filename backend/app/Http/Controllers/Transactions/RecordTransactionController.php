@@ -35,13 +35,14 @@ class RecordTransactionController extends Controller
         // this month unless they ask for something else
         $from = $request->query('from', Carbon::now()->startOfMonth()->toDateString());
         $to = $request->query('to', Carbon::now()->endOfMonth()->toDateString());
+        $accountId = $request->query('account') !== null ? (int) $request->query('account') : null;
 
         $statement = $this->statements->for(
             farmerProfileId: $farmer->id,
             from: $from,
             to: $to,
-            // the farmer sees everything of their own, marked
             includeProvisional: true,
+            accountId: $accountId,
             page: (int) $request->query('page', 1),
             perPage: (int) $request->query('per_page', 25),
         );
@@ -63,17 +64,20 @@ class RecordTransactionController extends Controller
                     'balance' => $row->balanceMinor,
                     'is_provisional' => $row->isProvisional,
                     'cancel_state' => $row->cancelState,
+                    'account' => $row->accountName,
                 ]),
                 'opening_balance' => $statement->openingBalanceMinor,
                 'closing_balance' => $statement->closingBalanceMinor,
                 'total_in' => $statement->totalInMinor,
                 'total_out' => $statement->totalOutMinor,
+                'cancelled' => $statement->cancelledMinor,
                 'provisional_held_back' => $statement->provisionalHeldBackMinor,
                 'total' => $statement->total,
                 'page' => $statement->page,
                 'last_page' => $statement->lastPage,
             ],
-            'filters' => ['from' => $from, 'to' => $to],
+            'filters' => ['from' => $from, 'to' => $to, 'account' => $accountId],
+            'accounts' => LedgerAccount::settlement()->orderBy('name')->get(['id', 'name']),
             ...$this->frame($request),
         ]);
     }

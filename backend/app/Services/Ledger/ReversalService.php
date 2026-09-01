@@ -12,10 +12,13 @@ use App\Models\TransactionTemplate;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use App\Services\NotificationService;
 
 class ReversalService
 {
     private const REFERENCE_ATTEMPTS = 5;
+
+    public function __construct(private readonly NotificationService $notifications) {}
 
     public function request(Transaction $transaction, User $requestedBy, string $reason): ReversalRequest
     {
@@ -25,12 +28,22 @@ class ReversalService
 
         $this->guardCanBeReversed($transaction);
 
-        return ReversalRequest::create([
+        $request = ReversalRequest::create([
             'transaction_id' => $transaction->id,
             'reason' => $reason,
             'requested_by' => $requestedBy->id,
             'requested_at' => now(),
         ]);
+
+        $this->notifications->sendToPermission(
+            permission: 'transactions.reverse-approve',
+            kind: 'reversal.requested',
+            message: "Somebody wants to cancel record {$transaction->reference}. {$reason}",
+            link: '/admin/approvals',
+            except: $requestedBy,
+        );
+
+        return $request;
     }
 
     public function approve(ReversalRequest $request, User $approvedBy): Transaction
@@ -51,6 +64,13 @@ class ReversalService
                 'reversal_transaction_id' => $reversal->id,
             ])->save();
 
+            $this->notifications->send(
+                user: $request->requestedBy,
+                kind: 'reversal.approved',
+                message: "Record {$original->reference} is cancelled. A correction is in the book.",
+                link: '/my-records',
+            );
+
             return $reversal;
         });
     }
@@ -66,6 +86,13 @@ class ReversalService
             'rejected_at' => now(),
             'rejection_reason' => $reason,
         ])->save();
+
+        $this->notifications->send(
+            user: $request->requestedBy,
+            kind: 'reversal.rejected',
+            message: "Record {$request->transaction?->reference} stays as it is. {$reason}",
+            link: '/my-records',
+        );
 
         return $request;
     }
@@ -102,18 +129,20 @@ class ReversalService
         if ($pending) {
             throw PostingFailed::because('Somebody has already asked to cancel that record.');
         }
-
-        if (! $transaction->accountingPeriod->isOpen()) {
-            throw PostingFailed::because('That period is closed and can no longer be changed.');
-        }
     }
 
     private function post(Transaction $original, ReversalRequest $request, User $approvedBy): Transaction
     {
         $period = AccountingPeriod::covering(now()->toDateString());
 
-        if ($period === null || ! $period->isOpen()) {
-            throw PostingFailed::because('There is no open period to record this cancellation in.');
+        if ($period === null) {
+            throw PostingFailed::because(
+                'There is no accounting period covering today, so this cancellation cannot be recorded yet.',
+            );
+        }
+
+        if (! $period->isOpen()) {
+            throw PostingFailed::because('Today falls in a closed period, so nothing can be recorded.');
         }
 
         $template = $this->adjustmentTemplate();

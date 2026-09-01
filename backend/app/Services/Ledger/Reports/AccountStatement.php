@@ -10,6 +10,8 @@ class AccountStatement
 
     public readonly int $totalOutMinor;
 
+    public readonly int $cancelledMinor;
+
     public readonly int $closingBalanceMinor;
 
     public readonly int $lastPage;
@@ -30,8 +32,15 @@ class AccountStatement
         public readonly int $perPage,
         public readonly ReportHeader $header,
     ) {
-        $this->totalInMinor = array_sum(array_map(fn($row) => $row->moneyInMinor, $rows));
-        $this->totalOutMinor = array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows));
+        $ordinary = array_filter($rows, fn($row) => $row->cancelState !== 'correction');
+        $corrections = array_filter($rows, fn($row) => $row->cancelState === 'correction');
+
+        $this->totalInMinor = array_sum(array_map(fn($row) => $row->moneyInMinor, $ordinary));
+        $this->totalOutMinor = array_sum(array_map(fn($row) => $row->moneyOutMinor, $ordinary));
+
+        $this->cancelledMinor = array_sum(
+            array_map(fn($row) => $row->moneyInMinor + $row->moneyOutMinor, $corrections),
+        );
 
         $this->closingBalanceMinor = $rows === []
             ? $openingBalanceMinor

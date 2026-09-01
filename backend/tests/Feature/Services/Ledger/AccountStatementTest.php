@@ -141,6 +141,17 @@ beforeEach(function () {
         ));
     };
 
+    $this->approver = User::factory()->create();
+
+    TransactionTemplate::create([
+        'name' => 'Correction of an earlier record',
+        'slug' => 'correction',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->sales->id,
+        'settlement_side' => 'none',
+    ]);
+
     $this->service = app(AccountStatementService::class);
 
     $this->run = function (array $overrides = []) {
@@ -437,3 +448,57 @@ it('signs each page differently', function () {
 
     expect($second)->not->toBe($first);
 });
+// a cancellation is money moving back, not money earned or spent
+it('keeps a cancellation out of the money in total', function () {
+    $purchase = ($this->spend)('100');
+
+    cancel($purchase, $this->staff, $this->approver);
+
+    $statement = ($this->run)();
+
+    expect($statement->totalInMinor)->toBe(0);
+    expect($statement->totalOutMinor)->toBe(10000);
+});
+
+it('counts what was cancelled on its own', function () {
+    $purchase = ($this->spend)('100');
+
+    cancel($purchase, $this->staff, $this->approver);
+
+    expect(($this->run)()->cancelledMinor)->toBe(10000);
+});
+
+it('still leaves the farmer with the right balance', function () {
+    ($this->sell)('250');
+    $purchase = ($this->spend)('100');
+
+    cancel($purchase, $this->staff, $this->approver);
+
+    expect(($this->run)()->closingBalanceMinor)->toBe(25000);
+});
+
+it('counts a cancelled sale on its own too', function () {
+    $sale = ($this->sell)('250');
+
+    cancel($sale, $this->staff, $this->approver);
+
+    $statement = ($this->run)();
+
+    expect($statement->totalInMinor)->toBe(25000);
+    expect($statement->totalOutMinor)->toBe(0);
+    expect($statement->cancelledMinor)->toBe(25000);
+    expect($statement->closingBalanceMinor)->toBe(0);
+});
+
+it('counts nothing cancelled when nothing was', function () {
+    ($this->sell)('250');
+
+    expect(($this->run)()->cancelledMinor)->toBe(0);
+});
+
+function cancel(App\Models\Transaction $record, App\Models\User $asker, App\Models\User $approver): void
+{
+    $service = app(App\Services\Ledger\ReversalService::class);
+
+    $service->approve($service->request($record, $asker, 'Wrong amount typed.'), $approver);
+}

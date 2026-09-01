@@ -105,7 +105,7 @@ beforeEach(function () {
         transactionTemplateId: $this->saleTemplate->id,
         amount: '250',
         settlementAccountId: $this->cash->id,
-        transactionDate: now()->subDays(2)->toDateString(),
+        transactionDate: now()->startOfMonth()->toDateString(),
         narration: 'Sold maize',
         recordedBy: $this->farmerUser->id,
     ));
@@ -201,7 +201,11 @@ it('marks a row that has been cancelled', function () {
 
     $this->actingAs($this->farmerUser)
         ->get('/my-records')
-        ->assertInertia(fn($page) => $page->where('statement.rows.0.cancel_state', 'cancelled'));
+        ->assertInertia(fn($page) => $page->where('statement.rows', function ($rows) {
+            $original = collect($rows)->firstWhere('reference', $this->record->reference);
+
+            return $original['cancel_state'] === 'cancelled';
+        }));
 });
 
 // both stay on the page, neither is hidden

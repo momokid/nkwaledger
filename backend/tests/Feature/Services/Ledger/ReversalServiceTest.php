@@ -144,11 +144,19 @@ it('refuses to reverse something already reversed', function () {
     expect(fn() => ($this->ask)())->toThrow(PostingFailed::class);
 });
 
-// a closed period is a statement of record, not something to reach back into
-it('refuses when the period has closed', function () {
+// the correction lands today, so a closed month is never reached into
+it('still allows a cancellation when the original period has closed', function () {
+    $later = AccountingPeriod::create([
+        'name' => 'Next Period',
+        'starts_on' => now()->addYear()->startOfYear()->toDateString(),
+        'ends_on' => now()->addYear()->endOfYear()->toDateString(),
+    ]);
+
     $this->period->close($this->manager);
 
-    expect(fn() => ($this->ask)())->toThrow(PostingFailed::class);
+    $this->travelTo(now()->addYear());
+
+    expect(($this->ask)())->toBeInstanceOf(ReversalRequest::class);
 });
 
 // the person who asks cannot be the person who agrees

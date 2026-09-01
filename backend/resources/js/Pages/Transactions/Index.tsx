@@ -1,8 +1,8 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { router } from "@inertiajs/react";
+import Button from "@/Components/Button";
+import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { useState } from "react";
-import Button from "@/Components/Button";
 
 interface Row {
     uuid: string;
@@ -14,6 +14,13 @@ interface Row {
     money_out: number;
     balance: number;
     is_provisional: boolean;
+    cancel_state: "open" | "waiting" | "cancelled" | "correction";
+    account: string | null;
+}
+
+interface AccountOption {
+    id: number;
+    name: string;
 }
 
 interface Statement {
@@ -22,6 +29,7 @@ interface Statement {
     closing_balance: number;
     total_in: number;
     total_out: number;
+    cancelled: number;
     provisional_held_back: number;
     total: number;
     page: number;
@@ -31,16 +39,13 @@ interface Statement {
 interface Props extends PageProps {
     farmer: { id: string; name: string };
     statement: Statement;
-    filters: { from: string; to: string };
+    filters: { from: string; to: string; account: number | null };
+    accounts: AccountOption[];
     layout: "farmer" | "agent";
     basePath: string;
 }
 
-const cedis = (minor: number) =>
-    (minor / 100).toLocaleString("en-GH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
+import { cedis, shortDate } from "@/lib/format";
 
 export default function Index(props: Props) {
     return (
@@ -52,16 +57,21 @@ export default function Index(props: Props) {
 
 type ContentProps = Pick<
     Props,
-    "farmer" | "statement" | "filters" | "layout" | "basePath"
+    "farmer" | "statement" | "filters" | "accounts" | "layout" | "basePath"
 >;
 
 function IndexContent({
     farmer,
     statement,
     filters,
+    accounts,
     layout,
     basePath,
 }: ContentProps) {
+    const { errors, flash } = usePage<Props>().props as ContentProps & {
+        errors: Record<string, string>;
+        flash: { success?: string };
+    };
     const { dark } = useTheme();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -73,18 +83,42 @@ function IndexContent({
     const headerBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
     const rowAlt = dark ? "#111827" : "#F9FAFB";
     const warnBg = dark ? "rgba(180,83,9,0.15)" : "#FEF3C7";
+    const noticeBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
     const brand = "#1D9E75";
 
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
+    const [account, setAccount] = useState(
+        filters.account ? String(filters.account) : "",
+    );
     const [loading, setLoading] = useState(false);
+    const [cancelling, setCancelling] = useState<Row | null>(null);
+
+    const form = useForm({ reason: "" });
 
     const visit = (params: Record<string, string | number>) => {
         setLoading(true);
         router.visit(basePath, {
-            data: { from, to, ...params },
+            data: { from, to, ...(account ? { account } : {}), ...params },
             preserveState: true,
             onFinish: () => setLoading(false),
+        });
+    };
+
+    const cancelUrl = (row: Row) =>
+        layout === "agent"
+            ? `/agent/farmers/${farmer.id}/records/${row.uuid}/cancel`
+            : `/my-records/${row.uuid}/cancel`;
+
+    const askToCancel = () => {
+        if (cancelling === null) return;
+
+        form.post(cancelUrl(cancelling), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setCancelling(null);
+            },
         });
     };
 
@@ -99,6 +133,15 @@ function IndexContent({
     const summary = [
         { label: "Money in", value: statement.total_in, colour: brand },
         { label: "Money out", value: statement.total_out, colour: "#B45309" },
+        ...(statement.cancelled > 0
+            ? [
+                  {
+                      label: "Cancelled",
+                      value: statement.cancelled,
+                      colour: textSecondary,
+                  },
+              ]
+            : []),
         {
             label: "What is left",
             value: statement.closing_balance,
@@ -114,6 +157,19 @@ function IndexContent({
             <h2 style={{ fontSize: "22px", fontWeight: 700, color: text }}>
                 {layout === "agent" ? `${farmer.name} — records` : "My records"}
             </h2>
+
+            {flash?.success && (
+                <div
+                    className="mt-4 p-3"
+                    style={{
+                        background: noticeBg,
+                        color: brand,
+                        fontSize: "17px",
+                    }}
+                >
+                    {flash.success}
+                </div>
+            )}
 
             <div className="mt-4 flex flex-wrap gap-4">
                 {summary.map((item) => (
@@ -192,6 +248,54 @@ function IndexContent({
                         onChange={(event) => setTo(event.target.value)}
                     />
                 </div>
+                <div>
+                    <label
+                        style={{
+                            display: "block",
+                            fontSize: "16px",
+                            color: textSecondary,
+                            marginBottom: "4px",
+                        }}
+                    >
+                        Money kept in
+                    </label>
+                    <select
+                        style={field}
+                        value={account}
+                        onChange={(event) => setAccount(event.target.value)}
+                    >
+                        <option value="">All</option>
+                        {accounts.map((option) => (
+                            <option key={option.id} value={option.id}>
+                                {option.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label
+                        style={{
+                            display: "block",
+                            fontSize: "16px",
+                            color: textSecondary,
+                            marginBottom: "4px",
+                        }}
+                    >
+                        Money kept in
+                    </label>
+                    <select
+                        style={field}
+                        value={account}
+                        onChange={(event) => setAccount(event.target.value)}
+                    >
+                        <option value="">All</option>
+                        {accounts.map((option) => (
+                            <option key={option.id} value={option.id}>
+                                {option.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <Button
                     onClick={() => visit({ page: 1 })}
                     busy={loading}
@@ -215,9 +319,10 @@ function IndexContent({
                                 "In",
                                 "Out",
                                 "Left",
-                            ].map((heading) => (
+                                "",
+                            ].map((heading, index) => (
                                 <th
-                                    key={heading}
+                                    key={index}
                                     className="px-4 py-3 text-left"
                                     style={{
                                         color: brand,
@@ -234,7 +339,7 @@ function IndexContent({
                         {loading && (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={7}
                                     className="px-4 py-6 text-center"
                                     style={{ color: textSecondary }}
                                 >
@@ -246,7 +351,7 @@ function IndexContent({
                         {!loading && statement.rows.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={7}
                                     className="px-4 py-6 text-center"
                                     style={{
                                         color: textSecondary,
@@ -269,19 +374,44 @@ function IndexContent({
                                             index % 2 === 1
                                                 ? rowAlt
                                                 : "transparent",
+                                        opacity:
+                                            row.cancel_state === "cancelled"
+                                                ? 0.6
+                                                : 1,
                                     }}
                                 >
                                     <td
                                         className="px-4 py-3"
                                         style={{ color: text }}
                                     >
-                                        {row.date}
+                                        {shortDate(row.date)}
                                     </td>
                                     <td
                                         className="px-4 py-3"
                                         style={{ color: text }}
                                     >
-                                        {row.description}
+                                        <span
+                                            style={{
+                                                textDecoration:
+                                                    row.cancel_state ===
+                                                    "cancelled"
+                                                        ? "line-through"
+                                                        : "none",
+                                            }}
+                                        >
+                                            {row.description}
+                                        </span>
+                                        {row.account && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "15px",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                {row.account}
+                                            </span>
+                                        )}
                                         {row.is_provisional && (
                                             <span
                                                 style={{
@@ -291,6 +421,40 @@ function IndexContent({
                                                 }}
                                             >
                                                 Not counted yet
+                                            </span>
+                                        )}
+                                        {row.cancel_state === "waiting" && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "15px",
+                                                    color: "#B45309",
+                                                }}
+                                            >
+                                                Waiting for someone to agree
+                                            </span>
+                                        )}
+                                        {row.cancel_state === "cancelled" && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "15px",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                Cancelled
+                                            </span>
+                                        )}
+                                        {row.cancel_state === "correction" && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "15px",
+                                                    color: brand,
+                                                }}
+                                            >
+                                                This puts an earlier record
+                                                right
                                             </span>
                                         )}
                                     </td>
@@ -307,9 +471,13 @@ function IndexContent({
                                         className="px-4 py-3"
                                         style={{
                                             color:
-                                                row.money_in > 0
-                                                    ? brand
-                                                    : textSecondary,
+                                                row.cancel_state ===
+                                                    "correction" ||
+                                                row.cancel_state === "cancelled"
+                                                    ? textSecondary
+                                                    : row.money_in > 0
+                                                      ? brand
+                                                      : textSecondary,
                                         }}
                                     >
                                         {row.money_in > 0
@@ -320,9 +488,13 @@ function IndexContent({
                                         className="px-4 py-3"
                                         style={{
                                             color:
-                                                row.money_out > 0
-                                                    ? "#B45309"
-                                                    : textSecondary,
+                                                row.cancel_state ===
+                                                    "correction" ||
+                                                row.cancel_state === "cancelled"
+                                                    ? textSecondary
+                                                    : row.money_out > 0
+                                                      ? "#B45309"
+                                                      : textSecondary,
                                         }}
                                     >
                                         {row.money_out > 0
@@ -334,6 +506,19 @@ function IndexContent({
                                         style={{ color: text, fontWeight: 600 }}
                                     >
                                         {cedis(row.balance)}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {row.cancel_state === "open" && (
+                                            <Button
+                                                look="secondary"
+                                                size="small"
+                                                onClick={() =>
+                                                    setCancelling(row)
+                                                }
+                                            >
+                                                Cancel this
+                                            </Button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -362,6 +547,110 @@ function IndexContent({
                     >
                         Next
                     </Button>
+                </div>
+            )}
+
+            {cancelling !== null && (
+                <div
+                    className="fixed inset-0 flex items-center justify-center p-4"
+                    style={{ background: "rgba(0,0,0,0.5)", zIndex: 50 }}
+                >
+                    <div
+                        className="p-6"
+                        style={{
+                            background: surface,
+                            border: `1px solid ${border}`,
+                            maxWidth: "460px",
+                            width: "100%",
+                        }}
+                    >
+                        <h3
+                            style={{
+                                fontSize: "20px",
+                                fontWeight: 700,
+                                color: text,
+                            }}
+                        >
+                            Cancel this record?
+                        </h3>
+
+                        <p
+                            style={{
+                                fontSize: "17px",
+                                color: textSecondary,
+                                marginTop: "6px",
+                            }}
+                        >
+                            {cancelling.description}, reference{" "}
+                            {cancelling.reference}.
+                        </p>
+
+                        <p
+                            style={{
+                                fontSize: "16px",
+                                color: textSecondary,
+                                marginTop: "10px",
+                            }}
+                        >
+                            Nothing is rubbed out. Somebody else has to agree,
+                            then a correction goes into your book next to the
+                            original.
+                        </p>
+
+                        <label
+                            style={{
+                                display: "block",
+                                fontSize: "17px",
+                                fontWeight: 600,
+                                color: text,
+                                marginTop: "16px",
+                                marginBottom: "6px",
+                            }}
+                        >
+                            What went wrong?
+                        </label>
+                        <textarea
+                            rows={3}
+                            style={{ ...field, width: "100%" }}
+                            value={form.data.reason}
+                            onChange={(event) =>
+                                form.setData("reason", event.target.value)
+                            }
+                        />
+                        {errors.reason && (
+                            <p
+                                style={{
+                                    fontSize: "15px",
+                                    color: "#B91C1C",
+                                    marginTop: "4px",
+                                }}
+                            >
+                                {errors.reason}
+                            </p>
+                        )}
+
+                        <div
+                            className="flex gap-3"
+                            style={{ marginTop: "18px" }}
+                        >
+                            <Button
+                                onClick={askToCancel}
+                                busy={form.processing}
+                                busyLabel="Sending..."
+                            >
+                                Ask to cancel
+                            </Button>
+                            <Button
+                                look="secondary"
+                                onClick={() => {
+                                    form.reset();
+                                    setCancelling(null);
+                                }}
+                            >
+                                Keep it
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

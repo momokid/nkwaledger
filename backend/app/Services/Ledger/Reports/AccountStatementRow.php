@@ -20,5 +20,6 @@ class AccountStatementRow
         public readonly int $balanceMinor,
         public readonly bool $isProvisional,
         public readonly string $cancelState,
+        public readonly ?string $accountName,
     ) {}
 }

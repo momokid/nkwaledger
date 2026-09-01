@@ -49,8 +49,11 @@ beforeEach(function () {
     };
 
     $this->cash = $account('Cash A/C', $assetSub->id, true);
+    $this->momo = $account('Momo A/C', $assetSub->id, true);
     $this->sales = $account('Income on Sales', $incomeSub->id);
     $this->feed = $account('Expense on Feed', $expenseSub->id);
+    $this->livestock = $account('Livestock A/C', $assetSub->id);
+    $this->lossAccount = $account('Loss on Farm Assets', $expenseSub->id);
 
     $category = FarmTypeCategory::create(['name' => 'Livestock']);
 
@@ -67,6 +70,17 @@ beforeEach(function () {
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $this->sales->id,
         'settlement_side' => 'debit',
+        'farm_type_category_id' => $category->id,
+    ]);
+
+    $this->lossTemplate = TransactionTemplate::create([
+        'name' => 'An animal died',
+        'slug' => 'animal_loss',
+        'transaction_type' => 'LOSS',
+        'debit_account_id' => $this->lossAccount->id,
+        'credit_account_id' => $this->livestock->id,
+        'settlement_side' => 'none',
+        'requires_farm_unit' => true,
         'farm_type_category_id' => $category->id,
     ]);
 
@@ -132,6 +146,17 @@ beforeEach(function () {
             settlementAccountId: $this->cash->id,
             transactionDate: $date ?? now()->toDateString(),
             farmUnitId: ($unit ?? $this->approvedUnit)->id,
+            recordedBy: $this->farmerUser->id,
+        ));
+    };
+
+    $this->sellByMomo = function (string $amount, ?string $date = null) use ($posting) {
+        return $posting->post(new PostingRequest(
+            farmerProfileId: $this->profile->id,
+            transactionTemplateId: $this->saleTemplate->id,
+            amount: $amount,
+            settlementAccountId: $this->momo->id,
+            transactionDate: $date ?? now()->toDateString(),
             recordedBy: $this->farmerUser->id,
         ));
     };
@@ -237,7 +262,7 @@ it('reads only the farmer signed in', function () {
 
 it('breaks a long list into pages', function () {
     foreach (range(1, 5) as $day) {
-        ($this->sell)('100', now()->startOfMonth()->addDays($day)->toDateString());
+        ($this->sell)('100', now()->toDateString());
     }
 
     $this->actingAs($this->farmerUser)
@@ -250,7 +275,7 @@ it('breaks a long list into pages', function () {
 // a running balance that restarts on page two is a lie
 it('carries the balance onto the next page', function () {
     foreach (range(1, 5) as $day) {
-        ($this->sell)('100', now()->startOfMonth()->addDays($day)->toDateString());
+        ($this->sell)('100', now()->toDateString());
     }
 
     $this->actingAs($this->farmerUser)
@@ -282,4 +307,73 @@ it('hides a farmer the agent does not hold', function () {
     $this->actingAs($this->agent)
         ->get("/agent/farmers/{$other->uuid}/records")
         ->assertNotFound();
+});
+
+// a farmer with two pockets needs to know which one a record touched
+it('says which account each row touched', function () {
+    ($this->sell)('250');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page->where('statement.rows.0.account', 'Cash A/C'));
+});
+
+it('says nothing for a record that moved no money', function () {
+    app(PostingService::class)->post(new PostingRequest(
+        farmerProfileId: $this->profile->id,
+        transactionTemplateId: $this->lossTemplate->id,
+        amount: '80',
+        settlementAccountId: null,
+        transactionDate: now()->toDateString(),
+        farmUnitId: $this->approvedUnit->id,
+        recordedBy: $this->farmerUser->id,
+    ));
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page->where('statement.rows.0.account', null));
+});
+
+// so a farmer can pick Bank and see it is empty, rather than wonder why it is missing
+it('offers every account money can sit in', function () {
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page->has('accounts', 2));
+});
+
+it('narrows the list to one account', function () {
+    ($this->sell)('250');
+    ($this->sellByMomo)('100');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records?account=' . $this->momo->id)
+        ->assertInertia(fn($page) => $page
+            ->has('statement.rows', 1)
+            ->where('statement.rows.0.money_in', 10000));
+});
+
+it('narrows the totals to one account', function () {
+    ($this->sell)('250');
+    ($this->sellByMomo)('100');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records?account=' . $this->cash->id)
+        ->assertInertia(fn($page) => $page
+            ->where('statement.total_in', 25000)
+            ->where('statement.closing_balance', 25000));
+});
+
+it('remembers which account was picked', function () {
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records?account=' . $this->momo->id)
+        ->assertInertia(fn($page) => $page->where('filters.account', $this->momo->id));
+});
+
+it('shows every account when none is picked', function () {
+    ($this->sell)('250');
+    ($this->sellByMomo)('100');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page->where('statement.total_in', 35000));
 });

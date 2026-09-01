@@ -7,6 +7,7 @@ use App\Models\LedgerAccount;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use App\Models\JournalLine;
 
 class AccountStatementService
 {
@@ -32,7 +33,7 @@ class AccountStatementService
         $opening = $this->balanceBefore($farmerProfileId, $from, $to, $includeProvisional, $accountId, $page, $perPage, $settlementAccounts);
 
         $transactions = (clone $base)
-            ->with('template:id,name')
+            ->with(['template:id,name', 'settlementAccount:id,name'])
             ->withExists('reversedBy as is_cancelled')
             ->withExists(['reversalRequests as has_pending_cancel' => fn($query) => $query->where('status', 'pending')])
             ->whereDate('transaction_date', '>=', $from)
@@ -120,6 +121,7 @@ class AccountStatementService
                 balanceMinor: $balance,
                 isProvisional: (bool) $transaction->is_provisional,
                 cancelState: $this->cancelState($transaction),
+                accountName: $transaction->settlementAccount?->name,
             );
         }
 
@@ -133,9 +135,7 @@ class AccountStatementService
             return 0;
         }
 
-        return $transaction->transaction_type === Transaction::INCOME
-            ? (int) $transaction->amount_minor
-            : 0;
+        return $this->cashRises($transaction) ? (int) $transaction->amount_minor : 0;
     }
 
     private function moneyOut(Transaction $transaction, Collection $settlementAccounts): int
@@ -144,9 +144,22 @@ class AccountStatementService
             return 0;
         }
 
-        return $transaction->transaction_type === Transaction::INCOME
-            ? 0
-            : (int) $transaction->amount_minor;
+        return $this->cashRises($transaction) ? 0 : (int) $transaction->amount_minor;
+    }
+
+    private function cashRises(Transaction $transaction): bool
+    {
+        if ($transaction->transaction_type !== Transaction::ADJUSTMENT) {
+            return $transaction->transaction_type === Transaction::INCOME;
+        }
+
+        $line = JournalLine::query()
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+            ->where('journal_entries.transaction_id', $transaction->id)
+            ->where('journal_lines.ledger_account_id', $transaction->settlement_account_id)
+            ->first(['journal_lines.debit_minor']);
+
+        return $line !== null && (int) $line->debit_minor > 0;
     }
 
     private function touchesCash(Transaction $transaction, Collection $settlementAccounts): bool

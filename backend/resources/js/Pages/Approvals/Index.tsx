@@ -11,8 +11,9 @@ interface Details {
 }
 
 interface Item {
-    kind: "farm_unit" | "stock" | "stock_movement";
+    kind: "farm_unit" | "stock" | "stock_movement" | "reversal";
     id: number;
+    uuid?: string;
     farmer: string;
     farmer_id: string;
     what: string;
@@ -41,6 +42,7 @@ const KIND_LABELS: Record<Item["kind"], string> = {
     farm_unit: "Farm unit",
     stock: "Count",
     stock_movement: "Change",
+    reversal: "Cancellation",
 };
 
 const DETAIL_LABELS: Record<string, string> = {
@@ -121,6 +123,9 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
     const key = (item: Item) => `${item.kind}:${item.id}`;
 
     const approveUrl = (item: Item) => {
+        if (item.kind === "reversal")
+            return `${basePath}/reversals/${item.uuid}/approve`;
+
         const base = `${basePath}/farmers/${item.farmer_id}/units`;
 
         if (item.kind === "farm_unit") return `${base}/${item.id}/approve`;
@@ -280,7 +285,10 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                             sign(item);
                                                         }}
                                                     >
-                                                        Check it
+                                                        {item.kind ===
+                                                        "reversal"
+                                                            ? "Agree"
+                                                            : "Check it"}
                                                     </Button>
                                                 )}
                                                 {!item.can_approve && (

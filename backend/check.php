@@ -1,6 +1,5 @@
 <?php
 
-App\Models\FarmType::with('category')
-    ->orderBy('category_id')
-    ->get()
-    ->each(fn($type) => print($type->category?->name . ' | ' . $type->name . PHP_EOL));
+App\Models\AccountingPeriod::all()->each(
+    fn($p) => print($p->name . ' | ' . $p->starts_on->toDateString() . ' to ' . $p->ends_on->toDateString() . ' | ' . $p->status . PHP_EOL)
+);
