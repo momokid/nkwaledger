@@ -43,6 +43,7 @@ use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Reports\ReportController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -158,6 +159,12 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
     });
 });
 
+Route::middleware(['auth', 'verified.phone'])->prefix('my-reports')->name('my-reports.')->group(function () {
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+    });
+});
+
 Route::middleware(['auth', 'verified.phone'])->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::patch('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
@@ -239,14 +246,11 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         Route::patch('/reversals/{reversal}/approve', [ReversalController::class, 'approve'])->name('reversals.approve');
         Route::patch('/reversals/{reversal}/reject', [ReversalController::class, 'reject'])->name('reversals.reject');
     });
-    // everything waiting on somebody, in one list
-    Route::middleware('access:approvals.view')->group(function () {
-        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
-    });
 
     // recording on a farmer's behalf
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
+        Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
     });
 
     Route::middleware('access:transactions.create')->group(function () {
@@ -662,6 +666,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     // recording on a farmer's behalf
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
+        Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
     });
 
     Route::middleware('access:transactions.create')->group(function () {
