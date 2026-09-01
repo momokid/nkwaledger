@@ -40,7 +40,7 @@ class ReversalController extends Controller
         try {
             $this->reversals->approve($reversal, $request->user());
         } catch (PostingFailed $failure) {
-            throw ValidationException::withMessages(['reversal' => $failure->getMessage()]);
+            return back()->with('error', $failure->getMessage());
         }
 
         return back()->with('success', 'Done. The record is cancelled and a correction is in the books.');
@@ -53,7 +53,7 @@ class ReversalController extends Controller
         try {
             $this->reversals->reject($reversal, $request->user(), $request->input('reason'));
         } catch (PostingFailed $failure) {
-            throw ValidationException::withMessages(['reversal' => $failure->getMessage()]);
+            return back()->with('error', $failure->getMessage());
         }
 
         return back()->with('success', 'Noted. The original record stays as it is.');

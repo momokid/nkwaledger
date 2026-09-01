@@ -128,7 +128,7 @@ class RecordTransactionController extends Controller
                 recordedBy: $request->user()->id,
             ));
         } catch (PostingFailed $failure) {
-            throw ValidationException::withMessages(['amount' => $failure->getMessage()]);
+            return back()->with('error', $failure->getMessage());
         }
 
         return back()

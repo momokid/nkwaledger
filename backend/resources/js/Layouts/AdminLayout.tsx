@@ -423,6 +423,7 @@ export default function AdminLayout({ title, children }: Props) {
                 }}
             >
                 <Head title={title} />
+                <FlashMessages />
 
                 <aside
                     className="hidden lg:flex"

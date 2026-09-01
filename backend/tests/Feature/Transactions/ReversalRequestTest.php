@@ -336,7 +336,7 @@ it('refuses approval by the person who asked', function () {
 
     $this->actingAs($this->admin)
         ->patch("/admin/reversals/" . ReversalRequest::first()->uuid . "/approve")
-        ->assertSessionHasErrors();
+        ->assertSessionHas('error');
 
     expect(Transaction::count())->toBe(1);
 });
