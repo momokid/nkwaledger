@@ -504,3 +504,34 @@ test('the page shows a rejected movement', function () {
         ->assertInertia(fn($page) => $page->where('stocks.0.movements.0.is_rejected', true)
             ->where('stocks.0.movements.0.rejection_reason', 'Wrong reason chosen'));
 });
+
+test('rejecting a stock notifies whoever recorded it', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+        'reason' => 'Wrong number of animals',
+    ]);
+
+    expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
+        ->where('kind', 'farm_unit_stock.rejected')
+        ->exists())->toBeTrue();
+});
+
+test('rejecting a movement notifies whoever recorded it', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+        'reason' => 'Wrong reason chosen',
+    ]);
+
+    expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
+        ->where('kind', 'farm_unit_stock_movement.rejected')
+        ->exists())->toBeTrue();
+});

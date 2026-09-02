@@ -15,6 +15,7 @@ use App\Models\FarmUnitStockMovement;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -28,6 +29,7 @@ class FarmUnitStockController extends Controller
     public function __construct(
         private readonly AccessControlService $access,
         private readonly AuditService $audit,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function index(Request $request, FarmerProfile $farmer, FarmUnit $farmUnit): Response
@@ -210,6 +212,14 @@ class FarmUnitStockController extends Controller
 
         $this->audit->recordOn('farm_unit_stock.rejected', $stock);
 
+        if ($stock->recordedBy) {
+            $this->notifications->send(
+                $stock->recordedBy,
+                'farm_unit_stock.rejected',
+                "Your count of {$stock->opening_quantity} {$stock->unit_of_measure} in {$stock->farmUnit?->name} was sent back: {$request->validated('reason')}",
+            );
+        }
+
         return back()->with('success', 'The count is sent back.');
     }
 
@@ -235,6 +245,14 @@ class FarmUnitStockController extends Controller
         }
 
         $this->audit->recordOn('farm_unit_stock_movement.rejected', $movement);
+
+        if ($movement->recordedBy) {
+            $this->notifications->send(
+                $movement->recordedBy,
+                'farm_unit_stock_movement.rejected',
+                "Your change of {$movement->quantity} in {$movement->stock?->farmUnit?->name} was sent back: {$request->validated('reason')}",
+            );
+        }
 
         return back()->with('success', 'The change is sent back.');
     }
