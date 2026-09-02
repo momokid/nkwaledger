@@ -236,6 +236,8 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
     Route::middleware('access:farm-units.confirm')->group(function () {
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/reject', [FarmUnitStockController::class, 'rejectStock'])->name('farm-units.stocks.reject');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/reject', [FarmUnitStockController::class, 'rejectMovement'])->name('farm-units.movements.reject');
     });
 
     // everything waiting on somebody, in one list
@@ -653,6 +655,8 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:farm-units.confirm')->group(function () {
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/reject', [FarmUnitStockController::class, 'rejectStock'])->name('farm-units.stocks.reject');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/reject', [FarmUnitStockController::class, 'rejectMovement'])->name('farm-units.movements.reject');
     });
 
     // everything waiting on somebody, in one list

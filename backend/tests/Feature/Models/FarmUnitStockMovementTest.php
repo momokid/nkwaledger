@@ -5,6 +5,8 @@ use App\Models\FarmUnitStock;
 use App\Models\FarmUnitStockMovement;
 use App\Models\User;
 
+use InvalidArgumentException;
+
 test('a movement belongs to a stock', function () {
     $stock = FarmUnitStock::factory()->create();
     $movement = FarmUnitStockMovement::factory()->create(['farm_unit_stock_id' => $stock->id]);
@@ -171,7 +173,8 @@ test('the confirmed scope returns only confirmed movements', function () {
     FarmUnitStockMovement::factory()->create(['farm_unit_stock_id' => $stock->id]);
     FarmUnitStockMovement::factory()->confirmed()->create(['farm_unit_stock_id' => $stock->id]);
 
-    expect(FarmUnitStockMovement::confirmed()->count())->toBe(1);
+    // the stock's own opening movement confirms itself too, so that is 2 confirmed rows here
+    expect(FarmUnitStockMovement::confirmed()->count())->toBe(2);
 });
 
 // an unchecked number still shows to the farmer, it just proves nothing
@@ -207,4 +210,31 @@ test('a deleted movement is soft deleted', function () {
 
     expect(FarmUnitStockMovement::find($movement->id))->toBeNull()
         ->and(FarmUnitStockMovement::withTrashed()->find($movement->id))->not->toBeNull();
+});
+
+test('a movement can be rejected', function () {
+    $movement = FarmUnitStockMovement::factory()->create();
+
+    $movement->reject(2, 'Wrong reason chosen');
+
+    expect($movement->fresh()->isRejected())->toBeTrue();
+});
+
+test('a rejected movement stops counting toward the stock total', function () {
+    $stock = FarmUnitStock::factory()->create(['opening_quantity' => 100]);
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'reason' => MovementReason::Death,
+        'quantity' => 20,
+    ]);
+
+    $movement->reject(2, 'Never happened');
+
+    expect($stock->fresh()->current_quantity)->toBe('100.00');
+});
+
+test('a confirmed movement cannot be rejected', function () {
+    $movement = FarmUnitStockMovement::factory()->confirmed()->create();
+
+    expect(fn() => $movement->reject(2, 'Too late'))->toThrow(InvalidArgumentException::class);
 });

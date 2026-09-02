@@ -80,6 +80,7 @@ class ApprovalQueueService
 
         return FarmUnitStock::query()
             ->whereNull('confirmed_at')
+            ->whereNull('rejected_at')
             ->whereHas('farmUnit', fn(Builder $query) => $query->whereIn('farmer_profile_id', $farmerIds))
             ->with(['farmUnit.farmerProfile.user:id,surname,first_name', 'recordedBy:id,surname'])
             ->orderBy('created_at')
@@ -114,6 +115,7 @@ class ApprovalQueueService
 
         return FarmUnitStockMovement::query()
             ->whereNull('confirmed_at')
+            ->whereNull('rejected_at')
             ->whereHas(
                 'stock.farmUnit',
                 fn(Builder $query) => $query->whereIn('farmer_profile_id', $farmerIds),

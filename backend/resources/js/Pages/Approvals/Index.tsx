@@ -46,6 +46,9 @@ const KIND_LABELS: Record<Item["kind"], string> = {
     reversal: "Cancellation",
 };
 
+// only these kinds have a reject endpoint behind them
+const REFUSABLE_KINDS: Item["kind"][] = ["stock", "stock_movement", "reversal"];
+
 const DETAIL_LABELS: Record<string, string> = {
     farm_type: "Farms",
     community: "Where",
@@ -159,6 +162,21 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
         return `${base}/${item.unit_id}/stocks/${item.stock_id}/movements/${item.id}/confirm`;
     };
 
+    const refuseUrl = (item: Item) => {
+        if (item.kind === "reversal")
+            return `${basePath}/reversals/${item.uuid}/reject`;
+
+        const base = `${basePath}/farmers/${item.farmer_id}/units`;
+
+        if (item.kind === "stock")
+            return `${base}/${item.unit_id}/stocks/${item.id}/reject`;
+
+        if (item.kind === "stock_movement")
+            return `${base}/${item.unit_id}/stocks/${item.stock_id}/movements/${item.id}/reject`;
+
+        return null;
+    };
+
     const sign = (item: Item) => {
         setBusy(key(item));
 
@@ -175,7 +193,10 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
     const refuse = () => {
         if (refusing === null) return;
 
-        form.patch(`${basePath}/reversals/${refusing.uuid}/reject`, {
+        const url = refuseUrl(refusing);
+        if (!url) return;
+
+        form.patch(url, {
             preserveScroll: true,
             onSuccess: () => {
                 form.reset();
@@ -340,8 +361,9 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                                 : "Check it"}
                                                         </Button>
 
-                                                        {item.kind ===
-                                                            "reversal" && (
+                                                        {REFUSABLE_KINDS.includes(
+                                                            item.kind,
+                                                        ) && (
                                                             <Button
                                                                 look="danger"
                                                                 size="small"
@@ -469,7 +491,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                 color: text,
                             }}
                         >
-                            Turn this cancellation down?
+                            Turn this down?
                         </h3>
 
                         <p
@@ -489,8 +511,8 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                 marginTop: "10px",
                             }}
                         >
-                            The original record stays exactly as it is. Whoever
-                            asked will be told why.
+                            Whoever added this will see why, so they can fix it
+                            and try again.
                         </p>
 
                         <label

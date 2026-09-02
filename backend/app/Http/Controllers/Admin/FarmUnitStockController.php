@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\MovementReason;
 use App\Enums\StockSource;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RejectionRequest;
 use App\Http\Requests\Admin\StoreFarmUnitStockRequest;
 use App\Http\Requests\Admin\StoreStockMovementRequest;
 use App\Models\FarmerProfile;
@@ -19,6 +20,8 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
+
 
 class FarmUnitStockController extends Controller
 {
@@ -66,6 +69,8 @@ class FarmUnitStockController extends Controller
                     'ended_on' => $stock->ended_on?->toDateString(),
                     'is_confirmed' => $stock->isConfirmed(),
                     'confirmed_by' => $stock->confirmedBy?->surname,
+                    'is_rejected' => $stock->isRejected(),
+                    'rejection_reason' => $stock->rejection_reason,
                     'counts_toward_credit' => $stock->countsTowardCredit(),
                     'can_confirm' => $stock->conflictedUserId() !== $actorId,
                     'movements' => $stock->movements
@@ -80,6 +85,8 @@ class FarmUnitStockController extends Controller
                             'note' => $movement->note,
                             'recorded_by' => $movement->recordedBy?->surname,
                             'is_confirmed' => $movement->isConfirmed(),
+                            'is_rejected' => $movement->isRejected(),
+                            'rejection_reason' => $movement->rejection_reason,
                             'can_confirm' => $movement->conflictedUserId() !== $actorId,
                         ]),
                 ]),
@@ -179,6 +186,57 @@ class FarmUnitStockController extends Controller
         $this->audit->recordOn('farm_unit_stock_movement.confirmed', $movement);
 
         return back()->with('success', 'The change is checked.');
+    }
+
+    public function rejectStock(RejectionRequest $request, FarmerProfile $farmer, FarmUnit $farmUnit, FarmUnitStock $stock): RedirectResponse
+    {
+        $this->guardFarmer($request->user(), $farmer);
+        $this->guardBelongsTo($farmer, $farmUnit);
+        $this->guardStock($farmUnit, $stock);
+
+        if ($stock->conflictedUserId() === $request->user()->id) {
+            throw ValidationException::withMessages([
+                'stock' => 'Someone else needs to check this count.',
+            ]);
+        }
+
+        try {
+            $stock->reject($request->user()->id, $request->validated('reason'));
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'stock' => $exception->getMessage(),
+            ]);
+        }
+
+        $this->audit->recordOn('farm_unit_stock.rejected', $stock);
+
+        return back()->with('success', 'The count is sent back.');
+    }
+
+    public function rejectMovement(RejectionRequest $request, FarmerProfile $farmer, FarmUnit $farmUnit, FarmUnitStock $stock, FarmUnitStockMovement $movement): RedirectResponse
+    {
+        $this->guardFarmer($request->user(), $farmer);
+        $this->guardBelongsTo($farmer, $farmUnit);
+        $this->guardStock($farmUnit, $stock);
+        $this->guardMovement($stock, $movement);
+
+        if ($movement->conflictedUserId() === $request->user()->id) {
+            throw ValidationException::withMessages([
+                'movement' => 'Someone else needs to check this change.',
+            ]);
+        }
+
+        try {
+            $movement->reject($request->user()->id, $request->validated('reason'));
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'movement' => $exception->getMessage(),
+            ]);
+        }
+
+        $this->audit->recordOn('farm_unit_stock_movement.rejected', $movement);
+
+        return back()->with('success', 'The change is sent back.');
     }
 
     // the frame and the address the current route group belongs to

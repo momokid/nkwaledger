@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use InvalidArgumentException;
 
 #[Fillable([
     'farm_unit_id',
@@ -25,6 +26,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'recorded_by',
     'confirmed_at',
     'confirmed_by',
+    'rejected_at',
+    'rejected_by',
+    'rejection_reason',
 ])]
 
 class FarmUnitStock extends Model
@@ -42,6 +46,7 @@ class FarmUnitStock extends Model
             'expected_ready_on' => 'date',
             'ended_on' => 'date',
             'confirmed_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -67,10 +72,11 @@ class FarmUnitStock extends Model
         });
     }
 
-    // the count is the sum of every movement, so it can never drift
+    // the count is the sum of every movement that still stands, so it can never drift
     public function refreshCount(): void
     {
         $total = $this->movements()
+            ->whereNull('rejected_at')
             ->get(['quantity', 'is_increase'])
             ->reduce(
                 fn(float $carry, FarmUnitStockMovement $movement) => $movement->is_increase
@@ -99,6 +105,11 @@ class FarmUnitStock extends Model
         return $this->confirmed_at !== null;
     }
 
+    public function isRejected(): bool
+    {
+        return $this->rejected_at !== null;
+    }
+
     public function conflictedUserId(): ?int
     {
         return $this->recorded_by;
@@ -108,6 +119,30 @@ class FarmUnitStock extends Model
     public function countsTowardCredit(): bool
     {
         return $this->isConfirmed() && (bool) $this->farmUnit?->isApproved();
+    }
+
+    // rejecting a batch means the opening number never stood, so its own movement goes with it
+    public function reject(int $userId, string $reason): void
+    {
+        if ($this->isConfirmed()) {
+            throw new InvalidArgumentException('This count has already been checked.');
+        }
+
+        $this->forceFill([
+            'rejected_at' => now(),
+            'rejected_by' => $userId,
+            'rejection_reason' => $reason,
+        ])->save();
+
+        $this->movements()
+            ->where('reason', MovementReason::Opening)
+            ->first()
+            ?->forceFill([
+                'rejected_at' => now(),
+                'rejected_by' => $userId,
+                'rejection_reason' => $reason,
+            ])
+            ->save();
     }
 
     // what the farmer paid, spread across what is left today

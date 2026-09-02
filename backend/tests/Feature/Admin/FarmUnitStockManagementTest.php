@@ -401,3 +401,106 @@ test('the page tells the category of the farm type', function () {
     $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
         ->assertInertia(fn($page) => $page->has('unit.farm_type_category'));
 });
+
+test('a stock can be rejected', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+        'reason' => 'Wrong number of animals',
+    ])->assertSessionDoesntHaveErrors();
+
+    expect($stock->fresh()->isRejected())->toBeTrue();
+});
+
+test('a reason is required to reject a stock', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+        'reason' => '',
+    ])->assertSessionHasErrors('reason');
+});
+
+// whoever wrote the number down is not the one who checks it, rejection included
+test('the person who added a stock cannot reject it', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->agent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+        'reason' => 'Wrong number',
+    ])->assertSessionHasErrors();
+
+    expect($stock->fresh()->isRejected())->toBeFalse();
+});
+
+test('a user without the confirm permission cannot reject a stock', function () {
+    $vet = User::factory()->create();
+    $vet->assignRole('vet');
+    $vet->givePermissionTo('farm-units.view');
+
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+
+    $this->actingAs($vet)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+        'reason' => 'Wrong number',
+    ])->assertForbidden();
+});
+
+test('a movement can be rejected', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+        'reason' => 'Wrong reason chosen',
+    ])->assertSessionDoesntHaveErrors();
+
+    expect($movement->fresh()->isRejected())->toBeTrue();
+});
+
+test('the person who recorded a movement cannot reject it', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'recorded_by' => $this->agent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+        'reason' => 'Wrong reason',
+    ])->assertSessionHasErrors();
+});
+
+test('the page shows a rejected stock', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $stock->reject($this->agent->id, 'Wrong number of animals');
+
+    $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+        ->assertInertia(fn($page) => $page->where('stocks.0.is_rejected', true)
+            ->where('stocks.0.rejection_reason', 'Wrong number of animals'));
+});
+
+test('the page shows a rejected movement', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $movement->reject($this->agent->id, 'Wrong reason chosen');
+
+    $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+        ->assertInertia(fn($page) => $page->where('stocks.0.movements.0.is_rejected', true)
+            ->where('stocks.0.movements.0.rejection_reason', 'Wrong reason chosen'));
+});
