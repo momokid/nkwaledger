@@ -1,7 +1,7 @@
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Look = "main" | "secondary" | "danger";
+type Look = "main" | "primary" | "secondary" | "danger";
 type Size = "normal" | "small";
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -48,11 +48,9 @@ export default function Button({
         small: { padding: "7px 14px", fontSize: "16px" },
     };
 
-    const looks: Record<
-        Look,
-        { background: string; color: string; borderColor: string }
-    > = {
+        const looks: Record<Look, { background: string; color: string; borderColor: string }> = {
         main: { background: brand, color: "#FFFFFF", borderColor: brand },
+        primary: { background: brand, color: "#FFFFFF", borderColor: brand },
         secondary: {
             background: "transparent",
             color: brand,
@@ -64,7 +62,6 @@ export default function Button({
             borderColor: danger,
         },
     };
-
     return (
         <button
             {...rest}

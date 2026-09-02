@@ -88,7 +88,8 @@ it('never returns a permission name', function () {
     foreach ($names as $name) {
         $known = str_starts_with($name, 'admin.')
             || str_starts_with($name, 'agent.')
-            || str_starts_with($name, 'my-records.');
+            || str_starts_with($name, 'my-records.')
+            || str_starts_with($name, 'my-reports.');
 
         expect($known)->toBeTrue();
     }

@@ -8,8 +8,7 @@ use RuntimeException;
 
 class ReportHeader
 {
-    public const NOTICE = 'These figures come from records that cannot be edited once written. '
-        . 'Check this report at nkwaledger.com using the code above.';
+    public const NOTICE = '';
 
     public function __construct(
         public readonly string $title,

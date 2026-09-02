@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Contracts\View\View as ViewResponse;
 
 class ReportController extends Controller
 {
@@ -166,6 +167,31 @@ class ReportController extends Controller
             'is_balanced' => $report->isBalanced(),
             'provisional_held_back' => $report->provisionalHeldBackMinor,
         ];
+    }
+
+    public function print(Request $request, ?FarmerProfile $farmer = null): ViewResponse
+    {
+        $ownBooks = $farmer === null;
+
+        $farmer = $this->resolveFarmer($request, $farmer);
+
+        $available = $ownBooks ? self::FARMER_REPORTS : self::STAFF_REPORTS;
+
+        $kind = $request->query('kind', 'statement');
+
+        if (! in_array($kind, $available, true)) {
+            $kind = 'statement';
+        }
+
+        $from = $request->query('from', Carbon::now()->startOfYear()->toDateString());
+        $to = $request->query('to', Carbon::now()->endOfYear()->toDateString());
+
+        $includeProvisional = $ownBooks || $request->query('provisional') === '1';
+
+        return view('reports.print', [
+            'kind' => $kind,
+            'report' => $this->build($kind, $farmer, $from, $to, $includeProvisional),
+        ]);
     }
 
     private function header(ReportHeader $header): array

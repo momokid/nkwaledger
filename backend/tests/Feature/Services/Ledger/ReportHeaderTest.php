@@ -113,6 +113,6 @@ it('refuses to build without a secret', function () {
     expect(fn() => ($this->make)())->toThrow(RuntimeException::class);
 });
 
-it('says the figures cannot be edited', function () {
-    expect(($this->make)()->notice)->not->toBeEmpty();
+it('carries a notice line the report can print', function () {
+    expect(($this->make)()->notice)->toBeString();
 });

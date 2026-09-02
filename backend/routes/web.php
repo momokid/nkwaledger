@@ -162,6 +162,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
 Route::middleware(['auth', 'verified.phone'])->prefix('my-reports')->name('my-reports.')->group(function () {
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('/print', [ReportController::class, 'print'])->name('print');
     });
 });
 
@@ -251,6 +252,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
         Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/farmers/{farmer}/reports/print', [ReportController::class, 'print'])->name('reports.print');
     });
 
     Route::middleware('access:transactions.create')->group(function () {
@@ -667,6 +669,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
         Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/farmers/{farmer}/reports/print', [ReportController::class, 'print'])->name('reports.print');
     });
 
     Route::middleware('access:transactions.create')->group(function () {

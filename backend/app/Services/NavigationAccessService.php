@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route as RouteFacade;
 class NavigationAccessService
 {
     // route groups that carry a sidebar, so a new group joins by adding its prefix here
-    private const PREFIXES = ['admin.', 'agent.', 'my-records.'];
+    private const PREFIXES = ['admin.', 'agent.', 'my-records.', 'my-reports.'];
 
     public function __construct(private AccessControlService $access) {}
 
