@@ -33,7 +33,7 @@ class FarmUnitStockController extends Controller
         $this->guardBelongsTo($farmer, $farmUnit);
 
         $farmer->load('user:id,surname,first_name');
-        $farmUnit->load('farmType:id,name');
+        $farmUnit->load('farmType.category:id,name');
 
         $actorId = $request->user()->id;
 
@@ -46,6 +46,7 @@ class FarmUnitStockController extends Controller
                 'id' => $farmUnit->id,
                 'name' => $farmUnit->name,
                 'farm_type' => $farmUnit->farmType?->name,
+                'farm_type_category' => $farmUnit->farmType?->category?->name,
                 'is_approved' => $farmUnit->isApproved(),
             ],
             'stocks' => $farmUnit->stocks()
@@ -61,6 +62,7 @@ class FarmUnitStockController extends Controller
                     'acquisition_cost' => $stock->acquisition_cost,
                     'cost_per_unit' => $stock->costPerUnit(),
                     'started_on' => $stock->started_on?->toDateString(),
+                    'expected_ready_on' => $stock->expected_ready_on?->toDateString(),
                     'ended_on' => $stock->ended_on?->toDateString(),
                     'is_confirmed' => $stock->isConfirmed(),
                     'confirmed_by' => $stock->confirmedBy?->surname,

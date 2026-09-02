@@ -30,6 +30,7 @@ interface StockRow {
     acquisition_cost: string;
     cost_per_unit: string | null;
     started_on: string | null;
+    expected_ready_on: string | null;
     ended_on: string | null;
     is_confirmed: boolean;
     confirmed_by: string | null;
@@ -44,6 +45,7 @@ interface Props extends PageProps {
         id: number;
         name: string;
         farm_type: string | null;
+        farm_type_category: string | null;
         is_approved: boolean;
     };
     stocks: StockRow[];
@@ -120,12 +122,18 @@ function StocksContent({
 
     const unitPath = `${basePath}/${farmer.id}/units/${unit.id}`;
 
+    const readyLabel =
+        unit.farm_type_category === "Crop"
+            ? "When do you expect to harvest?"
+            : "When will these be ready to sell?";
+
     const stockForm = useForm({
         source: "purchase",
         opening_quantity: "",
         unit_of_measure: "",
         acquisition_cost: "",
         started_on: "",
+        expected_ready_on: "",
     });
 
     const movementForm = useForm({
@@ -305,6 +313,28 @@ function StocksContent({
                         </div>
 
                         <div>
+                            <label style={labelStyle}>{readyLabel}</label>
+                            <input
+                                type="date"
+                                value={stockForm.data.expected_ready_on}
+                                onChange={(event) =>
+                                    stockForm.setData(
+                                        "expected_ready_on",
+                                        event.target.value,
+                                    )
+                                }
+                                style={fieldStyle}
+                            />
+                            {(stockForm.errors.expected_ready_on ||
+                                errors.expected_ready_on) && (
+                                <p style={errorStyle}>
+                                    {stockForm.errors.expected_ready_on ||
+                                        errors.expected_ready_on}
+                                </p>
+                            )}
+                        </div>
+
+                        <div>
                             <label style={labelStyle}>How many</label>
                             <div className="flex gap-2">
                                 <input
@@ -459,6 +489,19 @@ function StocksContent({
                             </p>
                             <p style={{ color: text, fontSize: "18px" }}>
                                 {stock.started_on}
+                            </p>
+                        </div>
+                        <div>
+                            <p
+                                style={{
+                                    color: textSecondary,
+                                    fontSize: "15px",
+                                }}
+                            >
+                                Expected ready
+                            </p>
+                            <p style={{ color: text, fontSize: "18px" }}>
+                                {stock.expected_ready_on ?? "—"}
                             </p>
                         </div>
                     </div>

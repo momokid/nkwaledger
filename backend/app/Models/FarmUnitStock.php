@@ -20,11 +20,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'unit_of_measure',
     'acquisition_cost',
     'started_on',
+    'expected_ready_on',
     'ended_on',
     'recorded_by',
     'confirmed_at',
     'confirmed_by',
 ])]
+
 class FarmUnitStock extends Model
 {
     use HasFactory, SoftDeletes;
@@ -37,6 +39,7 @@ class FarmUnitStock extends Model
             'current_quantity' => 'decimal:2',
             'acquisition_cost' => 'decimal:2',
             'started_on' => 'date',
+            'expected_ready_on' => 'date',
             'ended_on' => 'date',
             'confirmed_at' => 'datetime',
         ];
@@ -58,8 +61,8 @@ class FarmUnitStock extends Model
                 'is_increase' => true,
                 'occurred_on' => $stock->started_on,
                 'recorded_by' => $stock->recorded_by,
-                'confirmed_at' => $stock->confirmed_at,
-                'confirmed_by' => $stock->confirmed_by,
+                'confirmed_at' => now(),
+                'confirmed_by' => $stock->recorded_by,
             ]);
         });
     }

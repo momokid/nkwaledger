@@ -361,3 +361,43 @@ test('the page says what this user may do', function () {
         ->assertInertia(fn($page) => $page->where('permissions.create', true)
             ->where('permissions.confirm', true));
 });
+
+test('expected_ready_on is optional', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'expected_ready_on' => null,
+    ]))->assertSessionDoesntHaveErrors('expected_ready_on');
+});
+
+test('expected_ready_on is stored when given', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'expected_ready_on' => '2026-12-01',
+    ]));
+
+    expect($this->unit->fresh()->stocks->first()->expected_ready_on->toDateString())->toBe('2026-12-01');
+});
+
+test('expected_ready_on cannot be before the start date', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'started_on' => '2026-06-01',
+        'expected_ready_on' => '2026-05-01',
+    ]))->assertSessionHasErrors('expected_ready_on');
+});
+
+test('an invalid expected_ready_on is refused', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'expected_ready_on' => 'not-a-date',
+    ]))->assertSessionHasErrors('expected_ready_on');
+});
+test('the page shows the expected ready date for each stock', function () {
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'expected_ready_on' => '2026-12-01',
+    ]);
+
+    $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+        ->assertInertia(fn($page) => $page->where('stocks.0.expected_ready_on', '2026-12-01'));
+});
+test('the page tells the category of the farm type', function () {
+    $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+        ->assertInertia(fn($page) => $page->has('unit.farm_type_category'));
+});

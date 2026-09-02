@@ -5,6 +5,9 @@ use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
 use App\Models\User;
 
+use App\Enums\MovementReason;
+
+
 test('a stock belongs to a farm unit', function () {
     $unit = FarmUnit::factory()->approved()->create();
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id]);
@@ -174,4 +177,24 @@ test('a deleted stock is soft deleted', function () {
 
     expect(FarmUnitStock::find($stock->id))->toBeNull()
         ->and(FarmUnitStock::withTrashed()->find($stock->id))->not->toBeNull();
+});
+test('expected_ready_on can be set on a stock', function () {
+    $stock = FarmUnitStock::factory()->create(['expected_ready_on' => '2026-12-01']);
+
+    expect($stock->expected_ready_on)->toBeInstanceOf(Carbon\CarbonInterface::class);
+    expect($stock->expected_ready_on->toDateString())->toBe('2026-12-01');
+});
+
+test('expected_ready_on is nullable', function () {
+    $stock = FarmUnitStock::factory()->create(['expected_ready_on' => null]);
+
+    expect($stock->expected_ready_on)->toBeNull();
+});
+
+test('the opening movement is confirmed as soon as it is created', function () {
+    $stock = FarmUnitStock::factory()->create();
+
+    $opening = $stock->movements()->where('reason', MovementReason::Opening)->first();
+
+    expect($opening->isConfirmed())->toBeTrue();
 });
