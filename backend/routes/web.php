@@ -39,6 +39,11 @@ use App\Http\Controllers\Admin\TransactionTemplateController;
 use App\Http\Controllers\Admin\FarmerController;
 use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
+use App\Http\Controllers\Transactions\RecordTransactionController;
+use App\Http\Controllers\Admin\ApprovalController;
+use App\Http\Controllers\Transactions\ReversalController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Reports\ReportController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -138,6 +143,35 @@ Route::middleware('auth')->group(function () {
         ->name('otp.phone.confirm');
 });
 
+// the farmer's own book, with nobody named in the address
+Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-records.')->group(function () {
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/', [RecordTransactionController::class, 'index'])->name('index');
+    });
+
+    Route::middleware('access:transactions.create')->group(function () {
+        Route::get('/create', [RecordTransactionController::class, 'create'])->name('create');
+        Route::post('/', [RecordTransactionController::class, 'store'])->name('store');
+    });
+
+    Route::middleware('access:transactions.reverse-request')->group(function () {
+        Route::post('/{transaction}/cancel', [ReversalController::class, 'store'])->name('cancel');
+    });
+});
+
+Route::middleware(['auth', 'verified.phone'])->prefix('my-reports')->name('my-reports.')->group(function () {
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('/print', [ReportController::class, 'print'])->name('print');
+    });
+});
+
+Route::middleware(['auth', 'verified.phone'])->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::patch('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+});
+
 // the agent's own address for the same controller, so the frame and the url match their role
 Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->group(function () {
     Route::middleware('access:farmers.create')->group(function () {
@@ -202,6 +236,34 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
     Route::middleware('access:farm-units.confirm')->group(function () {
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/reject', [FarmUnitStockController::class, 'rejectStock'])->name('farm-units.stocks.reject');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/reject', [FarmUnitStockController::class, 'rejectMovement'])->name('farm-units.movements.reject');
+    });
+
+    // everything waiting on somebody, in one list
+    Route::middleware('access:approvals.view')->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    });
+
+    Route::middleware('access:transactions.reverse-approve')->group(function () {
+        Route::patch('/reversals/{reversal}/approve', [ReversalController::class, 'approve'])->name('reversals.approve');
+        Route::patch('/reversals/{reversal}/reject', [ReversalController::class, 'reject'])->name('reversals.reject');
+    });
+
+    // recording on a farmer's behalf
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
+        Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/farmers/{farmer}/reports/print', [ReportController::class, 'print'])->name('reports.print');
+    });
+
+    Route::middleware('access:transactions.create')->group(function () {
+        Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
+        Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
+    });
+
+    Route::middleware('access:transactions.reverse-request')->group(function () {
+        Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
     });
 });
 
@@ -593,5 +655,33 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:farm-units.confirm')->group(function () {
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/confirm', [FarmUnitStockController::class, 'confirmStock'])->name('farm-units.stocks.confirm');
         Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/confirm', [FarmUnitStockController::class, 'confirmMovement'])->name('farm-units.movements.confirm');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/reject', [FarmUnitStockController::class, 'rejectStock'])->name('farm-units.stocks.reject');
+        Route::patch('/farmers/{farmer}/units/{farmUnit}/stocks/{stock}/movements/{movement}/reject', [FarmUnitStockController::class, 'rejectMovement'])->name('farm-units.movements.reject');
+    });
+
+    // everything waiting on somebody, in one list
+    Route::middleware('access:approvals.view')->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    });
+
+    Route::middleware('access:transactions.reverse-approve')->group(function () {
+        Route::patch('/reversals/{reversal}/approve', [ReversalController::class, 'approve'])->name('reversals.approve');
+        Route::patch('/reversals/{reversal}/reject', [ReversalController::class, 'reject'])->name('reversals.reject');
+    });
+
+    // recording on a farmer's behalf
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
+        Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/farmers/{farmer}/reports/print', [ReportController::class, 'print'])->name('reports.print');
+    });
+
+    Route::middleware('access:transactions.create')->group(function () {
+        Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
+        Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
+    });
+
+    Route::middleware('access:transactions.reverse-request')->group(function () {
+        Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
     });
 });

@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import VerificationGate from "@/Components/VerificationGate";
+import NotificationBell from "@/Components/NotificationBell";
 import useIsVerified from "@/hooks/useIsVerified";
 import { PropsWithChildren, useEffect, useState } from "react";
 import {
@@ -23,6 +24,7 @@ import {
     IconCalendar,
     IconArrowsExchange,
     IconUserCheck,
+    IconChecklist,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import { PageProps } from "@/types";
@@ -36,6 +38,8 @@ interface NavLeaf {
     label: string;
     routeName: string;
     icon: typeof IconLayoutDashboard;
+    // names which count this item wants beside its label
+    badge?: string;
 }
 
 interface NavGroup {
@@ -55,6 +59,12 @@ const navItems: NavEntry[] = [
         label: "Dashboard",
         routeName: "admin.dashboard",
         icon: IconLayoutDashboard,
+    },
+    {
+        label: "Approvals",
+        routeName: "admin.approvals.index",
+        icon: IconChecklist,
+        badge: "approvals",
     },
     {
         label: "Farm Setup",
@@ -244,6 +254,12 @@ export default function AdminLayout({ title, children }: Props) {
     const renderLeaf = (item: NavLeaf, indented: boolean) => {
         const Icon = item.icon;
         const active = route().current(item.routeName);
+        // only what this person can sign off, counted on the server
+        const count =
+            item.badge === "approvals"
+                ? ((auth as { pendingApprovals?: number })?.pendingApprovals ??
+                  0)
+                : 0;
 
         return (
             <div
@@ -277,6 +293,21 @@ export default function AdminLayout({ title, children }: Props) {
                 >
                     {!indented && <Icon size={26} stroke={1.6} />}
                     {!collapsed && item.label}
+                    {/* a zero means nothing is waiting, so the badge stays away */}
+                    {!collapsed && count > 0 && (
+                        <span
+                            style={{
+                                marginLeft: "auto",
+                                fontSize: "15px",
+                                fontWeight: 700,
+                                color: "#FFFFFF",
+                                background: gold,
+                                padding: "1px 8px",
+                            }}
+                        >
+                            {count}
+                        </span>
+                    )}
                 </Link>
 
                 {collapsed && hovered === item.label && (
@@ -393,6 +424,7 @@ export default function AdminLayout({ title, children }: Props) {
                 }}
             >
                 <Head title={title} />
+                <FlashMessages />
 
                 <aside
                     className="hidden lg:flex"
@@ -592,6 +624,8 @@ export default function AdminLayout({ title, children }: Props) {
                                     )}
                                 </button>
                             </div>
+
+                            <NotificationBell dark={dark} />
                         </header>
 
                         <main style={{ padding: "24px" }}>

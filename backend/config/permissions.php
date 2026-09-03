@@ -99,6 +99,24 @@ return [
                 'delete' => 'Delete',
             ],
         ],
+        // one page listing everything waiting on somebody
+        'approvals' => [
+            'label' => 'Approvals',
+            'actions' => [
+                'view' => 'View the queue',
+            ],
+        ],
+        // records are never edited or removed, only cancelled by a correction
+        'transactions' => [
+            'label' => 'Transactions',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Record',
+                // asking and agreeing stay apart, so one person can never do both
+                'reverse-request' => 'Ask to cancel a record',
+                'reverse-approve' => 'Agree to a cancellation',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -145,6 +163,11 @@ return [
             'transaction-templates.create',
             'transaction-templates.update',
             'transaction-templates.delete',
+            'transactions.view',
+            'transactions.create',
+            'transactions.reverse-request',
+            'transactions.reverse-approve',
+            'approvals.view',
         ],
         'agent' => [
             'farm-types.view',
@@ -161,6 +184,16 @@ return [
             'farm-units.update',
             'farm-units.approve',
             'farm-units.confirm',
+            'transactions.view',
+            'transactions.create',
+            'transactions.reverse-request',
+            'approvals.view',
+        ],
+        // a farmer keeps their own books and nothing else
+        'farmer' => [
+            'transactions.view',
+            'transactions.create',
+            'transactions.reverse-request',
         ],
     ],
 

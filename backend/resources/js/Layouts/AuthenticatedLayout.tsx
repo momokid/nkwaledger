@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
+import NotificationBell from "@/Components/NotificationBell";
 import {
     IconBell,
     IconChevronLeft,
@@ -21,6 +22,7 @@ import {
     IconUserCheck,
     IconUserCircle,
     IconWallet,
+    IconChecklist,
 } from "@tabler/icons-react";
 import {
     createContext,
@@ -54,6 +56,9 @@ interface NavItem {
     icon: typeof IconLayoutDashboard;
     // false means the page is not built, so the item shows but cannot be opened
     ready: boolean;
+    // names which count this item wants beside its label
+    badge?: string;
+    count?: number;
 }
 
 interface NavSet {
@@ -89,6 +94,13 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconClipboardList,
                 ready: true,
             },
+            {
+                label: "Approvals",
+                href: "/agent/approvals",
+                icon: IconChecklist,
+                ready: true,
+                badge: "approvals",
+            },
             { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
             {
                 label: "Reports",
@@ -122,9 +134,25 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconLayoutDashboard,
                 ready: true,
             },
-            { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
+            {
+                label: "Record",
+                href: "/my-records/create",
+                icon: IconPencilPlus,
+                ready: true,
+            },
             // no accounting words reach a farmer, so the ledger is called what they would call it
-            { label: "My Money", href: "#", icon: IconWallet, ready: false },
+            {
+                label: "My Money",
+                href: "/my-records",
+                icon: IconWallet,
+                ready: true,
+            },
+            {
+                label: "Reports",
+                href: "/my-reports",
+                icon: IconReportAnalytics,
+                ready: true,
+            },
             { label: "My Farm", href: "#", icon: IconPlant, ready: false },
             { label: "Credit", href: "#", icon: IconCreditCard, ready: false },
         ],
@@ -208,30 +236,6 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
     }),
 };
 
-const sampleNotifications = [
-    {
-        id: 1,
-        title: "Rain expected",
-        body: "Heavy rainfall in your region within 48 hours.",
-        time: "10 min ago",
-        unread: true,
-    },
-    {
-        id: 2,
-        title: "Loan repayment due",
-        body: "GH 500 due in 14 days.",
-        time: "2 hours ago",
-        unread: true,
-    },
-    {
-        id: 3,
-        title: "Vet consultation confirmed",
-        body: "Dr Mensah will call you tomorrow at 9am.",
-        time: "Yesterday",
-        unread: false,
-    },
-];
-
 interface PageProps {
     auth: {
         user: {
@@ -253,17 +257,17 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const firstName = user?.first_name ?? "Farmer";
     const surname = user?.surname ?? "";
     const primaryRole = userRoles[0] ?? "farmer";
+    // only what this person can sign off, counted on the server
+    const pendingApprovals =
+        (auth as { pendingApprovals?: number })?.pendingApprovals ?? 0;
     const verified = useIsVerified();
 
     const [dark, setDark] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [hovered, setHovered] = useState<string | null>(null);
-    const [bellOpen, setBellOpen] = useState(false);
     const [cogOpen, setCogOpen] = useState(false);
-    const [notifications, setNotifications] = useState(sampleNotifications);
 
-    const bellRef = useRef<HTMLDivElement>(null);
     const cogRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -282,12 +286,6 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
-            if (
-                bellRef.current &&
-                !bellRef.current.contains(e.target as Node)
-            ) {
-                setBellOpen(false);
-            }
             if (cogRef.current && !cogRef.current.contains(e.target as Node)) {
                 setCogOpen(false);
             }
@@ -325,12 +323,6 @@ export default function AuthenticatedLayout({ children, title }: Props) {
         );
     };
 
-    const markAllRead = () => {
-        setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-    };
-
-    const unreadCount = notifications.filter((n) => n.unread).length;
-
     const pageBg = dark ? "#111827" : "#F9FAFB";
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const sidebarBg = dark ? "#0B1220" : "#FFFFFF";
@@ -346,7 +338,20 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
     // every role has its own home page, so the link follows whoever is signed in
     const dashboardHref = `/${primaryRole}/dashboard`;
-    const nav = (navSets[primaryRole] ?? navSets.farmer)(dashboardHref);
+    const built = (navSets[primaryRole] ?? navSets.farmer)(dashboardHref);
+
+    const withCount = (items: NavItem[]) =>
+        items.map((item) =>
+            item.badge === "approvals"
+                ? { ...item, count: pendingApprovals }
+                : item,
+        );
+
+    const nav = {
+        ...built,
+        main: withCount(built.main),
+        tools: withCount(built.tools),
+    };
 
     const mobileNav = nav.main.slice(0, 5);
 
@@ -412,6 +417,21 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             >
                 <Icon size={24} stroke={1.6} />
                 {!collapsed && item.label}
+                {/* a zero means nothing is waiting, so the badge stays away */}
+                {!collapsed && (item.count ?? 0) > 0 && (
+                    <span
+                        style={{
+                            marginLeft: "auto",
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            color: "#FFFFFF",
+                            background: gold,
+                            padding: "1px 8px",
+                        }}
+                    >
+                        {item.count}
+                    </span>
+                )}
             </Link>
         );
     };
@@ -713,140 +733,11 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                 )}
                             </button>
 
-                            <div ref={bellRef} style={{ position: "relative" }}>
-                                <button
-                                    onClick={() => {
-                                        setBellOpen(!bellOpen);
-                                        setCogOpen(false);
-                                    }}
-                                    style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        color: textSecondary,
-                                        display: "flex",
-                                        position: "relative",
-                                    }}
-                                >
-                                    <IconBell size={24} stroke={1.6} />
-                                    {unreadCount > 0 && (
-                                        <span
-                                            style={{
-                                                position: "absolute",
-                                                top: "-4px",
-                                                right: "-4px",
-                                                background: "#DC2626",
-                                                color: "#FFFFFF",
-                                                fontSize: "12px",
-                                                fontWeight: 600,
-                                                width: "16px",
-                                                height: "16px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                            }}
-                                        >
-                                            {unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-
-                                {bellOpen && (
-                                    <div
-                                        style={{
-                                            position: "absolute",
-                                            right: 0,
-                                            top: "36px",
-                                            width: "320px",
-                                            background: surface,
-                                            border: `1px solid ${dark ? "#374151" : "#E5E7EB"}`,
-                                            zIndex: 50,
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "space-between",
-                                                padding: "12px 16px",
-                                                borderBottom: `1px solid ${dark ? "#374151" : "#E5E7EB"}`,
-                                            }}
-                                        >
-                                            <span
-                                                style={{
-                                                    fontSize: "18px",
-                                                    fontWeight: 600,
-                                                }}
-                                            >
-                                                Notifications
-                                            </span>
-                                            <button
-                                                onClick={markAllRead}
-                                                style={{
-                                                    background: "transparent",
-                                                    border: "none",
-                                                    color: primary,
-                                                    fontSize: "15px",
-                                                    cursor: "pointer",
-                                                    fontFamily:
-                                                        "'Inter', system-ui, sans-serif",
-                                                }}
-                                            >
-                                                Mark all read
-                                            </button>
-                                        </div>
-
-                                        {notifications.map((n) => (
-                                            <div
-                                                key={n.id}
-                                                style={{
-                                                    padding: "12px 16px",
-                                                    borderBottom: `1px solid ${dark ? "#374151" : "#F3F4F6"}`,
-                                                    background: n.unread
-                                                        ? hoverBg
-                                                        : "transparent",
-                                                }}
-                                            >
-                                                <p
-                                                    style={{
-                                                        fontSize: "18px",
-                                                        fontWeight: 600,
-                                                        margin: 0,
-                                                    }}
-                                                >
-                                                    {n.title}
-                                                </p>
-                                                <p
-                                                    style={{
-                                                        fontSize: "18px",
-                                                        color: textSecondary,
-                                                        margin: "4px 0 0",
-                                                        lineHeight: 1.5,
-                                                    }}
-                                                >
-                                                    {n.body}
-                                                </p>
-                                                <p
-                                                    style={{
-                                                        fontSize: "15px",
-                                                        color: textSecondary,
-                                                        margin: "6px 0 0",
-                                                    }}
-                                                >
-                                                    {n.time}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            <NotificationBell dark={dark} />
 
                             <div ref={cogRef} style={{ position: "relative" }}>
                                 <button
-                                    onClick={() => {
-                                        setCogOpen(!cogOpen);
-                                        setBellOpen(false);
-                                    }}
+                                    onClick={() => setCogOpen(!cogOpen)}
                                     style={{
                                         background: "transparent",
                                         border: "none",

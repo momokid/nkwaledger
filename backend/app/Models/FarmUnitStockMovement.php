@@ -21,7 +21,11 @@ use InvalidArgumentException;
     'recorded_by',
     'confirmed_at',
     'confirmed_by',
+    'rejected_at',
+    'rejected_by',
+    'rejection_reason',
 ])]
+
 class FarmUnitStockMovement extends Model
 {
     use HasFactory, SoftDeletes;
@@ -34,6 +38,7 @@ class FarmUnitStockMovement extends Model
             'is_increase' => 'boolean',
             'occurred_on' => 'date',
             'confirmed_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -60,10 +65,28 @@ class FarmUnitStockMovement extends Model
         return $this->confirmed_at !== null;
     }
 
+    public function isRejected(): bool
+    {
+        return $this->rejected_at !== null;
+    }
+
     // whoever wrote the number down is not the one who checks it
     public function conflictedUserId(): ?int
     {
         return $this->recorded_by;
+    }
+
+    public function reject(int $userId, string $reason): void
+    {
+        if ($this->isConfirmed()) {
+            throw new InvalidArgumentException('This change has already been checked.');
+        }
+
+        $this->forceFill([
+            'rejected_at' => now(),
+            'rejected_by' => $userId,
+            'rejection_reason' => $reason,
+        ])->save();
     }
 
     public function scopeConfirmed(Builder $query): Builder

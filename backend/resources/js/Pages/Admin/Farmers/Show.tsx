@@ -287,22 +287,58 @@ function ShowContent({
                     Produces: {farmer.farm_types.join(", ") || "not yet stated"}
                 </p>
 
-                <button
-                    onClick={() =>
-                        router.visit(`${basePath}/${farmer.id}/units`)
-                    }
-                    style={{
-                        background: "none",
-                        border: "none",
-                        color: headerText,
-                        fontSize: "17px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        padding: 0,
-                    }}
-                >
-                    Farm units
-                </button>
+                <div className="flex flex-wrap gap-4">
+                    <button
+                        onClick={() =>
+                            router.visit(`${basePath}/${farmer.id}/units`)
+                        }
+                        style={{
+                            background: "none",
+                            border: "none",
+                            color: headerText,
+                            fontSize: "17px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            padding: 0,
+                        }}
+                    >
+                        Farm units
+                    </button>
+
+                    <button
+                        onClick={() =>
+                            router.visit(`${basePath}/${farmer.id}/records`)
+                        }
+                        style={{
+                            background: "none",
+                            border: "none",
+                            color: headerText,
+                            fontSize: "17px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            padding: 0,
+                        }}
+                    >
+                        Records
+                    </button>
+
+                    <button
+                        onClick={() =>
+                            router.visit(`${basePath}/${farmer.id}/reports`)
+                        }
+                        style={{
+                            background: "none",
+                            border: "none",
+                            color: headerText,
+                            fontSize: "17px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            padding: 0,
+                        }}
+                    >
+                        Reports
+                    </button>
+                </div>
             </div>
 
             <form

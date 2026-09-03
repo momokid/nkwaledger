@@ -25,6 +25,7 @@ class TransactionTemplateController extends Controller
         return Inertia::render('Admin/TransactionTemplates/Index', [
             'transactionTemplates' => TransactionTemplate::query()
                 ->with(['debitAccount:id,name', 'creditAccount:id,name', 'farmTypeCategory:id,name'])
+                ->withExists('transactions as is_used')
                 ->orderBy('transaction_type')
                 ->orderBy('name')
                 ->paginate(15),
@@ -56,13 +57,14 @@ class TransactionTemplateController extends Controller
 
     public function update(UpdateTransactionTemplateRequest $request, TransactionTemplate $transactionTemplate): RedirectResponse
     {
-        if ($transactionTemplate->is_system) {
-            return back()->withErrors([
-                'name' => 'This is a built in template, so it cannot be edited. Create a new one instead.',
-            ]);
+        $data = $request->validated();
+
+        if ($transactionTemplate->accountingIsLocked()) {
+            // the words and the switch stay open, the books do not
+            $data = array_intersect_key($data, array_flip(['name', 'is_active']));
         }
 
-        $transactionTemplate->update($request->validated());
+        $transactionTemplate->update($data);
 
         return back()->with('success', 'Transaction template updated.');
     }
@@ -72,6 +74,13 @@ class TransactionTemplateController extends Controller
         if ($transactionTemplate->is_system) {
             return back()->withErrors([
                 'name' => 'This is a built in template, so it cannot be removed. Switch it off instead.',
+            ]);
+        }
+
+        // records point at it, so removing it would leave them orphaned
+        if ($transactionTemplate->isUsed()) {
+            return back()->withErrors([
+                'name' => 'Farmers have already used this one, so it cannot be removed. Switch it off instead.',
             ]);
         }
 

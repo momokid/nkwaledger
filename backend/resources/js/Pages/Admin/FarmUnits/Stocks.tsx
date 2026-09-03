@@ -18,6 +18,8 @@ interface MovementRow {
     note: string | null;
     recorded_by: string | null;
     is_confirmed: boolean;
+    is_rejected: boolean;
+    rejection_reason: string | null;
     can_confirm: boolean;
 }
 
@@ -30,9 +32,12 @@ interface StockRow {
     acquisition_cost: string;
     cost_per_unit: string | null;
     started_on: string | null;
+    expected_ready_on: string | null;
     ended_on: string | null;
     is_confirmed: boolean;
     confirmed_by: string | null;
+    is_rejected: boolean;
+    rejection_reason: string | null;
     counts_toward_credit: boolean;
     can_confirm: boolean;
     movements: MovementRow[];
@@ -44,6 +49,7 @@ interface Props extends PageProps {
         id: number;
         name: string;
         farm_type: string | null;
+        farm_type_category: string | null;
         is_approved: boolean;
     };
     stocks: StockRow[];
@@ -113,12 +119,25 @@ function StocksContent({
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
     const warnBg = dark ? "rgba(180,83,9,0.15)" : "#FEF6E7";
+    const rejectBg = dark ? "rgba(220,38,38,0.15)" : "#FEF2F2";
     const headerText = "#1D9E75";
+    const rejectColor = "#DC2626";
 
     const [showStockForm, setShowStockForm] = useState(false);
     const [movementFor, setMovementFor] = useState<number | null>(null);
+    const [rejectingStock, setRejectingStock] = useState<number | null>(null);
+    const [stockRejectReason, setStockRejectReason] = useState("");
+    const [rejectingMovement, setRejectingMovement] = useState<number | null>(
+        null,
+    );
+    const [movementRejectReason, setMovementRejectReason] = useState("");
 
     const unitPath = `${basePath}/${farmer.id}/units/${unit.id}`;
+
+    const readyLabel =
+        unit.farm_type_category === "Crop"
+            ? "When do you expect to harvest?"
+            : "When will these be ready to sell?";
 
     const stockForm = useForm({
         source: "purchase",
@@ -126,6 +145,7 @@ function StocksContent({
         unit_of_measure: "",
         acquisition_cost: "",
         started_on: "",
+        expected_ready_on: "",
     });
 
     const movementForm = useForm({
@@ -174,6 +194,40 @@ function StocksContent({
         );
     };
 
+    const rejectStock = (event: FormEvent, stockId: number) => {
+        event.preventDefault();
+        router.patch(
+            `${unitPath}/stocks/${stockId}/reject`,
+            { reason: stockRejectReason },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setRejectingStock(null);
+                    setStockRejectReason("");
+                },
+            },
+        );
+    };
+
+    const rejectMovement = (
+        event: FormEvent,
+        stockId: number,
+        movementId: number,
+    ) => {
+        event.preventDefault();
+        router.patch(
+            `${unitPath}/stocks/${stockId}/movements/${movementId}/reject`,
+            { reason: movementRejectReason },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setRejectingMovement(null);
+                    setMovementRejectReason("");
+                },
+            },
+        );
+    };
+
     const labelStyle = {
         color: text,
         fontSize: "16px",
@@ -213,6 +267,8 @@ function StocksContent({
         cursor: "pointer",
         padding: 0,
     };
+    const rejectLinkStyle = { ...linkStyle, color: rejectColor };
+    const rejectButtonStyle = { ...buttonStyle, background: rejectColor };
 
     return (
         <div className="space-y-6">
@@ -305,6 +361,28 @@ function StocksContent({
                         </div>
 
                         <div>
+                            <label style={labelStyle}>{readyLabel}</label>
+                            <input
+                                type="date"
+                                value={stockForm.data.expected_ready_on}
+                                onChange={(event) =>
+                                    stockForm.setData(
+                                        "expected_ready_on",
+                                        event.target.value,
+                                    )
+                                }
+                                style={fieldStyle}
+                            />
+                            {(stockForm.errors.expected_ready_on ||
+                                errors.expected_ready_on) && (
+                                <p style={errorStyle}>
+                                    {stockForm.errors.expected_ready_on ||
+                                        errors.expected_ready_on}
+                                </p>
+                            )}
+                        </div>
+
+                        <div>
                             <label style={labelStyle}>How many</label>
                             <div className="flex gap-2">
                                 <input
@@ -388,7 +466,14 @@ function StocksContent({
             )}
 
             {stocks.map((stock) => (
-                <div key={stock.id} style={cardStyle} className="space-y-4">
+                <div
+                    key={stock.id}
+                    style={{
+                        ...cardStyle,
+                        background: stock.is_rejected ? rejectBg : surface,
+                    }}
+                    className="space-y-4"
+                >
                     <div className="flex flex-wrap gap-6">
                         <div>
                             <p
@@ -461,50 +546,122 @@ function StocksContent({
                                 {stock.started_on}
                             </p>
                         </div>
+                        <div>
+                            <p
+                                style={{
+                                    color: textSecondary,
+                                    fontSize: "15px",
+                                }}
+                            >
+                                Expected ready
+                            </p>
+                            <p style={{ color: text, fontSize: "18px" }}>
+                                {stock.expected_ready_on ?? "—"}
+                            </p>
+                        </div>
                     </div>
 
-                    <p
-                        style={{
-                            color: stock.is_confirmed ? headerText : "#B45309",
-                            fontSize: "16px",
-                        }}
-                    >
-                        {stock.is_confirmed
-                            ? `Checked by ${stock.confirmed_by}`
-                            : "Not checked yet"}
-                        {stock.is_confirmed &&
-                            !stock.counts_toward_credit &&
-                            " · the unit still needs checking"}
-                    </p>
+                    {stock.is_rejected ? (
+                        <p style={{ color: rejectColor, fontSize: "16px" }}>
+                            Sent back: {stock.rejection_reason}
+                        </p>
+                    ) : (
+                        <p
+                            style={{
+                                color: stock.is_confirmed
+                                    ? headerText
+                                    : "#B45309",
+                                fontSize: "16px",
+                            }}
+                        >
+                            {stock.is_confirmed
+                                ? `Checked by ${stock.confirmed_by}`
+                                : "Not checked yet"}
+                            {stock.is_confirmed &&
+                                !stock.counts_toward_credit &&
+                                " · the unit still needs checking"}
+                        </p>
+                    )}
 
-                    <div className="flex flex-wrap gap-4">
-                        {permissions.confirm &&
-                            !stock.is_confirmed &&
-                            stock.can_confirm && (
+                    {!stock.is_rejected && (
+                        <div className="flex flex-wrap gap-4">
+                            {permissions.confirm &&
+                                !stock.is_confirmed &&
+                                stock.can_confirm && (
+                                    <>
+                                        <button
+                                            onClick={() =>
+                                                confirmStock(stock.id)
+                                            }
+                                            style={linkStyle}
+                                        >
+                                            Check this count
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                setRejectingStock(
+                                                    rejectingStock === stock.id
+                                                        ? null
+                                                        : stock.id,
+                                                )
+                                            }
+                                            style={rejectLinkStyle}
+                                        >
+                                            {rejectingStock === stock.id
+                                                ? "Close"
+                                                : "Send back"}
+                                        </button>
+                                    </>
+                                )}
+                            {permissions.create && (
                                 <button
-                                    onClick={() => confirmStock(stock.id)}
+                                    onClick={() =>
+                                        setMovementFor(
+                                            movementFor === stock.id
+                                                ? null
+                                                : stock.id,
+                                        )
+                                    }
                                     style={linkStyle}
                                 >
-                                    Check this count
+                                    {movementFor === stock.id
+                                        ? "Close"
+                                        : "Record a change"}
                                 </button>
                             )}
-                        {permissions.create && (
-                            <button
-                                onClick={() =>
-                                    setMovementFor(
-                                        movementFor === stock.id
-                                            ? null
-                                            : stock.id,
-                                    )
-                                }
-                                style={linkStyle}
-                            >
-                                {movementFor === stock.id
-                                    ? "Close"
-                                    : "Record a change"}
+                        </div>
+                    )}
+
+                    {rejectingStock === stock.id && (
+                        <form
+                            onSubmit={(event) => rejectStock(event, stock.id)}
+                            className="space-y-3"
+                            style={{
+                                borderTop: `1px solid ${border}`,
+                                paddingTop: "16px",
+                            }}
+                        >
+                            <div>
+                                <label style={labelStyle}>
+                                    Why is this rejected?
+                                </label>
+                                <input
+                                    value={stockRejectReason}
+                                    onChange={(event) =>
+                                        setStockRejectReason(event.target.value)
+                                    }
+                                    placeholder="Wrong number of animals"
+                                    style={fieldStyle}
+                                />
+                                {errors.reason && (
+                                    <p style={errorStyle}>{errors.reason}</p>
+                                )}
+                            </div>
+                            <button type="submit" style={rejectButtonStyle}>
+                                Send back
                             </button>
-                        )}
-                    </div>
+                        </form>
+                    )}
 
                     {movementFor === stock.id && (
                         <form
@@ -688,81 +845,196 @@ function StocksContent({
                         >
                             <tbody>
                                 {stock.movements.map((movement) => (
-                                    <tr
-                                        key={movement.id}
-                                        style={{
-                                            borderTop: `1px solid ${border}`,
-                                            background: movement.is_confirmed
-                                                ? "transparent"
-                                                : warnBg,
-                                        }}
-                                    >
-                                        <td
-                                            className="px-3 py-2"
-                                            style={{ color: text }}
-                                        >
-                                            {movement.occurred_on}
-                                        </td>
-                                        <td
-                                            className="px-3 py-2"
-                                            style={{ color: text }}
-                                        >
-                                            {movement.reason}
-                                        </td>
-                                        <td
-                                            className="px-3 py-2"
+                                    <>
+                                        <tr
+                                            key={movement.id}
                                             style={{
-                                                color: movement.is_increase
-                                                    ? headerText
-                                                    : "#B45309",
+                                                borderTop: `1px solid ${border}`,
+                                                background: movement.is_rejected
+                                                    ? rejectBg
+                                                    : movement.is_confirmed
+                                                      ? "transparent"
+                                                      : warnBg,
                                             }}
                                         >
-                                            {movement.is_increase ? "+" : "−"}
-                                            {movement.quantity}
-                                        </td>
-                                        <td
-                                            className="px-3 py-2"
-                                            style={{ color: textSecondary }}
-                                        >
-                                            {movement.recorded_by}
-                                        </td>
-                                        <td
-                                            className="px-3 py-2"
-                                            style={{ color: textSecondary }}
-                                        >
-                                            {movement.note}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {movement.is_confirmed ? (
-                                                <span
-                                                    style={{
-                                                        color: headerText,
-                                                    }}
+                                            <td
+                                                className="px-3 py-2"
+                                                style={{ color: text }}
+                                            >
+                                                {movement.occurred_on}
+                                            </td>
+                                            <td
+                                                className="px-3 py-2"
+                                                style={{ color: text }}
+                                            >
+                                                {movement.reason}
+                                            </td>
+                                            <td
+                                                className="px-3 py-2"
+                                                style={{
+                                                    color: movement.is_increase
+                                                        ? headerText
+                                                        : "#B45309",
+                                                }}
+                                            >
+                                                {movement.is_increase
+                                                    ? "+"
+                                                    : "−"}
+                                                {movement.quantity}
+                                            </td>
+                                            <td
+                                                className="px-3 py-2"
+                                                style={{
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                {movement.recorded_by}
+                                            </td>
+                                            <td
+                                                className="px-3 py-2"
+                                                style={{
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                {movement.note}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {movement.is_rejected ? (
+                                                    <span
+                                                        style={{
+                                                            color: rejectColor,
+                                                        }}
+                                                    >
+                                                        Sent back:{" "}
+                                                        {
+                                                            movement.rejection_reason
+                                                        }
+                                                    </span>
+                                                ) : movement.is_confirmed ? (
+                                                    <span
+                                                        style={{
+                                                            color: headerText,
+                                                        }}
+                                                    >
+                                                        Checked
+                                                    </span>
+                                                ) : permissions.confirm &&
+                                                  movement.can_confirm ? (
+                                                    <div className="flex gap-3">
+                                                        <button
+                                                            onClick={() =>
+                                                                confirmMovement(
+                                                                    stock.id,
+                                                                    movement.id,
+                                                                )
+                                                            }
+                                                            style={linkStyle}
+                                                        >
+                                                            Check
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                setRejectingMovement(
+                                                                    rejectingMovement ===
+                                                                        movement.id
+                                                                        ? null
+                                                                        : movement.id,
+                                                                )
+                                                            }
+                                                            style={
+                                                                rejectLinkStyle
+                                                            }
+                                                        >
+                                                            {rejectingMovement ===
+                                                            movement.id
+                                                                ? "Close"
+                                                                : "Send back"}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span
+                                                        style={{
+                                                            color: "#B45309",
+                                                        }}
+                                                    >
+                                                        Not checked
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                        {rejectingMovement === movement.id && (
+                                            <tr
+                                                key={`${movement.id}-reject`}
+                                                style={{
+                                                    borderTop: `1px solid ${border}`,
+                                                }}
+                                            >
+                                                <td
+                                                    colSpan={6}
+                                                    className="px-3 py-3"
                                                 >
-                                                    Checked
-                                                </span>
-                                            ) : permissions.confirm &&
-                                              movement.can_confirm ? (
-                                                <button
-                                                    onClick={() =>
-                                                        confirmMovement(
-                                                            stock.id,
-                                                            movement.id,
-                                                        )
-                                                    }
-                                                    style={linkStyle}
-                                                >
-                                                    Check
-                                                </button>
-                                            ) : (
-                                                <span
-                                                    style={{ color: "#B45309" }}
-                                                >
-                                                    Not checked
-                                                </span>
-                                            )}
-                                        </td>
-                                    </tr>
+                                                    <form
+                                                        onSubmit={(event) =>
+                                                            rejectMovement(
+                                                                event,
+                                                                stock.id,
+                                                                movement.id,
+                                                            )
+                                                        }
+                                                        className="flex flex-wrap items-end gap-3"
+                                                    >
+                                                        <div className="flex-1">
+                                                            <label
+                                                                style={
+                                                                    labelStyle
+                                                                }
+                                                            >
+                                                                Why is this
+                                                                being sent back?
+                                                            </label>
+                                                            <input
+                                                                value={
+                                                                    movementRejectReason
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setMovementRejectReason(
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                placeholder="Wrong reason chosen"
+                                                                style={
+                                                                    fieldStyle
+                                                                }
+                                                            />
+                                                            {errors.reason && (
+                                                                <p
+                                                                    style={
+                                                                        errorStyle
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        errors.reason
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            type="submit"
+                                                            style={
+                                                                rejectButtonStyle
+                                                            }
+                                                        >
+                                                            Send back
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </>
                                 ))}
                             </tbody>
                         </table>

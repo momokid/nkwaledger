@@ -1,22 +1,78 @@
-import { ButtonHTMLAttributes } from 'react';
+import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { ButtonHTMLAttributes, ReactNode } from "react";
 
-export default function DangerButton({
-    className = '',
+type Look = "primary" | "secondary" | "danger";
+type Size = "normal" | "small";
+
+interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
+    look?: Look;
+    size?: Size;
+    // shown in place of the label while the action is running
+    busy?: boolean;
+    busyLabel?: string;
+    children: ReactNode;
+}
+
+export default function Button({
+    look = "primary",
+    size = "normal",
+    busy = false,
+    busyLabel = "Working...",
     disabled,
     children,
-    ...props
-}: ButtonHTMLAttributes<HTMLButtonElement>) {
+    style,
+    ...rest
+}: Props) {
+    const { dark } = useTheme();
+
+    const brand = "#1D9E75";
+    const danger = "#DC2626";
+    const text = dark ? "#F9FAFB" : "#111827";
+
+    const looks: Record<
+        Look,
+        { background: string; color: string; border: string }
+    > = {
+        primary: {
+            background: brand,
+            color: "#FFFFFF",
+            border: `1px solid ${brand}`,
+        },
+        secondary: {
+            background: "transparent",
+            color: text,
+            border: `1px solid ${dark ? "#4B5563" : "#9CA3AF"}`,
+        },
+        danger: {
+            background: "transparent",
+            color: danger,
+            border: `1px solid ${danger}`,
+        },
+    };
+
+    const sizes: Record<Size, { padding: string; fontSize: string }> = {
+        normal: { padding: "11px 22px", fontSize: "18px" },
+        small: { padding: "7px 14px", fontSize: "16px" },
+    };
+
+    const off = busy || disabled;
+
     return (
         <button
-            {...props}
-            className={
-                `inline-flex items-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:bg-red-700 dark:focus:ring-offset-gray-800 ${
-                    disabled && 'opacity-25'
-                } ` + className
-            }
-            disabled={disabled}
+            {...rest}
+            disabled={off}
+            style={{
+                ...looks[look],
+                ...sizes[size],
+                fontWeight: 600,
+                fontFamily: "inherit",
+                cursor: off ? "default" : "pointer",
+                opacity: off ? 0.6 : 1,
+                whiteSpace: "nowrap",
+                ...style,
+            }}
         >
-            {children}
+            {busy ? busyLabel : children}
         </button>
     );
 }

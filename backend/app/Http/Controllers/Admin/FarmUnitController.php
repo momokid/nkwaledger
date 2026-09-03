@@ -159,16 +159,12 @@ class FarmUnitController extends Controller
         $this->guardBelongsTo($farmer, $farmUnit);
 
         if ($farmUnit->isApproved()) {
-            throw ValidationException::withMessages([
-                'unit' => 'This unit is already approved.',
-            ]);
+            return back()->with('error', 'This unit is already approved.');
         }
 
         // whoever set the pen up is not the one who says it exists
         if ($farmUnit->conflictedUserId() === $request->user()->id) {
-            throw ValidationException::withMessages([
-                'unit' => 'Someone other than the person who added this unit needs to approve it.',
-            ]);
+            return back()->with('error', 'Someone other than the person who added this unit needs to approve it.');
         }
 
         $farmUnit->forceFill([
