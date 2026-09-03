@@ -419,3 +419,84 @@ it('refuses a loss when the unit has no single active stock to reduce', function
         'quantityLost' => '6',
     ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
 });
+
+// the older batch goes first, since those animals have been around longer
+it('takes a loss from the older batch first when it is enough on its own', function () {
+    $older = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 20,
+        'started_on' => now()->subMonths(6),
+    ]);
+
+    $newer = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 30,
+        'started_on' => now()->subMonth(),
+    ]);
+
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'settlementAccountId' => null,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityLost' => '5',
+    ]));
+
+    expect($older->fresh()->current_quantity)->toBe('15.00');
+    expect($newer->fresh()->current_quantity)->toBe('30.00');
+    expect($newer->fresh()->movements()->where('reason', MovementReason::Loss)->exists())->toBeFalse();
+});
+
+// when the older batch runs dry mid-loss, the rest spills into the next one
+it('spills a loss into the next batch when the older one runs out', function () {
+    $older = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 5,
+        'started_on' => now()->subMonths(6),
+    ]);
+
+    $newer = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 50,
+        'started_on' => now()->subMonth(),
+    ]);
+
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'settlementAccountId' => null,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityLost' => '8',
+    ]));
+
+    expect($older->fresh()->current_quantity)->toBe('0.00');
+    expect($newer->fresh()->current_quantity)->toBe('47.00');
+
+    $olderMovement = $older->fresh()->movements()->where('reason', MovementReason::Loss)->first();
+    $newerMovement = $newer->fresh()->movements()->where('reason', MovementReason::Loss)->first();
+
+    expect($olderMovement->quantity)->toBe('5.00');
+    expect($newerMovement->quantity)->toBe('3.00');
+    expect($olderMovement->isConfirmed())->toBeFalse();
+    expect($newerMovement->isConfirmed())->toBeFalse();
+});
+
+// the farm cannot lose more animals than it has on record, even split across batches
+it('refuses a loss bigger than everything the farm has across all active batches', function () {
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 10,
+        'started_on' => now()->subMonths(3),
+    ]);
+
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 5,
+        'started_on' => now()->subMonth(),
+    ]);
+
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'settlementAccountId' => null,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityLost' => '20',
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});

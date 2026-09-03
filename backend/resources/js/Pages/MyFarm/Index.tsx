@@ -8,6 +8,7 @@ interface Movement {
     id: number;
     reason: string | null;
     quantity: string;
+    is_increase: boolean;
     occurred_on: string | null;
     recorded_by: string | null;
     is_confirmed: boolean;
@@ -358,18 +359,37 @@ function IndexContent({ units, filters }: ContentProps) {
                                                     className="flex justify-between"
                                                     style={{
                                                         fontSize: "16px",
-                                                        color: textSecondary,
                                                         padding: "2px 0",
                                                     }}
                                                 >
-                                                    <span>
-                                                        {movement.reason} —{" "}
-                                                        {movement.quantity} on{" "}
+                                                    <span
+                                                        style={{
+                                                            color: textSecondary,
+                                                        }}
+                                                    >
+                                                        {movement.reason} on{" "}
                                                         {shortDate(
                                                             movement.occurred_on,
                                                         )}
                                                     </span>
-                                                    <span>
+                                                    <span
+                                                        style={{
+                                                            color: movement.is_increase
+                                                                ? "#1D9E75"
+                                                                : "#B45309",
+                                                            fontWeight: 600,
+                                                        }}
+                                                    >
+                                                        {movement.is_increase
+                                                            ? "+"
+                                                            : "−"}
+                                                        {movement.quantity}
+                                                    </span>
+                                                    <span
+                                                        style={{
+                                                            color: textSecondary,
+                                                        }}
+                                                    >
                                                         {statusLabel(
                                                             movement.is_confirmed,
                                                             movement.is_rejected,

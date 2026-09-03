@@ -60,6 +60,45 @@ test('a user without the farm-units permission is forbidden', function () {
 
     $this->actingAs($vet)->get('/my-farm')->assertForbidden();
 });
+
+// the starting count anchors the story at the top, no matter how old it is
+test('the starting count comes before later movements regardless of date', function () {
+    $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
+
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 29,
+        'started_on' => '2025-01-01',
+    ]);
+
+    $stock->movements()->create([
+        'reason' => MovementReason::Loss,
+        'quantity' => 3,
+        'is_increase' => false,
+        'occurred_on' => now(),
+        'recorded_by' => $this->farmerUser->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-farm')
+        ->assertInertia(fn($page) => $page
+            ->where('units.0.stocks.0.movements.0.reason', 'Starting count')
+            ->where('units.0.stocks.0.movements.1.reason', 'Lost'));
+});
+
+// green for what was added, amber for what was taken away
+test('each movement says which way it went', function () {
+    $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
+
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 29,
+        'started_on' => now()->subMonth(),
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-farm')
+        ->assertInertia(fn($page) => $page
+            ->where('units.0.stocks.0.movements.0.is_increase', true));
+});
 test('shows profit and loss analysis per farm unit', function () {
     $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
 

@@ -42,7 +42,8 @@ class PostingService
         return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss);
     }
 
-    // only a LOSS record ever carries a quantity, and it needs exactly one stock to take it from
+    // only a LOSS record ever carries a quantity; the oldest batch absorbs it first,
+    // spilling into the next one if it runs out, so the farmer is never asked which batch
     private function resolveQuantityLost(PostingRequest $request, TransactionTemplate $template, ?FarmUnit $farmUnit): ?array
     {
         if ($template->transaction_type !== Transaction::LOSS) {
@@ -60,13 +61,38 @@ class PostingService
         $stocks = FarmUnitStock::query()
             ->where('farm_unit_id', $farmUnit?->id)
             ->whereNull('ended_on')
+            ->orderBy('started_on')
+            ->orderBy('id')
             ->get();
 
-        if ($stocks->count() !== 1) {
-            throw PostingFailed::because('We could not tell which count to take this from. Please ask an agent for help.');
+        if ($stocks->isEmpty()) {
+            throw PostingFailed::because('There is no live stock on record to take this loss from.');
         }
 
-        return ['quantity' => $request->quantityLost, 'stock' => $stocks->first()];
+        $remaining = (float) $request->quantityLost;
+        $allocations = [];
+
+        foreach ($stocks as $stock) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $available = (float) $stock->current_quantity;
+
+            if ($available <= 0) {
+                continue;
+            }
+
+            $take = min($available, $remaining);
+            $allocations[] = ['stock' => $stock, 'quantity' => $take];
+            $remaining -= $take;
+        }
+
+        if ($remaining > 0) {
+            throw PostingFailed::because('That is more than the farm has on record. Please check the number.');
+        }
+
+        return ['quantity' => $request->quantityLost, 'allocations' => $allocations];
     }
 
     // the phone is not making a mistake, it is retrying after a bad network
@@ -230,13 +256,15 @@ class PostingService
             $entry->assertBalanced();
 
             if ($loss !== null) {
-                FarmUnitStockMovement::create([
-                    'farm_unit_stock_id' => $loss['stock']->id,
-                    'reason' => MovementReason::Loss,
-                    'quantity' => $loss['quantity'],
-                    'occurred_on' => $transaction->transaction_date,
-                    'recorded_by' => $request->recordedBy,
-                ]);
+                foreach ($loss['allocations'] as $allocation) {
+                    FarmUnitStockMovement::create([
+                        'farm_unit_stock_id' => $allocation['stock']->id,
+                        'reason' => MovementReason::Loss,
+                        'quantity' => $allocation['quantity'],
+                        'occurred_on' => $transaction->transaction_date,
+                        'recorded_by' => $request->recordedBy,
+                    ]);
+                }
             }
 
             return $transaction;

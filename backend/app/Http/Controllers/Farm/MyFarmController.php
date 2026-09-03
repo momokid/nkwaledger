@@ -56,12 +56,24 @@ class MyFarmController extends Controller
                         'is_rejected' => $stock->isRejected(),
                         'rejection_reason' => $stock->rejection_reason,
                         'movements' => $stock->movements
-                            ->sortByDesc('occurred_on')
+                            ->sort(function ($a, $b) {
+                                // the starting count anchors the story at the top, everything else lands newest first
+                                if ($a->reason === MovementReason::Opening) {
+                                    return -1;
+                                }
+
+                                if ($b->reason === MovementReason::Opening) {
+                                    return 1;
+                                }
+
+                                return $b->occurred_on <=> $a->occurred_on;
+                            })
                             ->values()
                             ->map(fn($movement) => [
                                 'id' => $movement->id,
                                 'reason' => $movement->reason?->label(),
                                 'quantity' => $movement->quantity,
+                                'is_increase' => $movement->is_increase,
                                 'occurred_on' => $movement->occurred_on?->toDateString(),
                                 'recorded_by' => $movement->recordedBy?->surname,
                                 'is_confirmed' => $movement->isConfirmed(),

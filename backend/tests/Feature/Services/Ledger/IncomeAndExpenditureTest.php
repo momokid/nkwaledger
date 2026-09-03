@@ -3,6 +3,7 @@
 use App\Models\AccountingPeriod;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
+use App\Models\FarmUnitStock;
 use App\Models\LedgerAccount;
 use App\Models\LedgerCategory;
 use App\Models\LedgerClass;
@@ -123,6 +124,12 @@ beforeEach(function () {
         'approved_at' => null,
     ]);
 
+    // enough on record for any loss a test posts against it
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 1000,
+    ]);
+
     $posting = app(PostingService::class);
 
     $this->post = function (
@@ -140,6 +147,7 @@ beforeEach(function () {
             transactionDate: $date ?? now()->toDateString(),
             farmUnitId: $template->requires_farm_unit ? ($unit ?? $this->approvedUnit)->id : null,
             recordedBy: $this->staff->id,
+            quantityLost: $template->transaction_type === 'LOSS' ? '1' : null,
         ));
     };
 
