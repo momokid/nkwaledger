@@ -46,3 +46,4 @@ jobs:
         env:
           APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
           ARKESEL_SENDER: NkwaLedger
+          REPORT_SECRET: base64:jV5e2oTqMJjzcYflr1E/sy9MgYt/DdhcbexDEX551P4=
