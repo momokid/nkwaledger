@@ -41,7 +41,6 @@ jobs:
       - name: Build assets
         run: npm run build
 
-      # phpunit.xml holds every setting the tests need, so nothing is passed here
       - name: Run tests
         run: php artisan test
         env:
