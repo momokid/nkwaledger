@@ -45,5 +45,5 @@ jobs:
       - name: Run tests
         run: php artisan test
         env:
-          APP_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
           ARKESEL_SENDER: NkwaLedger
