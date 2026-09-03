@@ -41,10 +41,10 @@ beforeEach(function () {
     }
 });
 
+// names the templates it needs, so adding more never breaks this
 it('seeds the default transaction templates', function () {
     $this->seed(TransactionTemplateSeeder::class);
 
-    expect(TransactionTemplate::count())->toBe(2);
     $this->assertDatabaseHas('transaction_templates', ['slug' => 'produce_sale']);
     $this->assertDatabaseHas('transaction_templates', ['slug' => 'input_purchase']);
 });
@@ -79,7 +79,13 @@ it('can run twice without duplicating rows', function () {
     $this->seed(TransactionTemplateSeeder::class);
     $this->seed(TransactionTemplateSeeder::class);
 
-    expect(TransactionTemplate::count())->toBe(2);
+    $duplicated = TransactionTemplate::query()
+        ->selectRaw('slug, COUNT(*) as total')
+        ->groupBy('slug')
+        ->having('total', '>', 1)
+        ->count();
+
+    expect($duplicated)->toBe(0);
 });
 
 it('skips a template whose accounts are missing', function () {
@@ -89,4 +95,21 @@ it('skips a template whose accounts are missing', function () {
 
     expect(TransactionTemplate::count())->toBe(1);
     $this->assertDatabaseMissing('transaction_templates', ['slug' => 'produce_sale']);
+});
+
+// a reversal has nothing to hang off without this one
+it('seeds a template for corrections', function () {
+    $this->seed(TransactionTemplateSeeder::class);
+
+    $this->assertDatabaseHas('transaction_templates', [
+        'slug' => 'correction',
+        'transaction_type' => 'ADJUSTMENT',
+    ]);
+});
+
+it('needs no farm unit for a correction', function () {
+    $this->seed(TransactionTemplateSeeder::class);
+
+    expect(TransactionTemplate::where('slug', 'correction')->first()->requires_farm_unit)
+        ->toBeFalse();
 });

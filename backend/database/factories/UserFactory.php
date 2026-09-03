@@ -12,13 +12,16 @@ class UserFactory extends Factory
 {
     protected static ?string $password;
 
+    // counts upward so a made up phone can never land on one a test typed by hand
+    protected static int $sequence = 1;
+
     public function definition(): array
     {
         return [
             'surname'            => fake()->lastName(),
             'first_name'         => fake()->firstName(),
             'other_name'         => null,
-            'phone'              => '024' . fake()->unique()->numerify('#######'),
+            'phone'              => '0245' . str_pad((string) static::$sequence++, 6, '0', STR_PAD_LEFT),
             'email'              => null,
             // new users start unverified, so a missing gate breaks tests instead of hiding
             'phone_verified_at'  => now(),

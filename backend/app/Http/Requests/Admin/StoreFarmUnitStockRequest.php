@@ -22,6 +22,7 @@ class StoreFarmUnitStockRequest extends FormRequest
             'acquisition_cost' => ['required', 'numeric', 'min:0'],
             // nothing can start on a day that has not happened yet
             'started_on' => ['required', 'date', 'before_or_equal:today'],
+            'expected_ready_on' => ['nullable', 'date', 'after_or_equal:started_on'],
         ];
     }
 
@@ -34,6 +35,8 @@ class StoreFarmUnitStockRequest extends FormRequest
             'acquisition_cost.required' => 'Please say what it cost. Enter zero if nothing was paid.',
             'started_on.required' => 'Please say when this started.',
             'started_on.before_or_equal' => 'The date cannot be in the future.',
+            'expected_ready_on.date' => 'That does not look like a date.',
+            'expected_ready_on.after_or_equal' => 'The ready date cannot be before the start date.',
         ];
     }
 }

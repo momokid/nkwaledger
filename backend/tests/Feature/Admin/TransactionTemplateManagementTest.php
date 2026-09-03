@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\AccountingPeriod;
+use App\Models\FarmerProfile;
 use App\Models\FarmTypeCategory;
 use App\Models\LedgerAccount;
 use App\Models\LedgerCategory;
@@ -9,6 +11,8 @@ use App\Models\LedgerSubcategory;
 use App\Models\LedgerType;
 use App\Models\TransactionTemplate;
 use App\Models\User;
+use App\Services\Ledger\PostingRequest;
+use App\Services\Ledger\PostingService;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
@@ -48,6 +52,8 @@ beforeEach(function () {
         'control_id' => $control->id,
         'subcategory_id' => $assetSubcategory->id,
         'type_id' => $type->id,
+        // money can sit here, which the posting service checks
+        'is_settlement' => true,
     ]);
 
     $this->salesAccount = LedgerAccount::create([
@@ -66,6 +72,26 @@ beforeEach(function () {
         'settlement_side' => 'debit',
         'requires_farm_unit' => false,
     ];
+
+    // posts one record against a template, so the used rules can be proven
+    $this->recordAgainst = function (TransactionTemplate $template) {
+        AccountingPeriod::firstOrCreate(
+            ['name' => 'Test Period'],
+            [
+                'starts_on' => now()->startOfYear()->toDateString(),
+                'ends_on' => now()->endOfYear()->toDateString(),
+            ],
+        );
+
+        return app(PostingService::class)->post(new PostingRequest(
+            farmerProfileId: FarmerProfile::factory()->create()->id,
+            transactionTemplateId: $template->id,
+            amount: '100',
+            settlementAccountId: $this->cashAccount->id,
+            transactionDate: now()->toDateString(),
+            recordedBy: $this->admin->id,
+        ));
+    };
 });
 
 it('lists transaction templates for a user with view permission', function () {
@@ -208,23 +234,70 @@ it('rejects a duplicate slug on update', function () {
     $response->assertSessionHasErrors('slug');
 });
 
-it('refuses to update a system template', function () {
+// the words are for the farmer to read, so they can always be improved
+it('lets the words on a system template be changed', function () {
     $template = TransactionTemplate::create([
         ...$this->validPayload,
         'is_system' => true,
     ]);
 
-    $response = $this->actingAs($this->admin)
+    $this->actingAs($this->admin)
         ->put(route('admin.transaction-templates.update', $template), [
             ...$this->validPayload,
-            'name' => 'Renamed',
+            'name' => 'I sold what I grew',
+        ])
+        ->assertSessionDoesntHaveErrors();
+
+    expect($template->fresh()->name)->toBe('I sold what I grew');
+});
+
+it('lets a system template be switched off', function () {
+    $template = TransactionTemplate::create([
+        ...$this->validPayload,
+        'is_system' => true,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.transaction-templates.update', $template), [
+            ...$this->validPayload,
+            'is_active' => false,
         ]);
 
-    $response->assertSessionHasErrors();
-    $this->assertDatabaseHas('transaction_templates', [
-        'id' => $template->id,
-        'name' => 'I sold crops',
+    expect($template->fresh()->is_active)->toBeFalse();
+});
+
+// change the accounts and every future record posts differently
+it('ignores an attempt to move the accounts on a system template', function () {
+    $template = TransactionTemplate::create([
+        ...$this->validPayload,
+        'is_system' => true,
     ]);
+
+    $before = $template->debit_account_id;
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.transaction-templates.update', $template), [
+            ...$this->validPayload,
+            'debit_account_id' => $this->salesAccount->id,
+            'credit_account_id' => $this->cashAccount->id,
+        ]);
+
+    expect($template->fresh()->debit_account_id)->toBe($before);
+});
+
+it('ignores an attempt to change the type on a system template', function () {
+    $template = TransactionTemplate::create([
+        ...$this->validPayload,
+        'is_system' => true,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.transaction-templates.update', $template), [
+            ...$this->validPayload,
+            'transaction_type' => 'EXPENSE',
+        ]);
+
+    expect($template->fresh()->transaction_type)->toBe('INCOME');
 });
 
 it('soft deletes a transaction template', function () {
@@ -260,4 +333,75 @@ it('denies deleting to a user without delete permission', function () {
 
     $response->assertForbidden();
     $this->assertDatabaseHas('transaction_templates', ['id' => $template->id, 'deleted_at' => null]);
+});
+
+// once a record points at a template, changing its accounts changes what happens next
+it('locks the accounts on a template that has been used', function () {
+    $template = TransactionTemplate::create($this->validPayload);
+
+    ($this->recordAgainst)($template);
+
+    $before = $template->debit_account_id;
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.transaction-templates.update', $template), [
+            ...$this->validPayload,
+            'debit_account_id' => $this->salesAccount->id,
+            'credit_account_id' => $this->cashAccount->id,
+        ]);
+
+    expect($template->fresh()->debit_account_id)->toBe($before);
+});
+
+it('still lets the words change on a template that has been used', function () {
+    $template = TransactionTemplate::create($this->validPayload);
+
+    ($this->recordAgainst)($template);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.transaction-templates.update', $template), [
+            ...$this->validPayload,
+            'name' => 'Something clearer',
+        ]);
+
+    expect($template->fresh()->name)->toBe('Something clearer');
+});
+
+it('lets the accounts change on a template nobody has used', function () {
+    $template = TransactionTemplate::create($this->validPayload);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.transaction-templates.update', $template), [
+            ...$this->validPayload,
+            'debit_account_id' => $this->salesAccount->id,
+            'credit_account_id' => $this->cashAccount->id,
+        ]);
+
+    expect($template->fresh()->debit_account_id)->toBe($this->salesAccount->id);
+});
+
+// the records point at it, so removing it would leave them orphaned
+it('refuses to delete a template that has been used', function () {
+    $template = TransactionTemplate::create($this->validPayload);
+
+    ($this->recordAgainst)($template);
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.transaction-templates.destroy', $template))
+        ->assertSessionHasErrors();
+
+    $this->assertDatabaseHas('transaction_templates', ['id' => $template->id, 'deleted_at' => null]);
+});
+
+it('says on the page which templates are locked', function () {
+    $used = TransactionTemplate::create($this->validPayload);
+    ($this->recordAgainst)($used);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.transaction-templates.index'))
+        ->assertInertia(fn($page) => $page->where('transactionTemplates.data', function ($rows) use ($used) {
+            $row = collect($rows)->firstWhere('id', $used->id);
+
+            return $row !== null && $row['is_used'] === true;
+        }));
 });

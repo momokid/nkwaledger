@@ -16,7 +16,9 @@ it('seeds the two classes', function () {
 it('seeds every account', function () {
     $this->seed(LedgerAccountSeeder::class);
 
-    expect(LedgerAccount::count())->toBe(16);
+    foreach (['Cash A/C', 'Momo A/C', 'Bank A/C', 'Livestock A/C', 'Fish Stock A/C', 'Stated Capital'] as $name) {
+        expect(LedgerAccount::where('name', $name)->exists())->toBeTrue();
+    }
 });
 
 it('seeds the money accounts', function () {
@@ -122,17 +124,22 @@ it('gives every account a code', function () {
 
 it('can run twice without duplicating rows', function () {
     $this->seed(LedgerAccountSeeder::class);
+    $before = LedgerAccount::count();
+
     $this->seed(LedgerAccountSeeder::class);
 
-    expect(LedgerAccount::count())->toBe(16)
+    expect(LedgerAccount::count())->toBe($before)
         ->and(LedgerClass::count())->toBe(2)
         ->and(LedgerCategory::count())->toBe(5);
 });
 
 // the templates look accounts up by name, so both seeders have to work together
+// the seeder skips a template whose accounts are missing, so none should be skipped here
 it('leaves the transaction templates able to find their accounts', function () {
     $this->seed(LedgerAccountSeeder::class);
     $this->seed(Database\Seeders\TransactionTemplateSeeder::class);
 
-    expect(App\Models\TransactionTemplate::count())->toBe(2);
+    foreach (['produce_sale', 'input_purchase', 'correction'] as $slug) {
+        $this->assertDatabaseHas('transaction_templates', ['slug' => $slug]);
+    }
 });

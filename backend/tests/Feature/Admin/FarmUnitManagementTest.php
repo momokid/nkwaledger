@@ -216,7 +216,7 @@ test('the person who added a unit cannot approve it', function () {
     ]);
 
     $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
-        ->assertSessionHasErrors();
+        ->assertSessionHas('error');
 
     expect($unit->fresh()->isApproved())->toBeFalse();
 });
@@ -239,7 +239,7 @@ test('an already approved unit cannot be approved again', function () {
     ]);
 
     $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
-        ->assertSessionHasErrors();
+        ->assertSessionHas('error');
 });
 
 test('approving is written to the audit log', function () {

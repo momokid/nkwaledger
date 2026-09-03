@@ -5,6 +5,8 @@ use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
 use App\Models\User;
 
+use App\Enums\MovementReason;
+
 test('a stock belongs to a farm unit', function () {
     $unit = FarmUnit::factory()->approved()->create();
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id]);
@@ -174,4 +176,75 @@ test('a deleted stock is soft deleted', function () {
 
     expect(FarmUnitStock::find($stock->id))->toBeNull()
         ->and(FarmUnitStock::withTrashed()->find($stock->id))->not->toBeNull();
+});
+test('expected_ready_on can be set on a stock', function () {
+    $stock = FarmUnitStock::factory()->create(['expected_ready_on' => '2026-12-01']);
+
+    expect($stock->expected_ready_on)->toBeInstanceOf(Carbon\CarbonInterface::class);
+    expect($stock->expected_ready_on->toDateString())->toBe('2026-12-01');
+});
+
+test('expected_ready_on is nullable', function () {
+    $stock = FarmUnitStock::factory()->create(['expected_ready_on' => null]);
+
+    expect($stock->expected_ready_on)->toBeNull();
+});
+
+test('the opening movement is confirmed as soon as it is created', function () {
+    $stock = FarmUnitStock::factory()->create();
+
+    $opening = $stock->movements()->where('reason', MovementReason::Opening)->first();
+
+    expect($opening->isConfirmed())->toBeTrue();
+});
+
+test('a stock can be rejected', function () {
+    $stock = FarmUnitStock::factory()->create(['recorded_by' => 1]);
+
+    $stock->reject(2, 'Wrong number of animals');
+
+    expect($stock->fresh()->isRejected())->toBeTrue();
+});
+
+test('a rejection records who did it, when, and why', function () {
+    $stock = FarmUnitStock::factory()->create(['recorded_by' => 1]);
+
+    $stock->reject(2, 'Wrong number of animals');
+    $stock->refresh();
+
+    expect($stock->rejected_by)->toBe(2)
+        ->and($stock->rejected_at)->not->toBeNull()
+        ->and($stock->rejection_reason)->toBe('Wrong number of animals');
+});
+
+test('rejecting a stock also rejects its opening movement', function () {
+    $stock = FarmUnitStock::factory()->create(['recorded_by' => 1, 'opening_quantity' => 50]);
+
+    $stock->reject(2, 'Wrong number of animals');
+
+    $opening = $stock->movements()->where('reason', MovementReason::Opening)->first();
+    expect($opening->isRejected())->toBeTrue();
+});
+
+test('a rejected stock counts as zero, not its opening quantity', function () {
+    $stock = FarmUnitStock::factory()->create(['recorded_by' => 1, 'opening_quantity' => 50]);
+
+    $stock->reject(2, 'Wrong number of animals');
+
+    expect($stock->fresh()->current_quantity)->toBe('0.00');
+});
+
+test('a rejected stock does not count toward credit', function () {
+    $unit = FarmUnit::factory()->approved()->create();
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id, 'recorded_by' => 1]);
+
+    $stock->reject(2, 'Wrong number of animals');
+
+    expect($stock->fresh()->countsTowardCredit())->toBeFalse();
+});
+
+test('a confirmed stock cannot be rejected', function () {
+    $stock = FarmUnitStock::factory()->confirmed()->create(['recorded_by' => 1]);
+
+    expect(fn() => $stock->reject(2, 'Too late'))->toThrow(InvalidArgumentException::class);
 });

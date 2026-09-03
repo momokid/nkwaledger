@@ -41,10 +41,9 @@ jobs:
       - name: Build assets
         run: npm run build
 
-      # phpunit.xml holds every setting the tests need, so nothing is passed here
       - name: Run tests
         run: php artisan test
         env:
-          APP_KEY: base64:F1r449od4TXHLr3QZQeiIktfBhYAETMewO01fWfWCM0=
-          ARKESEL_API_KEY: fake-key
+          APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
           ARKESEL_SENDER: NkwaLedger
+          REPORT_SECRET: base64:jV5e2oTqMJjzcYflr1E/sy9MgYt/DdhcbexDEX551P4=

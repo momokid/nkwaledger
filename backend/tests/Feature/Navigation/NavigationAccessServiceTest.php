@@ -86,6 +86,29 @@ it('never returns a permission name', function () {
     $names = $this->service->allowedRouteNames($user);
 
     foreach ($names as $name) {
-        expect(str_starts_with($name, 'admin.') || str_starts_with($name, 'agent.'))->toBeTrue();
+        $known = str_starts_with($name, 'admin.')
+            || str_starts_with($name, 'agent.')
+            || str_starts_with($name, 'my-records.')
+            || str_starts_with($name, 'my-reports.');
+
+        expect($known)->toBeTrue();
     }
+});
+
+// the farmer's own pages carry a sidebar too
+it('includes the farmer record pages for a farmer', function () {
+    $farmer = User::factory()->create();
+    $farmer->assignRole('farmer');
+
+    $names = $this->service->allowedRouteNames($farmer);
+
+    expect($names)->toContain('my-records.index');
+    expect($names)->toContain('my-records.create');
+});
+
+it('excludes the farmer record pages from someone without the permission', function () {
+    $vet = User::factory()->create();
+    $vet->assignRole('vet');
+
+    expect($this->service->allowedRouteNames($vet))->not->toContain('my-records.index');
 });

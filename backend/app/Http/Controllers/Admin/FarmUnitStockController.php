@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\MovementReason;
 use App\Enums\StockSource;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RejectionRequest;
 use App\Http\Requests\Admin\StoreFarmUnitStockRequest;
 use App\Http\Requests\Admin\StoreStockMovementRequest;
 use App\Models\FarmerProfile;
@@ -14,17 +15,21 @@ use App\Models\FarmUnitStockMovement;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
+
 
 class FarmUnitStockController extends Controller
 {
     public function __construct(
         private readonly AccessControlService $access,
         private readonly AuditService $audit,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function index(Request $request, FarmerProfile $farmer, FarmUnit $farmUnit): Response
@@ -33,7 +38,7 @@ class FarmUnitStockController extends Controller
         $this->guardBelongsTo($farmer, $farmUnit);
 
         $farmer->load('user:id,surname,first_name');
-        $farmUnit->load('farmType:id,name');
+        $farmUnit->load('farmType.category:id,name');
 
         $actorId = $request->user()->id;
 
@@ -46,6 +51,7 @@ class FarmUnitStockController extends Controller
                 'id' => $farmUnit->id,
                 'name' => $farmUnit->name,
                 'farm_type' => $farmUnit->farmType?->name,
+                'farm_type_category' => $farmUnit->farmType?->category?->name,
                 'is_approved' => $farmUnit->isApproved(),
             ],
             'stocks' => $farmUnit->stocks()
@@ -61,9 +67,12 @@ class FarmUnitStockController extends Controller
                     'acquisition_cost' => $stock->acquisition_cost,
                     'cost_per_unit' => $stock->costPerUnit(),
                     'started_on' => $stock->started_on?->toDateString(),
+                    'expected_ready_on' => $stock->expected_ready_on?->toDateString(),
                     'ended_on' => $stock->ended_on?->toDateString(),
                     'is_confirmed' => $stock->isConfirmed(),
                     'confirmed_by' => $stock->confirmedBy?->surname,
+                    'is_rejected' => $stock->isRejected(),
+                    'rejection_reason' => $stock->rejection_reason,
                     'counts_toward_credit' => $stock->countsTowardCredit(),
                     'can_confirm' => $stock->conflictedUserId() !== $actorId,
                     'movements' => $stock->movements
@@ -78,6 +87,8 @@ class FarmUnitStockController extends Controller
                             'note' => $movement->note,
                             'recorded_by' => $movement->recordedBy?->surname,
                             'is_confirmed' => $movement->isConfirmed(),
+                            'is_rejected' => $movement->isRejected(),
+                            'rejection_reason' => $movement->rejection_reason,
                             'can_confirm' => $movement->conflictedUserId() !== $actorId,
                         ]),
                 ]),
@@ -177,6 +188,73 @@ class FarmUnitStockController extends Controller
         $this->audit->recordOn('farm_unit_stock_movement.confirmed', $movement);
 
         return back()->with('success', 'The change is checked.');
+    }
+
+    public function rejectStock(RejectionRequest $request, FarmerProfile $farmer, FarmUnit $farmUnit, FarmUnitStock $stock): RedirectResponse
+    {
+        $this->guardFarmer($request->user(), $farmer);
+        $this->guardBelongsTo($farmer, $farmUnit);
+        $this->guardStock($farmUnit, $stock);
+
+        if ($stock->conflictedUserId() === $request->user()->id) {
+            throw ValidationException::withMessages([
+                'stock' => 'Someone else needs to check this count.',
+            ]);
+        }
+
+        try {
+            $stock->reject($request->user()->id, $request->validated('reason'));
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'stock' => $exception->getMessage(),
+            ]);
+        }
+
+        $this->audit->recordOn('farm_unit_stock.rejected', $stock);
+
+        if ($stock->recordedBy) {
+            $this->notifications->send(
+                $stock->recordedBy,
+                'farm_unit_stock.rejected',
+                "Your count of {$stock->opening_quantity} {$stock->unit_of_measure} in {$stock->farmUnit?->name} was sent back: {$request->validated('reason')}",
+            );
+        }
+
+        return back()->with('success', 'The count is sent back.');
+    }
+
+    public function rejectMovement(RejectionRequest $request, FarmerProfile $farmer, FarmUnit $farmUnit, FarmUnitStock $stock, FarmUnitStockMovement $movement): RedirectResponse
+    {
+        $this->guardFarmer($request->user(), $farmer);
+        $this->guardBelongsTo($farmer, $farmUnit);
+        $this->guardStock($farmUnit, $stock);
+        $this->guardMovement($stock, $movement);
+
+        if ($movement->conflictedUserId() === $request->user()->id) {
+            throw ValidationException::withMessages([
+                'movement' => 'Someone else needs to check this change.',
+            ]);
+        }
+
+        try {
+            $movement->reject($request->user()->id, $request->validated('reason'));
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'movement' => $exception->getMessage(),
+            ]);
+        }
+
+        $this->audit->recordOn('farm_unit_stock_movement.rejected', $movement);
+
+        if ($movement->recordedBy) {
+            $this->notifications->send(
+                $movement->recordedBy,
+                'farm_unit_stock_movement.rejected',
+                "Your change of {$movement->quantity} in {$movement->stock?->farmUnit?->name} was sent back: {$request->validated('reason')}",
+            );
+        }
+
+        return back()->with('success', 'The change is sent back.');
     }
 
     // the frame and the address the current route group belongs to
