@@ -5,8 +5,6 @@ use App\Models\FarmUnitStock;
 use App\Models\FarmUnitStockMovement;
 use App\Models\User;
 
-use InvalidArgumentException;
-
 test('a movement belongs to a stock', function () {
     $stock = FarmUnitStock::factory()->create();
     $movement = FarmUnitStockMovement::factory()->create(['farm_unit_stock_id' => $stock->id]);

@@ -24,6 +24,7 @@ class FarmTypeSeeder extends Seeder
             'Tomato',
             'Pepper',
             'Onion',
+            'Citrus',
         ],
         'Livestock' => [
             'Cattle',
@@ -32,6 +33,10 @@ class FarmTypeSeeder extends Seeder
             'Pig',
             'Layers',
             'Broilers',
+            'Guinea Fowl',
+            'Rabbit',
+            'Snail',
+            'Bees',
         ],
         'Aquatic' => [
             'Tilapia',

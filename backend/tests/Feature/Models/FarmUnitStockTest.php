@@ -6,7 +6,6 @@ use App\Models\FarmUnitStock;
 use App\Models\User;
 
 use App\Enums\MovementReason;
-use InvalidArgumentException;
 
 test('a stock belongs to a farm unit', function () {
     $unit = FarmUnit::factory()->approved()->create();

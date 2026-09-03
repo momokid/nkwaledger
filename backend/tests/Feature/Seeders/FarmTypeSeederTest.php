@@ -13,10 +13,10 @@ it('seeds the three categories', function () {
     }
 });
 
-it('seeds twenty two farm types', function () {
+it('seeds twenty seven farm types', function () {
     $this->seed(FarmTypeSeeder::class);
 
-    expect(FarmType::count())->toBe(22);
+    expect(FarmType::count())->toBe(27);
 });
 
 it('seeds the crop types under the Crop category', function () {
@@ -80,5 +80,5 @@ it('does not duplicate categories or farm types when run twice', function () {
     $this->seed(FarmTypeSeeder::class);
 
     expect(FarmTypeCategory::count())->toBe(3);
-    expect(FarmType::count())->toBe(22);
+    expect(FarmType::count())->toBe(27);
 });

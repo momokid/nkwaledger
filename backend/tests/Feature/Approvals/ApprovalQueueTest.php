@@ -86,7 +86,7 @@ it('marks a row this person may sign off', function () {
         ->assertInertia(fn($page) => $page->where('items.data.0.can_approve', true));
 });
 
-// a new stock writes its own opening movement, so both wait to be checked
+// the opening movement confirms itself, so only the stock itself waits
 it('lists a stock count waiting to be checked', function () {
     FarmUnitStock::factory()->create([
         'farm_unit_id' => $this->unit->id,
@@ -96,7 +96,7 @@ it('lists a stock count waiting to be checked', function () {
     $this->actingAs($this->agent)
         ->get('/agent/approvals')
         ->assertInertia(fn($page) => $page
-            ->has('items.data', 3)
+            ->has('items.data', 2)
             ->where('items.data', function ($items) {
                 return collect($items)->pluck('kind')->contains('stock');
             }));

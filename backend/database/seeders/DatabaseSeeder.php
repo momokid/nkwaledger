@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
             // roles first, since permissions are granted to them
             RolesAndPermissionsSeeder::class,
             PermissionsSeeder::class,
+            // categories before templates, since templates match on category name
+            FarmTypeSeeder::class,
             // accounts first, since the templates look them up by name
             LedgerAccountSeeder::class,
             TransactionTemplateSeeder::class,
