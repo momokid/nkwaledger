@@ -643,7 +643,7 @@ function StocksContent({
                         >
                             <div>
                                 <label style={labelStyle}>
-                                    Why is this being sent back?
+                                    Why is this rejected?
                                 </label>
                                 <input
                                     value={stockRejectReason}
