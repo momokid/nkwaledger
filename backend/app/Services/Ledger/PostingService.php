@@ -2,9 +2,12 @@
 
 namespace App\Services\Ledger;
 
+use App\Enums\MovementReason;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Models\AccountingPeriod;
 use App\Models\FarmUnit;
+use App\Models\FarmUnitStock;
+use App\Models\FarmUnitStockMovement;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\Transaction;
@@ -34,8 +37,36 @@ class PostingService
         $period = $this->resolvePeriod($request);
         $farmUnit = $this->resolveFarmUnit($request, $template);
         $settlementAccountId = $this->resolveSettlementAccount($request, $template);
+        $loss = $this->resolveQuantityLost($request, $template, $farmUnit);
 
-        return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor);
+        return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss);
+    }
+
+    // only a LOSS record ever carries a quantity, and it needs exactly one stock to take it from
+    private function resolveQuantityLost(PostingRequest $request, TransactionTemplate $template, ?FarmUnit $farmUnit): ?array
+    {
+        if ($template->transaction_type !== Transaction::LOSS) {
+            return null;
+        }
+
+        if ($request->quantityLost === null || trim($request->quantityLost) === '') {
+            throw PostingFailed::because('Please say how many were lost.');
+        }
+
+        if (! is_numeric($request->quantityLost) || (float) $request->quantityLost <= 0) {
+            throw PostingFailed::because('The number lost needs to be more than zero.');
+        }
+
+        $stocks = FarmUnitStock::query()
+            ->where('farm_unit_id', $farmUnit?->id)
+            ->whereNull('ended_on')
+            ->get();
+
+        if ($stocks->count() !== 1) {
+            throw PostingFailed::because('We could not tell which count to take this from. Please ask an agent for help.');
+        }
+
+        return ['quantity' => $request->quantityLost, 'stock' => $stocks->first()];
     }
 
     // the phone is not making a mistake, it is retrying after a bad network
@@ -143,6 +174,7 @@ class PostingService
         ?FarmUnit $farmUnit,
         ?int $settlementAccountId,
         int $amountMinor,
+        ?array $loss = null,
     ): Transaction {
         [$debitAccountId, $creditAccountId] = $this->legs($template, $settlementAccountId);
 
@@ -154,7 +186,8 @@ class PostingService
             $settlementAccountId,
             $amountMinor,
             $debitAccountId,
-            $creditAccountId
+            $creditAccountId,
+            $loss
         ) {
             $transaction = $this->writeTransaction(
                 $request,
@@ -162,7 +195,8 @@ class PostingService
                 $period,
                 $farmUnit,
                 $settlementAccountId,
-                $amountMinor
+                $amountMinor,
+                $loss
             );
 
             $entry = JournalEntry::create([
@@ -195,6 +229,16 @@ class PostingService
             // the last gate before the books are committed
             $entry->assertBalanced();
 
+            if ($loss !== null) {
+                FarmUnitStockMovement::create([
+                    'farm_unit_stock_id' => $loss['stock']->id,
+                    'reason' => MovementReason::Loss,
+                    'quantity' => $loss['quantity'],
+                    'occurred_on' => $transaction->transaction_date,
+                    'recorded_by' => $request->recordedBy,
+                ]);
+            }
+
             return $transaction;
         });
     }
@@ -226,6 +270,7 @@ class PostingService
         ?FarmUnit $farmUnit,
         ?int $settlementAccountId,
         int $amountMinor,
+        ?array $loss = null,
     ): Transaction {
         $payload = [
             'farmer_profile_id' => $request->farmerProfileId,
@@ -235,6 +280,7 @@ class PostingService
             'accounting_period_id' => $period->id,
             'transaction_date' => $request->transactionDate,
             'amount_minor' => $amountMinor,
+            'quantity_lost' => $loss['quantity'] ?? null,
             'settlement_account_id' => $settlementAccountId,
             'farm_unit_id' => $farmUnit?->id,
             'narration' => $request->narration,

@@ -153,7 +153,12 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconReportAnalytics,
                 ready: true,
             },
-            { label: "My Farm", href: "#", icon: IconPlant, ready: false },
+            {
+                label: "My Farm",
+                href: "/my-farm",
+                icon: IconPlant,
+                ready: true,
+            },
             { label: "Credit", href: "#", icon: IconCreditCard, ready: false },
         ],
         tools: [

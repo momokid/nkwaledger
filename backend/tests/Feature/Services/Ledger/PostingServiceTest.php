@@ -18,6 +18,8 @@ use App\Models\User;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
 use Illuminate\Support\Facades\DB;
+use App\Enums\MovementReason;
+use App\Models\FarmUnitStock;
 
 beforeEach(function () {
     $drClass = LedgerClass::create(['name' => 'Dr']);
@@ -180,10 +182,13 @@ it('puts the settlement account on the credit side for an expense', function () 
 
 // an animal dying moves no money, so both legs come straight from the template
 it('ignores the settlement account when the template names no side', function () {
+    FarmUnitStock::factory()->create(['farm_unit_id' => $this->approvedUnit->id]);
+
     $transaction = $this->service->post(($this->request)([
         'transactionTemplateId' => $this->lossTemplate->id,
         'settlementAccountId' => $this->cash->id,
         'farmUnitId' => $this->approvedUnit->id,
+        'quantityLost' => '1',
     ]));
 
     $entry = JournalEntry::where('transaction_id', $transaction->id)->first();
@@ -355,4 +360,62 @@ it('gives every posting a reference a farmer can read out', function () {
     $transaction = $this->service->post(($this->request)());
 
     expect($transaction->reference)->toMatch('/^\d{12}$/');
+});
+
+it('records the quantity lost and reduces the unit\'s stock', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 50,
+    ]);
+
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'settlementAccountId' => null,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityLost' => '6',
+    ]));
+
+    expect($transaction->quantity_lost)->toBe('6.00');
+    expect($stock->fresh()->current_quantity)->toBe('44.00');
+});
+
+it('creates a movement for the quantity lost, unconfirmed', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 50,
+    ]);
+
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'settlementAccountId' => null,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityLost' => '6',
+    ]));
+
+    $movement = $stock->fresh()->movements()->where('reason', MovementReason::Loss)->first();
+
+    expect($movement)->not->toBeNull();
+    expect($movement->quantity)->toBe('6.00');
+    expect($movement->isConfirmed())->toBeFalse();
+});
+
+it('refuses a loss with no quantity for a unit that has one', function () {
+    FarmUnitStock::factory()->create(['farm_unit_id' => $this->approvedUnit->id]);
+
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'settlementAccountId' => null,
+        'farmUnitId' => $this->approvedUnit->id,
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});
+
+it('refuses a loss when the unit has no single active stock to reduce', function () {
+    FarmUnitStock::factory()->create(['farm_unit_id' => $this->approvedUnit->id, 'ended_on' => now()]);
+
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'settlementAccountId' => null,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityLost' => '6',
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
 });
