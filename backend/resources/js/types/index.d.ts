@@ -17,4 +17,10 @@ export type PageProps<
         user: User;
     };
     ziggy: Config & { location: string };
+    flash: {
+        success: string | null;
+        error: string | null;
+        status: string | null;
+    };
+    old: Record<string, string>;
 };
