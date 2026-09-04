@@ -462,13 +462,18 @@ function IndexContent({
                                         {row.cancel_state === "correction" && (
                                             <span
                                                 style={{
-                                                    display: "block",
-                                                    fontSize: "15px",
-                                                    color: brand,
+                                                    display: "inline-block",
+                                                    marginTop: "4px",
+                                                    padding: "1px 8px",
+                                                    fontSize: "13px",
+                                                    fontWeight: 600,
+                                                    color: "#7C3AED",
+                                                    background:
+                                                        "rgba(124, 58, 237, 0.12)",
+                                                    border: "1px solid #7C3AED",
                                                 }}
                                             >
-                                                This puts an earlier record
-                                                right
+                                                Corrected
                                             </span>
                                         )}
                                     </td>

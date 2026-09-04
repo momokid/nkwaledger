@@ -161,5 +161,5 @@ test('shows profit and loss analysis per farm unit', function () {
             ->where('units.0.analysis.total_expense', 20000)
             ->where('units.0.analysis.total_loss', 5000)
             ->where('units.0.analysis.net', 30000)
-            ->where('units.0.analysis.produce_quantity_sold', '15.00'));
+            ->where('units.0.analysis.produce_quantity_sold', '15'));
 });
