@@ -10,6 +10,7 @@ interface Template {
     transaction_type: string;
     settlement_side: string;
     requires_farm_unit: boolean;
+    is_produce_sale: boolean;
 }
 
 interface AccountOption {
@@ -40,7 +41,7 @@ export default function Create(props: Props) {
     );
 }
 
-type ContentProps = Pick<
+type ContentProps = Pick
     Props,
     | "farmer"
     | "templates"
@@ -84,6 +85,7 @@ function CreateContent({
         transaction_date: old.transaction_date ?? today,
         farm_unit_id: old.farm_unit_id ?? "",
         quantity_lost: old.quantity_lost ?? "",
+        quantity_sold: old.quantity_sold ?? "",
         narration: old.narration ?? "",
     });
 
@@ -98,7 +100,8 @@ function CreateContent({
     // a loss moves no money, so nobody is asked where it went
     const needsAccount = chosen !== null && chosen.settlement_side !== "none";
     const needsUnit = chosen?.requires_farm_unit ?? false;
-    const needsQuantity = chosen?.transaction_type === "LOSS";
+    const needsQuantityLost = chosen?.transaction_type === "LOSS";
+    const needsQuantitySold = chosen?.is_produce_sale ?? false;
 
     const chosenUnit =
         farmUnits.find((unit) => String(unit.id) === form.data.farm_unit_id) ??
@@ -115,7 +118,13 @@ function CreateContent({
         form.post(postUrl, {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () => form.reset("amount", "quantity_lost", "narration"),
+            onSuccess: () =>
+                form.reset(
+                    "amount",
+                    "quantity_lost",
+                    "quantity_sold",
+                    "narration",
+                ),
         });
     };
 
@@ -204,6 +213,7 @@ function CreateContent({
                             form.setData("settlement_account_id", "");
                             form.setData("farm_unit_id", "");
                             form.setData("quantity_lost", "");
+                            form.setData("quantity_sold", "");
                         }}
                     >
                         <option value="">Choose one</option>
@@ -235,7 +245,7 @@ function CreateContent({
                     {errors.amount && <p style={errorText}>{errors.amount}</p>}
                 </div>
 
-                {needsQuantity && (
+                {needsQuantityLost && (
                     <div className="mb-4">
                         <label style={label}>How many were lost?</label>
                         <input
@@ -253,6 +263,28 @@ function CreateContent({
                         />
                         {errors.quantity_lost && (
                             <p style={errorText}>{errors.quantity_lost}</p>
+                        )}
+                    </div>
+                )}
+
+                {needsQuantitySold && (
+                    <div className="mb-4">
+                        <label style={label}>How many did you sell?</label>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="e.g. 6"
+                            style={field}
+                            value={form.data.quantity_sold}
+                            onChange={(event) =>
+                                form.setData(
+                                    "quantity_sold",
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        {errors.quantity_sold && (
+                            <p style={errorText}>{errors.quantity_sold}</p>
                         )}
                     </div>
                 )}

@@ -18,7 +18,8 @@ class TransactionTemplateSeeder extends Seeder
             'debit_account' => 'Cash A/C',
             'credit_account' => 'Income on Sales',
             'settlement_side' => 'debit',
-            'requires_farm_unit' => false,
+            'requires_farm_unit' => true,
+            'is_produce_sale' => true,
             'category' => null,
         ],
         [
@@ -29,6 +30,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Other Income',
             'settlement_side' => 'debit',
             'requires_farm_unit' => false,
+            'is_produce_sale' => false,
             'category' => null,
         ],
         [
@@ -39,6 +41,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => false,
+            'is_produce_sale' => false,
             'category' => null,
         ],
         [
@@ -49,6 +52,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => false,
+            'is_produce_sale' => false,
             'category' => null,
         ],
         [
@@ -59,6 +63,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => null,
         ],
 
@@ -71,6 +76,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Livestock',
         ],
         [
@@ -81,6 +87,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Livestock',
         ],
         [
@@ -91,6 +98,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Livestock',
         ],
         [
@@ -101,6 +109,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Income on Sales',
             'settlement_side' => 'debit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => true,
             'category' => 'Livestock',
         ],
         [
@@ -111,6 +120,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Income on Sales',
             'settlement_side' => 'debit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => true,
             'category' => 'Livestock',
         ],
         // value gone, not money paid, so nothing settles anywhere
@@ -122,6 +132,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Livestock A/C',
             'settlement_side' => 'none',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Livestock',
         ],
 
@@ -133,6 +144,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Crop',
         ],
         [
@@ -143,6 +155,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Crop',
         ],
         [
@@ -153,6 +166,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Crops in Field A/C',
             'settlement_side' => 'none',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Crop',
         ],
 
@@ -164,6 +178,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Aquatic',
         ],
         [
@@ -174,6 +189,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Cash A/C',
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Aquatic',
         ],
         [
@@ -184,6 +200,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Income on Sales',
             'settlement_side' => 'debit',
             'requires_farm_unit' => true,
+            'is_produce_sale' => true,
             'category' => 'Aquatic',
         ],
         [
@@ -194,6 +211,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Fish Stock A/C',
             'settlement_side' => 'none',
             'requires_farm_unit' => true,
+            'is_produce_sale' => false,
             'category' => 'Aquatic',
         ],
 
@@ -206,6 +224,7 @@ class TransactionTemplateSeeder extends Seeder
             'credit_account' => 'Income on Sales',
             'settlement_side' => 'none',
             'requires_farm_unit' => false,
+            'is_produce_sale' => false,
             'category' => null,
         ],
     ];
@@ -244,6 +263,7 @@ class TransactionTemplateSeeder extends Seeder
                     'credit_account_id' => $creditId,
                     'settlement_side' => $template['settlement_side'],
                     'requires_farm_unit' => $template['requires_farm_unit'],
+                    'is_produce_sale' => $template['is_produce_sale'],
                     'farm_type_category_id' => $categoryId,
                     'is_system' => true,
                     'is_active' => true,
