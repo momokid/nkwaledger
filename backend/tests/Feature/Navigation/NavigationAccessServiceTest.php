@@ -89,7 +89,8 @@ it('never returns a permission name', function () {
         $known = str_starts_with($name, 'admin.')
             || str_starts_with($name, 'agent.')
             || str_starts_with($name, 'my-records.')
-            || str_starts_with($name, 'my-reports.');
+            || str_starts_with($name, 'my-reports.')
+            || str_starts_with($name, 'my-farm.');
 
         expect($known)->toBeTrue();
     }

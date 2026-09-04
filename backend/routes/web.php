@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\TransactionTemplateController;
 use App\Http\Controllers\Admin\FarmerController;
 use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
+use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
@@ -156,6 +157,13 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
 
     Route::middleware('access:transactions.reverse-request')->group(function () {
         Route::post('/{transaction}/cancel', [ReversalController::class, 'store'])->name('cancel');
+    });
+});
+
+// the farmer's own farm, with nobody named in the address
+Route::middleware(['auth', 'verified.phone'])->prefix('my-farm')->name('my-farm.')->group(function () {
+    Route::middleware('access:farm-units.view')->group(function () {
+        Route::get('/', [MyFarmController::class, 'index'])->name('index');
     });
 });
 

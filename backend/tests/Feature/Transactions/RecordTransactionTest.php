@@ -5,6 +5,7 @@ use App\Models\FarmerProfile;
 use App\Models\FarmType;
 use App\Models\FarmTypeCategory;
 use App\Models\FarmUnit;
+use App\Models\FarmUnitStock;
 use App\Models\LedgerAccount;
 use App\Models\LedgerCategory;
 use App\Models\LedgerClass;
@@ -49,6 +50,8 @@ beforeEach(function () {
     $this->momo = $account('Momo A/C', $assetSub->id, true);
     $this->sales = $account('Income on Sales', $incomeSub->id);
     $this->feed = $account('Expense on Feed', $expenseSub->id);
+    $this->lossOnAssets = $account('Loss on Farm Assets', $expenseSub->id);
+    $this->livestockAsset = $account('Livestock A/C', $assetSub->id);
 
     $this->cropCategory = FarmTypeCategory::create(['name' => 'Crop']);
     $this->livestockCategory = FarmTypeCategory::create(['name' => 'Livestock']);
@@ -78,6 +81,17 @@ beforeEach(function () {
         'settlement_side' => 'credit',
         'requires_farm_unit' => true,
         'farm_type_category_id' => $this->livestockCategory->id,
+    ]);
+
+    // nothing is paid or received, so no settlement account is used at all; open to every farmer
+    $this->lossTemplate = TransactionTemplate::create([
+        'name' => 'An animal died',
+        'slug' => 'animal_loss',
+        'transaction_type' => 'LOSS',
+        'debit_account_id' => $this->lossOnAssets->id,
+        'credit_account_id' => $this->livestockAsset->id,
+        'settlement_side' => 'none',
+        'requires_farm_unit' => true,
     ]);
 
     // never shown in the picker, since a farmer does not cancel their own records
@@ -141,8 +155,10 @@ it('sends the farmer their own templates', function () {
     $this->actingAs($this->farmerUser)
         ->get('/my-records/create')
         ->assertInertia(fn($page) => $page
-            ->has('templates', 1)
-            ->where('templates.0.id', $this->cropTemplate->id));
+            ->has('templates', 2)
+            ->where('templates', function ($templates) {
+                return collect($templates)->pluck('id')->contains($this->cropTemplate->id);
+            }));
 });
 
 // some things are true on every farm, so they are not tagged to any kind of farming
@@ -183,7 +199,9 @@ it('leaves out templates for a kind of farming they do not do', function () {
     $this->actingAs($this->farmerUser)
         ->get('/my-records/create')
         ->assertInertia(fn($page) => $page
-            ->where('templates.0.name', 'I sold my produce'));
+            ->where('templates', function ($templates) {
+                return collect($templates)->pluck('slug')->doesntContain('feed_purchase');
+            }));
 });
 
 // a farmer never cancels their own record, whatever kind of farming they do
@@ -294,6 +312,45 @@ it('writes nothing when the form is wrong', function () {
         ->post('/my-records', ['amount' => '0'] + $this->payload);
 
     expect(Transaction::count())->toBe(0);
+});
+
+it('requires a quantity when the record is a loss', function () {
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'approved_at' => now()->subMonth(),
+    ]);
+    FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id]);
+
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', [
+            'transaction_template_id' => $this->lossTemplate->id,
+            'amount' => '100',
+            'settlement_account_id' => null,
+            'transaction_date' => now()->toDateString(),
+            'farm_unit_id' => $unit->id,
+        ])
+        ->assertSessionHasErrors('quantity_lost');
+});
+
+it('records a loss with its quantity', function () {
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'approved_at' => now()->subMonth(),
+    ]);
+    FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 20]);
+
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', [
+            'transaction_template_id' => $this->lossTemplate->id,
+            'amount' => '100',
+            'settlement_account_id' => null,
+            'transaction_date' => now()->toDateString(),
+            'farm_unit_id' => $unit->id,
+            'quantity_lost' => '3',
+        ])
+        ->assertSessionDoesntHaveErrors();
+
+    expect(Transaction::first()->quantity_lost)->toBe('3.00');
 });
 
 // the agent's version, with the farmer named in the address

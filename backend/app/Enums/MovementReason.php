@@ -12,6 +12,7 @@ enum MovementReason: string
     case Sale = 'sale';
     case Cull = 'cull';
     case Correction = 'correction';
+    case Loss = 'loss';
 
     // the farmer picks a reason and the direction follows, so it cannot be set the wrong way
     public function addsToCount(): bool
@@ -39,6 +40,7 @@ enum MovementReason: string
             self::Sale => 'Sold',
             self::Cull => 'Removed on purpose',
             self::Correction => 'Fixing a miscount',
+            self::Loss => 'Lost',
         };
     }
 

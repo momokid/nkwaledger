@@ -189,11 +189,12 @@ return [
             'transactions.reverse-request',
             'approvals.view',
         ],
-        // a farmer keeps their own books and nothing else
+        // a farmer keeps their own books, and can see what is on their own farm
         'farmer' => [
             'transactions.view',
             'transactions.create',
             'transactions.reverse-request',
+            'farm-units.view',
         ],
     ],
 

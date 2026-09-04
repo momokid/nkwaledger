@@ -36,6 +36,7 @@ class Transaction extends Model
         'accounting_period_id',
         'transaction_date',
         'amount_minor',
+        'quantity_lost',
         'settlement_account_id',
         'farm_unit_id',
         'narration',
@@ -56,6 +57,7 @@ class Transaction extends Model
         return [
             'transaction_date' => 'date',
             'amount_minor' => 'integer',
+            'quantity_lost' => 'decimal:2',
             'is_provisional' => 'boolean',
             'posted_at' => 'datetime',
         ];
