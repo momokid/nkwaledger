@@ -83,6 +83,7 @@ function CreateContent({
         settlement_account_id: old.settlement_account_id ?? "",
         transaction_date: old.transaction_date ?? today,
         farm_unit_id: old.farm_unit_id ?? "",
+        quantity_lost: old.quantity_lost ?? "",
         narration: old.narration ?? "",
     });
 
@@ -97,6 +98,7 @@ function CreateContent({
     // a loss moves no money, so nobody is asked where it went
     const needsAccount = chosen !== null && chosen.settlement_side !== "none";
     const needsUnit = chosen?.requires_farm_unit ?? false;
+    const needsQuantity = chosen?.transaction_type === "LOSS";
 
     const chosenUnit =
         farmUnits.find((unit) => String(unit.id) === form.data.farm_unit_id) ??
@@ -113,7 +115,7 @@ function CreateContent({
         form.post(postUrl, {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () => form.reset("amount", "narration"),
+            onSuccess: () => form.reset("amount", "quantity_lost", "narration"),
         });
     };
 
@@ -201,6 +203,7 @@ function CreateContent({
                             );
                             form.setData("settlement_account_id", "");
                             form.setData("farm_unit_id", "");
+                            form.setData("quantity_lost", "");
                         }}
                     >
                         <option value="">Choose one</option>
@@ -231,6 +234,28 @@ function CreateContent({
                     />
                     {errors.amount && <p style={errorText}>{errors.amount}</p>}
                 </div>
+
+                {needsQuantity && (
+                    <div className="mb-4">
+                        <label style={label}>How many were lost?</label>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="e.g. 6"
+                            style={field}
+                            value={form.data.quantity_lost}
+                            onChange={(event) =>
+                                form.setData(
+                                    "quantity_lost",
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        {errors.quantity_lost && (
+                            <p style={errorText}>{errors.quantity_lost}</p>
+                        )}
+                    </div>
+                )}
 
                 {needsAccount && (
                     <div className="mb-4">
@@ -282,7 +307,9 @@ function CreateContent({
 
                 {needsUnit && (
                     <div className="mb-4">
-                        <label style={label}>Which part of the farm?</label>
+                        <label style={label}>
+                            Which farm did this happen on
+                        </label>
                         <select
                             style={field}
                             value={form.data.farm_unit_id}

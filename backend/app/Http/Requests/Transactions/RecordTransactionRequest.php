@@ -37,6 +37,7 @@ class RecordTransactionRequest extends FormRequest
                 // nobody records against another farmer's pen
                 Rule::exists('farm_units', 'id')->where('farmer_profile_id', $farmer->id),
             ],
+            'quantity_lost' => ['nullable', 'string'],
             'narration' => ['nullable', 'string', 'max:255'],
         ];
     }
@@ -59,6 +60,30 @@ class RecordTransactionRequest extends FormRequest
 
                 if ($minor <= 0) {
                     $validator->errors()->add('amount', 'The amount needs to be more than zero.');
+                }
+            },
+            // a loss always says how many, a crop bag count or a livestock head count
+            function (Validator $validator) {
+                if ($validator->errors()->has('transaction_template_id')) {
+                    return;
+                }
+
+                $template = TransactionTemplate::find($this->input('transaction_template_id'));
+
+                if ($template === null || $template->transaction_type !== Transaction::LOSS) {
+                    return;
+                }
+
+                $quantity = $this->input('quantity_lost');
+
+                if ($quantity === null || trim((string) $quantity) === '') {
+                    $validator->errors()->add('quantity_lost', 'Please say how many were lost.');
+
+                    return;
+                }
+
+                if (! is_numeric($quantity) || (float) $quantity <= 0) {
+                    $validator->errors()->add('quantity_lost', 'The number lost needs to be more than zero.');
                 }
             },
         ];

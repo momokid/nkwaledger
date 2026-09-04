@@ -127,6 +127,7 @@ class RecordTransactionController extends Controller
                 narration: $data['narration'] ?? null,
                 channel: 'web',
                 recordedBy: $request->user()->id,
+                quantityLost: $data['quantity_lost'] ?? null,
             ));
         } catch (PostingFailed $failure) {
             return back()->withInput()->with('error', $failure->getMessage());

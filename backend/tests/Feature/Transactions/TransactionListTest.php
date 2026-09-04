@@ -5,6 +5,7 @@ use App\Models\FarmerProfile;
 use App\Models\FarmType;
 use App\Models\FarmTypeCategory;
 use App\Models\FarmUnit;
+use App\Models\FarmUnitStock;
 use App\Models\LedgerAccount;
 use App\Models\LedgerCategory;
 use App\Models\LedgerClass;
@@ -122,6 +123,12 @@ beforeEach(function () {
     $this->pendingUnit = FarmUnit::factory()->create([
         'farmer_profile_id' => $this->profile->id,
         'approved_at' => null,
+    ]);
+
+    // enough on record for any loss a test records against it
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 1000,
     ]);
 
     $posting = app(PostingService::class);
@@ -327,6 +334,7 @@ it('says nothing for a record that moved no money', function () {
         transactionDate: now()->toDateString(),
         farmUnitId: $this->approvedUnit->id,
         recordedBy: $this->farmerUser->id,
+        quantityLost: '1',
     ));
 
     $this->actingAs($this->farmerUser)
@@ -387,6 +395,7 @@ it('says what a loss was worth', function () {
         transactionDate: now()->toDateString(),
         farmUnitId: $this->approvedUnit->id,
         recordedBy: $this->farmerUser->id,
+        quantityLost: '1',
     ));
 
     $this->actingAs($this->farmerUser)
@@ -414,6 +423,7 @@ it('keeps a loss out of the money totals', function () {
         transactionDate: now()->toDateString(),
         farmUnitId: $this->approvedUnit->id,
         recordedBy: $this->farmerUser->id,
+        quantityLost: '1',
     ));
 
     $this->actingAs($this->farmerUser)
