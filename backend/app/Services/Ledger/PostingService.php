@@ -42,8 +42,8 @@ class PostingService
         return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss);
     }
 
-    // only a LOSS record ever carries a quantity; the oldest batch absorbs it first,
-    // spilling into the next one if it runs out, so the farmer is never asked which batch
+    // only a LOSS record ever carries a quantity; nobody knows which animal died,
+    // so the loss is shared across every active batch by its share of the current count
     private function resolveQuantityLost(PostingRequest $request, TransactionTemplate $template, ?FarmUnit $farmUnit): ?array
     {
         if ($template->transaction_type !== Transaction::LOSS) {
@@ -69,30 +69,38 @@ class PostingService
             throw PostingFailed::because('There is no live stock on record to take this loss from.');
         }
 
-        $remaining = (float) $request->quantityLost;
-        $allocations = [];
+        $totalOnHand = (float) $stocks->sum('current_quantity');
+        $requested = (float) $request->quantityLost;
 
-        foreach ($stocks as $stock) {
-            if ($remaining <= 0) {
-                break;
-            }
-
-            $available = (float) $stock->current_quantity;
-
-            if ($available <= 0) {
-                continue;
-            }
-
-            $take = min($available, $remaining);
-            $allocations[] = ['stock' => $stock, 'quantity' => $take];
-            $remaining -= $take;
-        }
-
-        if ($remaining > 0) {
+        if ($requested > $totalOnHand) {
             throw PostingFailed::because('That is more than the farm has on record. Please check the number.');
         }
 
-        return ['quantity' => $request->quantityLost, 'allocations' => $allocations];
+        return ['quantity' => $request->quantityLost, 'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand)];
+    }
+
+    /** @param \Illuminate\Support\Collection<int, FarmUnitStock> $stocks */
+    private function splitProportionally($stocks, float $requested, float $totalOnHand): array
+    {
+        $allocations = [];
+        $allocatedSoFar = 0.0;
+
+        foreach ($stocks as $index => $stock) {
+            $isLast = $index === $stocks->count() - 1;
+            $available = (float) $stock->current_quantity;
+
+            // the last batch takes whatever rounding left behind, so the split always totals exactly
+            $share = $isLast
+                ? round($requested - $allocatedSoFar, 2)
+                : round($requested * ($available / $totalOnHand), 2);
+
+            if ($share > 0) {
+                $allocations[] = ['stock' => $stock, 'quantity' => $share];
+                $allocatedSoFar += $share;
+            }
+        }
+
+        return $allocations;
     }
 
     // the phone is not making a mistake, it is retrying after a bad network

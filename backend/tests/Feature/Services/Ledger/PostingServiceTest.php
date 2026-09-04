@@ -20,6 +20,7 @@ use App\Services\Ledger\PostingService;
 use Illuminate\Support\Facades\DB;
 use App\Enums\MovementReason;
 use App\Models\FarmUnitStock;
+use App\Models\FarmUnitStockMovement;
 
 beforeEach(function () {
     $drClass = LedgerClass::create(['name' => 'Dr']);
@@ -420,18 +421,18 @@ it('refuses a loss when the unit has no single active stock to reduce', function
     ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
 });
 
-// the older batch goes first, since those animals have been around longer
-it('takes a loss from the older batch first when it is enough on its own', function () {
-    $older = FarmUnitStock::factory()->create([
-        'farm_unit_id' => $this->approvedUnit->id,
-        'opening_quantity' => 20,
-        'started_on' => now()->subMonths(6),
-    ]);
-
-    $newer = FarmUnitStock::factory()->create([
+// nobody knows which animal died, so the loss is shared by size, not by age
+it('splits a loss proportionally across active batches by their share of the count', function () {
+    $big = FarmUnitStock::factory()->create([
         'farm_unit_id' => $this->approvedUnit->id,
         'opening_quantity' => 30,
         'started_on' => now()->subMonth(),
+    ]);
+
+    $small = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 20,
+        'started_on' => now()->subMonths(6),
     ]);
 
     $this->service->post(($this->request)([
@@ -441,42 +442,41 @@ it('takes a loss from the older batch first when it is enough on its own', funct
         'quantityLost' => '5',
     ]));
 
-    expect($older->fresh()->current_quantity)->toBe('15.00');
-    expect($newer->fresh()->current_quantity)->toBe('30.00');
-    expect($newer->fresh()->movements()->where('reason', MovementReason::Loss)->exists())->toBeFalse();
+    // 30/50 of the herd and 20/50 of the herd, so 3 and 2 of the loss
+    expect($big->fresh()->current_quantity)->toBe('27.00');
+    expect($small->fresh()->current_quantity)->toBe('18.00');
+
+    $bigMovement = $big->fresh()->movements()->where('reason', MovementReason::Loss)->first();
+    $smallMovement = $small->fresh()->movements()->where('reason', MovementReason::Loss)->first();
+
+    expect($bigMovement->quantity)->toBe('3.00');
+    expect($smallMovement->quantity)->toBe('2.00');
 });
 
-// when the older batch runs dry mid-loss, the rest spills into the next one
-it('spills a loss into the next batch when the older one runs out', function () {
-    $older = FarmUnitStock::factory()->create([
+// three even batches cannot split a loss of 1 into clean thirds, so the leftover
+// pesewa-equivalent lands on whichever batch still has room, and the total still adds up
+it('gives any rounding remainder to a batch with room, so the split still totals exactly', function () {
+    $stocks = FarmUnitStock::factory()->count(3)->create([
         'farm_unit_id' => $this->approvedUnit->id,
-        'opening_quantity' => 5,
-        'started_on' => now()->subMonths(6),
-    ]);
-
-    $newer = FarmUnitStock::factory()->create([
-        'farm_unit_id' => $this->approvedUnit->id,
-        'opening_quantity' => 50,
-        'started_on' => now()->subMonth(),
+        'opening_quantity' => 10,
     ]);
 
     $this->service->post(($this->request)([
         'transactionTemplateId' => $this->lossTemplate->id,
         'settlementAccountId' => null,
         'farmUnitId' => $this->approvedUnit->id,
-        'quantityLost' => '8',
+        'quantityLost' => '1',
     ]));
 
-    expect($older->fresh()->current_quantity)->toBe('0.00');
-    expect($newer->fresh()->current_quantity)->toBe('47.00');
+    $quantities = FarmUnitStockMovement::query()
+        ->where('reason', MovementReason::Loss)
+        ->pluck('quantity')
+        ->map(fn($quantity) => (float) $quantity)
+        ->sort()
+        ->values();
 
-    $olderMovement = $older->fresh()->movements()->where('reason', MovementReason::Loss)->first();
-    $newerMovement = $newer->fresh()->movements()->where('reason', MovementReason::Loss)->first();
-
-    expect($olderMovement->quantity)->toBe('5.00');
-    expect($newerMovement->quantity)->toBe('3.00');
-    expect($olderMovement->isConfirmed())->toBeFalse();
-    expect($newerMovement->isConfirmed())->toBeFalse();
+    expect($quantities->sum())->toBe(1.0);
+    expect($quantities->toArray())->toBe([0.33, 0.33, 0.34]);
 });
 
 // the farm cannot lose more animals than it has on record, even split across batches
