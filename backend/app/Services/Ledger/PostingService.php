@@ -21,7 +21,6 @@ use Throwable;
 
 class PostingService
 {
-    // how many times a clashing reference is redrawn before giving up
     private const REFERENCE_ATTEMPTS = 5;
 
     public function post(PostingRequest $request): Transaction
@@ -38,12 +37,11 @@ class PostingService
         $farmUnit = $this->resolveFarmUnit($request, $template);
         $settlementAccountId = $this->resolveSettlementAccount($request, $template);
         $loss = $this->resolveQuantityLost($request, $template, $farmUnit);
+        $sale = $this->resolveQuantitySold($request, $template, $farmUnit);
 
-        return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss);
+        return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss, $sale);
     }
 
-    // only a LOSS record ever carries a quantity; nobody knows which animal died,
-    // so the loss is shared across every active batch by its share of the current count
     private function resolveQuantityLost(PostingRequest $request, TransactionTemplate $template, ?FarmUnit $farmUnit): ?array
     {
         if ($template->transaction_type !== Transaction::LOSS) {
@@ -58,12 +56,7 @@ class PostingService
             throw PostingFailed::because('The number lost needs to be more than zero.');
         }
 
-        $stocks = FarmUnitStock::query()
-            ->where('farm_unit_id', $farmUnit?->id)
-            ->whereNull('ended_on')
-            ->orderBy('started_on')
-            ->orderBy('id')
-            ->get();
+        $stocks = $this->activeStocks($farmUnit);
 
         if ($stocks->isEmpty()) {
             throw PostingFailed::because('There is no live stock on record to take this loss from.');
@@ -76,7 +69,53 @@ class PostingService
             throw PostingFailed::because('That is more than the farm has on record. Please check the number.');
         }
 
-        return ['quantity' => $request->quantityLost, 'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand)];
+        return [
+            'quantity' => $request->quantityLost,
+            'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand),
+        ];
+    }
+
+    private function resolveQuantitySold(PostingRequest $request, TransactionTemplate $template, ?FarmUnit $farmUnit): ?array
+    {
+        if (! $template->is_produce_sale) {
+            return null;
+        }
+
+        if ($request->quantitySold === null || trim($request->quantitySold) === '') {
+            throw PostingFailed::because('Please say how many were sold.');
+        }
+
+        if (! is_numeric($request->quantitySold) || (float) $request->quantitySold <= 0) {
+            throw PostingFailed::because('The number sold needs to be more than zero.');
+        }
+
+        $stocks = $this->activeStocks($farmUnit);
+
+        if ($stocks->isEmpty()) {
+            throw PostingFailed::because('There is no live stock on record to sell from.');
+        }
+
+        $totalOnHand = (float) $stocks->sum('current_quantity');
+        $requested = (float) $request->quantitySold;
+
+        if ($requested > $totalOnHand) {
+            throw PostingFailed::because('That is more than the farm has on record. Please check the number.');
+        }
+
+        return [
+            'quantity' => $request->quantitySold,
+            'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand),
+        ];
+    }
+
+    private function activeStocks(?FarmUnit $farmUnit)
+    {
+        return FarmUnitStock::query()
+            ->where('farm_unit_id', $farmUnit?->id)
+            ->whereNull('ended_on')
+            ->orderBy('started_on')
+            ->orderBy('id')
+            ->get();
     }
 
     /** @param \Illuminate\Support\Collection<int, FarmUnitStock> $stocks */
@@ -89,7 +128,6 @@ class PostingService
             $isLast = $index === $stocks->count() - 1;
             $available = (float) $stock->current_quantity;
 
-            // the last batch takes whatever rounding left behind, so the split always totals exactly
             $share = $isLast
                 ? round($requested - $allocatedSoFar, 2)
                 : round($requested * ($available / $totalOnHand), 2);
@@ -103,7 +141,6 @@ class PostingService
         return $allocations;
     }
 
-    // the phone is not making a mistake, it is retrying after a bad network
     private function alreadyPosted(PostingRequest $request): ?Transaction
     {
         if ($request->idempotencyKey === null) {
@@ -149,7 +186,6 @@ class PostingService
     {
         $date = Carbon::parse($request->transactionDate)->startOfDay();
 
-        // a farmer cannot know today about something that happens next week
         if ($date->isAfter(Carbon::today())) {
             throw PostingFailed::because('That date has not happened yet.');
         }
@@ -179,7 +215,6 @@ class PostingService
 
         $unit = FarmUnit::query()->find($request->farmUnitId);
 
-        // one farmer's pen cannot appear in another farmer's books
         if ($unit === null || (int) $unit->farmer_profile_id !== $request->farmerProfileId) {
             throw PostingFailed::because('We could not find that part of the farm.');
         }
@@ -187,7 +222,6 @@ class PostingService
         return $unit;
     }
 
-    // the farmer says where the money sat, and it replaces the leg the template names
     private function resolveSettlementAccount(PostingRequest $request, TransactionTemplate $template): ?int
     {
         if ($template->settlement_side === 'none') {
@@ -209,6 +243,7 @@ class PostingService
         ?int $settlementAccountId,
         int $amountMinor,
         ?array $loss = null,
+        ?array $sale = null,
     ): Transaction {
         [$debitAccountId, $creditAccountId] = $this->legs($template, $settlementAccountId);
 
@@ -221,7 +256,8 @@ class PostingService
             $amountMinor,
             $debitAccountId,
             $creditAccountId,
-            $loss
+            $loss,
+            $sale
         ) {
             $transaction = $this->writeTransaction(
                 $request,
@@ -230,7 +266,8 @@ class PostingService
                 $farmUnit,
                 $settlementAccountId,
                 $amountMinor,
-                $loss
+                $loss,
+                $sale
             );
 
             $entry = JournalEntry::create([
@@ -239,7 +276,6 @@ class PostingService
                 'posted_at' => $transaction->posted_at,
             ]);
 
-            // the farmer and the date ride along, so no report has to join back
             $carried = [
                 'journal_entry_id' => $entry->id,
                 'farmer_profile_id' => $transaction->farmer_profile_id,
@@ -260,23 +296,30 @@ class PostingService
                 'line_number' => 2,
             ]);
 
-            // the last gate before the books are committed
             $entry->assertBalanced();
 
-            if ($loss !== null) {
-                foreach ($loss['allocations'] as $allocation) {
-                    FarmUnitStockMovement::create([
-                        'farm_unit_stock_id' => $allocation['stock']->id,
-                        'reason' => MovementReason::Loss,
-                        'quantity' => $allocation['quantity'],
-                        'occurred_on' => $transaction->transaction_date,
-                        'recorded_by' => $request->recordedBy,
-                    ]);
-                }
-            }
+            $this->writeStockMovements($loss, MovementReason::Loss, $transaction, $request);
+            $this->writeStockMovements($sale, MovementReason::Sale, $transaction, $request);
 
             return $transaction;
         });
+    }
+
+    private function writeStockMovements(?array $resolved, MovementReason $reason, Transaction $transaction, PostingRequest $request): void
+    {
+        if ($resolved === null) {
+            return;
+        }
+
+        foreach ($resolved['allocations'] as $allocation) {
+            FarmUnitStockMovement::create([
+                'farm_unit_stock_id' => $allocation['stock']->id,
+                'reason' => $reason,
+                'quantity' => $allocation['quantity'],
+                'occurred_on' => $transaction->transaction_date,
+                'recorded_by' => $request->recordedBy,
+            ]);
+        }
     }
 
     private function legs(TransactionTemplate $template, ?int $settlementAccountId): array
@@ -307,21 +350,21 @@ class PostingService
         ?int $settlementAccountId,
         int $amountMinor,
         ?array $loss = null,
+        ?array $sale = null,
     ): Transaction {
         $payload = [
             'farmer_profile_id' => $request->farmerProfileId,
             'transaction_template_id' => $template->id,
-            // copied now, so editing the template tomorrow cannot rewrite today
             'transaction_type' => $template->transaction_type,
             'accounting_period_id' => $period->id,
             'transaction_date' => $request->transactionDate,
             'amount_minor' => $amountMinor,
             'quantity_lost' => $loss['quantity'] ?? null,
+            'quantity_sold' => $sale['quantity'] ?? null,
             'settlement_account_id' => $settlementAccountId,
             'farm_unit_id' => $farmUnit?->id,
             'narration' => $request->narration,
             'channel' => $request->channel,
-            // read once, from the unit as it stands right now, and never revisited
             'is_provisional' => $farmUnit !== null && $farmUnit->approved_at === null,
             'recorded_by' => $request->recordedBy,
             'idempotency_key' => $request->idempotencyKey,
@@ -332,7 +375,6 @@ class PostingService
             try {
                 return Transaction::create($payload);
             } catch (UniqueConstraintViolationException $collision) {
-                // only a clashing reference is worth redrawing, anything else is a real failure
                 if (! str_contains($collision->getMessage(), 'reference')) {
                     throw $collision;
                 }

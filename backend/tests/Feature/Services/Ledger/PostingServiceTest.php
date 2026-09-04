@@ -85,6 +85,17 @@ beforeEach(function () {
         'requires_farm_unit' => true,
     ]);
 
+    $this->produceSaleTemplate = TransactionTemplate::create([
+        'name' => 'I sold produce',
+        'slug' => 'produce_sale_tracked',
+        'transaction_type' => 'INCOME',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->sales->id,
+        'settlement_side' => 'debit',
+        'requires_farm_unit' => true,
+        'is_produce_sale' => true,
+    ]);
+
     $this->period = AccountingPeriod::create([
         'name' => 'Test Period',
         'starts_on' => now()->startOfYear()->toDateString(),
@@ -498,5 +509,97 @@ it('refuses a loss bigger than everything the farm has across all active batches
         'settlementAccountId' => null,
         'farmUnitId' => $this->approvedUnit->id,
         'quantityLost' => '20',
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});
+
+it('requires a quantity when the template is a produce sale', function () {
+    FarmUnitStock::factory()->create(['farm_unit_id' => $this->approvedUnit->id]);
+
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->produceSaleTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});
+
+// nobody knows which batch the buyer's animals actually came from
+it('splits a sale proportionally across active batches by their share of the count', function () {
+    $big = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 30,
+    ]);
+
+    $small = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 20,
+    ]);
+
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->produceSaleTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantitySold' => '5',
+    ]));
+
+    expect($big->fresh()->current_quantity)->toBe('27.00');
+    expect($small->fresh()->current_quantity)->toBe('18.00');
+
+    $bigMovement = $big->fresh()->movements()->where('reason', MovementReason::Sale)->first();
+    $smallMovement = $small->fresh()->movements()->where('reason', MovementReason::Sale)->first();
+
+    expect($bigMovement->quantity)->toBe('3.00');
+    expect($smallMovement->quantity)->toBe('2.00');
+});
+
+it('creates a movement for the quantity sold, unconfirmed', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 50,
+    ]);
+
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->produceSaleTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantitySold' => '6',
+    ]));
+
+    $movement = $stock->fresh()->movements()->where('reason', MovementReason::Sale)->first();
+
+    expect($movement)->not->toBeNull();
+    expect($movement->quantity)->toBe('6.00');
+    expect($movement->isConfirmed())->toBeFalse();
+});
+
+it('records the quantity sold on the transaction', function () {
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 50,
+    ]);
+
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->produceSaleTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantitySold' => '6',
+    ]));
+
+    expect($transaction->quantity_sold)->toBe('6.00');
+});
+
+it('refuses a sale bigger than everything the farm has on record', function () {
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 10,
+    ]);
+
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->produceSaleTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantitySold' => '20',
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});
+
+it('refuses a sale when the unit has no live stock to sell from', function () {
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->produceSaleTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantitySold' => '6',
     ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
 });
