@@ -41,7 +41,7 @@ export default function Create(props: Props) {
     );
 }
 
-type ContentProps = Pick
+type ContentProps = Pick<
     Props,
     | "farmer"
     | "templates"
