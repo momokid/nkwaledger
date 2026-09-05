@@ -17,6 +17,7 @@ use App\Models\TransactionTemplate;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use App\Enums\StockSource;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -98,6 +99,83 @@ test('each movement says which way it went', function () {
     $this->actingAs($this->farmerUser)->get('/my-farm')
         ->assertInertia(fn($page) => $page
             ->where('units.0.stocks.0.movements.0.is_increase', true));
+});
+
+// the farmer's own words: starts with, added, bought, lost, sold
+test('the timeline merges every batch into one running total', function () {
+    $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
+
+    $first = FarmUnitStock::factory()->openingBalance()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 10,
+        'started_on' => '2026-01-01',
+    ]);
+
+    $second = FarmUnitStock::factory()->openingBalance()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 14,
+        'started_on' => '2026-02-01',
+    ]);
+
+    $third = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 5,
+        'started_on' => '2026-03-01',
+    ]);
+
+    $third->movements()->create([
+        'reason' => MovementReason::Loss,
+        'quantity' => 7,
+        'is_increase' => false,
+        'occurred_on' => '2026-04-01',
+        'recorded_by' => $this->farmerUser->id,
+    ]);
+
+    $second->movements()->create([
+        'reason' => MovementReason::Sale,
+        'quantity' => 5,
+        'is_increase' => false,
+        'occurred_on' => '2026-05-01',
+        'recorded_by' => $this->farmerUser->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-farm')
+        ->assertInertia(fn($page) => $page
+            ->where('units.0.timeline.0.label', 'Starts with')
+            ->where('units.0.timeline.0.running_total', '10')
+            ->where('units.0.timeline.1.label', 'Added')
+            ->where('units.0.timeline.1.running_total', '24')
+            ->where('units.0.timeline.2.label', 'Bought')
+            ->where('units.0.timeline.2.running_total', '29')
+            ->where('units.0.timeline.3.label', 'Lost')
+            ->where('units.0.timeline.3.running_total', '22')
+            ->where('units.0.timeline.4.label', 'Sold')
+            ->where('units.0.timeline.4.running_total', '17'));
+});
+
+// a rejected entry still shows, but the running total moves on without it
+test('a rejected timeline entry is shown but excluded from the running total', function () {
+    $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
+
+    $first = FarmUnitStock::factory()->openingBalance()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 10,
+        'started_on' => '2026-01-01',
+    ]);
+
+    $second = FarmUnitStock::factory()->openingBalance()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 14,
+        'started_on' => '2026-02-01',
+    ]);
+
+    $second->reject($this->farmerUser->id, 'Miscounted');
+
+    $this->actingAs($this->farmerUser)->get('/my-farm')
+        ->assertInertia(fn($page) => $page
+            ->where('units.0.timeline.1.label', 'Added')
+            ->where('units.0.timeline.1.is_rejected', true)
+            ->where('units.0.timeline.1.running_total', '10'));
 });
 test('shows profit and loss analysis per farm unit', function () {
     $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
