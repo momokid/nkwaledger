@@ -1,19 +1,23 @@
-import AdminLayout from "@/Layouts/AdminLayout";
-import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import useAuthGuard from "@/hooks/useAuthGuard";
+import { Head } from "@inertiajs/react";
 import GreetingHeader from "@/Components/GreetingHeader";
 
 const kpis = [
-    { label: "Total farmers", value: "1,204" },
-    { label: "Active agents", value: "38" },
-    { label: "Pending approvals", value: "12" },
-    { label: "Income logged (30 days)", value: "GHS 482,900" },
+    { label: "Farmers managed", value: "24" },
+    { label: "Approvals pending", value: "5" },
+    { label: "Income logged (30 days)", value: "GHS 12,400" },
+    { label: "Farms visited this week", value: "9" },
 ];
 
 export default function Dashboard() {
+    useAuthGuard();
+
     return (
-        <AdminLayout title="Dashboard">
+        <AuthenticatedLayout title="Dashboard">
+            <Head title="Dashboard" />
             <DashboardContent />
-        </AdminLayout>
+        </AuthenticatedLayout>
     );
 }
 
@@ -41,7 +45,7 @@ function DashboardContent() {
                 below are examples, not your real data.
             </div>
 
-            <GreetingHeader subtitle="Here is what's happening across the platform." />
+            <GreetingHeader subtitle="Here is your agent overview." />
 
             <div
                 style={{

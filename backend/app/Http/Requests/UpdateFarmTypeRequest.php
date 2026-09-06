@@ -22,6 +22,7 @@ class UpdateFarmTypeRequest extends FormRequest
                 Rule::unique('farm_types', 'name')->ignore($this->route('farmType')),
             ],
             'category_id' => ['nullable', 'integer', 'exists:farm_type_categories,id'],
+            'quantity_is_decimal' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

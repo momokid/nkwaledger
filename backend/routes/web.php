@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\TransactionTemplateController;
 use App\Http\Controllers\Admin\FarmerController;
 use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
+use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
@@ -107,13 +108,13 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', fn() => redirect()->route('farmer.dashboard'));
-    Route::get('/farmer/dashboard', fn() => Inertia::render('Dashboard'))
+    Route::get('/farmer/dashboard', [FarmerDashboardController::class, 'index'])
         ->name('farmer.dashboard');
-    Route::get('/agent/dashboard', fn() => Inertia::render('Dashboard'))
+    Route::get('/agent/dashboard', fn() => Inertia::render('Agent/Dashboard'))
         ->name('agent.dashboard');
-    Route::get('/vet/dashboard', fn() => Inertia::render('Dashboard'))
+    Route::get('/vet/dashboard', fn() => Inertia::render('Vet/Dashboard'))
         ->name('vet.dashboard');
-    Route::get('/adviser/dashboard', fn() => Inertia::render('Dashboard'))
+    Route::get('/adviser/dashboard', fn() => Inertia::render('Adviser/Dashboard'))
         ->name('adviser.dashboard');
     Route::get('/supplier/dashboard', fn() => Inertia::render('Dashboard'))
         ->name('supplier.dashboard');

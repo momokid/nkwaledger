@@ -38,6 +38,7 @@ class RecordTransactionRequest extends FormRequest
                 Rule::exists('farm_units', 'id')->where('farmer_profile_id', $farmer->id),
             ],
             'quantity_lost' => ['nullable', 'string'],
+            'quantity_sold' => ['nullable', 'string'],
             'narration' => ['nullable', 'string', 'max:255'],
         ];
     }
@@ -84,6 +85,30 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_lost', 'The number lost needs to be more than zero.');
+                }
+            },
+            // a produce sale always says how many, so the stock the farmer has left stays accurate
+            function (Validator $validator) {
+                if ($validator->errors()->has('transaction_template_id')) {
+                    return;
+                }
+
+                $template = TransactionTemplate::find($this->input('transaction_template_id'));
+
+                if ($template === null || ! $template->is_produce_sale) {
+                    return;
+                }
+
+                $quantity = $this->input('quantity_sold');
+
+                if ($quantity === null || trim((string) $quantity) === '') {
+                    $validator->errors()->add('quantity_sold', 'Please say how many were sold.');
+
+                    return;
+                }
+
+                if (! is_numeric($quantity) || (float) $quantity <= 0) {
+                    $validator->errors()->add('quantity_sold', 'The number sold needs to be more than zero.');
                 }
             },
         ];

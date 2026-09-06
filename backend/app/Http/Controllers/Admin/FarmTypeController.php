@@ -25,7 +25,15 @@ class FarmTypeController extends Controller
             'farmTypes' => FarmType::query()
                 ->with('category')
                 ->orderBy('name')
-                ->paginate(15),
+                ->paginate(15)
+                ->through(fn(FarmType $farmType) => [
+                    'id' => $farmType->id,
+                    'name' => $farmType->name,
+                    'category_id' => $farmType->category_id,
+                    'category' => $farmType->category ? ['id' => $farmType->category->id, 'name' => $farmType->category->name] : null,
+                    'quantity_is_decimal' => $farmType->quantity_is_decimal,
+                    'is_active' => $farmType->is_active,
+                ]),
             // populates the category <select> on the create/edit form — only active categories, since a
             // deactivated one shouldn't be assignable to new farm types even though existing references stay intact
             'categories' => FarmTypeCategory::query()

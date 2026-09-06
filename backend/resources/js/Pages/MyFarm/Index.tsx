@@ -31,6 +31,19 @@ interface Stock {
     movements: Movement[];
 }
 
+interface TimelineEntry {
+    id: number;
+    label: string;
+    quantity: string;
+    is_increase: boolean;
+    occurred_on: string | null;
+    expected_ready_on: string | null;
+    running_total: string;
+    is_confirmed: boolean;
+    is_rejected: boolean;
+    rejection_reason: string | null;
+}
+
 interface Analysis {
     total_income: number;
     total_expense: number;
@@ -48,6 +61,7 @@ interface FarmUnitRow {
     capacity_unit: string | null;
     is_approved: boolean;
     analysis: Analysis;
+    timeline: TimelineEntry[];
     stocks: Stock[];
 }
 
@@ -74,11 +88,24 @@ type ContentProps = Pick<Props, "units" | "filters">;
 function IndexContent({ units, filters }: ContentProps) {
     const { dark } = useTheme();
     const [openUnit, setOpenUnit] = useState<number | null>(null);
+    const [openBatches, setOpenBatches] = useState<Set<number>>(new Set());
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
 
     const applyFilter = () => {
         router.visit("/my-farm", { data: { from, to }, preserveScroll: true });
+    };
+
+    const toggleBatches = (unitId: number) => {
+        setOpenBatches((current) => {
+            const next = new Set(current);
+            if (next.has(unitId)) {
+                next.delete(unitId);
+            } else {
+                next.add(unitId);
+            }
+            return next;
+        });
     };
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -297,110 +324,210 @@ function IndexContent({ units, filters }: ContentProps) {
 
                     {openUnit === unit.id && (
                         <div className="px-4 pb-4">
-                            {unit.stocks.length === 0 && (
+                            {unit.timeline.length === 0 && (
                                 <div style={{ color: textSecondary }}>
                                     No stock recorded on this unit yet.
                                 </div>
                             )}
 
-                            {unit.stocks.map((stock) => (
+                            {unit.timeline.map((entry) => (
                                 <div
-                                    key={stock.id}
-                                    className="mt-3 p-3"
+                                    key={entry.id}
+                                    className="mt-2 p-2"
                                     style={{
-                                        border: `1px solid ${border}`,
+                                        borderBottom: `1px solid ${border}`,
                                         background: statusBg(
-                                            stock.is_confirmed,
-                                            stock.is_rejected,
+                                            entry.is_confirmed,
+                                            entry.is_rejected,
                                         ),
                                     }}
                                 >
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between items-baseline">
                                         <span>
-                                            {stock.source} —{" "}
-                                            {stock.current_quantity}{" "}
-                                            {stock.unit_of_measure}
+                                            {entry.label} on{" "}
+                                            {shortDate(entry.occurred_on)}
                                         </span>
-                                        <span style={{ fontSize: "17px" }}>
-                                            {statusLabel(
-                                                stock.is_confirmed,
-                                                stock.is_rejected,
-                                            )}
+                                        <span
+                                            style={{
+                                                color: entry.is_increase
+                                                    ? "#1D9E75"
+                                                    : "#B45309",
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            {entry.is_increase ? "+" : "−"}
+                                            {entry.quantity}
                                         </span>
                                     </div>
                                     <div
+                                        className="flex justify-between"
                                         style={{
                                             color: textSecondary,
                                             fontSize: "16px",
+                                            marginTop: "2px",
                                         }}
                                     >
-                                        Started {shortDate(stock.started_on)}
-                                        {stock.expected_ready_on
-                                            ? ` · Ready by ${shortDate(stock.expected_ready_on)}`
-                                            : ""}
+                                        <span>
+                                            {entry.expected_ready_on
+                                                ? `Sell around ${shortDate(entry.expected_ready_on)}`
+                                                : `Now: ${entry.running_total}`}
+                                        </span>
+                                        <span>
+                                            {statusLabel(
+                                                entry.is_confirmed,
+                                                entry.is_rejected,
+                                            )}
+                                        </span>
                                     </div>
-                                    {stock.is_rejected &&
-                                        stock.rejection_reason && (
+                                    {entry.is_rejected &&
+                                        entry.rejection_reason && (
                                             <div
                                                 style={{
                                                     fontSize: "16px",
-                                                    marginTop: "4px",
+                                                    marginTop: "2px",
                                                 }}
                                             >
-                                                Reason: {stock.rejection_reason}
+                                                Reason: {entry.rejection_reason}
                                             </div>
                                         )}
-
-                                    {stock.movements.length > 0 && (
-                                        <div className="mt-2">
-                                            {stock.movements.map((movement) => (
-                                                <div
-                                                    key={movement.id}
-                                                    className="flex justify-between"
-                                                    style={{
-                                                        fontSize: "16px",
-                                                        padding: "2px 0",
-                                                    }}
-                                                >
-                                                    <span
-                                                        style={{
-                                                            color: textSecondary,
-                                                        }}
-                                                    >
-                                                        {movement.reason} on{" "}
-                                                        {shortDate(
-                                                            movement.occurred_on,
-                                                        )}
-                                                    </span>
-                                                    <span
-                                                        style={{
-                                                            color: movement.is_increase
-                                                                ? "#1D9E75"
-                                                                : "#B45309",
-                                                            fontWeight: 600,
-                                                        }}
-                                                    >
-                                                        {movement.is_increase
-                                                            ? "+"
-                                                            : "−"}
-                                                        {movement.quantity}
-                                                    </span>
-                                                    <span
-                                                        style={{
-                                                            color: textSecondary,
-                                                        }}
-                                                    >
-                                                        {statusLabel(
-                                                            movement.is_confirmed,
-                                                            movement.is_rejected,
-                                                        )}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
                             ))}
+
+                            {unit.stocks.length > 0 && (
+                                <button
+                                    onClick={() => toggleBatches(unit.id)}
+                                    style={{
+                                        marginTop: "12px",
+                                        fontSize: "16px",
+                                        color: textSecondary,
+                                        textDecoration: "underline",
+                                    }}
+                                >
+                                    {openBatches.has(unit.id)
+                                        ? "Hide batch details"
+                                        : "Show batch details"}
+                                </button>
+                            )}
+
+                            {openBatches.has(unit.id) && (
+                                <div className="mt-2">
+                                    {unit.stocks.map((stock) => (
+                                        <div
+                                            key={stock.id}
+                                            className="mt-3 p-3"
+                                            style={{
+                                                border: `1px solid ${border}`,
+                                                background: statusBg(
+                                                    stock.is_confirmed,
+                                                    stock.is_rejected,
+                                                ),
+                                            }}
+                                        >
+                                            <div className="flex justify-between">
+                                                <span>
+                                                    {stock.source} —{" "}
+                                                    {stock.current_quantity}{" "}
+                                                    {stock.unit_of_measure}
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        fontSize: "17px",
+                                                    }}
+                                                >
+                                                    {statusLabel(
+                                                        stock.is_confirmed,
+                                                        stock.is_rejected,
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div
+                                                style={{
+                                                    color: textSecondary,
+                                                    fontSize: "16px",
+                                                }}
+                                            >
+                                                Started{" "}
+                                                {shortDate(stock.started_on)}
+                                                {stock.expected_ready_on
+                                                    ? ` · Sell around ${shortDate(stock.expected_ready_on)}`
+                                                    : ""}
+                                            </div>
+                                            {stock.is_rejected &&
+                                                stock.rejection_reason && (
+                                                    <div
+                                                        style={{
+                                                            fontSize: "16px",
+                                                            marginTop: "4px",
+                                                        }}
+                                                    >
+                                                        Reason:{" "}
+                                                        {stock.rejection_reason}
+                                                    </div>
+                                                )}
+
+                                            {stock.movements.length > 0 && (
+                                                <div className="mt-2">
+                                                    {stock.movements.map(
+                                                        (movement) => (
+                                                            <div
+                                                                key={
+                                                                    movement.id
+                                                                }
+                                                                className="flex justify-between"
+                                                                style={{
+                                                                    fontSize:
+                                                                        "16px",
+                                                                    padding:
+                                                                        "2px 0",
+                                                                }}
+                                                            >
+                                                                <span
+                                                                    style={{
+                                                                        color: textSecondary,
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        movement.reason
+                                                                    }{" "}
+                                                                    on{" "}
+                                                                    {shortDate(
+                                                                        movement.occurred_on,
+                                                                    )}
+                                                                </span>
+                                                                <span
+                                                                    style={{
+                                                                        color: movement.is_increase
+                                                                            ? "#1D9E75"
+                                                                            : "#B45309",
+                                                                        fontWeight: 600,
+                                                                    }}
+                                                                >
+                                                                    {movement.is_increase
+                                                                        ? "+"
+                                                                        : "−"}
+                                                                    {
+                                                                        movement.quantity
+                                                                    }
+                                                                </span>
+                                                                <span
+                                                                    style={{
+                                                                        color: textSecondary,
+                                                                    }}
+                                                                >
+                                                                    {statusLabel(
+                                                                        movement.is_confirmed,
+                                                                        movement.is_rejected,
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
