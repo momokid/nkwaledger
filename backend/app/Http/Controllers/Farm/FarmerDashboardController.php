@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Farm;
 use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
-use App\Models\FarmUnitStock;
 use App\Models\Transaction;
 use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
@@ -16,6 +15,8 @@ use Inertia\Response;
 
 class FarmerDashboardController extends Controller
 {
+    private const FARM_PRODUCE_LIMIT = 4;
+
     public function __construct(
         private readonly IncomeAndExpenditureService $incomes,
     ) {}
@@ -30,8 +31,7 @@ class FarmerDashboardController extends Controller
         if ($farmer === null) {
             return Inertia::render('Dashboard', [
                 'summary' => $this->emptySummary(),
-                'livestock_count' => '0.00',
-                'crop_unit_count' => 0,
+                'farm_produce' => $this->emptyFarmProduce(),
                 'breakdown' => $this->emptyBreakdown(),
                 'recent_transactions' => [],
                 'filters' => ['from' => $from, 'to' => $to],
@@ -46,33 +46,11 @@ class FarmerDashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'summary' => $this->summaryFrom($report, $previousReport),
-            'livestock_count' => $this->livestockCount($farmer->id),
-            'crop_unit_count' => $this->cropUnitCount($farmer->id),
+            'farm_produce' => $this->farmProduceFor($farmer->id),
             'breakdown' => $this->breakdownFrom($report),
             'recent_transactions' => $this->recentTransactionsFor($farmer->id),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
-    }
-
-    private function recentTransactionsFor(int $farmerId): array
-    {
-        return Transaction::query()
-            ->with('template:id,name')
-            ->where('farmer_profile_id', $farmerId)
-            ->whereIn('transaction_type', [Transaction::INCOME, Transaction::EXPENSE])
-            // a cancelled record never happened, as far as the farmer's eye is concerned
-            ->whereDoesntHave('reversedBy')
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id')
-            ->limit(5)
-            ->get()
-            ->map(fn(Transaction $transaction) => [
-                'name' => $transaction->template?->name ?? 'Record',
-                'date' => $transaction->transaction_date->toDateString(),
-                'amount' => $transaction->amount_minor,
-                'income' => $transaction->transaction_type === Transaction::INCOME,
-            ])
-            ->all();
     }
 
     private function summaryFrom(IncomeAndExpenditure $report, IncomeAndExpenditure $previous): array
@@ -117,6 +95,67 @@ class FarmerDashboardController extends Controller
         return ['income_rows' => [], 'expense_rows' => [], 'loss_rows' => []];
     }
 
+    private function recentTransactionsFor(int $farmerId): array
+    {
+        return Transaction::query()
+            ->with('template:id,name')
+            ->where('farmer_profile_id', $farmerId)
+            ->whereIn('transaction_type', [Transaction::INCOME, Transaction::EXPENSE])
+            // a cancelled record never happened, as far as the farmer's eye is concerned
+            ->whereDoesntHave('reversedBy')
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get()
+            ->map(fn(Transaction $transaction) => [
+                'name' => $transaction->template?->name ?? 'Record',
+                'date' => $transaction->transaction_date->toDateString(),
+                'amount' => $transaction->amount_minor,
+                'income' => $transaction->transaction_type === Transaction::INCOME,
+            ])
+            ->all();
+    }
+
+    // one row per farm type the farmer keeps, crop or livestock alike;
+    // the unit (kg, acres, birds...) travels with the quantity, so a crop
+    // reads "2.50 acres" and livestock reads "50.00 birds" from the same query
+    private function farmProduceFor(int $farmerId): array
+    {
+        $rows = FarmUnit::query()
+            ->where('farm_units.farmer_profile_id', $farmerId)
+            ->whereNotNull('farm_units.approved_at')
+            ->join('farm_types', 'farm_types.id', '=', 'farm_units.farm_type_id')
+            ->leftJoin('farm_unit_stocks', function ($join) {
+                $join->on('farm_unit_stocks.farm_unit_id', '=', 'farm_units.id')
+                    ->whereNotNull('farm_unit_stocks.confirmed_at')
+                    ->whereNull('farm_unit_stocks.rejected_at');
+            })
+            ->select('farm_types.name as type')
+            ->selectRaw('COALESCE(SUM(farm_unit_stocks.current_quantity), 0) as quantity')
+            ->selectRaw('MAX(farm_unit_stocks.unit_of_measure) as unit')
+            ->groupBy('farm_types.name')
+            // sorted by name, not quantity — comparing "50 birds" against "2.5 acres"
+            // as raw numbers would rank them meaninglessly
+            ->orderBy('farm_types.name')
+            ->get();
+
+        $items = $rows->take(self::FARM_PRODUCE_LIMIT)->map(fn($row) => [
+            'type' => $row->type,
+            'quantity' => number_format((float) $row->quantity, 2, '.', ''),
+            'unit' => $row->unit,
+        ])->all();
+
+        return [
+            'items' => $items,
+            'more_count' => max(0, $rows->count() - self::FARM_PRODUCE_LIMIT),
+        ];
+    }
+
+    private function emptyFarmProduce(): array
+    {
+        return ['items' => [], 'more_count' => 0];
+    }
+
     private function previousPeriod(string $from, string $to): array
     {
         $start = Carbon::parse($from);
@@ -150,32 +189,6 @@ class FarmerDashboardController extends Controller
             'net' => 0,
             'trends' => ['income' => $flat, 'expense' => $flat, 'net' => $flat],
         ];
-    }
-
-    private function livestockCount(int $farmerId): string
-    {
-        $unitIds = FarmUnit::query()
-            ->where('farmer_profile_id', $farmerId)
-            ->whereNotNull('approved_at')
-            ->whereHas('farmType.category', fn($query) => $query->where('name', 'Livestock'))
-            ->pluck('id');
-
-        $total = FarmUnitStock::query()
-            ->whereIn('farm_unit_id', $unitIds)
-            ->whereNotNull('confirmed_at')
-            ->whereNull('rejected_at')
-            ->sum('current_quantity');
-
-        return number_format((float) $total, 2, '.', '');
-    }
-
-    private function cropUnitCount(int $farmerId): int
-    {
-        return FarmUnit::query()
-            ->where('farmer_profile_id', $farmerId)
-            ->whereNotNull('approved_at')
-            ->whereHas('farmType.category', fn($query) => $query->where('name', 'Crop'))
-            ->count();
     }
 
     private function resolveFarmer(Request $request): ?FarmerProfile

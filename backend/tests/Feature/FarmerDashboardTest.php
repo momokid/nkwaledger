@@ -12,10 +12,12 @@ use App\Models\LedgerClass;
 use App\Models\LedgerControl;
 use App\Models\LedgerSubcategory;
 use App\Models\LedgerType;
+use App\Models\ReversalRequest;
 use App\Models\TransactionTemplate;
 use App\Models\User;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
+use App\Services\Ledger\ReversalService;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
@@ -48,6 +50,7 @@ beforeEach(function () {
     $this->cash = $account('Cash A/C', $assetSub->id, true);
     $this->sales = $account('Sales A/C', $incomeSub->id);
     $this->feed = $account('Feed A/C', $expenseSub->id);
+    $suspense = $account('Suspense A/C', $assetSub->id);
 
     AccountingPeriod::create([
         'name' => 'Test Period',
@@ -72,8 +75,6 @@ beforeEach(function () {
         'credit_account_id' => $this->cash->id,
         'settlement_side' => 'credit',
     ]);
-
-    $suspense = $account('Suspense A/C', $assetSub->id);
 
     TransactionTemplate::create([
         'name' => 'Correction',
@@ -128,10 +129,10 @@ test('a farmer with no profile yet sees an empty dashboard, not an error', funct
         ->assertOk()
         ->assertInertia(fn($page) => $page
             ->where('summary.total_income', 0)
-            ->where('livestock_count', '0.00')
-            ->where('crop_unit_count', 0)
+            ->where('farm_produce.items', [])
+            ->where('farm_produce.more_count', 0)
             ->where('breakdown.income_rows', [])
-            ->where('breakdown.expense_rows', []));
+            ->where('recent_transactions', []));
 });
 
 test('shows income, expense and net profit for the last 30 days by default', function () {
@@ -268,57 +269,96 @@ test('recent transactions shows the template name and date', function () {
             ->where('recent_transactions.0.date', now()->toDateString()));
 });
 
-test('recent transactions is empty for a farmer with no profile', function () {
-    $bare = User::factory()->create();
-    $bare->assignRole('farmer');
-
-    $this->actingAs($bare)->get('/farmer/dashboard')
-        ->assertInertia(fn($page) => $page->where('recent_transactions', []));
-});
-
 test('a cancelled transaction does not appear in recent transactions', function () {
-    $posting = app(\App\Services\Ledger\PostingService::class);
     $transaction = ($this->recordIncome)('250', now()->toDateString());
 
-    app(\App\Services\Ledger\ReversalService::class)->request($transaction, $this->farmerUser, 'Wrong amount');
-    $requestModel = \App\Models\ReversalRequest::where('transaction_id', $transaction->id)->first();
+    app(ReversalService::class)->request($transaction, $this->farmerUser, 'Wrong amount');
+    $requestModel = ReversalRequest::where('transaction_id', $transaction->id)->first();
     $approver = User::factory()->create();
-    app(\App\Services\Ledger\ReversalService::class)->approve($requestModel, $approver);
+    app(ReversalService::class)->approve($requestModel, $approver);
 
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
         ->assertInertia(fn($page) => $page->where('recent_transactions', []));
 });
 
-test('counts livestock across the farmer\'s approved, confirmed livestock stock', function () {
-    $livestockType = FarmType::create(['name' => 'Layers', 'category_id' => $this->livestockCategory->id]);
-    $unit = FarmUnit::factory()->approved()->create([
-        'farmer_profile_id' => $this->profile->id,
-        'farm_type_id' => $livestockType->id,
-    ]);
-    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 50]);
+test('farm produce lists every farm type the farmer has approved, crop or livestock, with its unit', function () {
+    $cropType = FarmType::create(['name' => 'Maize', 'category_id' => $this->cropCategory->id]);
+    $livestockType = FarmType::create(['name' => 'Goats', 'category_id' => $this->livestockCategory->id]);
 
-    $unconfirmedUnit = FarmUnit::factory()->approved()->create([
+    $cropUnit = FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $cropType->id,
+    ]);
+    FarmUnitStock::factory()->confirmed()->create([
+        'farm_unit_id' => $cropUnit->id,
+        'opening_quantity' => 2.5,
+        'unit_of_measure' => 'acres',
+    ]);
+
+    $livestockUnit = FarmUnit::factory()->approved()->create([
         'farmer_profile_id' => $this->profile->id,
         'farm_type_id' => $livestockType->id,
     ]);
-    FarmUnitStock::factory()->create(['farm_unit_id' => $unconfirmedUnit->id, 'opening_quantity' => 999]);
+    FarmUnitStock::factory()->confirmed()->create([
+        'farm_unit_id' => $livestockUnit->id,
+        'opening_quantity' => 50,
+        'unit_of_measure' => 'goats',
+    ]);
 
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
-        ->assertInertia(fn($page) => $page->where('livestock_count', '50.00'));
+        ->assertInertia(fn($page) => $page
+            ->where('farm_produce.items.0.type', 'Goats')
+            ->where('farm_produce.items.0.quantity', '50.00')
+            ->where('farm_produce.items.0.unit', 'goats')
+            ->where('farm_produce.items.1.type', 'Maize')
+            ->where('farm_produce.items.1.quantity', '2.50')
+            ->where('farm_produce.items.1.unit', 'acres')
+            ->where('farm_produce.more_count', 0));
 });
 
-test('counts the farmer\'s approved crop units', function () {
-    $cropType = FarmType::create(['name' => 'Maize', 'category_id' => $this->cropCategory->id]);
-    FarmUnit::factory()->approved()->count(2)->create([
-        'farmer_profile_id' => $this->profile->id,
-        'farm_type_id' => $cropType->id,
-    ]);
+test('farm produce shows at most 4 types alphabetically and counts the rest', function () {
+    foreach (['Chickens', 'Ducks', 'Goats', 'Pigs', 'Rabbits'] as $name) {
+        $type = FarmType::create(['name' => $name, 'category_id' => $this->livestockCategory->id]);
+        $unit = FarmUnit::factory()->approved()->create([
+            'farmer_profile_id' => $this->profile->id,
+            'farm_type_id' => $type->id,
+        ]);
+        FarmUnitStock::factory()->confirmed()->create([
+            'farm_unit_id' => $unit->id,
+            'opening_quantity' => 10,
+        ]);
+    }
 
-    FarmUnit::factory()->create([
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->has('farm_produce.items', 4)
+            ->where('farm_produce.items.0.type', 'Chickens')
+            ->where('farm_produce.items.3.type', 'Pigs')
+            ->where('farm_produce.more_count', 1));
+});
+
+test('unconfirmed or rejected stock does not count toward farm produce quantity', function () {
+    $type = FarmType::create(['name' => 'Layers', 'category_id' => $this->livestockCategory->id]);
+    $unit = FarmUnit::factory()->approved()->create([
         'farmer_profile_id' => $this->profile->id,
-        'farm_type_id' => $cropType->id,
+        'farm_type_id' => $type->id,
+    ]);
+    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 50]);
+    FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 999]);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page->where('farm_produce.items.0.quantity', '50.00'));
+});
+
+test('an approved unit with no confirmed stock yet still appears at zero', function () {
+    $type = FarmType::create(['name' => 'Rabbits', 'category_id' => $this->livestockCategory->id]);
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
     ]);
 
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
-        ->assertInertia(fn($page) => $page->where('crop_unit_count', 2));
+        ->assertInertia(fn($page) => $page
+            ->where('farm_produce.items.0.type', 'Rabbits')
+            ->where('farm_produce.items.0.quantity', '0.00'));
 });

@@ -1,7 +1,7 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import useAuthGuard from "@/hooks/useAuthGuard";
 import { Head, Link, usePage } from "@inertiajs/react";
-import { cedis } from "@/lib/format";
+import { cedis, shortDate } from "@/lib/format";
 import { useState } from "react";
 import {
     IconArrowDownRight,
@@ -49,6 +49,13 @@ interface Breakdown {
     loss_rows: BreakdownRow[];
 }
 
+interface RecentTransaction {
+    name: string;
+    date: string;
+    amount: number;
+    income: boolean;
+}
+
 interface Filters {
     from: string;
     to: string;
@@ -57,30 +64,9 @@ interface Filters {
 interface Props {
     summary: Summary;
     breakdown: Breakdown;
+    recent_transactions: RecentTransaction[];
     filters: Filters;
 }
-
-const transactions = [
-    {
-        name: "Pig sale",
-        date: "Today, 9:30am",
-        amount: "+ GH 850",
-        income: true,
-    },
-    {
-        name: "Fertilizer",
-        date: "Yesterday",
-        amount: "- GH 220",
-        income: false,
-    },
-    {
-        name: "Maize sale",
-        date: "2 days ago",
-        amount: "+ GH 1,200",
-        income: true,
-    },
-    { name: "Transport", date: "3 days ago", amount: "- GH 80", income: false },
-];
 
 const livestock = [
     { type: "Goats", count: 12 },
@@ -92,7 +78,12 @@ const livestock = [
 const creditScore = 720;
 const creditMax = 850;
 
-function DashboardContent({ summary, breakdown, filters }: Props) {
+function DashboardContent({
+    summary,
+    breakdown,
+    recent_transactions,
+    filters,
+}: Props) {
     const [openDetail, setOpenDetail] = useState<
         "income" | "expense" | "net" | null
     >(null);
@@ -276,7 +267,6 @@ function DashboardContent({ summary, breakdown, filters }: Props) {
                         background: surface,
                         border: `1px solid ${border}`,
                         padding: "18px",
-                        opacity: 0.5,
                     }}
                 >
                     <p
@@ -287,55 +277,62 @@ function DashboardContent({ summary, breakdown, filters }: Props) {
                             marginBottom: "16px",
                         }}
                     >
-                        Recent transactions (Soon)
+                        Recent transactions
                     </p>
 
-                    {transactions.map((t, i) => (
-                        <div
-                            key={t.name}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "12px 0",
-                                borderBottom:
-                                    i === transactions.length - 1
-                                        ? "none"
-                                        : `1px solid ${border}`,
-                            }}
-                        >
-                            <div>
-                                <p
-                                    style={{
-                                        fontSize: "18px",
-                                        fontWeight: 500,
-                                        color: text,
-                                        margin: 0,
-                                    }}
-                                >
-                                    {t.name}
-                                </p>
-                                <p
-                                    style={{
-                                        fontSize: "15px",
-                                        color: textSecondary,
-                                        margin: "2px 0 0",
-                                    }}
-                                >
-                                    {t.date}
-                                </p>
-                            </div>
-                            <span
+                    {recent_transactions.length === 0 ? (
+                        <p style={{ fontSize: "16px", color: textSecondary }}>
+                            No transactions recorded yet.
+                        </p>
+                    ) : (
+                        recent_transactions.map((t, i) => (
+                            <div
+                                key={`${t.name}-${t.date}-${i}`}
                                 style={{
-                                    fontSize: "18px",
-                                    fontWeight: 600,
-                                    color: t.income ? primary : danger,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "12px 0",
+                                    borderBottom:
+                                        i === recent_transactions.length - 1
+                                            ? "none"
+                                            : `1px solid ${border}`,
                                 }}
                             >
-                                {t.amount}
-                            </span>
-                        </div>
-                    ))}
+                                <div>
+                                    <p
+                                        style={{
+                                            fontSize: "18px",
+                                            fontWeight: 500,
+                                            color: text,
+                                            margin: 0,
+                                        }}
+                                    >
+                                        {t.name}
+                                    </p>
+                                    <p
+                                        style={{
+                                            fontSize: "15px",
+                                            color: textSecondary,
+                                            margin: "2px 0 0",
+                                        }}
+                                    >
+                                        {shortDate(t.date)}
+                                    </p>
+                                </div>
+                                <span
+                                    style={{
+                                        fontSize: "18px",
+                                        fontWeight: 600,
+                                        color: t.income ? primary : danger,
+                                    }}
+                                >
+                                    {t.income ? "+ " : "- "}GHS{" "}
+                                    {cedis(t.amount)}
+                                </span>
+                            </div>
+                        ))
+                    )}
                 </div>
 
                 <div
@@ -676,6 +673,7 @@ export default function Dashboard(props: Props) {
             <DashboardContent
                 summary={props.summary}
                 breakdown={props.breakdown}
+                recent_transactions={props.recent_transactions}
                 filters={props.filters}
             />
         </AuthenticatedLayout>
