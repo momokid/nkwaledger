@@ -17,6 +17,19 @@ test('a farm type can be created with a category', function () {
     expect($farmType->is_active)->toBeTrue();
 });
 
+// headcount types default to whole numbers unless told otherwise
+test('a farm type defaults to whole-number quantities', function () {
+    $farmType = FarmType::create(['name' => 'Goats']);
+
+    expect($farmType->quantity_is_decimal)->toBeFalse();
+});
+
+test('a farm type can allow decimal quantities, for area or weight-based produce', function () {
+    $farmType = FarmType::create(['name' => 'Maize', 'quantity_is_decimal' => true]);
+
+    expect($farmType->fresh()->quantity_is_decimal)->toBeTrue();
+});
+
 test('a farm type resolves its category relationship', function () {
     $category = FarmTypeCategory::create(['name' => 'Livestock']);
     $farmType = FarmType::create(['name' => 'Poultry', 'category_id' => $category->id]);

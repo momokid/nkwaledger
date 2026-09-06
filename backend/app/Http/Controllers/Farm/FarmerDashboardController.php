@@ -116,9 +116,8 @@ class FarmerDashboardController extends Controller
             ->all();
     }
 
-    // one row per farm type the farmer keeps, crop or livestock alike;
-    // the unit (kg, acres, birds...) travels with the quantity, so a crop
-    // reads "2.50 acres" and livestock reads "50.00 birds" from the same query
+    // one row per farm unit, never merged across farms even when the type matches;
+    // whole-number types (headcount) round for display, decimal types (area, weight) keep the fraction
     private function farmProduceFor(int $farmerId): array
     {
         $rows = FarmUnit::query()
@@ -130,18 +129,25 @@ class FarmerDashboardController extends Controller
                     ->whereNotNull('farm_unit_stocks.confirmed_at')
                     ->whereNull('farm_unit_stocks.rejected_at');
             })
-            ->select('farm_types.name as type')
+            ->select(
+                'farm_units.id as unit_id',
+                'farm_units.name as farm',
+                'farm_types.name as type',
+                'farm_types.quantity_is_decimal as is_decimal',
+            )
             ->selectRaw('COALESCE(SUM(farm_unit_stocks.current_quantity), 0) as quantity')
             ->selectRaw('MAX(farm_unit_stocks.unit_of_measure) as unit')
-            ->groupBy('farm_types.name')
-            // sorted by name, not quantity — comparing "50 birds" against "2.5 acres"
-            // as raw numbers would rank them meaninglessly
+            ->groupBy('farm_units.id', 'farm_units.name', 'farm_types.name', 'farm_types.quantity_is_decimal')
+            // sorted by type then farm, not quantity — comparing "50 birds" against
+            // "2.5 acres" as raw numbers would rank them meaninglessly
             ->orderBy('farm_types.name')
+            ->orderBy('farm_units.name')
             ->get();
 
         $items = $rows->take(self::FARM_PRODUCE_LIMIT)->map(fn($row) => [
+            'farm' => $row->farm,
             'type' => $row->type,
-            'quantity' => number_format((float) $row->quantity, 2, '.', ''),
+            'quantity' => $this->formatQuantity((float) $row->quantity, (bool) $row->is_decimal),
             'unit' => $row->unit,
         ])->all();
 
@@ -149,6 +155,13 @@ class FarmerDashboardController extends Controller
             'items' => $items,
             'more_count' => max(0, $rows->count() - self::FARM_PRODUCE_LIMIT),
         ];
+    }
+
+    private function formatQuantity(float $quantity, bool $isDecimal): string
+    {
+        return $isDecimal
+            ? number_format($quantity, 2, '.', '')
+            : number_format(round($quantity), 0, '.', '');
     }
 
     private function emptyFarmProduce(): array

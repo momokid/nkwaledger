@@ -1,8 +1,9 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import useAuthGuard from "@/hooks/useAuthGuard";
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import { cedis, shortDate } from "@/lib/format";
 import { useState } from "react";
+import GreetingHeader from "@/Components/GreetingHeader";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
@@ -10,15 +11,6 @@ import {
     IconMinus,
     IconX,
 } from "@tabler/icons-react";
-
-interface PageProps {
-    auth: {
-        user: {
-            first_name?: string;
-            surname?: string;
-        } | null;
-    };
-}
 
 interface Trend {
     direction: "up" | "down" | "flat";
@@ -56,6 +48,17 @@ interface RecentTransaction {
     income: boolean;
 }
 
+interface FarmProduceItem {
+    type: string;
+    quantity: string;
+    unit: string | null;
+}
+
+interface FarmProduce {
+    items: FarmProduceItem[];
+    more_count: number;
+}
+
 interface Filters {
     from: string;
     to: string;
@@ -65,15 +68,9 @@ interface Props {
     summary: Summary;
     breakdown: Breakdown;
     recent_transactions: RecentTransaction[];
+    farm_produce: FarmProduce;
     filters: Filters;
 }
-
-const livestock = [
-    { type: "Goats", count: 12 },
-    { type: "Pigs", count: 4 },
-    { type: "Chickens", count: 24 },
-    { type: "Cattle", count: 2 },
-];
 
 const creditScore = 720;
 const creditMax = 850;
@@ -82,22 +79,13 @@ function DashboardContent({
     summary,
     breakdown,
     recent_transactions,
+    farm_produce,
     filters,
 }: Props) {
     const [openDetail, setOpenDetail] = useState<
         "income" | "expense" | "net" | null
     >(null);
     const { dark } = useTheme();
-    const { auth } = usePage().props as unknown as PageProps;
-    const firstName = auth?.user?.first_name ?? "Farmer";
-
-    const hour = new Date().getHours();
-    const greeting =
-        hour < 12
-            ? "Good morning"
-            : hour < 17
-              ? "Good afternoon"
-              : "Good evening";
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -173,25 +161,7 @@ function DashboardContent({
 
     return (
         <>
-            <p
-                style={{
-                    fontSize: "23px",
-                    fontWeight: 600,
-                    color: text,
-                    marginBottom: "4px",
-                }}
-            >
-                {greeting}, {firstName}
-            </p>
-            <p
-                style={{
-                    fontSize: "18px",
-                    color: textSecondary,
-                    marginBottom: "24px",
-                }}
-            >
-                Here is your farm's financial snapshot for today.
-            </p>
+            <GreetingHeader subtitle="Here is your farm's financial snapshot for today." />
 
             <div
                 style={{
@@ -404,47 +374,85 @@ function DashboardContent({
                             padding: "18px",
                         }}
                     >
-                        <p
-                            style={{
-                                fontSize: "20px",
-                                fontWeight: 600,
-                                color: text,
-                                marginBottom: "12px",
-                            }}
-                        >
-                            Livestock
-                        </p>
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "1fr 1fr",
-                                gap: "12px",
-                            }}
-                        >
-                            {livestock.map((l) => (
-                                <div key={l.type}>
-                                    <p
-                                        style={{
-                                            fontSize: "23px",
-                                            fontWeight: 700,
-                                            color: text,
-                                            margin: 0,
-                                        }}
-                                    >
-                                        {l.count}
-                                    </p>
-                                    <p
-                                        style={{
-                                            fontSize: "18px",
-                                            color: textSecondary,
-                                            margin: "2px 0 0",
-                                        }}
-                                    >
-                                        {l.type}
-                                    </p>
-                                </div>
-                            ))}
+                        <div className="flex justify-between items-center mb-3">
+                            <p
+                                style={{
+                                    fontSize: "20px",
+                                    fontWeight: 600,
+                                    color: text,
+                                    margin: 0,
+                                }}
+                            >
+                                Farm produce
+                            </p>
+                            {farm_produce.more_count > 0 && (
+                                <Link
+                                    href="/my-farm"
+                                    style={{
+                                        fontSize: "15px",
+                                        fontWeight: 600,
+                                        color: primary,
+                                    }}
+                                >
+                                    +{farm_produce.more_count} more
+                                </Link>
+                            )}
                         </div>
+
+                        {farm_produce.items.length === 0 ? (
+                            <p
+                                style={{
+                                    fontSize: "16px",
+                                    color: textSecondary,
+                                }}
+                            >
+                                Nothing set up yet.
+                            </p>
+                        ) : (
+                            <div
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 1fr",
+                                    gap: "12px",
+                                }}
+                            >
+                                {farm_produce.items.map((item) => (
+                                    <div key={item.type}>
+                                        <p
+                                            style={{
+                                                fontSize: "23px",
+                                                fontWeight: 700,
+                                                color: text,
+                                                margin: 0,
+                                            }}
+                                        >
+                                            {item.quantity}
+                                            {item.unit ? (
+                                                <span
+                                                    style={{
+                                                        fontSize: "15px",
+                                                        fontWeight: 500,
+                                                        color: textSecondary,
+                                                    }}
+                                                >
+                                                    {" "}
+                                                    {item.unit}
+                                                </span>
+                                            ) : null}
+                                        </p>
+                                        <p
+                                            style={{
+                                                fontSize: "18px",
+                                                color: textSecondary,
+                                                margin: "2px 0 0",
+                                            }}
+                                        >
+                                            {item.type}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div
@@ -674,6 +682,7 @@ export default function Dashboard(props: Props) {
                 summary={props.summary}
                 breakdown={props.breakdown}
                 recent_transactions={props.recent_transactions}
+                farm_produce={props.farm_produce}
                 filters={props.filters}
             />
         </AuthenticatedLayout>

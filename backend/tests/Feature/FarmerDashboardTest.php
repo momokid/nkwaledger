@@ -281,13 +281,18 @@ test('a cancelled transaction does not appear in recent transactions', function 
         ->assertInertia(fn($page) => $page->where('recent_transactions', []));
 });
 
-test('farm produce lists every farm type the farmer has approved, crop or livestock, with its unit', function () {
-    $cropType = FarmType::create(['name' => 'Maize', 'category_id' => $this->cropCategory->id]);
+test('farm produce lists every farm unit the farmer has approved, crop or livestock, with its unit', function () {
+    $cropType = FarmType::create([
+        'name' => 'Maize',
+        'category_id' => $this->cropCategory->id,
+        'quantity_is_decimal' => true,
+    ]);
     $livestockType = FarmType::create(['name' => 'Goats', 'category_id' => $this->livestockCategory->id]);
 
     $cropUnit = FarmUnit::factory()->approved()->create([
         'farmer_profile_id' => $this->profile->id,
         'farm_type_id' => $cropType->id,
+        'name' => 'North Field',
     ]);
     FarmUnitStock::factory()->confirmed()->create([
         'farm_unit_id' => $cropUnit->id,
@@ -298,6 +303,7 @@ test('farm produce lists every farm type the farmer has approved, crop or livest
     $livestockUnit = FarmUnit::factory()->approved()->create([
         'farmer_profile_id' => $this->profile->id,
         'farm_type_id' => $livestockType->id,
+        'name' => 'Goat Pen',
     ]);
     FarmUnitStock::factory()->confirmed()->create([
         'farm_unit_id' => $livestockUnit->id,
@@ -308,15 +314,71 @@ test('farm produce lists every farm type the farmer has approved, crop or livest
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
         ->assertInertia(fn($page) => $page
             ->where('farm_produce.items.0.type', 'Goats')
-            ->where('farm_produce.items.0.quantity', '50.00')
+            ->where('farm_produce.items.0.farm', 'Goat Pen')
+            ->where('farm_produce.items.0.quantity', '50')
             ->where('farm_produce.items.0.unit', 'goats')
             ->where('farm_produce.items.1.type', 'Maize')
+            ->where('farm_produce.items.1.farm', 'North Field')
             ->where('farm_produce.items.1.quantity', '2.50')
             ->where('farm_produce.items.1.unit', 'acres')
             ->where('farm_produce.more_count', 0));
 });
 
-test('farm produce shows at most 4 types alphabetically and counts the rest', function () {
+test('two farms of the same type are shown separately, never merged', function () {
+    $type = FarmType::create(['name' => 'Sheep', 'category_id' => $this->livestockCategory->id]);
+
+    $farmA = FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'name' => 'Farm A',
+    ]);
+    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $farmA->id, 'opening_quantity' => 50]);
+
+    $farmB = FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'name' => 'Farm B',
+    ]);
+    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $farmB->id, 'opening_quantity' => 52]);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->has('farm_produce.items', 2)
+            ->where('farm_produce.items.0.farm', 'Farm A')
+            ->where('farm_produce.items.0.quantity', '50')
+            ->where('farm_produce.items.1.farm', 'Farm B')
+            ->where('farm_produce.items.1.quantity', '52'));
+});
+
+test('a whole-number farm type rounds the displayed quantity, a decimal type keeps the fraction', function () {
+    $sheepType = FarmType::create(['name' => 'Sheep', 'category_id' => $this->livestockCategory->id]);
+    $maizeType = FarmType::create([
+        'name' => 'Maize',
+        'category_id' => $this->cropCategory->id,
+        'quantity_is_decimal' => true,
+    ]);
+
+    $sheepUnit = FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $sheepType->id,
+    ]);
+    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $sheepUnit->id, 'opening_quantity' => 102.15]);
+
+    $maizeUnit = FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $maizeType->id,
+    ]);
+    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $maizeUnit->id, 'opening_quantity' => 2.5]);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('farm_produce.items.0.type', 'Maize')
+            ->where('farm_produce.items.0.quantity', '2.50')
+            ->where('farm_produce.items.1.type', 'Sheep')
+            ->where('farm_produce.items.1.quantity', '102'));
+});
+
+test('farm produce shows at most 4 units alphabetically by type and counts the rest', function () {
     foreach (['Chickens', 'Ducks', 'Goats', 'Pigs', 'Rabbits'] as $name) {
         $type = FarmType::create(['name' => $name, 'category_id' => $this->livestockCategory->id]);
         $unit = FarmUnit::factory()->approved()->create([
@@ -347,7 +409,7 @@ test('unconfirmed or rejected stock does not count toward farm produce quantity'
     FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 999]);
 
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
-        ->assertInertia(fn($page) => $page->where('farm_produce.items.0.quantity', '50.00'));
+        ->assertInertia(fn($page) => $page->where('farm_produce.items.0.quantity', '50'));
 });
 
 test('an approved unit with no confirmed stock yet still appears at zero', function () {
@@ -360,5 +422,5 @@ test('an approved unit with no confirmed stock yet still appears at zero', funct
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
         ->assertInertia(fn($page) => $page
             ->where('farm_produce.items.0.type', 'Rabbits')
-            ->where('farm_produce.items.0.quantity', '0.00'));
+            ->where('farm_produce.items.0.quantity', '0'));
 });
