@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
-use App\Models\Transaction;
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
+use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -14,6 +15,10 @@ use Inertia\Response;
 
 class FarmerDashboardController extends Controller
 {
+    public function __construct(
+        private readonly IncomeAndExpenditureService $incomes,
+    ) {}
+
     public function index(Request $request): Response
     {
         $farmer = $this->resolveFarmer($request);
@@ -21,36 +26,39 @@ class FarmerDashboardController extends Controller
         $from = $request->query('from', Carbon::now()->subDays(29)->toDateString());
         $to = $request->query('to', Carbon::now()->toDateString());
 
+        if ($farmer === null) {
+            return Inertia::render('Dashboard', [
+                'summary' => $this->emptySummary(),
+                'livestock_count' => '0.00',
+                'crop_unit_count' => 0,
+                'breakdown' => $this->emptyBreakdown(),
+                'filters' => ['from' => $from, 'to' => $to],
+            ]);
+        }
+
+        // a farmer sees every record on their own books, confirmed or not
+        $report = $this->incomes->for($farmer->id, $from, $to, includeProvisional: true);
+
+        [$previousFrom, $previousTo] = $this->previousPeriod($from, $to);
+        $previousReport = $this->incomes->for($farmer->id, $previousFrom, $previousTo, includeProvisional: true);
+
         return Inertia::render('Dashboard', [
-            'summary' => $farmer ? $this->summaryFor($farmer->id, $from, $to) : $this->emptySummary(),
-            'livestock_count' => $farmer ? $this->livestockCount($farmer->id) : '0.00',
-            'crop_unit_count' => $farmer ? $this->cropUnitCount($farmer->id) : 0,
-            'filters' => [
-                'from' => $from,
-                'to' => $to,
-            ],
+            'summary' => $this->summaryFrom($report, $previousReport),
+            'livestock_count' => $this->livestockCount($farmer->id),
+            'crop_unit_count' => $this->cropUnitCount($farmer->id),
+            'breakdown' => $this->breakdownFrom($report),
+            'filters' => ['from' => $from, 'to' => $to],
         ]);
     }
 
-    private function emptySummary(): array
+    private function summaryFrom(IncomeAndExpenditure $report, IncomeAndExpenditure $previous): array
     {
-        $flat = ['direction' => 'flat', 'percent' => null, 'good' => true];
-
-        return [
-            'total_income' => 0,
-            'total_expense' => 0,
-            'net' => 0,
-            'trends' => ['income' => $flat, 'expense' => $flat, 'net' => $flat],
-        ];
-    }
-
-    private function summaryFor(int $farmerId, string $from, string $to): array
-    {
-        [$income, $expense] = $this->incomeAndExpenseFor($farmerId, $from, $to);
+        $income = $report->totalIncomeMinor;
+        $expense = $report->totalExpenseMinor;
         $net = $income - $expense;
 
-        [$previousFrom, $previousTo] = $this->previousPeriod($from, $to);
-        [$prevIncome, $prevExpense] = $this->incomeAndExpenseFor($farmerId, $previousFrom, $previousTo);
+        $prevIncome = $previous->totalIncomeMinor;
+        $prevExpense = $previous->totalExpenseMinor;
         $prevNet = $prevIncome - $prevExpense;
 
         return [
@@ -65,17 +73,24 @@ class FarmerDashboardController extends Controller
         ];
     }
 
-    private function incomeAndExpenseFor(int $farmerId, string $from, string $to): array
+    private function breakdownFrom(IncomeAndExpenditure $report): array
     {
-        $totals = Transaction::query()
-            ->where('farmer_profile_id', $farmerId)
-            ->whereDate('transaction_date', '>=', $from)
-            ->whereDate('transaction_date', '<=', $to)
-            ->selectRaw('transaction_type, SUM(amount_minor) as total')
-            ->groupBy('transaction_type')
-            ->pluck('total', 'transaction_type');
+        $lines = fn(array $rows) => collect($rows)->map(fn($row) => [
+            'account' => $row->accountName,
+            'group' => $row->groupName,
+            'amount' => $row->amountMinor,
+        ])->all();
 
-        return [(int) ($totals['INCOME'] ?? 0), (int) ($totals['EXPENSE'] ?? 0)];
+        return [
+            'income_rows' => $lines($report->incomeRows),
+            'expense_rows' => $lines($report->expenseRows),
+            'loss_rows' => $lines($report->lossRows),
+        ];
+    }
+
+    private function emptyBreakdown(): array
+    {
+        return ['income_rows' => [], 'expense_rows' => [], 'loss_rows' => []];
     }
 
     private function previousPeriod(string $from, string $to): array
@@ -98,6 +113,18 @@ class FarmerDashboardController extends Controller
             'direction' => $direction > 0 ? 'up' : ($direction < 0 ? 'down' : 'flat'),
             'percent' => $previous === 0 ? null : (int) round(abs($current - $previous) / abs($previous) * 100),
             'good' => $higherIsGood ? $current >= $previous : $current <= $previous,
+        ];
+    }
+
+    private function emptySummary(): array
+    {
+        $flat = ['direction' => 'flat', 'percent' => null, 'good' => true];
+
+        return [
+            'total_income' => 0,
+            'total_expense' => 0,
+            'net' => 0,
+            'trends' => ['income' => $flat, 'expense' => $flat, 'net' => $flat],
         ];
     }
 

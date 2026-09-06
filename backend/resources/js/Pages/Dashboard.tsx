@@ -1,6 +1,7 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import useAuthGuard from "@/hooks/useAuthGuard";
 import { Head, usePage } from "@inertiajs/react";
+import { cedis } from "@/lib/format";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
@@ -17,32 +18,26 @@ interface PageProps {
     };
 }
 
-const kpis = [
-    {
-        label: "Income (30 days)",
-        value: "GH 4,820",
-        trend: "+12% vs last month",
-        up: true,
-    },
-    {
-        label: "Expenses (30 days)",
-        value: "GH 1,340",
-        trend: "+4% vs last month",
-        up: false,
-    },
-    {
-        label: "Net profit",
-        value: "GH 3,480",
-        trend: "+18% vs last month",
-        up: true,
-    },
-    {
-        label: "Active loans",
-        value: "GH 2,000",
-        trend: "Due in 14 days",
-        up: null,
-    },
-];
+interface Trend {
+    direction: "up" | "down" | "flat";
+    percent: number | null;
+    good: boolean;
+}
+
+interface Summary {
+    total_income: number;
+    total_expense: number;
+    net: number;
+    trends: {
+        income: Trend;
+        expense: Trend;
+        net: Trend;
+    };
+}
+
+interface Props {
+    summary: Summary;
+}
 
 const transactions = [
     {
@@ -76,7 +71,7 @@ const livestock = [
 const creditScore = 720;
 const creditMax = 850;
 
-function DashboardContent() {
+function DashboardContent({ summary }: Props) {
     const { dark } = useTheme();
     const { auth } = usePage().props as unknown as PageProps;
     const firstName = auth?.user?.first_name ?? "Farmer";
@@ -98,6 +93,60 @@ function DashboardContent() {
     const danger = "#DC2626";
 
     const scorePercent = Math.round((creditScore / creditMax) * 100);
+
+    const trendMeta = (trend: Trend) => {
+        const TrendIcon =
+            trend.direction === "flat"
+                ? IconMinus
+                : trend.direction === "up"
+                  ? IconArrowUpRight
+                  : IconArrowDownRight;
+
+        const color =
+            trend.direction === "flat"
+                ? textSecondary
+                : trend.good
+                  ? primary
+                  : danger;
+
+        const label =
+            trend.percent === null
+                ? "No prior period to compare"
+                : `${trend.percent}% vs previous period`;
+
+        return { TrendIcon, color, label };
+    };
+
+    const kpis = [
+        {
+            label: "Income (30 days)",
+            value: `GHS ${cedis(summary.total_income)}`,
+            trend: trendMeta(summary.trends.income),
+            soon: false,
+        },
+        {
+            label: "Expenses (30 days)",
+            value: `GHS ${cedis(summary.total_expense)}`,
+            trend: trendMeta(summary.trends.expense),
+            soon: false,
+        },
+        {
+            label: "Net profit",
+            value: `${summary.net < 0 ? "-" : ""}GHS ${cedis(Math.abs(summary.net))}`,
+            trend: trendMeta(summary.trends.net),
+            soon: false,
+        },
+        {
+            label: "Active loans",
+            value: "GH 2,000",
+            trend: {
+                TrendIcon: IconMinus,
+                color: textSecondary,
+                label: "Due in 14 days",
+            },
+            soon: true,
+        },
+    ];
 
     return (
         <>
@@ -129,64 +178,51 @@ function DashboardContent() {
                     marginBottom: "24px",
                 }}
             >
-                {kpis.map((kpi) => {
-                    const TrendIcon =
-                        kpi.up === null
-                            ? IconMinus
-                            : kpi.up
-                              ? IconArrowUpRight
-                              : IconArrowDownRight;
-                    const trendColor =
-                        kpi.up === null
-                            ? textSecondary
-                            : kpi.up
-                              ? primary
-                              : danger;
-
-                    return (
-                        <div
-                            key={kpi.label}
+                {kpis.map((kpi) => (
+                    <div
+                        key={kpi.label}
+                        style={{
+                            background: surface,
+                            border: `1px solid ${border}`,
+                            padding: "18px",
+                            opacity: kpi.soon ? 0.5 : 1,
+                        }}
+                    >
+                        <p
                             style={{
-                                background: surface,
-                                border: `1px solid ${border}`,
-                                padding: "18px",
+                                fontSize: "18px",
+                                color: textSecondary,
+                                marginBottom: "8px",
                             }}
                         >
-                            <p
-                                style={{
-                                    fontSize: "18px",
-                                    color: textSecondary,
-                                    marginBottom: "8px",
-                                }}
-                            >
-                                {kpi.label}
-                            </p>
-                            <p
-                                style={{
-                                    fontSize: "26px",
-                                    fontWeight: 700,
-                                    color: text,
-                                    marginBottom: "8px",
-                                    letterSpacing: "-0.5px",
-                                }}
-                            >
-                                {kpi.value}
-                            </p>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    fontSize: "15px",
-                                    color: trendColor,
-                                }}
-                            >
-                                <TrendIcon size={18} stroke={1.8} />
-                                {kpi.trend}
-                            </div>
+                            {kpi.label}
+                            {kpi.soon ? " (Soon)" : ""}
+                        </p>
+                        <p
+                            style={{
+                                fontSize: "26px",
+                                fontWeight: 700,
+                                color: text,
+                                marginBottom: "8px",
+                                letterSpacing: "-0.5px",
+                            }}
+                        >
+                            {kpi.value}
+                        </p>
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                fontSize: "15px",
+                                color: kpi.trend.color,
+                            }}
+                        >
+                            <kpi.trend.TrendIcon size={18} stroke={1.8} />
+                            {kpi.trend.label}
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
 
             <div
@@ -201,6 +237,7 @@ function DashboardContent() {
                         background: surface,
                         border: `1px solid ${border}`,
                         padding: "18px",
+                        opacity: 0.5,
                     }}
                 >
                     <p
@@ -211,7 +248,7 @@ function DashboardContent() {
                             marginBottom: "16px",
                         }}
                     >
-                        Recent transactions
+                        Recent transactions (Soon)
                     </p>
 
                     {transactions.map((t, i) => (
@@ -274,6 +311,7 @@ function DashboardContent() {
                             background: surface,
                             border: `1px solid ${border}`,
                             padding: "18px",
+                            opacity: 0.5,
                         }}
                     >
                         <p
@@ -284,7 +322,7 @@ function DashboardContent() {
                                 marginBottom: "12px",
                             }}
                         >
-                            Credit score
+                            Credit score (Soon)
                         </p>
                         <p
                             style={{
@@ -426,13 +464,13 @@ function DashboardContent() {
     );
 }
 
-export default function Dashboard() {
+export default function Dashboard(props: Props) {
     useAuthGuard();
 
     return (
         <AuthenticatedLayout title="Dashboard">
             <Head title="Dashboard" />
-            <DashboardContent />
+            <DashboardContent summary={props.summary} />
         </AuthenticatedLayout>
     );
 }
