@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
+use App\Models\Transaction;
 use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use Illuminate\Http\Request;
@@ -32,6 +33,7 @@ class FarmerDashboardController extends Controller
                 'livestock_count' => '0.00',
                 'crop_unit_count' => 0,
                 'breakdown' => $this->emptyBreakdown(),
+                'recent_transactions' => [],
                 'filters' => ['from' => $from, 'to' => $to],
             ]);
         }
@@ -47,8 +49,30 @@ class FarmerDashboardController extends Controller
             'livestock_count' => $this->livestockCount($farmer->id),
             'crop_unit_count' => $this->cropUnitCount($farmer->id),
             'breakdown' => $this->breakdownFrom($report),
+            'recent_transactions' => $this->recentTransactionsFor($farmer->id),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
+    }
+
+    private function recentTransactionsFor(int $farmerId): array
+    {
+        return Transaction::query()
+            ->with('template:id,name')
+            ->where('farmer_profile_id', $farmerId)
+            ->whereIn('transaction_type', [Transaction::INCOME, Transaction::EXPENSE])
+            // a cancelled record never happened, as far as the farmer's eye is concerned
+            ->whereDoesntHave('reversedBy')
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get()
+            ->map(fn(Transaction $transaction) => [
+                'name' => $transaction->template?->name ?? 'Record',
+                'date' => $transaction->transaction_date->toDateString(),
+                'amount' => $transaction->amount_minor,
+                'income' => $transaction->transaction_type === Transaction::INCOME,
+            ])
+            ->all();
     }
 
     private function summaryFrom(IncomeAndExpenditure $report, IncomeAndExpenditure $previous): array

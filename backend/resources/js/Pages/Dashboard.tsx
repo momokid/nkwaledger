@@ -1,12 +1,14 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import useAuthGuard from "@/hooks/useAuthGuard";
-import { Head, usePage } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 import { cedis } from "@/lib/format";
+import { useState } from "react";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
     IconCloudRain,
     IconMinus,
+    IconX,
 } from "@tabler/icons-react";
 
 interface PageProps {
@@ -35,8 +37,27 @@ interface Summary {
     };
 }
 
+interface BreakdownRow {
+    account: string;
+    group: string;
+    amount: number;
+}
+
+interface Breakdown {
+    income_rows: BreakdownRow[];
+    expense_rows: BreakdownRow[];
+    loss_rows: BreakdownRow[];
+}
+
+interface Filters {
+    from: string;
+    to: string;
+}
+
 interface Props {
     summary: Summary;
+    breakdown: Breakdown;
+    filters: Filters;
 }
 
 const transactions = [
@@ -71,7 +92,10 @@ const livestock = [
 const creditScore = 720;
 const creditMax = 850;
 
-function DashboardContent({ summary }: Props) {
+function DashboardContent({ summary, breakdown, filters }: Props) {
+    const [openDetail, setOpenDetail] = useState<
+        "income" | "expense" | "net" | null
+    >(null);
     const { dark } = useTheme();
     const { auth } = usePage().props as unknown as PageProps;
     const firstName = auth?.user?.first_name ?? "Farmer";
@@ -119,24 +143,31 @@ function DashboardContent({ summary }: Props) {
 
     const kpis = [
         {
+            key: "income" as const,
             label: "Income (30 days)",
             value: `GHS ${cedis(summary.total_income)}`,
             trend: trendMeta(summary.trends.income),
             soon: false,
+            clickable: true,
         },
         {
+            key: "expense" as const,
             label: "Expenses (30 days)",
             value: `GHS ${cedis(summary.total_expense)}`,
             trend: trendMeta(summary.trends.expense),
             soon: false,
+            clickable: true,
         },
         {
+            key: "net" as const,
             label: "Net profit",
             value: `${summary.net < 0 ? "-" : ""}GHS ${cedis(Math.abs(summary.net))}`,
             trend: trendMeta(summary.trends.net),
             soon: false,
+            clickable: true,
         },
         {
+            key: "loans" as const,
             label: "Active loans",
             value: "GH 2,000",
             trend: {
@@ -145,6 +176,7 @@ function DashboardContent({ summary }: Props) {
                 label: "Due in 14 days",
             },
             soon: true,
+            clickable: false,
         },
     ];
 
@@ -181,11 +213,18 @@ function DashboardContent({ summary }: Props) {
                 {kpis.map((kpi) => (
                     <div
                         key={kpi.label}
+                        onClick={() =>
+                            kpi.clickable &&
+                            setOpenDetail(
+                                kpi.key as "income" | "expense" | "net",
+                            )
+                        }
                         style={{
                             background: surface,
                             border: `1px solid ${border}`,
                             padding: "18px",
                             opacity: kpi.soon ? 0.5 : 1,
+                            cursor: kpi.clickable ? "pointer" : "default",
                         }}
                     >
                         <p
@@ -460,7 +499,171 @@ function DashboardContent({ summary }: Props) {
                     </div>
                 </div>
             </div>
+
+            {openDetail && (
+                <DetailModal
+                    kind={openDetail}
+                    breakdown={breakdown}
+                    filters={filters}
+                    surface={surface}
+                    border={border}
+                    text={text}
+                    textSecondary={textSecondary}
+                    primary={primary}
+                    danger={danger}
+                    onClose={() => setOpenDetail(null)}
+                />
+            )}
         </>
+    );
+}
+
+function DetailModal({
+    kind,
+    breakdown,
+    filters,
+    surface,
+    border,
+    text,
+    textSecondary,
+    primary,
+    danger,
+    onClose,
+}: {
+    kind: "income" | "expense" | "net";
+    breakdown: Breakdown;
+    filters: Filters;
+    surface: string;
+    border: string;
+    text: string;
+    textSecondary: string;
+    primary: string;
+    danger: string;
+    onClose: () => void;
+}) {
+    const titles = {
+        income: "Where your income came from",
+        expense: "Where your expenses went",
+        net: "How net profit was worked out",
+    };
+
+    const section = (label: string, rows: BreakdownRow[], color: string) => (
+        <div className="mb-4">
+            <p
+                style={{
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    color: textSecondary,
+                    marginBottom: "6px",
+                }}
+            >
+                {label}
+            </p>
+            {rows.length === 0 ? (
+                <p style={{ fontSize: "16px", color: textSecondary }}>
+                    Nothing recorded for this period.
+                </p>
+            ) : (
+                rows.map((row) => (
+                    <div
+                        key={row.account}
+                        className="flex justify-between"
+                        style={{
+                            padding: "6px 0",
+                            borderBottom: `1px solid ${border}`,
+                        }}
+                    >
+                        <span style={{ fontSize: "17px", color: text }}>
+                            {row.account}
+                        </span>
+                        <span
+                            style={{
+                                fontSize: "17px",
+                                fontWeight: 600,
+                                color,
+                            }}
+                        >
+                            GHS {cedis(row.amount)}
+                        </span>
+                    </div>
+                ))
+            )}
+        </div>
+    );
+
+    return (
+        <div
+            onClick={onClose}
+            style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 50,
+            }}
+        >
+            <div
+                onClick={(event) => event.stopPropagation()}
+                style={{
+                    background: surface,
+                    border: `1px solid ${border}`,
+                    padding: "24px",
+                    width: "90%",
+                    maxWidth: "480px",
+                    maxHeight: "80vh",
+                    overflowY: "auto",
+                }}
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <p
+                        style={{
+                            fontSize: "20px",
+                            fontWeight: 700,
+                            color: text,
+                        }}
+                    >
+                        {titles[kind]}
+                    </p>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: textSecondary,
+                        }}
+                    >
+                        <IconX size={22} />
+                    </button>
+                </div>
+
+                {(kind === "income" || kind === "net") &&
+                    section("Income", breakdown.income_rows, primary)}
+                {(kind === "expense" || kind === "net") &&
+                    section("Expenses", breakdown.expense_rows, danger)}
+                {kind === "net" &&
+                    section(
+                        "Lost (no cash)",
+                        breakdown.loss_rows,
+                        textSecondary,
+                    )}
+
+                <Link
+                    href={`/my-reports?kind=income&from=${filters.from}&to=${filters.to}`}
+                    style={{
+                        display: "inline-block",
+                        marginTop: "8px",
+                        fontSize: "16px",
+                        fontWeight: 600,
+                        color: primary,
+                    }}
+                >
+                    View full report →
+                </Link>
+            </div>
+        </div>
     );
 }
 
@@ -470,7 +673,11 @@ export default function Dashboard(props: Props) {
     return (
         <AuthenticatedLayout title="Dashboard">
             <Head title="Dashboard" />
-            <DashboardContent summary={props.summary} />
+            <DashboardContent
+                summary={props.summary}
+                breakdown={props.breakdown}
+                filters={props.filters}
+            />
         </AuthenticatedLayout>
     );
 }

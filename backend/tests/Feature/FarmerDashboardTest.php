@@ -73,6 +73,17 @@ beforeEach(function () {
         'settlement_side' => 'credit',
     ]);
 
+    $suspense = $account('Suspense A/C', $assetSub->id);
+
+    TransactionTemplate::create([
+        'name' => 'Correction',
+        'slug' => 'correction',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $suspense->id,
+        'settlement_side' => 'none',
+    ]);
+
     $this->farmerUser = User::factory()->create();
     $this->farmerUser->assignRole('farmer');
     $this->profile = FarmerProfile::factory()->create(['user_id' => $this->farmerUser->id]);
@@ -229,6 +240,53 @@ test('breakdown only includes rows from the selected date range', function () {
 
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
         ->assertInertia(fn($page) => $page->where('breakdown.income_rows.0.amount', 50000));
+});
+
+test('recent transactions shows the latest 5, newest first', function () {
+    ($this->recordIncome)('100', now()->subDays(4)->toDateString());
+    ($this->recordIncome)('200', now()->subDays(3)->toDateString());
+    ($this->recordExpense)('50', now()->subDays(2)->toDateString());
+    ($this->recordIncome)('300', now()->subDays(1)->toDateString());
+    ($this->recordExpense)('60', now()->toDateString());
+    ($this->recordIncome)('400', now()->subDays(5)->toDateString());
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->has('recent_transactions', 5)
+            ->where('recent_transactions.0.amount', 6000)
+            ->where('recent_transactions.0.income', false)
+            ->where('recent_transactions.1.amount', 30000)
+            ->where('recent_transactions.1.income', true));
+});
+
+test('recent transactions shows the template name and date', function () {
+    ($this->recordIncome)('250', now()->toDateString());
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('recent_transactions.0.name', 'Crop Sale')
+            ->where('recent_transactions.0.date', now()->toDateString()));
+});
+
+test('recent transactions is empty for a farmer with no profile', function () {
+    $bare = User::factory()->create();
+    $bare->assignRole('farmer');
+
+    $this->actingAs($bare)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page->where('recent_transactions', []));
+});
+
+test('a cancelled transaction does not appear in recent transactions', function () {
+    $posting = app(\App\Services\Ledger\PostingService::class);
+    $transaction = ($this->recordIncome)('250', now()->toDateString());
+
+    app(\App\Services\Ledger\ReversalService::class)->request($transaction, $this->farmerUser, 'Wrong amount');
+    $requestModel = \App\Models\ReversalRequest::where('transaction_id', $transaction->id)->first();
+    $approver = User::factory()->create();
+    app(\App\Services\Ledger\ReversalService::class)->approve($requestModel, $approver);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page->where('recent_transactions', []));
 });
 
 test('counts livestock across the farmer\'s approved, confirmed livestock stock', function () {
