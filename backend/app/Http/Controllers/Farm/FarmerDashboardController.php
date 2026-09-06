@@ -34,10 +34,38 @@ class FarmerDashboardController extends Controller
 
     private function emptySummary(): array
     {
-        return ['total_income' => 0, 'total_expense' => 0, 'net' => 0];
+        $flat = ['direction' => 'flat', 'percent' => null, 'good' => true];
+
+        return [
+            'total_income' => 0,
+            'total_expense' => 0,
+            'net' => 0,
+            'trends' => ['income' => $flat, 'expense' => $flat, 'net' => $flat],
+        ];
     }
 
     private function summaryFor(int $farmerId, string $from, string $to): array
+    {
+        [$income, $expense] = $this->incomeAndExpenseFor($farmerId, $from, $to);
+        $net = $income - $expense;
+
+        [$previousFrom, $previousTo] = $this->previousPeriod($from, $to);
+        [$prevIncome, $prevExpense] = $this->incomeAndExpenseFor($farmerId, $previousFrom, $previousTo);
+        $prevNet = $prevIncome - $prevExpense;
+
+        return [
+            'total_income' => $income,
+            'total_expense' => $expense,
+            'net' => $net,
+            'trends' => [
+                'income' => $this->trend($income, $prevIncome, higherIsGood: true),
+                'expense' => $this->trend($expense, $prevExpense, higherIsGood: false),
+                'net' => $this->trend($net, $prevNet, higherIsGood: true),
+            ],
+        ];
+    }
+
+    private function incomeAndExpenseFor(int $farmerId, string $from, string $to): array
     {
         $totals = Transaction::query()
             ->where('farmer_profile_id', $farmerId)
@@ -47,13 +75,29 @@ class FarmerDashboardController extends Controller
             ->groupBy('transaction_type')
             ->pluck('total', 'transaction_type');
 
-        $income = (int) ($totals['INCOME'] ?? 0);
-        $expense = (int) ($totals['EXPENSE'] ?? 0);
+        return [(int) ($totals['INCOME'] ?? 0), (int) ($totals['EXPENSE'] ?? 0)];
+    }
+
+    private function previousPeriod(string $from, string $to): array
+    {
+        $start = Carbon::parse($from);
+        $end = Carbon::parse($to);
+        $lengthInDays = $start->diffInDays($end) + 1;
+
+        $previousTo = $start->copy()->subDay();
+        $previousFrom = $previousTo->copy()->subDays($lengthInDays - 1);
+
+        return [$previousFrom->toDateString(), $previousTo->toDateString()];
+    }
+
+    private function trend(int $current, int $previous, bool $higherIsGood): array
+    {
+        $direction = $current <=> $previous;
 
         return [
-            'total_income' => $income,
-            'total_expense' => $expense,
-            'net' => $income - $expense,
+            'direction' => $direction > 0 ? 'up' : ($direction < 0 ? 'down' : 'flat'),
+            'percent' => $previous === 0 ? null : (int) round(abs($current - $previous) / abs($previous) * 100),
+            'good' => $higherIsGood ? $current >= $previous : $current <= $previous,
         ];
     }
 

@@ -135,6 +135,66 @@ test('does not include another farmer\'s transactions', function () {
         ->assertInertia(fn($page) => $page->where('summary.total_income', 0));
 });
 
+test('income trend is up and good when income rose vs the previous period', function () {
+    recordFor($this->profile, $this->incomeTemplate, 25000, now()->subDays(45)->toDateString(), $this->period);
+    recordFor($this->profile, $this->incomeTemplate, 50000, now()->subDays(5)->toDateString(), $this->period);
+
+    $this->actingAs($this->farmerUser)
+        ->get('/farmer/dashboard?from=' . now()->subDays(29)->toDateString() . '&to=' . now()->toDateString())
+        ->assertInertia(fn($page) => $page
+            ->where('summary.trends.income.direction', 'up')
+            ->where('summary.trends.income.percent', 100)
+            ->where('summary.trends.income.good', true));
+});
+
+test('expense trend is down and good when expenses fell vs the previous period', function () {
+    recordFor($this->profile, $this->expenseTemplate, 40000, now()->subDays(45)->toDateString(), $this->period);
+    recordFor($this->profile, $this->expenseTemplate, 20000, now()->subDays(5)->toDateString(), $this->period);
+
+    $this->actingAs($this->farmerUser)
+        ->get('/farmer/dashboard?from=' . now()->subDays(29)->toDateString() . '&to=' . now()->toDateString())
+        ->assertInertia(fn($page) => $page
+            ->where('summary.trends.expense.direction', 'down')
+            ->where('summary.trends.expense.percent', 50)
+            ->where('summary.trends.expense.good', true));
+});
+
+test('expense trend is up and bad when expenses rose vs the previous period', function () {
+    recordFor($this->profile, $this->expenseTemplate, 10000, now()->subDays(45)->toDateString(), $this->period);
+    recordFor($this->profile, $this->expenseTemplate, 30000, now()->subDays(5)->toDateString(), $this->period);
+
+    $this->actingAs($this->farmerUser)
+        ->get('/farmer/dashboard?from=' . now()->subDays(29)->toDateString() . '&to=' . now()->toDateString())
+        ->assertInertia(fn($page) => $page
+            ->where('summary.trends.expense.direction', 'up')
+            ->where('summary.trends.expense.good', false));
+});
+
+test('percent is null when there is nothing to compare against in the previous period', function () {
+    recordFor($this->profile, $this->incomeTemplate, 50000, now()->subDays(5)->toDateString(), $this->period);
+
+    $this->actingAs($this->farmerUser)
+        ->get('/farmer/dashboard?from=' . now()->subDays(29)->toDateString() . '&to=' . now()->toDateString())
+        ->assertInertia(fn($page) => $page
+            ->where('summary.trends.income.direction', 'up')
+            ->where('summary.trends.income.percent', null));
+});
+
+test('net trend reflects income minus expense movement, not just income', function () {
+    // previous period: income 100, expense 20 -> net 80
+    recordFor($this->profile, $this->incomeTemplate, 10000, now()->subDays(45)->toDateString(), $this->period);
+    recordFor($this->profile, $this->expenseTemplate, 2000, now()->subDays(45)->toDateString(), $this->period);
+    // current period: income 100, expense 80 -> net 20 (net fell, though income unchanged)
+    recordFor($this->profile, $this->incomeTemplate, 10000, now()->subDays(5)->toDateString(), $this->period);
+    recordFor($this->profile, $this->expenseTemplate, 8000, now()->subDays(5)->toDateString(), $this->period);
+
+    $this->actingAs($this->farmerUser)
+        ->get('/farmer/dashboard?from=' . now()->subDays(29)->toDateString() . '&to=' . now()->toDateString())
+        ->assertInertia(fn($page) => $page
+            ->where('summary.trends.net.direction', 'down')
+            ->where('summary.trends.net.good', false));
+});
+
 test('a custom date range can be requested', function () {
     recordFor($this->profile, $this->incomeTemplate, 70000, now()->subDays(90)->toDateString(), $this->period);
 
