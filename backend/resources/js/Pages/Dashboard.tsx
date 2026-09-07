@@ -7,8 +7,11 @@ import GreetingHeader from "@/Components/GreetingHeader";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
+    IconCloud,
     IconCloudRain,
     IconMinus,
+    IconSun,
+    IconWind,
     IconX,
 } from "@tabler/icons-react";
 
@@ -60,6 +63,19 @@ interface FarmProduce {
     more_count: number;
 }
 
+interface WeatherAdvice {
+    category: string;
+    message: string;
+}
+
+interface WeatherEntry {
+    community: string;
+    available: boolean;
+    condition?: "heavy_rain" | "strong_wind" | "very_hot" | "normal";
+    headline?: string;
+    advice?: WeatherAdvice[];
+}
+
 interface Filters {
     from: string;
     to: string;
@@ -70,6 +86,7 @@ interface Props {
     breakdown: Breakdown;
     recent_transactions: RecentTransaction[];
     farm_produce: FarmProduce;
+    weather: WeatherEntry[];
     filters: Filters;
 }
 
@@ -81,6 +98,7 @@ function DashboardContent({
     breakdown,
     recent_transactions,
     farm_produce,
+    weather,
     filters,
 }: Props) {
     const [openDetail, setOpenDetail] = useState<
@@ -465,53 +483,22 @@ function DashboardContent({
                         )}
                     </div>
 
-                    <div
-                        style={{
-                            background: dark
-                                ? "rgba(29,158,117,0.15)"
-                                : "#EAF5F0",
-                            border: `1px solid ${dark ? "rgba(29,158,117,0.3)" : "#A8D9C8"}`,
-                            padding: "18px",
-                        }}
-                    >
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                marginBottom: "6px",
-                            }}
-                        >
-                            <IconCloudRain
-                                size={22}
-                                stroke={1.8}
-                                color={dark ? "#4ADE80" : "#0F6E56"}
-                            />
-                            <p
-                                style={{
-                                    fontSize: "20px",
-                                    fontWeight: 600,
-                                    color: dark ? "#4ADE80" : "#0F6E56",
-                                    margin: 0,
-                                }}
-                            >
-                                Rain expected
-                            </p>
-                        </div>
-                        <p
-                            style={{
-                                fontSize: "18px",
-                                color: dark
-                                    ? "rgba(74,222,128,0.85)"
-                                    : "#0F6E56",
-                                lineHeight: 1.6,
-                                margin: 0,
-                            }}
-                        >
-                            Heavy rainfall expected in your region in the next
-                            48 hours. Consider harvesting early.
-                        </p>
-                    </div>
+                    {weather.length === 0 ? null : (
+                        <>
+                            <style>{`
+                                @keyframes weatherRain { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+                                @keyframes weatherSun { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.1); } }
+                                @keyframes weatherWind { 0%,100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+                            `}</style>
+                            {weather.map((entry) => (
+                                <WeatherCard
+                                    key={entry.community}
+                                    entry={entry}
+                                    dark={dark}
+                                />
+                            ))}
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -530,6 +517,128 @@ function DashboardContent({
                 />
             )}
         </>
+    );
+}
+
+function WeatherCard({ entry, dark }: { entry: WeatherEntry; dark: boolean }) {
+    const goodBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
+    const goodBorder = dark ? "rgba(29,158,117,0.3)" : "#A8D9C8";
+    const goodText = dark ? "#4ADE80" : "#0F6E56";
+    const goodTextSoft = dark ? "rgba(74,222,128,0.85)" : "#0F6E56";
+
+    const warnBg = dark ? "rgba(180,83,9,0.15)" : "#FEF3C7";
+    const warnBorder = dark ? "rgba(180,83,9,0.3)" : "#FDE68A";
+    const warnText = dark ? "#FBBF24" : "#92400E";
+    const warnTextSoft = dark ? "rgba(251,191,36,0.85)" : "#92400E";
+
+    const textSecondary = dark ? "#9CA3AF" : "#6B7280";
+    const surface = dark ? "#1F2937" : "#FFFFFF";
+    const border = dark ? "#374151" : "#E5E7EB";
+
+    if (!entry.available) {
+        return (
+            <div
+                style={{
+                    background: surface,
+                    border: `1px solid ${border}`,
+                    padding: "18px",
+                }}
+            >
+                <p
+                    style={{
+                        fontSize: "20px",
+                        fontWeight: 600,
+                        color: dark ? "#F9FAFB" : "#111827",
+                        marginBottom: "6px",
+                    }}
+                >
+                    {entry.community}
+                </p>
+                <p style={{ fontSize: "16px", color: textSecondary }}>
+                    Weather isn't available for this location right now.
+                </p>
+            </div>
+        );
+    }
+
+    const isNormal = entry.condition === "normal";
+    const bg = isNormal ? goodBg : warnBg;
+    const borderColor = isNormal ? goodBorder : warnBorder;
+    const textColor = isNormal ? goodText : warnText;
+    const textSoft = isNormal ? goodTextSoft : warnTextSoft;
+
+    const iconFor = {
+        heavy_rain: {
+            Icon: IconCloudRain,
+            animation: "weatherRain 1.6s ease-in-out infinite",
+        },
+        strong_wind: {
+            Icon: IconWind,
+            animation: "weatherWind 1.6s ease-in-out infinite",
+        },
+        very_hot: {
+            Icon: IconSun,
+            animation: "weatherSun 2s ease-in-out infinite",
+        },
+        normal: { Icon: IconCloud, animation: "none" },
+    }[entry.condition ?? "normal"];
+
+    const { Icon, animation } = iconFor;
+
+    return (
+        <div
+            style={{
+                background: bg,
+                border: `1px solid ${borderColor}`,
+                padding: "18px",
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "4px",
+                }}
+            >
+                <span style={{ display: "inline-flex", animation }}>
+                    <Icon size={22} stroke={1.8} color={textColor} />
+                </span>
+                <p
+                    style={{
+                        fontSize: "20px",
+                        fontWeight: 600,
+                        color: textColor,
+                        margin: 0,
+                    }}
+                >
+                    {entry.headline}
+                </p>
+            </div>
+            <p
+                style={{
+                    fontSize: "15px",
+                    color: textSecondary,
+                    marginBottom: "10px",
+                }}
+            >
+                {entry.community}
+            </p>
+
+            {entry.advice?.map((item) => (
+                <p
+                    key={item.category}
+                    style={{
+                        fontSize: "17px",
+                        color: textSoft,
+                        lineHeight: 1.6,
+                        margin: "0 0 8px",
+                    }}
+                >
+                    <strong>{item.category}:</strong> {item.message}
+                </p>
+            ))}
+        </div>
     );
 }
 
@@ -693,6 +802,7 @@ export default function Dashboard(props: Props) {
                 breakdown={props.breakdown}
                 recent_transactions={props.recent_transactions}
                 farm_produce={props.farm_produce}
+                weather={props.weather}
                 filters={props.filters}
             />
         </AuthenticatedLayout>

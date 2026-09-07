@@ -34,6 +34,31 @@ function normalDaily(): array
     ];
 }
 
+test('geocode() returns coordinates for a plain query string', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [['latitude' => 5.55, 'longitude' => -0.2]]]),
+    ]);
+
+    expect($this->service->geocode('Osu, Accra, Greater Accra, Ghana'))
+        ->toBe(['latitude' => 5.55, 'longitude' => -0.2]);
+});
+
+test('geocode() returns null when nothing is found', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => []]),
+    ]);
+
+    expect($this->service->geocode('Nowhereville, Ghana'))->toBeNull();
+});
+
+test('geocode() returns null when the request fails', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response([], 500),
+    ]);
+
+    expect($this->service->geocode('Anything, Ghana'))->toBeNull();
+});
+
 test('geocodes a community with no coordinates and saves them', function () {
     $community = Community::factory()->create(['latitude' => null, 'longitude' => null]);
 

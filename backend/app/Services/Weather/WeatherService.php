@@ -49,6 +49,19 @@ class WeatherService
             'Ghana',
         ])->filter()->implode(', ');
 
+        $result = $this->geocode($query);
+
+        if ($result === null) {
+            return;
+        }
+
+        $community->forceFill($result)->save();
+    }
+
+    // the one place that actually calls the geocoding API — reused by ensureCoordinates()
+    // above and by the admin's "suggest a location" lookup, so there is only one HTTP call to get right
+    public function geocode(string $query): ?array
+    {
         $response = Http::get('https://geocoding-api.open-meteo.com/v1/search', [
             'name' => $query,
             'count' => 1,
@@ -57,19 +70,19 @@ class WeatherService
         ]);
 
         if ($response->failed()) {
-            return;
+            return null;
         }
 
         $result = $response->json('results.0');
 
         if ($result === null) {
-            return;
+            return null;
         }
 
-        $community->forceFill([
+        return [
             'latitude' => $result['latitude'],
             'longitude' => $result['longitude'],
-        ])->save();
+        ];
     }
 
     private function forecastFor(float $latitude, float $longitude, int $communityId): ?array

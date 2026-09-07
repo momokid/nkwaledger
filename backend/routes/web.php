@@ -345,6 +345,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
         Route::get('/regions', [RegionController::class, 'index'])->name('regions.index');
         Route::get('/districts', [DistrictController::class, 'index'])->name('districts.index');
         Route::get('/communities', [CommunityController::class, 'index'])->name('communities.index');
+        Route::get('/communities/suggest-location', [CommunityController::class, 'suggestLocation'])->name('communities.suggest-location');
     });
 
     Route::middleware('access:farmer-groups.create')->group(function () {
