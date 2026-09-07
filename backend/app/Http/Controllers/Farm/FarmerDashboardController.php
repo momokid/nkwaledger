@@ -8,6 +8,8 @@ use App\Models\FarmUnit;
 use App\Models\Transaction;
 use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
+use App\Services\Weather\WeatherAdvisor;
+use App\Services\Weather\WeatherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -19,6 +21,8 @@ class FarmerDashboardController extends Controller
 
     public function __construct(
         private readonly IncomeAndExpenditureService $incomes,
+        private readonly WeatherService $weather,
+        private readonly WeatherAdvisor $advisor,
     ) {}
 
     public function index(Request $request): Response
@@ -34,6 +38,7 @@ class FarmerDashboardController extends Controller
                 'farm_produce' => $this->emptyFarmProduce(),
                 'breakdown' => $this->emptyBreakdown(),
                 'recent_transactions' => [],
+                'weather' => [],
                 'filters' => ['from' => $from, 'to' => $to],
             ]);
         }
@@ -49,8 +54,54 @@ class FarmerDashboardController extends Controller
             'farm_produce' => $this->farmProduceFor($farmer->id),
             'breakdown' => $this->breakdownFrom($report),
             'recent_transactions' => $this->recentTransactionsFor($farmer->id),
+            'weather' => $this->weatherFor($farmer->id),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
+    }
+
+    // each farm unit carries its own community, since weather follows the land,
+    // not the farmer — two farms in different places get two separate readings
+    private function weatherFor(int $farmerId): array
+    {
+        $units = FarmUnit::query()
+            ->where('farmer_profile_id', $farmerId)
+            ->whereNotNull('approved_at')
+            ->with(['community', 'farmType.category'])
+            ->get();
+
+        return $units
+            ->groupBy('community_id')
+            ->map(function ($group) {
+                $community = $group->first()->community;
+
+                $categories = $group
+                    ->pluck('farmType.category.name')
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                $snapshot = $this->weather->forCommunity($community);
+
+                if (!$snapshot->available) {
+                    return [
+                        'community' => $community->name,
+                        'available' => false,
+                    ];
+                }
+
+                return [
+                    'community' => $community->name,
+                    'available' => true,
+                    'condition' => $snapshot->condition,
+                    'headline' => $this->advisor->headline($snapshot->condition),
+                    'advice' => $categories->map(fn($category) => [
+                        'category' => $category,
+                        'message' => $this->advisor->adviceFor($snapshot->condition, $category),
+                    ])->values()->all(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function summaryFrom(IncomeAndExpenditure $report, IncomeAndExpenditure $previous): array

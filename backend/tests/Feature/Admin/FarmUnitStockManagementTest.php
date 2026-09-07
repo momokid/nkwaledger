@@ -111,6 +111,32 @@ test('a new stock is not confirmed', function () {
     expect($this->unit->fresh()->stocks->first()->isConfirmed())->toBeFalse();
 });
 
+test('adding a stock notifies people who can confirm it, except the person who added it', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
+
+    expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
+        ->where('kind', 'farm_unit_stock.created')
+        ->exists())->toBeTrue();
+
+    expect(\App\Models\Notification::where('user_id', $this->agent->id)
+        ->where('kind', 'farm_unit_stock.created')
+        ->exists())->toBeFalse();
+});
+
+test('recording a movement notifies people who can confirm it, except the person who recorded it', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload());
+
+    expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
+        ->where('kind', 'farm_unit_stock_movement.created')
+        ->exists())->toBeTrue();
+
+    expect(\App\Models\Notification::where('user_id', $this->agent->id)
+        ->where('kind', 'farm_unit_stock_movement.created')
+        ->exists())->toBeFalse();
+});
+
 test('the count starts at the opening quantity', function () {
     $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'opening_quantity' => 150,
