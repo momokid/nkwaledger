@@ -28,7 +28,7 @@ class CommunityController extends Controller
             Community::query()
                 ->where('district_id', $request->integer('district_id'))
                 ->orderBy('name')
-                ->get(['id', 'name', 'district_id'])
+                ->get(['id', 'name', 'district_id', 'latitude', 'longitude'])
         );
     }
 
@@ -71,6 +71,8 @@ class CommunityController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'district_id' => ['required', 'integer', 'exists:districts,id'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
         $validated['name'] = trim($validated['name']);
@@ -87,6 +89,8 @@ class CommunityController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'district_id' => ['required', 'integer', 'exists:districts,id'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
         $validated['name'] = trim($validated['name']);

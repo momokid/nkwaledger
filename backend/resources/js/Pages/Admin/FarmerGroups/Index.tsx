@@ -5,6 +5,9 @@ import { PageProps } from "@/types";
 import { useState } from "react";
 import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
 import QuickAddModal, { QuickAddItem } from "@/Components/Admin/QuickAddModal";
+import CommunityModal, {
+    CommunityItem,
+} from "@/Components/Admin/CommunityModal";
 
 interface RefItem {
     id: number;
@@ -85,6 +88,14 @@ async function fetchScoped(url: string): Promise<QuickAddItem[]> {
     return response.json();
 }
 
+async function fetchCommunities(url: string): Promise<CommunityItem[]> {
+    const response = await fetch(url, {
+        headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return [];
+    return response.json();
+}
+
 type ContentProps = Pick<
     Props,
     "farmerGroups" | "groupTypes" | "regions" | "permissions"
@@ -133,10 +144,9 @@ function IndexContent({
     const [communityModalDistrictId, setCommunityModalDistrictId] =
         useState("");
     const [communityModalItems, setCommunityModalItems] = useState<
-        QuickAddItem[] | null
+        CommunityItem[] | null
     >(null);
     const [communityModalLoading, setCommunityModalLoading] = useState(false);
-
     const inputStyle = {
         border: `1px solid ${inputBorder}`,
         background: inputBg,
@@ -366,7 +376,7 @@ function IndexContent({
         if (districtId) {
             setCommunityModalLoading(true);
             setCommunityModalItems(
-                await fetchScoped(
+                await fetchCommunities(
                     `/admin/communities?district_id=${districtId}`,
                 ),
             );
@@ -379,7 +389,9 @@ function IndexContent({
     const refreshCommunityModal = async (districtId: string) => {
         setCommunityModalLoading(true);
         setCommunityModalItems(
-            await fetchScoped(`/admin/communities?district_id=${districtId}`),
+            await fetchCommunities(
+                `/admin/communities?district_id=${districtId}`,
+            ),
         );
         setCommunityModalLoading(false);
         if (form.district_id === districtId) loadCommunities(districtId, true);
@@ -1085,39 +1097,29 @@ function IndexContent({
             )}
 
             {openModal === "community" && (
-                <QuickAddModal
-                    title="Communities"
+                <CommunityModal
                     items={communityModalItems}
                     loading={communityModalLoading}
+                    districts={districts}
+                    defaultDistrictId={communityModalDistrictId}
                     permissions={permissions}
                     onClose={closeModal}
-                    extraFieldRequired
-                    extraFieldDefault={communityModalDistrictId}
-                    extraField={(value, onChange) => (
-                        <select
-                            value={value || communityModalDistrictId}
-                            onChange={(event) => {
-                                onChange(event.target.value);
-                                setCommunityModalDistrictId(event.target.value);
-                                refreshCommunityModal(event.target.value);
-                            }}
-                            style={inputStyle}
-                        >
-                            <option value="">Select a district</option>
-                            {districts.map((district) => (
-                                <option key={district.id} value={district.id}>
-                                    {district.name}
-                                </option>
-                            ))}
-                        </select>
-                    )}
-                    onCreate={(name, districtId) =>
+                    onDistrictChange={(districtId) => {
+                        setCommunityModalDistrictId(districtId);
+                        refreshCommunityModal(districtId);
+                    }}
+                    onCreate={(name, districtId, latitude, longitude) =>
                         new Promise<void>((resolve) => {
                             const targetDistrict =
                                 districtId || communityModalDistrictId;
                             router.post(
                                 route("admin.communities.store"),
-                                { name, district_id: targetDistrict },
+                                {
+                                    name,
+                                    district_id: targetDistrict,
+                                    latitude,
+                                    longitude,
+                                },
                                 {
                                     preserveScroll: true,
                                     onSuccess: () =>
@@ -1127,13 +1129,18 @@ function IndexContent({
                             );
                         })
                     }
-                    onUpdate={(id, name, districtId) =>
+                    onUpdate={(id, name, districtId, latitude, longitude) =>
                         new Promise<void>((resolve) => {
                             const targetDistrict =
                                 districtId || communityModalDistrictId;
                             router.put(
                                 route("admin.communities.update", id),
-                                { name, district_id: targetDistrict },
+                                {
+                                    name,
+                                    district_id: targetDistrict,
+                                    latitude,
+                                    longitude,
+                                },
                                 {
                                     preserveScroll: true,
                                     onSuccess: () =>

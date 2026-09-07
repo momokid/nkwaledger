@@ -124,6 +124,57 @@ test('a user with farmer-groups.create can create a community', function () {
     $this->assertDatabaseHas('communities', ['name' => 'Kalpohin', 'district_id' => $district->id]);
 });
 
+test('a community can be created with coordinates confirmed on the map', function () {
+    $region = Region::create(['name' => 'Northern']);
+    $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
+    $user = User::factory()->create();
+    $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
+
+    $this->actingAs($user)->post('/admin/communities', [
+        'name' => 'Kalpohin',
+        'district_id' => $district->id,
+        'latitude' => 9.4008,
+        'longitude' => -0.8393,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $community = Community::where('name', 'Kalpohin')->first();
+    expect((float) $community->latitude)->toBe(9.4008);
+    expect((float) $community->longitude)->toBe(-0.8393);
+});
+
+test('an out-of-range latitude fails validation', function () {
+    $region = Region::create(['name' => 'Northern']);
+    $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
+    $user = User::factory()->create();
+    $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
+
+    $this->actingAs($user)->post('/admin/communities', [
+        'name' => 'Kalpohin',
+        'district_id' => $district->id,
+        'latitude' => 999,
+        'longitude' => -0.8393,
+    ])->assertSessionHasErrors('latitude');
+});
+
+test('a community\'s coordinates can be updated', function () {
+    $region = Region::create(['name' => 'Northern']);
+    $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
+    $community = Community::create(['name' => 'Kalpohin', 'district_id' => $district->id]);
+    $user = User::factory()->create();
+    $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.update']);
+
+    $this->actingAs($user)->put("/admin/communities/{$community->id}", [
+        'name' => 'Kalpohin',
+        'district_id' => $district->id,
+        'latitude' => 9.4008,
+        'longitude' => -0.8393,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $community->refresh();
+    expect((float) $community->latitude)->toBe(9.4008);
+    expect((float) $community->longitude)->toBe(-0.8393);
+});
+
 test('creating a community with a non-existent district_id fails validation', function () {
     $user = User::factory()->create();
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
