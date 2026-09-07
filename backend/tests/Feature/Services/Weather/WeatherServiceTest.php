@@ -59,6 +59,47 @@ test('geocode() returns null when the request fails', function () {
     expect($this->service->geocode('Anything, Ghana'))->toBeNull();
 });
 
+test('geocodeCandidates() returns a labelled list of matches', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [
+            ['name' => 'Anyinasu', 'admin1' => 'Ashanti', 'latitude' => 7.38, 'longitude' => -1.36],
+            ['name' => 'Anyinasu', 'admin1' => 'Eastern', 'latitude' => 6.12, 'longitude' => -0.45],
+        ]]),
+    ]);
+
+    $candidates = $this->service->geocodeCandidates('Anyinasu, Ghana');
+
+    expect($candidates)->toHaveCount(2);
+    expect($candidates[0])->toBe(['latitude' => 7.38, 'longitude' => -1.36, 'label' => 'Anyinasu, Ashanti']);
+    expect($candidates[1]['label'])->toBe('Anyinasu, Eastern');
+});
+
+test('geocodeCandidates() falls back to just the name when no region is given', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [
+            ['name' => 'Somewhere', 'latitude' => 1.0, 'longitude' => 2.0],
+        ]]),
+    ]);
+
+    expect($this->service->geocodeCandidates('Somewhere')[0]['label'])->toBe('Somewhere');
+});
+
+test('geocodeCandidates() returns an empty list when nothing is found', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => []]),
+    ]);
+
+    expect($this->service->geocodeCandidates('Nowhereville'))->toBe([]);
+});
+
+test('geocodeCandidates() returns an empty list when the request fails', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response([], 500),
+    ]);
+
+    expect($this->service->geocodeCandidates('Anything'))->toBe([]);
+});
+
 test('geocodes a community with no coordinates and saves them', function () {
     $community = Community::factory()->create(['latitude' => null, 'longitude' => null]);
 
@@ -71,6 +112,33 @@ test('geocodes a community with no coordinates and saves them', function () {
 
     expect((float) $community->fresh()->latitude)->toBe(6.7);
     expect((float) $community->fresh()->longitude)->toBe(-1.5);
+});
+
+test('the geocoding query uses only the region as a qualifier, plus countryCode, not the district', function () {
+    $region = \App\Models\Region::create(['name' => 'Ashanti']);
+    $district = \App\Models\District::create(['name' => 'Asokore Mampong Municipal', 'region_id' => $region->id]);
+    $community = Community::factory()->create([
+        'name' => 'Asabi',
+        'district_id' => $district->id,
+        'latitude' => null,
+        'longitude' => null,
+    ]);
+
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [['latitude' => 6.7, 'longitude' => -1.5]]]),
+        'api.open-meteo.com/*' => Http::response(['daily' => normalDaily()]),
+    ]);
+
+    $this->service->forCommunity($community);
+
+    Http::assertSent(function ($request) {
+        if (!str_contains($request->url(), 'geocoding-api.open-meteo.com')) {
+            return false;
+        }
+
+        return $request['name'] === 'Asabi, Ashanti'
+            && $request['countryCode'] === 'GH';
+    });
 });
 
 test('does not geocode again once coordinates are already saved', function () {

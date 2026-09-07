@@ -32,11 +32,11 @@ class CommunityController extends Controller
         );
     }
 
-    // a read-only lookup the admin's form calls while typing, so they can see
-    // and confirm a suggested pin before anything is actually saved.
-    // validated by hand (rather than $request->validate()) so this always
-    // answers with JSON, regardless of how the app's exception handler
-    // is configured to render a thrown ValidationException.
+    // a read-only lookup the admin's form calls while typing, returning a short
+    // labelled list to pick from — several communities can share a name, so one
+    // silent guess isn't enough. Validated by hand (rather than $request->validate())
+    // so this always answers with JSON, regardless of how the app's exception
+    // handler is configured to render a thrown ValidationException.
     public function suggestLocation(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -51,18 +51,15 @@ class CommunityController extends Controller
         $validated = $validator->validated();
         $district = District::with('region')->findOrFail($validated['district_id']);
 
+        // only one qualifier after the name, per Open-Meteo's matching rules —
+        // the region (first-level administrative area), not the district
         $query = collect([
             $validated['name'],
-            $district->name,
             $district->region?->name,
-            'Ghana',
         ])->filter()->implode(', ');
 
-        $result = $this->weather->geocode($query);
-
         return response()->json([
-            'latitude' => $result['latitude'] ?? null,
-            'longitude' => $result['longitude'] ?? null,
+            'candidates' => $this->weather->geocodeCandidates($query),
         ]);
     }
 

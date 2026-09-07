@@ -61,6 +61,9 @@ export default function CommunityModal({
     const [newLat, setNewLat] = useState("");
     const [newLng, setNewLng] = useState("");
     const [suggesting, setSuggesting] = useState(false);
+    const [candidates, setCandidates] = useState<
+        { latitude: number; longitude: number; label: string }[]
+    >([]);
     const [createError, setCreateError] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
 
@@ -124,7 +127,10 @@ export default function CommunityModal({
     }, [newLat, newLng]);
 
     useEffect(() => {
-        if (!newName.trim() || !newDistrictId || editingId !== null) return;
+        if (!newName.trim() || !newDistrictId || editingId !== null) {
+            setCandidates([]);
+            return;
+        }
 
         const seq = ++requestSeq.current;
         setSuggesting(true);
@@ -139,10 +145,7 @@ export default function CommunityModal({
                 const data = await response.json();
                 // ignore a stale response if the admin kept typing in the meantime
                 if (seq !== requestSeq.current) return;
-                if (data.latitude !== null && data.longitude !== null) {
-                    setNewLat(String(data.latitude));
-                    setNewLng(String(data.longitude));
-                }
+                setCandidates(data.candidates ?? []);
             } finally {
                 if (seq === requestSeq.current) setSuggesting(false);
             }
@@ -150,6 +153,16 @@ export default function CommunityModal({
 
         return () => clearTimeout(timer);
     }, [newName, newDistrictId]);
+
+    const chooseCandidate = (candidate: {
+        latitude: number;
+        longitude: number;
+        label: string;
+    }) => {
+        setNewLat(String(candidate.latitude));
+        setNewLng(String(candidate.longitude));
+        setCandidates([]);
+    };
 
     const overlay = "rgba(0,0,0,0.5)";
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -517,13 +530,49 @@ export default function CommunityModal({
                             style={{
                                 fontSize: "13px",
                                 color: textSecondary,
-                                marginBottom: "12px",
+                                marginBottom: "6px",
                             }}
                         >
                             {suggesting
                                 ? "Looking up location…"
                                 : "Drag the pin to adjust the exact spot."}
                         </p>
+
+                        {candidates.length > 0 && (
+                            <div
+                                style={{
+                                    border: `1px solid ${border}`,
+                                    marginBottom: "12px",
+                                }}
+                            >
+                                {candidates.map((candidate, index) => (
+                                    <button
+                                        key={`${candidate.label}-${index}`}
+                                        type="button"
+                                        onClick={() =>
+                                            chooseCandidate(candidate)
+                                        }
+                                        style={{
+                                            display: "block",
+                                            width: "100%",
+                                            textAlign: "left",
+                                            padding: "8px 10px",
+                                            background: "transparent",
+                                            border: "none",
+                                            borderBottom:
+                                                index === candidates.length - 1
+                                                    ? "none"
+                                                    : `1px solid ${border}`,
+                                            color: text,
+                                            fontSize: "14px",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        {candidate.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         <div
                             ref={mapRef}

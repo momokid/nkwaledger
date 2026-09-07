@@ -42,11 +42,12 @@ class WeatherService
             return;
         }
 
+        // Open-Meteo's own docs: append at most ONE qualifier after the name —
+        // a country or a first-level administrative area (region). The district
+        // is a second-level division and stacking it in breaks real matches.
         $query = collect([
             $community->name,
-            $community->district?->name,
             $community->district?->region?->name,
-            'Ghana',
         ])->filter()->implode(', ');
 
         $result = $this->geocode($query);
@@ -67,6 +68,7 @@ class WeatherService
             'count' => 1,
             'language' => 'en',
             'format' => 'json',
+            'countryCode' => 'GH',
         ]);
 
         if ($response->failed()) {
@@ -83,6 +85,36 @@ class WeatherService
             'latitude' => $result['latitude'],
             'longitude' => $result['longitude'],
         ];
+    }
+
+    // several communities can share a name, so the admin gets a short labelled
+    // list to pick from, rather than one silent guess
+    public function geocodeCandidates(string $query, int $limit = 5): array
+    {
+        $response = Http::get('https://geocoding-api.open-meteo.com/v1/search', [
+            'name' => $query,
+            'count' => $limit,
+            'language' => 'en',
+            'format' => 'json',
+            'countryCode' => 'GH',
+        ]);
+
+        if ($response->failed()) {
+            return [];
+        }
+
+        $results = $response->json('results') ?? [];
+
+        return collect($results)
+            ->map(fn(array $result) => [
+                'latitude' => $result['latitude'],
+                'longitude' => $result['longitude'],
+                'label' => collect([$result['name'] ?? null, $result['admin1'] ?? null])
+                    ->filter()
+                    ->implode(', '),
+            ])
+            ->values()
+            ->all();
     }
 
     private function forecastFor(float $latitude, float $longitude, int $communityId): ?array

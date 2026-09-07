@@ -32,9 +32,12 @@ test('a user without farmer-groups.view cannot request a location suggestion', f
         ->assertForbidden();
 });
 
-test('a location suggestion returns coordinates found for the name and district', function () {
+test('a location suggestion returns a labelled list of candidates', function () {
     Http::fake([
-        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [['latitude' => 9.4008, 'longitude' => -0.8393]]]),
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [
+            ['name' => 'Anyinasu', 'admin1' => 'Ashanti', 'latitude' => 7.38, 'longitude' => -1.36],
+            ['name' => 'Anyinasu', 'admin1' => 'Eastern', 'latitude' => 6.12, 'longitude' => -0.45],
+        ]]),
     ]);
 
     $region = Region::create(['name' => 'Northern']);
@@ -43,13 +46,17 @@ test('a location suggestion returns coordinates found for the name and district'
     $user->givePermissionTo('farmer-groups.view');
 
     $response = $this->actingAs($user)
-        ->get("/admin/communities/suggest-location?name=Kalpohin&district_id={$district->id}")
+        ->get("/admin/communities/suggest-location?name=Anyinasu&district_id={$district->id}")
         ->assertOk();
 
-    $response->assertJson(['latitude' => 9.4008, 'longitude' => -0.8393]);
+    $response->assertJsonCount(2, 'candidates');
+    $response->assertJson(['candidates' => [
+        ['latitude' => 7.38, 'longitude' => -1.36, 'label' => 'Anyinasu, Ashanti'],
+        ['latitude' => 6.12, 'longitude' => -0.45, 'label' => 'Anyinasu, Eastern'],
+    ]]);
 });
 
-test('a location suggestion returns nulls gracefully when nothing is found', function () {
+test('a location suggestion returns an empty candidate list gracefully when nothing is found', function () {
     Http::fake([
         'geocoding-api.open-meteo.com/*' => Http::response(['results' => []]),
     ]);
@@ -63,7 +70,7 @@ test('a location suggestion returns nulls gracefully when nothing is found', fun
         ->get("/admin/communities/suggest-location?name=Nowhereville&district_id={$district->id}")
         ->assertOk();
 
-    $response->assertJson(['latitude' => null, 'longitude' => null]);
+    $response->assertJson(['candidates' => []]);
 });
 
 test('a location suggestion requires a name and a valid district', function () {
