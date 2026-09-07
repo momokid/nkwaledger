@@ -98,6 +98,22 @@ test('a new unit is not approved', function () {
     expect($this->farmer->fresh()->farmUnits->first()->isApproved())->toBeFalse();
 });
 
+test('adding a unit notifies people who can approve it, except the person who added it', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload());
+
+    expect(\App\Models\Notification::where('user_id', $this->admin->id)
+        ->where('kind', 'farm_unit.created')
+        ->exists())->toBeTrue();
+
+    expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
+        ->where('kind', 'farm_unit.created')
+        ->exists())->toBeTrue();
+
+    expect(\App\Models\Notification::where('user_id', $this->agent->id)
+        ->where('kind', 'farm_unit.created')
+        ->exists())->toBeFalse();
+});
+
 // weather follows the land, so the unit can sit somewhere else
 test('a unit can sit in a different community from the farmer', function () {
     $elsewhere = Community::factory()->create();

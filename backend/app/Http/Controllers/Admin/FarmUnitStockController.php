@@ -107,10 +107,18 @@ class FarmUnitStockController extends Controller
         $this->guardFarmer($request->user(), $farmer);
         $this->guardBelongsTo($farmer, $farmUnit);
 
-        $farmUnit->stocks()->create([
+        $stock = $farmUnit->stocks()->create([
             ...$request->validated(),
             'recorded_by' => $request->user()->id,
         ]);
+
+        $this->notifications->sendToPermission(
+            permission: 'farm-units.confirm',
+            kind: 'farm_unit_stock.created',
+            message: "A new count of {$stock->opening_quantity} {$stock->unit_of_measure} in {$farmUnit->name} needs checking.",
+            link: '/admin/approvals',
+            except: $request->user(),
+        );
 
         return back()->with('success', 'The count is saved. Someone else needs to check it.');
     }
@@ -152,11 +160,19 @@ class FarmUnitStockController extends Controller
 
         $data = $request->validated();
 
-        $stock->movements()->create([
+        $movement = $stock->movements()->create([
             ...$data,
             'is_increase' => $data['is_increase'] ?? true,
             'recorded_by' => $request->user()->id,
         ]);
+
+        $this->notifications->sendToPermission(
+            permission: 'farm-units.confirm',
+            kind: 'farm_unit_stock_movement.created',
+            message: "A change of {$movement->quantity} in {$farmUnit->name} needs checking.",
+            link: '/admin/approvals',
+            except: $request->user(),
+        );
 
         return back()->with('success', 'The change is saved. Someone else needs to check it.');
     }

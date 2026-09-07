@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AccountingPeriod;
+use App\Models\Community;
 use App\Models\FarmerProfile;
 use App\Models\FarmType;
 use App\Models\FarmTypeCategory;
@@ -20,8 +21,28 @@ use App\Services\Ledger\PostingService;
 use App\Services\Ledger\ReversalService;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+
+// one self-contained fake per test avoids relying on Http::fake() call order,
+// since a later call does not reliably override an earlier one for the same URL
+function fakeNormalWeather(): void
+{
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [['latitude' => 6.7, 'longitude' => -1.5]]]),
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'precipitation_sum' => [2, 5, 3],
+            'temperature_2m_max' => [28, 29, 27],
+            'windspeed_10m_max' => [15, 18, 12],
+        ]]),
+    ]);
+}
 
 beforeEach(function () {
+    // the weather forecast cache is keyed by community id and survives across tests,
+    // so a reused id would otherwise leak a stale forecast from an earlier test
+    Cache::flush();
+
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
 
@@ -132,7 +153,8 @@ test('a farmer with no profile yet sees an empty dashboard, not an error', funct
             ->where('farm_produce.items', [])
             ->where('farm_produce.more_count', 0)
             ->where('breakdown.income_rows', [])
-            ->where('recent_transactions', []));
+            ->where('recent_transactions', [])
+            ->where('weather', []));
 });
 
 test('shows income, expense and net profit for the last 30 days by default', function () {
@@ -282,6 +304,8 @@ test('a cancelled transaction does not appear in recent transactions', function 
 });
 
 test('farm produce lists every farm unit the farmer has approved, crop or livestock, with its unit', function () {
+    fakeNormalWeather();
+
     $cropType = FarmType::create([
         'name' => 'Maize',
         'category_id' => $this->cropCategory->id,
@@ -325,6 +349,8 @@ test('farm produce lists every farm unit the farmer has approved, crop or livest
 });
 
 test('two farms of the same type are shown separately, never merged', function () {
+    fakeNormalWeather();
+
     $type = FarmType::create(['name' => 'Sheep', 'category_id' => $this->livestockCategory->id]);
 
     $farmA = FarmUnit::factory()->approved()->create([
@@ -351,6 +377,8 @@ test('two farms of the same type are shown separately, never merged', function (
 });
 
 test('a whole-number farm type rounds the displayed quantity, a decimal type keeps the fraction', function () {
+    fakeNormalWeather();
+
     $sheepType = FarmType::create(['name' => 'Sheep', 'category_id' => $this->livestockCategory->id]);
     $maizeType = FarmType::create([
         'name' => 'Maize',
@@ -379,6 +407,8 @@ test('a whole-number farm type rounds the displayed quantity, a decimal type kee
 });
 
 test('farm produce shows at most 4 units alphabetically by type and counts the rest', function () {
+    fakeNormalWeather();
+
     foreach (['Chickens', 'Ducks', 'Goats', 'Pigs', 'Rabbits'] as $name) {
         $type = FarmType::create(['name' => $name, 'category_id' => $this->livestockCategory->id]);
         $unit = FarmUnit::factory()->approved()->create([
@@ -400,6 +430,8 @@ test('farm produce shows at most 4 units alphabetically by type and counts the r
 });
 
 test('unconfirmed or rejected stock does not count toward farm produce quantity', function () {
+    fakeNormalWeather();
+
     $type = FarmType::create(['name' => 'Layers', 'category_id' => $this->livestockCategory->id]);
     $unit = FarmUnit::factory()->approved()->create([
         'farmer_profile_id' => $this->profile->id,
@@ -413,6 +445,8 @@ test('unconfirmed or rejected stock does not count toward farm produce quantity'
 });
 
 test('an approved unit with no confirmed stock yet still appears at zero', function () {
+    fakeNormalWeather();
+
     $type = FarmType::create(['name' => 'Rabbits', 'category_id' => $this->livestockCategory->id]);
     FarmUnit::factory()->approved()->create([
         'farmer_profile_id' => $this->profile->id,
@@ -423,4 +457,83 @@ test('an approved unit with no confirmed stock yet still appears at zero', funct
         ->assertInertia(fn($page) => $page
             ->where('farm_produce.items.0.type', 'Rabbits')
             ->where('farm_produce.items.0.quantity', '0'));
+});
+
+test('weather is empty when the farmer has no approved farm units', function () {
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page->where('weather', []));
+});
+
+test('weather gives advice for each category the farmer actually farms', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [['latitude' => 6.7, 'longitude' => -1.5]]]),
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'precipitation_sum' => [2, 25, 3],
+            'temperature_2m_max' => [28, 29, 27],
+            'windspeed_10m_max' => [15, 18, 12],
+        ]]),
+    ]);
+
+    $community = Community::factory()->create();
+    $cropType = FarmType::create(['name' => 'Maize', 'category_id' => $this->cropCategory->id]);
+    $livestockType = FarmType::create(['name' => 'Goats', 'category_id' => $this->livestockCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $cropType->id,
+        'community_id' => $community->id,
+    ]);
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $livestockType->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->has('weather', 1)
+            ->where('weather.0.available', true)
+            ->where('weather.0.headline', 'Heavy rain expected')
+            ->has('weather.0.advice', 2));
+});
+
+test('weather is reported separately for farm units in different communities', function () {
+    fakeNormalWeather();
+
+    $communityA = Community::factory()->create();
+    $communityB = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Goats', 'category_id' => $this->livestockCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $communityA->id,
+    ]);
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $communityB->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page->has('weather', 2));
+});
+
+test('weather is marked unavailable when the location cannot be resolved', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => []]),
+        'api.open-meteo.com/*' => Http::response(['daily' => []]),
+    ]);
+
+    $community = Community::factory()->create(['latitude' => null, 'longitude' => null]);
+    $type = FarmType::create(['name' => 'Goats', 'category_id' => $this->livestockCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page->where('weather.0.available', false));
 });

@@ -12,6 +12,7 @@ use App\Models\FarmUnit;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class FarmUnitController extends Controller
     public function __construct(
         private readonly AccessControlService $access,
         private readonly AuditService $audit,
+        private readonly NotificationService $notifications,
     ) {}
 
     // every unit across the farmers this person can reach
@@ -81,12 +83,25 @@ class FarmUnitController extends Controller
         $data = $request->validated();
         unset($data['farmer_uuid']);
 
-        $farmer->farmUnits()->create([
+        $unit = $farmer->farmUnits()->create([
             ...$data,
             'created_by' => $request->user()->id,
         ]);
 
+        $this->notifyApprovers($unit, $request->user());
+
         return back()->with('success', 'The unit is added. It needs to be approved before it counts.');
+    }
+
+    private function notifyApprovers(FarmUnit $unit, User $addedBy): void
+    {
+        $this->notifications->sendToPermission(
+            permission: 'farm-units.approve',
+            kind: 'farm_unit.created',
+            message: "A new farm unit \"{$unit->name}\" needs approval.",
+            link: '/admin/approvals',
+            except: $addedBy,
+        );
     }
 
     public function index(Request $request, FarmerProfile $farmer): Response
@@ -135,10 +150,12 @@ class FarmUnitController extends Controller
     {
         $this->guardFarmer($request->user(), $farmer);
 
-        $farmer->farmUnits()->create([
+        $unit = $farmer->farmUnits()->create([
             ...$request->validated(),
             'created_by' => $request->user()->id,
         ]);
+
+        $this->notifyApprovers($unit, $request->user());
 
         return back()->with('success', 'The unit is added. It needs to be approved before it counts.');
     }

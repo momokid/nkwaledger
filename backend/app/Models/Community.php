@@ -8,10 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['name', 'district_id'])]
+#[Fillable(['name', 'district_id', 'latitude', 'longitude'])]
 class Community extends Model
 {
     use HasFactory, SoftDeletes;
+
+    protected function casts(): array
+    {
+        return [
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+        ];
+    }
 
     protected static function booted(): void
     {

@@ -49,6 +49,7 @@ interface RecentTransaction {
 }
 
 interface FarmProduceItem {
+    farm: string;
     type: string;
     quantity: string;
     unit: string | null;
@@ -417,7 +418,7 @@ function DashboardContent({
                                 }}
                             >
                                 {farm_produce.items.map((item) => (
-                                    <div key={item.type}>
+                                    <div key={`${item.farm}-${item.type}`}>
                                         <p
                                             style={{
                                                 fontSize: "23px",
@@ -443,11 +444,20 @@ function DashboardContent({
                                         <p
                                             style={{
                                                 fontSize: "18px",
-                                                color: textSecondary,
+                                                color: text,
                                                 margin: "2px 0 0",
                                             }}
                                         >
                                             {item.type}
+                                        </p>
+                                        <p
+                                            style={{
+                                                fontSize: "14px",
+                                                color: textSecondary,
+                                                margin: "1px 0 0",
+                                            }}
+                                        >
+                                            {item.farm}
                                         </p>
                                     </div>
                                 ))}

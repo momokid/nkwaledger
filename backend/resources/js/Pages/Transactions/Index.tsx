@@ -445,7 +445,7 @@ function IndexContent({
                                                     color: "#B45309",
                                                 }}
                                             >
-                                                Waiting for someone to agree
+                                                Pending for approval
                                             </span>
                                         )}
                                         {row.cancel_state === "cancelled" && (
