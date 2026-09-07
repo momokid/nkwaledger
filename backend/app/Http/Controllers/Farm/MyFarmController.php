@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Farm;
 
 use App\Enums\MovementReason;
+use App\Enums\StockSource;
 use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
@@ -36,18 +37,19 @@ class MyFarmController extends Controller
                 'name' => $unit->name,
                 'farm_type' => $unit->farmType?->name,
                 'farm_type_category' => $unit->farmType?->category?->name,
-                'capacity' => $unit->capacity,
+                'capacity' => $unit->capacity === null ? null : $this->trimmedQuantity((float) $unit->capacity),
                 'capacity_unit' => $unit->capacity_unit,
                 'is_approved' => $unit->isApproved(),
                 'analysis' => $this->analysisFor($farmer->id, $unit->id, $from, $to),
+                'timeline' => $this->timelineFor($unit),
                 'stocks' => $unit->stocks
                     ->sortByDesc('started_on')
                     ->values()
                     ->map(fn(FarmUnitStock $stock) => [
                         'id' => $stock->id,
                         'source' => $stock->source->label(),
-                        'opening_quantity' => $stock->opening_quantity,
-                        'current_quantity' => $stock->current_quantity,
+                        'opening_quantity' => $this->trimmedQuantity((float) $stock->opening_quantity),
+                        'current_quantity' => $this->trimmedQuantity((float) $stock->current_quantity),
                         'unit_of_measure' => $stock->unit_of_measure,
                         'started_on' => $stock->started_on?->toDateString(),
                         'expected_ready_on' => $stock->expected_ready_on?->toDateString(),
@@ -72,7 +74,7 @@ class MyFarmController extends Controller
                             ->map(fn($movement) => [
                                 'id' => $movement->id,
                                 'reason' => $movement->reason?->label(),
-                                'quantity' => $movement->quantity,
+                                'quantity' => $this->trimmedQuantity((float) $movement->quantity),
                                 'is_increase' => $movement->is_increase,
                                 'occurred_on' => $movement->occurred_on?->toDateString(),
                                 'recorded_by' => $movement->recordedBy?->surname,
@@ -119,8 +121,84 @@ class MyFarmController extends Controller
             'total_expense' => $expense,
             'total_loss' => $loss,
             'net' => $income - $expense,
-            'produce_quantity_sold' => number_format((float) $quantitySold, 2, '.', ''),
+            'produce_quantity_sold' => $this->trimmedQuantity((float) $quantitySold),
         ];
+    }
+
+    // one flat, chronological line per event, across every batch, with a running total;
+    // the farmer never needs to think in batches
+    private function timelineFor(FarmUnit $unit): array
+    {
+        $movements = FarmUnitStockMovement::query()
+            ->whereIn('farm_unit_stock_id', $unit->stocks->pluck('id'))
+            ->with('stock')
+            ->orderBy('occurred_on')
+            ->orderBy('id')
+            ->get();
+
+        $runningTotal = 0.0;
+        $seenFirstOpening = false;
+        $timeline = [];
+
+        foreach ($movements as $movement) {
+            $isOpening = $movement->reason === MovementReason::Opening;
+            $isVeryFirst = $isOpening && ! $seenFirstOpening;
+
+            if ($isOpening) {
+                $seenFirstOpening = true;
+            }
+
+            if (! $movement->isRejected()) {
+                $runningTotal += $movement->is_increase
+                    ? (float) $movement->quantity
+                    : -(float) $movement->quantity;
+            }
+
+            $timeline[] = [
+                'id' => $movement->id,
+                'label' => $this->timelineLabel($movement, $isVeryFirst),
+                'quantity' => $this->trimmedQuantity((float) $movement->quantity),
+                'is_increase' => $movement->is_increase,
+                'occurred_on' => $movement->occurred_on?->toDateString(),
+                'expected_ready_on' => $isOpening ? $movement->stock?->expected_ready_on?->toDateString() : null,
+                'running_total' => $this->trimmedQuantity(max($runningTotal, 0)),
+                'is_confirmed' => $movement->isConfirmed(),
+                'is_rejected' => $movement->isRejected(),
+                'rejection_reason' => $movement->rejection_reason,
+            ];
+        }
+
+        return $timeline;
+    }
+
+    private function timelineLabel(FarmUnitStockMovement $movement, bool $isVeryFirst): string
+    {
+        if ($movement->reason === MovementReason::Opening) {
+            if ($isVeryFirst) {
+                return 'Starts with';
+            }
+
+            return $movement->stock?->source === StockSource::Purchase ? 'Bought' : 'Added';
+        }
+
+        return match ($movement->reason) {
+            MovementReason::Sale => 'Sold',
+            MovementReason::Loss => 'Lost',
+            MovementReason::Birth => 'Birth',
+            MovementReason::Purchase => 'Bought',
+            MovementReason::Theft => 'Stolen',
+            MovementReason::Death => 'Died',
+            MovementReason::Cull => 'Culled',
+            MovementReason::Correction => 'Corrected',
+            default => 'Update',
+        };
+    }
+
+    // whole numbers read as "36", but a weighed or measured amount keeps its fraction;
+    // commas make a big count (like 230,000 birds) readable at a glance
+    private function trimmedQuantity(float $quantity): string
+    {
+        return rtrim(rtrim(number_format($quantity, 2, '.', ','), '0'), '.');
     }
 
     // the farmer's own page names nobody, and only their own profile answers

@@ -85,6 +85,35 @@ test('a farm type can be created without a category', function () {
     ]);
 });
 
+test('a farm type can be created with decimal quantities allowed', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
+
+    $this->actingAs($user)->post('/admin/farm-types', [
+        'name' => 'Maize',
+        'quantity_is_decimal' => true,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('farm_types', [
+        'name' => 'Maize',
+        'quantity_is_decimal' => true,
+    ]);
+});
+
+test('a farm type defaults to whole-number quantities when not specified', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
+
+    $this->actingAs($user)->post('/admin/farm-types', [
+        'name' => 'Goats',
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('farm_types', [
+        'name' => 'Goats',
+        'quantity_is_decimal' => false,
+    ]);
+});
+
 test('creating a farm type with a duplicate name fails validation', function () {
     FarmType::factory()->create(['name' => 'Maize']);
 

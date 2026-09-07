@@ -14,6 +14,7 @@ interface FarmTypeData {
     name: string;
     category_id: number | null;
     category: CategoryOption | null;
+    quantity_is_decimal: boolean;
     is_active: boolean;
 }
 
@@ -56,6 +57,7 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editName, setEditName] = useState("");
     const [editCategoryId, setEditCategoryId] = useState<string>("");
+    const [editQuantityIsDecimal, setEditQuantityIsDecimal] = useState(false);
     const [editActive, setEditActive] = useState(true);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -68,13 +70,18 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
     const headerText = "#1D9E75";
     const rowAlt = dark ? "#111827" : "#F9FAFB";
 
-    const createForm = useForm({ name: "", category_id: "" });
+    const createForm = useForm({
+        name: "",
+        category_id: "",
+        quantity_is_decimal: false,
+    });
 
     const submitCreate = (event: FormEvent) => {
         event.preventDefault();
         createForm.post(route("admin.farm-types.store"), {
             preserveScroll: true,
-            onSuccess: () => createForm.reset("name", "category_id"),
+            onSuccess: () =>
+                createForm.reset("name", "category_id", "quantity_is_decimal"),
         });
     };
 
@@ -84,6 +91,7 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
         setEditCategoryId(
             farmType.category_id ? String(farmType.category_id) : "",
         );
+        setEditQuantityIsDecimal(farmType.quantity_is_decimal);
         setEditActive(farmType.is_active);
     };
 
@@ -98,6 +106,7 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
                 name: editName,
                 category_id:
                     editCategoryId === "" ? null : Number(editCategoryId),
+                quantity_is_decimal: editQuantityIsDecimal,
                 is_active: editActive,
             },
             { preserveScroll: true, onSuccess: () => setEditingId(null) },
@@ -221,6 +230,27 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
                             </p>
                         )}
                     </div>
+                    <label
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            color: text,
+                            fontSize: "18px",
+                        }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={createForm.data.quantity_is_decimal}
+                            onChange={(event) =>
+                                createForm.setData(
+                                    "quantity_is_decimal",
+                                    event.target.checked,
+                                )
+                            }
+                        />
+                        Allows decimal quantity (area or weight, e.g. acres, kg)
+                    </label>
                     <button
                         type="submit"
                         disabled={createForm.processing}
@@ -265,6 +295,12 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
                                 className="text-left px-4 py-3"
                                 style={{ color: headerText, fontWeight: 700 }}
                             >
+                                Quantity type
+                            </th>
+                            <th
+                                className="text-left px-4 py-3"
+                                style={{ color: headerText, fontWeight: 700 }}
+                            >
                                 Status
                             </th>
                             {hasActions && (
@@ -284,7 +320,7 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
                         {farmTypes.data.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={hasActions ? 4 : 3}
+                                    colSpan={hasActions ? 5 : 4}
                                     className="px-4 py-6 text-center"
                                     style={{ color: textSecondary }}
                                 >
@@ -369,6 +405,38 @@ function IndexContent({ farmTypes, categories, permissions }: ContentProps) {
                                                     None
                                                 </span>
                                             ))
+                                        )}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {isEditing ? (
+                                            <label
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "8px",
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        editQuantityIsDecimal
+                                                    }
+                                                    onChange={(event) =>
+                                                        setEditQuantityIsDecimal(
+                                                            event.target
+                                                                .checked,
+                                                        )
+                                                    }
+                                                />
+                                                Decimal
+                                            </label>
+                                        ) : farmType.quantity_is_decimal ? (
+                                            "Decimal (area/weight)"
+                                        ) : (
+                                            "Whole numbers"
                                         )}
                                     </td>
                                     <td

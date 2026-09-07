@@ -27,6 +27,7 @@ class TransactionTemplate extends Model
         'farm_type_category_id',
         'is_system',
         'is_active',
+        'is_produce_sale',
     ];
 
     protected $attributes = [
@@ -34,6 +35,7 @@ class TransactionTemplate extends Model
         'requires_farm_unit' => false,
         'is_system' => false,
         'is_active' => true,
+        'is_produce_sale' => false,
     ];
 
     protected function casts(): array
@@ -42,6 +44,7 @@ class TransactionTemplate extends Model
             'requires_farm_unit' => 'boolean',
             'is_system' => 'boolean',
             'is_active' => 'boolean',
+            'is_produce_sale' => 'boolean',
         ];
     }
 

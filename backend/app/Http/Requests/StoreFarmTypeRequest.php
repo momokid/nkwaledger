@@ -16,6 +16,7 @@ class StoreFarmTypeRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255', 'unique:farm_types,name'],
             'category_id' => ['nullable', 'integer', 'exists:farm_type_categories,id'],
+            'quantity_is_decimal' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

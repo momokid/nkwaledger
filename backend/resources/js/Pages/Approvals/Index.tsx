@@ -243,8 +243,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                         marginTop: "4px",
                     }}
                 >
-                    Oldest first. Anything you added yourself is here too, but
-                    somebody else has to sign it off.
+                    Pending for approval.
                 </p>
             </div>
 
@@ -388,7 +387,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                             color: textSecondary,
                                                         }}
                                                     >
-                                                        Waiting on somebody else
+                                                        Pending for approval
                                                     </span>
                                                 )}
                                             </td>
