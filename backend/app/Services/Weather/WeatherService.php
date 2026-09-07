@@ -123,13 +123,17 @@ class WeatherService
             "weather.forecast.{$communityId}",
             now()->addMinutes(self::CACHE_MINUTES),
             function () use ($latitude, $longitude) {
-                $response = Http::get('https://api.open-meteo.com/v1/forecast', [
-                    'latitude' => $latitude,
-                    'longitude' => $longitude,
-                    'daily' => 'precipitation_sum,temperature_2m_max,windspeed_10m_max',
-                    'timezone' => 'auto',
-                    'forecast_days' => 3,
-                ]);
+                try {
+                    $response = Http::timeout(5)->get('https://api.open-meteo.com/v1/forecast', [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'daily' => 'precipitation_sum,temperature_2m_max,windspeed_10m_max',
+                        'timezone' => 'auto',
+                        'forecast_days' => 3,
+                    ]);
+                } catch (\Illuminate\Http\Client\ConnectionException) {
+                    return null;
+                }
 
                 if ($response->failed()) {
                     return null;

@@ -46,6 +46,7 @@ use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Reports\ReportController;
+use App\Http\Controllers\Agent\AgentDashboardController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -110,7 +111,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', fn() => redirect()->route('farmer.dashboard'));
     Route::get('/farmer/dashboard', [FarmerDashboardController::class, 'index'])
         ->name('farmer.dashboard');
-    Route::get('/agent/dashboard', fn() => Inertia::render('Agent/Dashboard'))
+    Route::get('/agent/dashboard', [AgentDashboardController::class, 'index'])
         ->name('agent.dashboard');
     Route::get('/vet/dashboard', fn() => Inertia::render('Vet/Dashboard'))
         ->name('vet.dashboard');
