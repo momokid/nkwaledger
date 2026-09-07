@@ -98,6 +98,14 @@ export default function CommunityModal({
             setNewLng(pos.lng.toFixed(6));
         });
 
+        // lets the admin click anywhere on the map to place the pin directly,
+        // for communities the auto-suggest can't find at all
+        map.on("click", (event: L.LeafletMouseEvent) => {
+            marker.setLatLng(event.latlng);
+            setNewLat(event.latlng.lat.toFixed(6));
+            setNewLng(event.latlng.lng.toFixed(6));
+        });
+
         mapInstance.current = map;
         markerInstance.current = marker;
 
@@ -535,7 +543,7 @@ export default function CommunityModal({
                         >
                             {suggesting
                                 ? "Looking up location…"
-                                : "Drag the pin to adjust the exact spot."}
+                                : "Click the map or drag the pin to set the exact spot."}
                         </p>
 
                         {candidates.length > 0 && (
