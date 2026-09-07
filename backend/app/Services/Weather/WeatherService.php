@@ -34,6 +34,43 @@ class WeatherService
         );
     }
 
+    // day-by-day forecast for a dedicated weather page — separate from forCommunity()'s
+    // single rolled-up condition, and cached under its own key since the day count differs
+    public function extendedForecastFor(Community $community, int $days = 7): ?array
+    {
+        $this->ensureCoordinates($community);
+
+        if ($community->latitude === null || $community->longitude === null) {
+            return null;
+        }
+
+        $daily = $this->forecastFor((float) $community->latitude, (float) $community->longitude, $community->id, $days);
+
+        if ($daily === null) {
+            return null;
+        }
+
+        $dates = $daily['time'] ?? [];
+        $rain = $daily['precipitation_sum'] ?? [];
+        $tempMax = $daily['temperature_2m_max'] ?? [];
+        $wind = $daily['windspeed_10m_max'] ?? [];
+
+        return collect($dates)
+            ->map(fn($date, $i) => [
+                'date' => $date,
+                'condition' => $this->classifyDay(
+                    (float) ($rain[$i] ?? 0),
+                    (float) ($wind[$i] ?? 0),
+                    (float) ($tempMax[$i] ?? 0),
+                ),
+                'precipitation_mm' => $rain[$i] ?? null,
+                'temperature_max_c' => $tempMax[$i] ?? null,
+                'windspeed_max_kmh' => $wind[$i] ?? null,
+            ])
+            ->values()
+            ->all();
+    }
+
     // geocoded once, then cached forever on the row, so no community is looked up twice;
     // public so the backfill command can call it directly for communities added before this feature existed
     public function ensureCoordinates(Community $community): void
@@ -117,19 +154,19 @@ class WeatherService
             ->all();
     }
 
-    private function forecastFor(float $latitude, float $longitude, int $communityId): ?array
+    private function forecastFor(float $latitude, float $longitude, int $communityId, int $days = 3): ?array
     {
         return Cache::remember(
-            "weather.forecast.{$communityId}",
+            "weather.forecast.{$communityId}.{$days}",
             now()->addMinutes(self::CACHE_MINUTES),
-            function () use ($latitude, $longitude) {
+            function () use ($latitude, $longitude, $days) {
                 try {
                     $response = Http::timeout(5)->get('https://api.open-meteo.com/v1/forecast', [
                         'latitude' => $latitude,
                         'longitude' => $longitude,
                         'daily' => 'precipitation_sum,temperature_2m_max,windspeed_10m_max',
                         'timezone' => 'auto',
-                        'forecast_days' => 3,
+                        'forecast_days' => $days,
                     ]);
                 } catch (\Illuminate\Http\Client\ConnectionException) {
                     return null;
@@ -156,6 +193,25 @@ class WeatherService
         }
 
         if ($this->any($daily['temperature_2m_max'] ?? [], self::VERY_HOT_C)) {
+            return 'very_hot';
+        }
+
+        return 'normal';
+    }
+
+    // same thresholds as classify(), but for exactly one day's readings — used to
+    // label each day in the extended forecast rather than the window as a whole
+    private function classifyDay(float $rain, float $wind, float $temp): string
+    {
+        if ($rain >= self::HEAVY_RAIN_MM) {
+            return 'heavy_rain';
+        }
+
+        if ($wind >= self::STRONG_WIND_KMH) {
+            return 'strong_wind';
+        }
+
+        if ($temp >= self::VERY_HOT_C) {
             return 'very_hot';
         }
 
