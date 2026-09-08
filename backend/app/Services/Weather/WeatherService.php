@@ -31,6 +31,8 @@ class WeatherService
             available: true,
             condition: $this->classify($daily),
             generatedAt: now(),
+            weatherCode: isset($daily['weathercode'][0]) ? (int) $daily['weathercode'][0] : null,
+            temperatureMaxC: isset($daily['temperature_2m_max'][0]) ? (float) $daily['temperature_2m_max'][0] : null,
         );
     }
 

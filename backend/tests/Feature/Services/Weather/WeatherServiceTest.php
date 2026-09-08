@@ -335,3 +335,27 @@ test('extended forecast includes the weather code for each day', function () {
     expect($forecast[0]['weather_code'])->toBe(61);
     expect($forecast[1]['weather_code'])->toBe(0);
 });
+
+test('a snapshot carries todays weather code and temperature', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    fakeForecast([
+        'precipitation_sum' => [2, 5, 3],
+        'temperature_2m_max' => [28, 29, 27],
+        'windspeed_10m_max' => [15, 18, 12],
+        'weathercode' => [61, 61, 61],
+    ]);
+
+    $snapshot = $this->service->forCommunity($community);
+
+    expect($snapshot->weatherCode)->toBe(61);
+    expect($snapshot->temperatureMaxC)->toBe(28.0);
+});
+
+test('a snapshot has a null weather code when the api does not provide one', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    fakeForecast(normalDaily());
+
+    expect($this->service->forCommunity($community)->weatherCode)->toBeNull();
+});
