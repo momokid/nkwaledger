@@ -34,6 +34,7 @@ interface LocationWeather {
     headline?: string;
     advice?: Advice[];
     alerts?: Alert[];
+    outlook?: string;
     forecast?: ForecastDay[];
 }
 
@@ -333,6 +334,18 @@ function LocationCard({
                         </p>
                     ))}
                 </div>
+            )}
+
+            {location.outlook && (
+                <p
+                    style={{
+                        fontSize: "17px",
+                        color: textSecondary,
+                        marginBottom: "16px",
+                    }}
+                >
+                    {location.outlook}
+                </p>
             )}
 
             <div
