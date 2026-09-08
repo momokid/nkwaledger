@@ -23,11 +23,17 @@ interface Advice {
     message: string;
 }
 
+interface Alert {
+    farm_type: string;
+    message: string;
+}
+
 interface LocationWeather {
     community: string;
     available: boolean;
     headline?: string;
     advice?: Advice[];
+    alerts?: Alert[];
     forecast?: ForecastDay[];
 }
 
@@ -89,10 +95,10 @@ function IndexContent({ locations }: ContentProps) {
             <div className="p-6">
                 <p
                     style={{
-                        fontSize: "22px",
+                        fontSize: "26px",
                         fontWeight: 700,
                         color: text,
-                        marginBottom: "12px",
+                        marginBottom: "16px",
                     }}
                 >
                     Weather
@@ -106,9 +112,9 @@ function IndexContent({ locations }: ContentProps) {
                 >
                     <p
                         style={{
-                            fontSize: "16px",
+                            fontSize: "18px",
                             color: textSecondary,
-                            marginBottom: "10px",
+                            marginBottom: "12px",
                         }}
                     >
                         Add a farm unit to see the weather for your land.
@@ -116,7 +122,7 @@ function IndexContent({ locations }: ContentProps) {
                     <Link
                         href="/my-farm"
                         style={{
-                            fontSize: "16px",
+                            fontSize: "18px",
                             fontWeight: 600,
                             color: "#1D9E75",
                         }}
@@ -138,10 +144,10 @@ function IndexContent({ locations }: ContentProps) {
 
             <p
                 style={{
-                    fontSize: "22px",
+                    fontSize: "26px",
                     fontWeight: 700,
                     color: text,
-                    marginBottom: "16px",
+                    marginBottom: "20px",
                 }}
             >
                 Weather
@@ -205,20 +211,20 @@ function LocationCard({
                 style={{
                     background: surface,
                     border: `1px solid ${border}`,
-                    padding: "18px",
+                    padding: "20px",
                 }}
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "20px",
                         fontWeight: 600,
                         color: text,
-                        marginBottom: "6px",
+                        marginBottom: "8px",
                     }}
                 >
                     {location.community}
                 </p>
-                <p style={{ fontSize: "15px", color: textSecondary }}>
+                <p style={{ fontSize: "16px", color: textSecondary }}>
                     Weather isn't available for this location right now.
                 </p>
             </div>
@@ -239,15 +245,15 @@ function LocationCard({
             style={{
                 background: surface,
                 border: `1px solid ${border}`,
-                padding: "18px",
+                padding: "20px",
             }}
         >
             <p
                 style={{
-                    fontSize: "18px",
+                    fontSize: "20px",
                     fontWeight: 600,
                     color: text,
-                    marginBottom: "12px",
+                    marginBottom: "14px",
                 }}
             >
                 {location.community}
@@ -257,19 +263,19 @@ function LocationCard({
                 style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
+                    gap: "12px",
                     background: bannerBg,
-                    padding: "12px 14px",
-                    marginBottom: "16px",
+                    padding: "14px 16px",
+                    marginBottom: "18px",
                 }}
             >
                 <TodayIcon
-                    size={22}
+                    size={26}
                     style={{ color: bannerText, animation: todayAnimation }}
                 />
                 <p
                     style={{
-                        fontSize: "16px",
+                        fontSize: "18px",
                         fontWeight: 600,
                         color: bannerText,
                     }}
@@ -278,19 +284,47 @@ function LocationCard({
                 </p>
             </div>
 
+            {location.alerts && location.alerts.length > 0 && (
+                <div
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                        marginBottom: "16px",
+                    }}
+                >
+                    {location.alerts.map((alert) => (
+                        <p
+                            key={alert.farm_type}
+                            style={{
+                                fontSize: "16px",
+                                color: warnText,
+                                background: warnBg,
+                                padding: "10px 12px",
+                            }}
+                        >
+                            <span style={{ fontWeight: 600 }}>
+                                {alert.farm_type}:
+                            </span>{" "}
+                            {alert.message}
+                        </p>
+                    ))}
+                </div>
+            )}
+
             {location.advice && location.advice.length > 0 && (
                 <div
                     style={{
                         display: "flex",
                         flexDirection: "column",
-                        gap: "6px",
-                        marginBottom: "18px",
+                        gap: "8px",
+                        marginBottom: "20px",
                     }}
                 >
                     {location.advice.map((item) => (
                         <p
                             key={item.category}
-                            style={{ fontSize: "14px", color: textSecondary }}
+                            style={{ fontSize: "16px", color: textSecondary }}
                         >
                             <span style={{ fontWeight: 600, color: text }}>
                                 {item.category}:
@@ -305,7 +339,7 @@ function LocationCard({
                 style={{
                     display: "grid",
                     gridTemplateColumns: `repeat(${forecast.length}, 1fr)`,
-                    gap: "8px",
+                    gap: "10px",
                 }}
             >
                 {forecast.map((day) => {
@@ -315,30 +349,30 @@ function LocationCard({
                             key={day.date}
                             style={{
                                 background: track,
-                                padding: "10px 6px",
+                                padding: "12px 8px",
                                 textAlign: "center",
                             }}
                         >
                             <p
                                 style={{
-                                    fontSize: "12px",
+                                    fontSize: "15px",
                                     color: textSecondary,
-                                    marginBottom: "6px",
+                                    marginBottom: "8px",
                                 }}
                             >
                                 {weekdayLabel(day.date)}
                             </p>
                             <Icon
-                                size={20}
+                                size={24}
                                 style={{
                                     color: text,
                                     animation,
-                                    margin: "0 auto 6px",
+                                    margin: "0 auto 8px",
                                 }}
                             />
                             <p
                                 style={{
-                                    fontSize: "13px",
+                                    fontSize: "17px",
                                     fontWeight: 600,
                                     color: text,
                                 }}
@@ -349,7 +383,7 @@ function LocationCard({
                             </p>
                             <p
                                 style={{
-                                    fontSize: "11px",
+                                    fontSize: "14px",
                                     color: textSecondary,
                                 }}
                             >

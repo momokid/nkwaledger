@@ -316,3 +316,22 @@ test('extended forecast uses its own cache key separate from the 3-day summary',
 
     Http::assertSentCount(2);
 });
+
+test('extended forecast includes the weather code for each day', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    Http::fake([
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'time' => ['2026-09-08', '2026-09-09'],
+            'precipitation_sum' => [2, 2],
+            'temperature_2m_max' => [29, 29],
+            'windspeed_10m_max' => [15, 15],
+            'weathercode' => [61, 0],
+        ]]),
+    ]);
+
+    $forecast = $this->service->extendedForecastFor($community, days: 2);
+
+    expect($forecast[0]['weather_code'])->toBe(61);
+    expect($forecast[1]['weather_code'])->toBe(0);
+});

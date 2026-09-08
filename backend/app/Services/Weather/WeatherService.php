@@ -54,6 +54,7 @@ class WeatherService
         $rain = $daily['precipitation_sum'] ?? [];
         $tempMax = $daily['temperature_2m_max'] ?? [];
         $wind = $daily['windspeed_10m_max'] ?? [];
+        $weatherCodes = $daily['weathercode'] ?? [];
 
         return collect($dates)
             ->map(fn($date, $i) => [
@@ -66,6 +67,7 @@ class WeatherService
                 'precipitation_mm' => $rain[$i] ?? null,
                 'temperature_max_c' => $tempMax[$i] ?? null,
                 'windspeed_max_kmh' => $wind[$i] ?? null,
+                'weather_code' => isset($weatherCodes[$i]) ? (int) $weatherCodes[$i] : null,
             ])
             ->values()
             ->all();
@@ -164,7 +166,7 @@ class WeatherService
                     $response = Http::timeout(5)->get('https://api.open-meteo.com/v1/forecast', [
                         'latitude' => $latitude,
                         'longitude' => $longitude,
-                        'daily' => 'precipitation_sum,temperature_2m_max,windspeed_10m_max',
+                        'daily' => 'precipitation_sum,temperature_2m_max,windspeed_10m_max,weathercode',
                         'timezone' => 'auto',
                         'forecast_days' => $days,
                     ]);

@@ -47,6 +47,12 @@ class FarmerWeatherController extends Controller
                     ->unique()
                     ->values();
 
+                $farmTypes = $group
+                    ->pluck('farmType.name')
+                    ->filter()
+                    ->unique()
+                    ->values();
+
                 $snapshot = $this->weather->forCommunity($community);
                 $forecast = $this->weather->extendedForecastFor($community);
 
@@ -57,14 +63,31 @@ class FarmerWeatherController extends Controller
                     ];
                 }
 
+                $alerts = $farmTypes
+                    ->map(fn($farmType) => [
+                        'farm_type' => $farmType,
+                        'message' => $this->advisor->alertFor($snapshot->condition, $farmType),
+                    ])
+                    ->filter(fn($alert) => $alert['message'] !== null)
+                    ->values()
+                    ->all();
+
+                // on an ordinary day there's no risk to warn about, so tell the
+                // farmer what the sky is actually doing instead of a generic line
+                $today = $forecast[0] ?? null;
+                $headline = ($snapshot->condition === 'normal' && $today !== null && $today['weather_code'] !== null)
+                    ? $this->advisor->describeDay($today['weather_code'], (float) $today['temperature_max_c'])
+                    : $this->advisor->headline($snapshot->condition);
+
                 return [
                     'community' => $community->name,
                     'available' => true,
-                    'headline' => $this->advisor->headline($snapshot->condition),
+                    'headline' => $headline,
                     'advice' => $categories->map(fn($category) => [
                         'category' => $category,
                         'message' => $this->advisor->adviceFor($snapshot->condition, $category),
                     ])->values()->all(),
+                    'alerts' => $alerts,
                     'forecast' => $forecast,
                 ];
             })

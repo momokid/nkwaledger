@@ -145,3 +145,62 @@ test('a location is marked unavailable when it cannot be resolved', function () 
     $this->actingAs($this->farmerUser)->get('/my-weather')
         ->assertInertia(fn($page) => $page->where('locations.0.available', false));
 });
+
+test('type-specific alerts appear for farm types that have one', function () {
+    fakeSevenDayWeather();
+
+    $community = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Maize', 'category_id' => $this->cropCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-weather')
+        ->assertInertia(fn($page) => $page
+            ->has('locations.0.alerts', 1)
+            ->where('locations.0.alerts.0.farm_type', 'Maize'));
+});
+
+test('farm types without a specific alert do not add one', function () {
+    fakeSevenDayWeather();
+
+    $community = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Yam', 'category_id' => $this->cropCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-weather')
+        ->assertInertia(fn($page) => $page->has('locations.0.alerts', 0));
+});
+test('a normal day shows the actual weather code description instead of a generic message', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [['latitude' => 6.7, 'longitude' => -1.5]]]),
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'time' => ['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13', '2026-09-14'],
+            'precipitation_sum' => [2, 2, 2, 2, 2, 2, 2],
+            'temperature_2m_max' => [29, 29, 29, 29, 29, 29, 29],
+            'windspeed_10m_max' => [15, 15, 15, 15, 15, 15, 15],
+            'weathercode' => [61, 61, 61, 61, 61, 61, 61],
+        ]]),
+    ]);
+
+    $community = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Yam', 'category_id' => $this->cropCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-weather')
+        ->assertInertia(fn($page) => $page
+            ->where('locations.0.headline', 'Slight rain, around 29°C.'));
+});

@@ -53,3 +53,51 @@ test('an unknown category falls back to a generic message, never breaks', functi
     expect($this->advisor->adviceFor('heavy_rain', 'Something New'))
         ->toBeString();
 });
+
+test('gives a maize-specific alert for heavy rain', function () {
+    expect($this->advisor->alertFor('heavy_rain', 'Maize'))->toContain('blight');
+});
+
+test('gives a tomato-specific alert for heavy rain', function () {
+    expect($this->advisor->alertFor('heavy_rain', 'Tomato'))->toContain('blight');
+});
+
+test('gives a tilapia-specific alert for very hot weather', function () {
+    expect($this->advisor->alertFor('very_hot', 'Tilapia'))->toContain('oxygen');
+});
+
+test('gives a layers-specific alert for very hot weather', function () {
+    expect($this->advisor->alertFor('very_hot', 'Layers'))->toContain('egg');
+});
+
+test('gives a plantain-specific alert for strong wind', function () {
+    expect($this->advisor->alertFor('strong_wind', 'Plantain'))->toContain('wind');
+});
+
+test('a farm type with no specific alert returns null', function () {
+    expect($this->advisor->alertFor('heavy_rain', 'Yam'))->toBeNull();
+});
+
+test('normal weather never produces a type-specific alert', function () {
+    expect($this->advisor->alertFor('normal', 'Maize'))->toBeNull();
+});
+
+test('describes clear sky using the actual weather code', function () {
+    expect($this->advisor->describeDay(0, 29))->toBe('Clear sky, around 29°C.');
+});
+
+test('describes partly cloudy using the actual weather code', function () {
+    expect($this->advisor->describeDay(2, 27))->toBe('Partly cloudy, around 27°C.');
+});
+
+test('describes light rain using the actual weather code', function () {
+    expect($this->advisor->describeDay(61, 25))->toBe('Slight rain, around 25°C.');
+});
+
+test('describes a thunderstorm using the actual weather code', function () {
+    expect($this->advisor->describeDay(95, 30))->toBe('Thunderstorm, around 30°C.');
+});
+
+test('an unrecognised weather code still returns something sensible', function () {
+    expect($this->advisor->describeDay(999, 28))->toBe('Weather conditions vary, around 28°C.');
+});
