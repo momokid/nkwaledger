@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Agent;
 
 use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
+use App\Models\Transaction;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,40 +24,73 @@ class AgentDashboardController extends Controller
         $to = $request->query('to', Carbon::now()->toDateString());
         [$prevFrom, $prevTo] = $this->previousPeriod($from, $to);
 
-        $farmerIds = FarmerProfile::query()
+        $farmers = FarmerProfile::query()
             ->where('assigned_agent_id', $request->user()->id)
-            ->pluck('id');
+            ->with(['user:id,surname,first_name', 'community:id,name'])
+            ->get();
 
-        [$income, $expense, $activeCount] = $this->totalsFor($farmerIds, $from, $to);
-        [$prevIncome, $prevExpense] = $this->totalsFor($farmerIds, $prevFrom, $prevTo);
+        $lastActivity = $this->lastActivityFor($farmers->pluck('id'));
+
+        [$income, $expense, $activeCount, $roster] = $this->totalsFor($farmers, $from, $to, $lastActivity);
+        [$prevIncome, $prevExpense] = $this->totalsFor($farmers, $prevFrom, $prevTo);
 
         return Inertia::render('Agent/Dashboard', [
             'summary' => $this->summaryFrom($income, $expense, $prevIncome, $prevExpense),
             'farmer_count' => $activeCount,
+            'roster' => $roster,
             'filters' => ['from' => $from, 'to' => $to],
         ]);
     }
 
     // walks every assigned farmer's own report and adds them up; a farmer counts as
-    // active only if something moved through their books in this stretch of time
-    private function totalsFor($farmerIds, string $from, string $to): array
+    // active only if something moved through their books in this stretch of time.
+    // when $lastActivity is given, the same pass also builds the roster row, so
+    // each farmer's report is only pulled once.
+    private function totalsFor(Collection $farmers, string $from, string $to, ?Collection $lastActivity = null): array
     {
         $income = 0;
         $expense = 0;
         $activeCount = 0;
+        $roster = [];
 
-        foreach ($farmerIds as $farmerId) {
-            $report = $this->incomes->for(farmerProfileId: $farmerId, from: $from, to: $to);
+        foreach ($farmers as $farmer) {
+            $report = $this->incomes->for(farmerProfileId: $farmer->id, from: $from, to: $to);
 
             $income += $report->totalIncomeMinor;
             $expense += $report->totalExpenseMinor;
 
-            if ($report->totalIncomeMinor > 0 || $report->totalExpenseMinor > 0) {
+            $isActive = $report->totalIncomeMinor > 0 || $report->totalExpenseMinor > 0;
+
+            if ($isActive) {
                 $activeCount++;
+            }
+
+            if ($lastActivity !== null) {
+                $roster[] = [
+                    'id' => $farmer->uuid,
+                    'name' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
+                    'community' => $farmer->community?->name,
+                    'last_activity' => $lastActivity->get($farmer->id),
+                    'income' => $report->totalIncomeMinor,
+                    'expense' => $report->totalExpenseMinor,
+                    'status' => $isActive ? 'active' : 'dormant',
+                ];
             }
         }
 
-        return [$income, $expense, $activeCount];
+        usort($roster, fn($a, $b) => $a['name'] <=> $b['name']);
+
+        return [$income, $expense, $activeCount, $roster];
+    }
+
+    private function lastActivityFor(Collection $farmerIds): Collection
+    {
+        return Transaction::query()
+            ->whereIn('farmer_profile_id', $farmerIds)
+            ->selectRaw('farmer_profile_id, MAX(transaction_date) as last_activity')
+            ->groupBy('farmer_profile_id')
+            ->pluck('last_activity', 'farmer_profile_id')
+            ->map(fn($date) => $date === null ? null : Carbon::parse($date)->toDateString());
     }
 
     private function summaryFrom(int $income, int $expense, int $prevIncome, int $prevExpense): array

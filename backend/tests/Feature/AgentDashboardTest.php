@@ -14,6 +14,7 @@ use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use App\Models\Community;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -166,4 +167,54 @@ test('trend is aggregated across all assigned farmers', function () {
         ->assertInertia(fn($page) => $page
             ->where('summary.trends.income.direction', 'up')
             ->where('summary.trends.income.good', true));
+});
+
+test('roster includes each assigned farmer with community and period totals', function () {
+    $community = Community::factory()->create(['name' => 'Ejisu']);
+    $farmer = FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agentUser->id,
+        'community_id' => $community->id,
+    ]);
+    $farmer->user->update(['surname' => 'Mensah', 'first_name' => 'Ama']);
+
+    ($this->recordIncome)($farmer, '500', now()->toDateString());
+    ($this->recordExpense)($farmer, '200', now()->toDateString());
+
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('roster.0.name', 'Mensah Ama')
+            ->where('roster.0.community', 'Ejisu')
+            ->where('roster.0.income', 50000)
+            ->where('roster.0.expense', 20000)
+            ->where('roster.0.status', 'active'));
+});
+
+test('a farmer with no transactions is dormant with zero totals and no last activity', function () {
+    FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('roster.0.status', 'dormant')
+            ->where('roster.0.income', 0)
+            ->where('roster.0.expense', 0)
+            ->where('roster.0.last_activity', null));
+});
+
+test('last activity reflects the most recent transaction even outside the current period', function () {
+    $farmer = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+    ($this->recordIncome)($farmer, '500', now()->subDays(60)->toDateString());
+
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('roster.0.last_activity', now()->subDays(60)->toDateString())
+            ->where('roster.0.status', 'dormant'));
+});
+
+test('another agent\'s farmers do not appear in the roster', function () {
+    $otherAgent = User::factory()->create();
+    $otherAgent->assignRole('agent');
+    FarmerProfile::factory()->create(['assigned_agent_id' => $otherAgent->id]);
+
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertInertia(fn($page) => $page->where('roster', []));
 });
