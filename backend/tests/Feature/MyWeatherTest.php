@@ -220,3 +220,50 @@ test('each location includes a weekly outlook summary', function () {
     $this->actingAs($this->farmerUser)->get('/my-weather')
         ->assertInertia(fn($page) => $page->has('locations.0.outlook'));
 });
+
+test('recent advisory history is included for a location', function () {
+    fakeSevenDayWeather();
+
+    $community = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Yam', 'category_id' => $this->cropCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    \App\Models\WeatherAdvisoryLog::create([
+        'community_id' => $community->id,
+        'date' => now()->subDays(2)->toDateString(),
+        'condition' => 'heavy_rain',
+        'headline' => 'Heavy rain expected',
+    ]);
+    \App\Models\WeatherAdvisoryLog::create([
+        'community_id' => $community->id,
+        'date' => now()->subDays(1)->toDateString(),
+        'condition' => 'normal',
+        'headline' => 'Clear sky, around 29°C.',
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-weather')
+        ->assertInertia(fn($page) => $page
+            ->has('locations.0.history', 2)
+            ->where('locations.0.history.0.headline', 'Clear sky, around 29°C.'));
+});
+
+test('history is empty for a location with no logged days yet', function () {
+    fakeSevenDayWeather();
+
+    $community = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Yam', 'category_id' => $this->cropCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-weather')
+        ->assertInertia(fn($page) => $page->has('locations.0.history', 0));
+});

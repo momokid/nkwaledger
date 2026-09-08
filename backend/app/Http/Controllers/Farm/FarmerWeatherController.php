@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Farm;
 use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
+use App\Models\WeatherAdvisoryLog;
 use App\Services\Weather\WeatherAdvisor;
 use App\Services\Weather\WeatherService;
 use Illuminate\Http\Request;
@@ -90,8 +91,26 @@ class FarmerWeatherController extends Controller
                     'alerts' => $alerts,
                     'outlook' => $this->advisor->outlookFor($forecast),
                     'forecast' => $forecast,
+                    'history' => $this->historyFor($community->id),
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    // most recent day first, capped at 2 weeks — this only starts filling in
+    // from the day the snapshot command shipped, so it's empty at first
+    private function historyFor(int $communityId): array
+    {
+        return WeatherAdvisoryLog::where('community_id', $communityId)
+            ->orderByDesc('date')
+            ->limit(14)
+            ->get()
+            ->map(fn($log) => [
+                'date' => $log->date->toDateString(),
+                'condition' => $log->condition,
+                'headline' => $log->headline,
+            ])
             ->values()
             ->all();
     }
