@@ -537,3 +537,27 @@ test('weather is marked unavailable when the location cannot be resolved', funct
     $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
         ->assertInertia(fn($page) => $page->where('weather.0.available', false));
 });
+
+test('a normal day on the dashboard shows the actual weather instead of a generic message', function () {
+    Http::fake([
+        'geocoding-api.open-meteo.com/*' => Http::response(['results' => [['latitude' => 6.7, 'longitude' => -1.5]]]),
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'precipitation_sum' => [2, 5, 3],
+            'temperature_2m_max' => [28, 29, 27],
+            'windspeed_10m_max' => [15, 18, 12],
+            'weathercode' => [61, 61, 61],
+        ]]),
+    ]);
+
+    $community = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Goats', 'category_id' => $this->livestockCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page->where('weather.0.headline', 'Slight rain, around 28°C.'));
+});
