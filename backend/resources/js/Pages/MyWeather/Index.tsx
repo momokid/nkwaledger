@@ -28,6 +28,12 @@ interface Alert {
     message: string;
 }
 
+interface HistoryEntry {
+    date: string;
+    condition: Condition;
+    headline: string;
+}
+
 interface LocationWeather {
     community: string;
     available: boolean;
@@ -36,6 +42,7 @@ interface LocationWeather {
     alerts?: Alert[];
     outlook?: string;
     forecast?: ForecastDay[];
+    history?: HistoryEntry[];
 }
 
 interface Props extends PageProps {
@@ -408,6 +415,57 @@ function LocationCard({
                     );
                 })}
             </div>
+
+            {location.history && location.history.length > 0 && (
+                <div
+                    style={{
+                        marginTop: "20px",
+                        paddingTop: "18px",
+                        borderTop: `1px solid ${border}`,
+                    }}
+                >
+                    <p
+                        style={{
+                            fontSize: "16px",
+                            fontWeight: 600,
+                            color: text,
+                            marginBottom: "10px",
+                        }}
+                    >
+                        Recent days
+                    </p>
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "6px",
+                        }}
+                    >
+                        {location.history.map((entry) => (
+                            <div
+                                key={entry.date}
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    gap: "12px",
+                                }}
+                            >
+                                <p
+                                    style={{
+                                        fontSize: "15px",
+                                        color: textSecondary,
+                                    }}
+                                >
+                                    {weekdayLabel(entry.date)}
+                                </p>
+                                <p style={{ fontSize: "15px", color: text }}>
+                                    {entry.headline}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
