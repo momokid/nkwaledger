@@ -240,3 +240,122 @@ test('caches the forecast so a second call within the window does not hit the ap
 
     Http::assertSentCount(1);
 });
+test('returns a day-by-day forecast with dates and conditions', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    Http::fake([
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'time' => ['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13', '2026-09-14'],
+            'precipitation_sum' => [2, 25, 3, 1, 0, 5, 2],
+            'temperature_2m_max' => [28, 29, 27, 36, 30, 31, 29],
+            'windspeed_10m_max' => [15, 18, 12, 20, 45, 22, 14],
+        ]]),
+    ]);
+
+    $forecast = $this->service->extendedForecastFor($community);
+
+    expect($forecast)->toHaveCount(7);
+    expect($forecast[0]['date'])->toBe('2026-09-08');
+    expect($forecast[1]['condition'])->toBe('heavy_rain');
+    expect($forecast[2]['condition'])->toBe('normal');
+    expect($forecast[3]['condition'])->toBe('very_hot');
+    expect($forecast[4]['condition'])->toBe('strong_wind');
+});
+
+test('extended forecast is unavailable when coordinates cannot be resolved', function () {
+    $community = Community::factory()->create(['latitude' => null, 'longitude' => null]);
+
+    fakeGeocode(null);
+
+    expect($this->service->extendedForecastFor($community))->toBeNull();
+});
+
+test('extended forecast is unavailable when the request fails', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    Http::fake([
+        'api.open-meteo.com/*' => Http::response([], 500),
+    ]);
+
+    expect($this->service->extendedForecastFor($community))->toBeNull();
+});
+
+test('extended forecast defaults to 7 days but accepts a custom count', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    Http::fake([
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'time' => ['2026-09-08', '2026-09-09', '2026-09-10'],
+            'precipitation_sum' => [2, 2, 2],
+            'temperature_2m_max' => [28, 28, 28],
+            'windspeed_10m_max' => [15, 15, 15],
+        ]]),
+    ]);
+
+    $forecast = $this->service->extendedForecastFor($community, days: 3);
+
+    expect($forecast)->toHaveCount(3);
+    Http::assertSent(fn($request) => str_contains($request->url(), 'forecast_days=3'));
+});
+
+test('extended forecast uses its own cache key separate from the 3-day summary', function () {
+    Cache::flush();
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    Http::fake([
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'time' => ['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13', '2026-09-14'],
+            'precipitation_sum' => [2, 2, 2, 2, 2, 2, 2],
+            'temperature_2m_max' => [28, 28, 28, 28, 28, 28, 28],
+            'windspeed_10m_max' => [15, 15, 15, 15, 15, 15, 15],
+        ]]),
+    ]);
+
+    $this->service->forCommunity($community);
+    $this->service->extendedForecastFor($community);
+
+    Http::assertSentCount(2);
+});
+
+test('extended forecast includes the weather code for each day', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    Http::fake([
+        'api.open-meteo.com/*' => Http::response(['daily' => [
+            'time' => ['2026-09-08', '2026-09-09'],
+            'precipitation_sum' => [2, 2],
+            'temperature_2m_max' => [29, 29],
+            'windspeed_10m_max' => [15, 15],
+            'weathercode' => [61, 0],
+        ]]),
+    ]);
+
+    $forecast = $this->service->extendedForecastFor($community, days: 2);
+
+    expect($forecast[0]['weather_code'])->toBe(61);
+    expect($forecast[1]['weather_code'])->toBe(0);
+});
+
+test('a snapshot carries todays weather code and temperature', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    fakeForecast([
+        'precipitation_sum' => [2, 5, 3],
+        'temperature_2m_max' => [28, 29, 27],
+        'windspeed_10m_max' => [15, 18, 12],
+        'weathercode' => [61, 61, 61],
+    ]);
+
+    $snapshot = $this->service->forCommunity($community);
+
+    expect($snapshot->weatherCode)->toBe(61);
+    expect($snapshot->temperatureMaxC)->toBe(28.0);
+});
+
+test('a snapshot has a null weather code when the api does not provide one', function () {
+    $community = Community::factory()->create(['latitude' => 6.7, 'longitude' => -1.5]);
+
+    fakeForecast(normalDaily());
+
+    expect($this->service->forCommunity($community)->weatherCode)->toBeNull();
+});

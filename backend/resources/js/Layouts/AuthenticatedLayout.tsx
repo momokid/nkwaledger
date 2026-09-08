@@ -163,7 +163,12 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
         ],
         tools: [
             { label: "Help", href: "#", icon: IconHelpCircle, ready: false },
-            { label: "Weather", href: "#", icon: IconCloudRain, ready: false },
+            {
+                label: "Weather",
+                href: "/my-weather",
+                icon: IconCloudRain,
+                ready: true,
+            },
             {
                 label: "Marketplace",
                 href: "#",

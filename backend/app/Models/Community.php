@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\FarmUnit;
 
 #[Fillable(['name', 'district_id', 'latitude', 'longitude'])]
 class Community extends Model
@@ -31,5 +32,10 @@ class Community extends Model
     public function district(): BelongsTo
     {
         return $this->belongsTo(District::class);
+    }
+
+    public function farmUnits()
+    {
+        return $this->hasMany(FarmUnit::class);
     }
 }

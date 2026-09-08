@@ -89,11 +89,17 @@ class FarmerDashboardController extends Controller
                     ];
                 }
 
+                // on an ordinary day there's no risk to warn about, so tell the
+                // farmer what the sky is actually doing instead of a generic line
+                $headline = ($snapshot->condition === 'normal' && $snapshot->weatherCode !== null)
+                    ? $this->advisor->describeDay($snapshot->weatherCode, (float) ($snapshot->temperatureMaxC ?? 0))
+                    : $this->advisor->headline($snapshot->condition);
+
                 return [
                     'community' => $community->name,
                     'available' => true,
                     'condition' => $snapshot->condition,
-                    'headline' => $this->advisor->headline($snapshot->condition),
+                    'headline' => $headline,
                     'advice' => $categories->map(fn($category) => [
                         'category' => $category,
                         'message' => $this->advisor->adviceFor($snapshot->condition, $category),
