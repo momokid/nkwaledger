@@ -204,3 +204,19 @@ test('a normal day shows the actual weather code description instead of a generi
         ->assertInertia(fn($page) => $page
             ->where('locations.0.headline', 'Slight rain, around 29°C.'));
 });
+
+test('each location includes a weekly outlook summary', function () {
+    fakeSevenDayWeather();
+
+    $community = Community::factory()->create();
+    $type = FarmType::create(['name' => 'Yam', 'category_id' => $this->cropCategory->id]);
+
+    FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'farm_type_id' => $type->id,
+        'community_id' => $community->id,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-weather')
+        ->assertInertia(fn($page) => $page->has('locations.0.outlook'));
+});

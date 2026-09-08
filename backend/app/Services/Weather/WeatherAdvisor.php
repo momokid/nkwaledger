@@ -125,6 +125,51 @@ class WeatherAdvisor
         return sprintf('%s, around %d°C.', $description, round($tempMax));
     }
 
+    // a plain-English summary of the week ahead, built from the same per-day
+    // conditions already shown in the forecast strip — no new data source needed
+    public function outlookFor(array $days): string
+    {
+        $total = count($days);
+
+        $counts = [
+            'heavy_rain' => 0,
+            'strong_wind' => 0,
+            'very_hot' => 0,
+        ];
+
+        foreach ($days as $day) {
+            $condition = $day['condition'] ?? 'normal';
+            if (isset($counts[$condition])) {
+                $counts[$condition]++;
+            }
+        }
+
+        $labels = [
+            'heavy_rain' => 'Rain expected on %d of the next %d days',
+            'strong_wind' => 'strong winds expected on %d of the next %d days',
+            'very_hot' => 'very hot conditions expected on %d of the next %d days',
+        ];
+
+        $phrases = [];
+        foreach ($labels as $condition => $template) {
+            if ($counts[$condition] > 0) {
+                $phrases[] = sprintf($template, $counts[$condition], $total);
+            }
+        }
+
+        if (empty($phrases)) {
+            return "No significant weather risks expected over the next {$total} days.";
+        }
+
+        if (count($phrases) === 1) {
+            return $phrases[0] . '.';
+        }
+
+        $last = array_pop($phrases);
+
+        return implode(', ', $phrases) . ', and ' . $last . '.';
+    }
+
     public function alertFor(string $condition, string $farmType): ?string
     {
         return self::ALERTS[$condition][$farmType] ?? null;

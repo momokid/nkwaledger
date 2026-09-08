@@ -101,3 +101,62 @@ test('describes a thunderstorm using the actual weather code', function () {
 test('an unrecognised weather code still returns something sensible', function () {
     expect($this->advisor->describeDay(999, 28))->toBe('Weather conditions vary, around 28°C.');
 });
+test('outlook reports no risks when every day is normal', function () {
+    $days = array_fill(0, 7, ['condition' => 'normal']);
+
+    expect($this->advisor->outlookFor($days))->toBe('No significant weather risks expected over the next 7 days.');
+});
+
+test('outlook reports a single risk type', function () {
+    $days = [
+        ['condition' => 'heavy_rain'],
+        ['condition' => 'heavy_rain'],
+        ['condition' => 'heavy_rain'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+    ];
+
+    expect($this->advisor->outlookFor($days))->toBe('Rain expected on 3 of the next 7 days.');
+});
+
+test('outlook combines two risk types', function () {
+    $days = [
+        ['condition' => 'heavy_rain'],
+        ['condition' => 'heavy_rain'],
+        ['condition' => 'very_hot'],
+        ['condition' => 'very_hot'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+    ];
+
+    expect($this->advisor->outlookFor($days))
+        ->toBe('Rain expected on 2 of the next 7 days, and very hot conditions expected on 2 of the next 7 days.');
+});
+
+test('outlook combines all three risk types', function () {
+    $days = [
+        ['condition' => 'heavy_rain'],
+        ['condition' => 'strong_wind'],
+        ['condition' => 'very_hot'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+    ];
+
+    expect($this->advisor->outlookFor($days))
+        ->toBe('Rain expected on 1 of the next 7 days, strong winds expected on 1 of the next 7 days, and very hot conditions expected on 1 of the next 7 days.');
+});
+
+test('outlook works for a forecast shorter than 7 days', function () {
+    $days = [
+        ['condition' => 'heavy_rain'],
+        ['condition' => 'normal'],
+        ['condition' => 'normal'],
+    ];
+
+    expect($this->advisor->outlookFor($days))->toBe('Rain expected on 1 of the next 3 days.');
+});

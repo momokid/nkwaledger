@@ -88,6 +88,7 @@ class FarmerWeatherController extends Controller
                         'message' => $this->advisor->adviceFor($snapshot->condition, $category),
                     ])->values()->all(),
                     'alerts' => $alerts,
+                    'outlook' => $this->advisor->outlookFor($forecast),
                     'forecast' => $forecast,
                 ];
             })
