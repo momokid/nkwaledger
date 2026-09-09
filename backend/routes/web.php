@@ -48,6 +48,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Agent\AgentDashboardController;
 use App\Http\Controllers\Farm\FarmerWeatherController;
+use App\Http\Controllers\Agent\AgentReportsController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -270,6 +271,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
 
     // recording on a farmer's behalf
     Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/reports', [AgentReportsController::class, 'index'])->name('reports.menu');
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
         Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/farmers/{farmer}/reports/print', [ReportController::class, 'print'])->name('reports.print');
