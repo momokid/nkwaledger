@@ -5,13 +5,20 @@ namespace App\Http\Controllers\Agent;
 use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\User;
+use App\Services\Agent\FarmerRosterService;
+use Illuminate\Contracts\View\View as ViewResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AgentReportsController extends Controller
 {
+    public function __construct(
+        private readonly FarmerRosterService $roster,
+    ) {}
+
     public function index(Request $request): Response
     {
         $query = $request->string('q')->trim()->toString();
@@ -20,6 +27,41 @@ class AgentReportsController extends Controller
             'farmers' => $query === '' ? [] : $this->search($request->user(), $query),
             'query' => $query,
         ]);
+    }
+
+    public function activity(Request $request): Response
+    {
+        [$from, $to] = $this->periodFrom($request);
+
+        [,,, $roster] = $this->roster->totalsFor($request->user()->id, $from, $to, withRows: true);
+
+        return Inertia::render('Agent/Reports/Activity', [
+            'roster' => $roster,
+            'filters' => ['from' => $from, 'to' => $to],
+        ]);
+    }
+
+    public function printActivity(Request $request): ViewResponse
+    {
+        [$from, $to] = $this->periodFrom($request);
+
+        [,,, $roster] = $this->roster->totalsFor($request->user()->id, $from, $to, withRows: true);
+
+        return view('reports.agent-activity-print', [
+            'agentName' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+            'from' => $from,
+            'to' => $to,
+            'roster' => $roster,
+            'generatedAt' => now(),
+        ]);
+    }
+
+    private function periodFrom(Request $request): array
+    {
+        return [
+            $request->query('from', Carbon::now()->subDays(29)->toDateString()),
+            $request->query('to', Carbon::now()->toDateString()),
+        ];
     }
 
     // an empty query returns nothing rather than the whole book, so the page never

@@ -272,6 +272,8 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
     // recording on a farmer's behalf
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/reports', [AgentReportsController::class, 'index'])->name('reports.menu');
+        Route::get('/reports/activity', [AgentReportsController::class, 'activity'])->name('reports.activity');
+        Route::get('/reports/activity/print', [AgentReportsController::class, 'printActivity'])->name('reports.activity.print');
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
         Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/farmers/{farmer}/reports/print', [ReportController::class, 'print'])->name('reports.print');
