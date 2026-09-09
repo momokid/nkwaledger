@@ -2,6 +2,7 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import useAuthGuard from "@/hooks/useAuthGuard";
 import { Head } from "@inertiajs/react";
 import { useEffect, useState } from "react";
+import { cedis as formatMoney } from "@/lib/format";
 import GreetingHeader from "@/Components/GreetingHeader";
 import {
     IconArrowDownRight,
@@ -64,28 +65,24 @@ interface DashboardData {
     roster: RosterRow[];
 }
 
-// ---- fake data generator — swap this for a real fetch when the backend exists ----
+// ---- what the backend actually sends for the roster ----
 
-const FARMER_NAMES = [
-    "Ama Mensah",
-    "Kwabena Owusu",
-    "Efua Asante",
-    "Yaw Boateng",
-    "Abena Darko",
-    "Kofi Adjei",
-    "Adwoa Sarpong",
-    "Kojo Appiah",
-    "Akosua Frimpong",
-    "Yaw Asamoah",
-];
-const COMMUNITIES = [
-    "Ejisu",
-    "Mampong",
-    "Ejura",
-    "Konongo",
-    "Effiduase",
-    "Agona",
-];
+interface BackendRosterRow {
+    id: string;
+    name: string;
+    community: string | null;
+    last_activity: string | null;
+    income: number;
+    expense: number;
+    status: "active" | "dormant";
+}
+
+interface Props {
+    roster: BackendRosterRow[];
+}
+
+// ---- fake data generator — the rest of this page still runs on this until it's wired ----
+
 const PRODUCE_DETAILS = [
     "Maize sale",
     "Egg sales",
@@ -145,35 +142,29 @@ function generateSeries(
     return series;
 }
 
-function generateRoster(): RosterRow[] {
-    const names = [...FARMER_NAMES].sort(() => Math.random() - 0.5).slice(0, 6);
+// ---- real roster formatting ----
 
-    return names.map((name) => {
-        const roll = Math.random();
-        const status: FarmerStatus =
-            roll < 0.15 ? "Flagged" : roll < 0.4 ? "Dormant" : "Active";
+function formatLastActivity(date: string | null): string {
+    if (!date) return "No activity yet";
 
-        if (status === "Dormant") {
-            const days = randomInt(31, 90);
-            return {
-                name,
-                community: pick(COMMUNITIES),
-                lastActivity: `${days} days ago`,
-                income: cedis(0),
-                expense: cedis(0),
-                status,
-            };
-        }
+    const days = Math.floor(
+        (Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24),
+    );
 
-        return {
-            name,
-            community: pick(COMMUNITIES),
-            lastActivity: pick(["1h ago", "3h ago", "Yesterday", "2 days ago"]),
-            income: cedis(randomInt(400, 2400)),
-            expense: cedis(randomInt(150, 700)),
-            status,
-        };
-    });
+    if (days <= 0) return "Today";
+    if (days === 1) return "Yesterday";
+    return `${days} days ago`;
+}
+
+function formatRoster(rows: BackendRosterRow[]): RosterRow[] {
+    return rows.map((row) => ({
+        name: row.name,
+        community: row.community ?? "—",
+        lastActivity: formatLastActivity(row.last_activity),
+        income: `GHS ${formatMoney(row.income)}`,
+        expense: `GHS ${formatMoney(row.expense)}`,
+        status: row.status === "active" ? "Active" : "Dormant",
+    }));
 }
 
 function generateAttentionItems(roster: RosterRow[]): AttentionItem[] {
@@ -183,7 +174,10 @@ function generateAttentionItems(roster: RosterRow[]): AttentionItem[] {
         if (farmer.status === "Dormant") {
             items.push({
                 farmer: farmer.name,
-                reason: `No activity logged in ${farmer.lastActivity.replace(" ago", "")}`,
+                reason:
+                    farmer.lastActivity === "No activity yet"
+                        ? "No activity logged yet"
+                        : `No activity logged in ${farmer.lastActivity.replace(" ago", "")}`,
                 kind: "dormant",
             });
         }
@@ -239,7 +233,7 @@ function generateActivityFeed(roster: RosterRow[]): ActivityEntry[] {
     });
 }
 
-function generateMockData(): DashboardData {
+function generateMockData(roster: RosterRow[]): DashboardData {
     const weeks = [
         "Wk 1",
         "Wk 2",
@@ -260,7 +254,6 @@ function generateMockData(): DashboardData {
         .slice(0, 4)
         .reduce((a, b) => a + b, 0);
 
-    const roster = generateRoster();
     const activeCount = roster.filter((f) => f.status !== "Dormant").length;
 
     const kpis: Kpi[] = [
@@ -301,26 +294,30 @@ function generateMockData(): DashboardData {
     };
 }
 
-export default function Dashboard() {
+export default function Dashboard(props: Props) {
     useAuthGuard();
 
     return (
         <AuthenticatedLayout title="Dashboard">
             <Head title="Dashboard" />
-            <DashboardContent />
+            <DashboardContent roster={props.roster} />
         </AuthenticatedLayout>
     );
 }
 
-function DashboardContent() {
+function DashboardContent({ roster }: Props) {
     const { dark } = useTheme();
     const [data, setData] = useState<DashboardData | null>(null);
 
     useEffect(() => {
-        // stands in for a real API call — same loading pattern either way
-        const timer = setTimeout(() => setData(generateMockData()), 450);
+        // the roster is already real; the rest of this page still simulates a load
+        const formattedRoster = formatRoster(roster);
+        const timer = setTimeout(
+            () => setData(generateMockData(formattedRoster)),
+            450,
+        );
         return () => clearTimeout(timer);
-    }, []);
+    }, [roster]);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -851,84 +848,99 @@ function DashboardContent() {
                             </tr>
                         </thead>
                         <tbody>
-                            {!data
-                                ? Array.from({ length: 5 }).map((_, i) => (
-                                      <tr
-                                          key={i}
-                                          style={{
-                                              borderBottom: `1px solid ${border}`,
-                                          }}
-                                      >
-                                          <td
-                                              colSpan={6}
-                                              style={{ padding: "10px 4px" }}
-                                          >
-                                              <Skeleton height="16px" />
-                                          </td>
-                                      </tr>
-                                  ))
-                                : data.roster.map((farmer) => (
-                                      <tr
-                                          key={farmer.name}
-                                          style={{
-                                              borderBottom: `1px solid ${border}`,
-                                          }}
-                                      >
-                                          <td
-                                              style={{
-                                                  padding: "10px 4px",
-                                                  color: text,
-                                                  fontWeight: 600,
-                                              }}
-                                          >
-                                              {farmer.name}
-                                          </td>
-                                          <td
-                                              style={{
-                                                  padding: "10px 4px",
-                                                  color: textSecondary,
-                                              }}
-                                          >
-                                              {farmer.community}
-                                          </td>
-                                          <td
-                                              style={{
-                                                  padding: "10px 4px",
-                                                  color: textSecondary,
-                                              }}
-                                          >
-                                              {farmer.lastActivity}
-                                          </td>
-                                          <td
-                                              style={{
-                                                  padding: "10px 4px",
-                                                  color: text,
-                                              }}
-                                          >
-                                              {farmer.income}
-                                          </td>
-                                          <td
-                                              style={{
-                                                  padding: "10px 4px",
-                                                  color: text,
-                                              }}
-                                          >
-                                              {farmer.expense}
-                                          </td>
-                                          <td style={{ padding: "10px 4px" }}>
-                                              <span
-                                                  style={{
-                                                      color: statusColor(
-                                                          farmer.status,
-                                                      ),
-                                                      fontWeight: 600,
-                                                  }}
-                                              >
-                                                  {farmer.status}
-                                              </span>
-                                          </td>
-                                      </tr>
-                                  ))}
+                            {!data ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <tr
+                                        key={i}
+                                        style={{
+                                            borderBottom: `1px solid ${border}`,
+                                        }}
+                                    >
+                                        <td
+                                            colSpan={6}
+                                            style={{ padding: "10px 4px" }}
+                                        >
+                                            <Skeleton height="16px" />
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : data.roster.length === 0 ? (
+                                <tr>
+                                    <td
+                                        colSpan={6}
+                                        style={{
+                                            padding: "16px 4px",
+                                            color: textSecondary,
+                                            textAlign: "center",
+                                        }}
+                                    >
+                                        No farmers assigned to you yet.
+                                    </td>
+                                </tr>
+                            ) : (
+                                data.roster.map((farmer) => (
+                                    <tr
+                                        key={farmer.name}
+                                        style={{
+                                            borderBottom: `1px solid ${border}`,
+                                        }}
+                                    >
+                                        <td
+                                            style={{
+                                                padding: "10px 4px",
+                                                color: text,
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            {farmer.name}
+                                        </td>
+                                        <td
+                                            style={{
+                                                padding: "10px 4px",
+                                                color: textSecondary,
+                                            }}
+                                        >
+                                            {farmer.community}
+                                        </td>
+                                        <td
+                                            style={{
+                                                padding: "10px 4px",
+                                                color: textSecondary,
+                                            }}
+                                        >
+                                            {farmer.lastActivity}
+                                        </td>
+                                        <td
+                                            style={{
+                                                padding: "10px 4px",
+                                                color: text,
+                                            }}
+                                        >
+                                            {farmer.income}
+                                        </td>
+                                        <td
+                                            style={{
+                                                padding: "10px 4px",
+                                                color: text,
+                                            }}
+                                        >
+                                            {farmer.expense}
+                                        </td>
+                                        <td style={{ padding: "10px 4px" }}>
+                                            <span
+                                                style={{
+                                                    color: statusColor(
+                                                        farmer.status,
+                                                    ),
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                {farmer.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

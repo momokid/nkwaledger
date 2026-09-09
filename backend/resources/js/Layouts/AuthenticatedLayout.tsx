@@ -104,9 +104,9 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
             {
                 label: "Reports",
-                href: "#",
+                href: "/agent/reports",
                 icon: IconReportAnalytics,
-                ready: false,
+                ready: true,
             },
         ],
         tools: [
