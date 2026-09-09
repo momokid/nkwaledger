@@ -21,22 +21,30 @@ interface AggregateReport {
     description: string;
 }
 
-const AGGREGATE_REPORTS: AggregateReport[] = [
+interface AggregateReportReady extends AggregateReport {
+    href: string;
+}
+
+const AGGREGATE_REPORTS: (AggregateReport | AggregateReportReady)[] = [
+    {
+        label: "Farmer activity list",
+        description:
+            "A record of each assigned farmer's recent activity and standing.",
+        href: "/agent/reports/activity",
+    },
+    {
+        label: "Dormant farmers",
+        description:
+            "Farmers with no recorded activity, and the date each was last active.",
+        href: "/agent/reports/dormant",
+    },
     {
         label: "Income & expense summary",
         description: "Totals across all your farmers, with account breakdown.",
     },
     {
-        label: "Farmer activity list",
-        description: "A printable version of your dashboard roster.",
-    },
-    {
         label: "Farmer ranking",
         description: "Your farmers ranked by income or net, over a period.",
-    },
-    {
-        label: "Dormant farmers",
-        description: "Who hasn't logged anything, and since when.",
     },
 ];
 
@@ -253,44 +261,58 @@ function ReportsContent({ query, farmers }: Props) {
                         gap: "12px",
                     }}
                 >
-                    {AGGREGATE_REPORTS.map((report) => (
-                        <div
-                            key={report.label}
-                            style={{
-                                border: `1px solid ${border}`,
-                                padding: "14px",
-                                opacity: 0.6,
-                            }}
-                        >
-                            <p
+                    {AGGREGATE_REPORTS.map((report) => {
+                        const ready = "href" in report;
+                        const card = (
+                            <div
                                 style={{
-                                    fontSize: "17px",
-                                    fontWeight: 600,
-                                    color: text,
-                                    marginBottom: "4px",
+                                    border: `1px solid ${border}`,
+                                    padding: "14px",
+                                    opacity: ready ? 1 : 0.6,
                                 }}
                             >
-                                {report.label}
-                            </p>
-                            <p
-                                style={{
-                                    fontSize: "15px",
-                                    color: textSecondary,
-                                    marginBottom: "8px",
-                                }}
+                                <p
+                                    style={{
+                                        fontSize: "17px",
+                                        fontWeight: 600,
+                                        color: text,
+                                        marginBottom: "4px",
+                                    }}
+                                >
+                                    {report.label}
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "15px",
+                                        color: textSecondary,
+                                        marginBottom: "8px",
+                                    }}
+                                >
+                                    {report.description}
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "14px",
+                                        color: textSecondary,
+                                    }}
+                                >
+                                    {ready ? "" : "Coming soon"}
+                                </p>
+                            </div>
+                        );
+
+                        return ready ? (
+                            <Link
+                                key={report.label}
+                                href={(report as AggregateReportReady).href}
+                                style={{ textDecoration: "none" }}
                             >
-                                {report.description}
-                            </p>
-                            <p
-                                style={{
-                                    fontSize: "14px",
-                                    color: textSecondary,
-                                }}
-                            >
-                                Coming soon
-                            </p>
-                        </div>
-                    ))}
+                                {card}
+                            </Link>
+                        ) : (
+                            <div key={report.label}>{card}</div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

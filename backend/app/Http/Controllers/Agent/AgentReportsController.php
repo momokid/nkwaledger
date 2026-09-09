@@ -56,12 +56,61 @@ class AgentReportsController extends Controller
         ]);
     }
 
+    public function dormant(Request $request): Response
+    {
+        [$from, $to] = $this->periodFrom($request);
+
+        [,,, $rows] = $this->roster->totalsFor($request->user()->id, $from, $to, withRows: true);
+
+        return Inertia::render('Agent/Reports/Dormant', [
+            'roster' => $this->sortDormant($rows),
+            'filters' => ['from' => $from, 'to' => $to],
+        ]);
+    }
+
+    public function printDormant(Request $request): ViewResponse
+    {
+        [$from, $to] = $this->periodFrom($request);
+
+        [,,, $rows] = $this->roster->totalsFor($request->user()->id, $from, $to, withRows: true);
+
+        return view('reports.agent-dormant-print', [
+            'agentName' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+            'from' => $from,
+            'to' => $to,
+            'roster' => $this->sortDormant($rows),
+            'generatedAt' => now(),
+        ]);
+    }
+
     private function periodFrom(Request $request): array
     {
         return [
             $request->query('from', Carbon::now()->subDays(29)->toDateString()),
             $request->query('to', Carbon::now()->toDateString()),
         ];
+    }
+
+    // never-active farmers first, then the ones who went quiet longest ago
+    private function sortDormant(array $rows): array
+    {
+        $dormant = array_values(array_filter($rows, fn($row) => $row['status'] === 'dormant'));
+
+        usort($dormant, function ($a, $b) {
+            if ($a['last_activity'] === null && $b['last_activity'] === null) {
+                return 0;
+            }
+            if ($a['last_activity'] === null) {
+                return -1;
+            }
+            if ($b['last_activity'] === null) {
+                return 1;
+            }
+
+            return $a['last_activity'] <=> $b['last_activity'];
+        });
+
+        return $dormant;
     }
 
     // an empty query returns nothing rather than the whole book, so the page never
