@@ -46,6 +46,7 @@ const AGGREGATE_REPORTS: (AggregateReport | AggregateReportReady)[] = [
     {
         label: "Farmer ranking",
         description: "Your farmers ranked by income or net, over a period.",
+        href: "/agent/reports/ranking",
     },
 ];
 
