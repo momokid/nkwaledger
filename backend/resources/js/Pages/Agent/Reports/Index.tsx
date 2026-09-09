@@ -41,6 +41,7 @@ const AGGREGATE_REPORTS: (AggregateReport | AggregateReportReady)[] = [
     {
         label: "Income & expense summary",
         description: "Totals across all your farmers, with account breakdown.",
+        href: "/agent/reports/income-summary",
     },
     {
         label: "Farmer ranking",

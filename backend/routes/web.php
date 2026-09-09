@@ -276,6 +276,8 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         Route::get('/reports/activity/print', [AgentReportsController::class, 'printActivity'])->name('reports.activity.print');
         Route::get('/reports/dormant', [AgentReportsController::class, 'dormant'])->name('reports.dormant');
         Route::get('/reports/dormant/print', [AgentReportsController::class, 'printDormant'])->name('reports.dormant.print');
+        Route::get('/reports/income-summary', [AgentReportsController::class, 'incomeSummary'])->name('reports.income-summary');
+        Route::get('/reports/income-summary/print', [AgentReportsController::class, 'printIncomeSummary'])->name('reports.income-summary.print');
         Route::get('/farmers/{farmer}/records', [RecordTransactionController::class, 'index'])->name('records.index');
         Route::get('/farmers/{farmer}/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/farmers/{farmer}/reports/print', [ReportController::class, 'print'])->name('reports.print');

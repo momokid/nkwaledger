@@ -12,11 +12,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\Agent\AgentIncomeSummaryService;
 
 class AgentReportsController extends Controller
 {
     public function __construct(
         private readonly FarmerRosterService $roster,
+        private readonly AgentIncomeSummaryService $incomeSummary,
     ) {}
 
     public function index(Request $request): Response
@@ -79,6 +81,29 @@ class AgentReportsController extends Controller
             'from' => $from,
             'to' => $to,
             'roster' => $this->sortDormant($rows),
+            'generatedAt' => now(),
+        ]);
+    }
+
+    public function incomeSummary(Request $request): Response
+    {
+        [$from, $to] = $this->periodFrom($request);
+
+        return Inertia::render('Agent/Reports/IncomeSummary', [
+            'summary' => $this->incomeSummary->for($request->user()->id, $from, $to),
+            'filters' => ['from' => $from, 'to' => $to],
+        ]);
+    }
+
+    public function printIncomeSummary(Request $request): ViewResponse
+    {
+        [$from, $to] = $this->periodFrom($request);
+
+        return view('reports.agent-income-summary-print', [
+            'agentName' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+            'from' => $from,
+            'to' => $to,
+            'summary' => $this->incomeSummary->for($request->user()->id, $from, $to),
             'generatedAt' => now(),
         ]);
     }
