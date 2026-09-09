@@ -13,6 +13,7 @@ class AgentDashboardController extends Controller
 {
     public function __construct(
         private readonly FarmerRosterService $roster,
+        private readonly \App\Services\Agent\AgentActivityFeedService $activityFeed,
     ) {}
 
     public function index(Request $request): Response
@@ -33,6 +34,7 @@ class AgentDashboardController extends Controller
             'summary' => $this->summaryFrom($income, $expense, $prevIncome, $prevExpense),
             'farmer_count' => $activeCount,
             'roster' => $roster,
+            'activity_feed' => $this->activityFeed->recentFor($request->user()->id, $from, $to),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
     }

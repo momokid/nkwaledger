@@ -169,6 +169,23 @@ test('trend is aggregated across all assigned farmers', function () {
             ->where('summary.trends.income.good', true));
 });
 
+test('the dashboard carries a real activity feed, not a mock one', function () {
+    $farmer = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+    $farmer->user->update(['surname' => 'Mensah', 'first_name' => 'Ama']);
+
+    ($this->recordIncome)($farmer, '500', now()->toDateString());
+
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('activity_feed.0.farmer', 'Mensah Ama')
+            ->where('activity_feed.0.action', 'Logged income'));
+});
+
+test('an agent with no assigned farmers gets an empty activity feed, not an error', function () {
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertInertia(fn($page) => $page->where('activity_feed', []));
+});
+
 test('roster includes each assigned farmer with community and period totals', function () {
     $community = Community::factory()->create(['name' => 'Ejisu']);
     $farmer = FarmerProfile::factory()->create([
