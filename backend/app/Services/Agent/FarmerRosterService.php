@@ -50,6 +50,7 @@ class FarmerRosterService
             if ($withRows) {
                 $rows[] = [
                     'id' => $farmer->uuid,
+                    'farmer_profile_id' => $farmer->id,
                     'name' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
                     'community' => $farmer->community?->name,
                     'last_activity' => $lastActivity->get($farmer->id),
