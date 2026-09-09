@@ -190,16 +190,14 @@ function ReportsContent({ query, farmers }: Props) {
                                 }}
                             >
                                 {farmers.map((farmer) => (
-                                    <Link
+                                    <div
                                         key={farmer.id}
-                                        href={`/agent/farmers/${farmer.id}/reports`}
                                         style={{
                                             display: "flex",
                                             justifyContent: "space-between",
                                             alignItems: "center",
                                             padding: "14px",
                                             background: surface,
-                                            textDecoration: "none",
                                         }}
                                     >
                                         <div>
@@ -226,11 +224,38 @@ function ReportsContent({ query, farmers }: Props) {
                                                     .join(" · ")}
                                             </p>
                                         </div>
-                                        <IconFileAnalytics
-                                            size={20}
-                                            style={{ color: textSecondary }}
-                                        />
-                                    </Link>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                gap: "16px",
+                                            }}
+                                        >
+                                            <Link
+                                                href={`/agent/farmers/${farmer.id}/reports`}
+                                                style={{
+                                                    fontSize: "15px",
+                                                    color: textSecondary,
+                                                    textDecoration: "none",
+                                                }}
+                                            >
+                                                Statement
+                                            </Link>
+                                            <Link
+                                                href={`/agent/farmers/${farmer.id}/profile-report`}
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "4px",
+                                                    fontSize: "15px",
+                                                    color: textSecondary,
+                                                    textDecoration: "none",
+                                                }}
+                                            >
+                                                Profile
+                                                <IconFileAnalytics size={18} />
+                                            </Link>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         )}
