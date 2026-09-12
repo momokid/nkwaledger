@@ -38,6 +38,7 @@ class Transaction extends Model
         'amount_minor',
         'quantity_lost',
         'quantity_sold',
+        'quantity_purchased',
         'settlement_account_id',
         'farm_unit_id',
         'narration',
@@ -60,6 +61,7 @@ class Transaction extends Model
             'amount_minor' => 'integer',
             'quantity_lost' => 'decimal:2',
             'quantity_sold' => 'decimal:2',
+            'quantity_purchased' => 'decimal:2',
             'is_provisional' => 'boolean',
             'posted_at' => 'datetime',
         ];

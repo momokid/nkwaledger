@@ -61,6 +61,12 @@ class FarmUnit extends Model
         return $this->created_by;
     }
 
+    // an agent's own entry can never be waved through by another agent — only admin may
+    public function requiresAdminToApprove(): bool
+    {
+        return $this->createdBy?->hasRole('agent') ?? false;
+    }
+
     public function scopeApproved(Builder $query): Builder
     {
         return $query->whereNotNull('approved_at');

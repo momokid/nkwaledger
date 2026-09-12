@@ -143,7 +143,7 @@ export default function NotificationBell({ dark }: Props) {
                             right: 0,
                             background: gold,
                             color: "#FFFFFF",
-                            fontSize: "12px",
+                            fontSize: "0.75rem",
                             fontWeight: 700,
                             padding: "0 5px",
                             minWidth: "18px",
@@ -180,7 +180,7 @@ export default function NotificationBell({ dark }: Props) {
                     >
                         <span
                             style={{
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 fontWeight: 700,
                                 color: text,
                             }}
@@ -195,7 +195,7 @@ export default function NotificationBell({ dark }: Props) {
                                     background: "transparent",
                                     border: "none",
                                     color: brand,
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                     cursor: "pointer",
                                     fontFamily: "inherit",
                                 }}
@@ -209,7 +209,7 @@ export default function NotificationBell({ dark }: Props) {
                         <p
                             style={{
                                 padding: "18px 14px",
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: textSecondary,
                                 margin: 0,
                             }}
@@ -222,7 +222,7 @@ export default function NotificationBell({ dark }: Props) {
                         <p
                             style={{
                                 padding: "18px 14px",
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: textSecondary,
                                 margin: 0,
                             }}
@@ -255,7 +255,7 @@ export default function NotificationBell({ dark }: Props) {
                                 <span
                                     style={{
                                         display: "block",
-                                        fontSize: "16px",
+                                        fontSize: "1rem",
                                         lineHeight: 1.4,
                                         color: text,
                                         fontWeight: note.is_read ? 400 : 600,
@@ -266,7 +266,7 @@ export default function NotificationBell({ dark }: Props) {
                                 <span
                                     style={{
                                         display: "block",
-                                        fontSize: "14px",
+                                        fontSize: "0.875rem",
                                         color: textSecondary,
                                         marginTop: "3px",
                                     }}

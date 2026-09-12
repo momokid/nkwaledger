@@ -59,6 +59,15 @@ beforeEach(function () {
         'settlement_side' => 'debit',
     ]);
 
+    $this->expenseTemplate = TransactionTemplate::create([
+        'name' => 'Feed Purchase',
+        'slug' => 'feed_purchase',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->feed->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+    ]);
+
     $this->agentUser = User::factory()->create();
     $this->agentUser->assignRole('agent');
 
@@ -68,6 +77,17 @@ beforeEach(function () {
         return $posting->post(new PostingRequest(
             farmerProfileId: $farmer->id,
             transactionTemplateId: $this->incomeTemplate->id,
+            amount: $amount,
+            settlementAccountId: $this->cash->id,
+            transactionDate: $date,
+            recordedBy: $this->agentUser->id,
+        ));
+    };
+
+    $this->recordExpense = function (FarmerProfile $farmer, string $amount, string $date) use ($posting) {
+        return $posting->post(new PostingRequest(
+            farmerProfileId: $farmer->id,
+            transactionTemplateId: $this->expenseTemplate->id,
             amount: $amount,
             settlementAccountId: $this->cash->id,
             transactionDate: $date,
@@ -147,4 +167,85 @@ test('another agent\'s farmers are excluded', function () {
     expect($income)->toBe(0);
     expect($activeCount)->toBe(0);
     expect($rows)->toBe([]);
+});
+
+test('always returns at least four weekly buckets even for a short filter', function () {
+    $buckets = $this->service->weeklyTotalsFor(
+        $this->agentUser->id,
+        now()->subDays(2)->toDateString(),
+        now()->toDateString(),
+    );
+
+    expect($buckets)->toHaveCount(4);
+});
+
+test('buckets are ordered oldest to newest and the last one ends on the filter to date', function () {
+    $buckets = $this->service->weeklyTotalsFor(
+        $this->agentUser->id,
+        now()->subDays(2)->toDateString(),
+        now()->toDateString(),
+    );
+
+    expect($buckets[3]['to'])->toBe(now()->toDateString());
+    expect($buckets[0]['from'])->toBeLessThan($buckets[3]['from']);
+});
+
+test('sums income and expense into the correct rolling week bucket', function () {
+    $farmer = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+
+    ($this->recordIncome)($farmer, '500', now()->toDateString());
+    ($this->recordExpense)($farmer, '200', now()->subDays(8)->toDateString());
+
+    $buckets = $this->service->weeklyTotalsFor(
+        $this->agentUser->id,
+        now()->subDays(27)->toDateString(),
+        now()->toDateString(),
+    );
+
+    expect($buckets[3]['income'])->toBe(50000);
+    expect($buckets[3]['expense'])->toBe(0);
+    expect($buckets[2]['expense'])->toBe(20000);
+    expect($buckets[2]['income'])->toBe(0);
+});
+
+test('extra buckets appear when the filter range exceeds four weeks', function () {
+    $buckets = $this->service->weeklyTotalsFor(
+        $this->agentUser->id,
+        now()->subDays(59)->toDateString(),
+        now()->toDateString(),
+    );
+
+    expect(count($buckets))->toBeGreaterThan(4);
+});
+
+test('weeks before the filter start are empty, even if the farmer has older data', function () {
+    $farmer = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+    ($this->recordIncome)($farmer, '900', now()->subDays(20)->toDateString());
+
+    $buckets = $this->service->weeklyTotalsFor(
+        $this->agentUser->id,
+        now()->subDays(2)->toDateString(),
+        now()->toDateString(),
+    );
+
+    expect($buckets)->toHaveCount(4);
+    foreach ($buckets as $bucket) {
+        expect($bucket['income'])->toBe(0);
+    }
+});
+
+test('another agent\'s farmers are excluded from weekly totals', function () {
+    $otherAgent = User::factory()->create();
+    $farmer = FarmerProfile::factory()->create(['assigned_agent_id' => $otherAgent->id]);
+    ($this->recordIncome)($farmer, '500', now()->toDateString());
+
+    $buckets = $this->service->weeklyTotalsFor(
+        $this->agentUser->id,
+        now()->subDays(27)->toDateString(),
+        now()->toDateString(),
+    );
+
+    foreach ($buckets as $bucket) {
+        expect($bucket['income'])->toBe(0);
+    }
 });

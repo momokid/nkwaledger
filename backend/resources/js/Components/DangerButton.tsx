@@ -51,8 +51,8 @@ export default function Button({
     };
 
     const sizes: Record<Size, { padding: string; fontSize: string }> = {
-        normal: { padding: "11px 22px", fontSize: "18px" },
-        small: { padding: "7px 14px", fontSize: "16px" },
+        normal: { padding: "11px 22px", fontSize: "1.125rem" },
+        small: { padding: "7px 14px", fontSize: "1rem" },
     };
 
     const off = busy || disabled;

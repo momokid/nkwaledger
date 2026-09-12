@@ -129,6 +129,7 @@ class RecordTransactionController extends Controller
                 recordedBy: $request->user()->id,
                 quantityLost: $data['quantity_lost'] ?? null,
                 quantitySold: $data['quantity_sold'] ?? null,
+                quantityPurchased: $data['quantity_purchased'] ?? null,
             ));
         } catch (PostingFailed $failure) {
             return back()->withInput()->with('error', $failure->getMessage());
@@ -169,7 +170,7 @@ class RecordTransactionController extends Controller
                 // some things are true on every farm, so they belong to no category
                 ->orWhereNull('farm_type_category_id'))
             ->orderBy('name')
-            ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale']);
+            ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale', 'is_stock_purchase']);
     }
 
     private function frame(Request $request): array

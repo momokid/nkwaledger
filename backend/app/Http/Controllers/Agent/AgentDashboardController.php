@@ -35,6 +35,7 @@ class AgentDashboardController extends Controller
             'farmer_count' => $activeCount,
             'roster' => $roster,
             'activity_feed' => $this->activityFeed->recentFor($request->user()->id, $from, $to),
+            'weekly_trend' => $this->roster->weeklyTotalsFor($request->user()->id, $from, $to),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
     }

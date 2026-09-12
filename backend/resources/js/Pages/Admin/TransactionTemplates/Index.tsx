@@ -207,7 +207,7 @@ function IndexContent({
         background: inputBg,
         color: text,
         padding: "10px 12px",
-        fontSize: "20px",
+        fontSize: "1.25rem",
         outline: "none",
         fontFamily: "inherit",
     };
@@ -216,13 +216,13 @@ function IndexContent({
 
     const labelStyle = {
         display: "block",
-        fontSize: "18px",
+        fontSize: "1.125rem",
         fontWeight: 600,
         color: text,
         marginBottom: "6px",
     };
 
-    const errorStyle = { color: "#DC2626", fontSize: "18px", marginTop: "4px" };
+    const errorStyle = { color: "#DC2626", fontSize: "1.125rem", marginTop: "4px" };
     const thStyle = { color: headerText, fontWeight: 700 };
 
     const accountLabel = (account: AccountOption) =>
@@ -415,7 +415,7 @@ function IndexContent({
                             display: "flex",
                             alignItems: "center",
                             gap: "8px",
-                            fontSize: "18px",
+                            fontSize: "1.125rem",
                             color: text,
                             paddingBottom: "10px",
                         }}
@@ -442,7 +442,7 @@ function IndexContent({
                             color: "#FFFFFF",
                             border: "none",
                             padding: "10px 20px",
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             fontWeight: 600,
                             cursor: createForm.processing
                                 ? "not-allowed"
@@ -459,7 +459,7 @@ function IndexContent({
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "20px" }}>
+                <table className="min-w-full" style={{ fontSize: "1.25rem" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th className="text-left px-4 py-3" style={thStyle}>
@@ -562,7 +562,7 @@ function IndexContent({
                                                                 display:
                                                                     "block",
                                                                 fontSize:
-                                                                    "15px",
+                                                                    "0.9375rem",
                                                                 color: textSecondary,
                                                                 marginTop:
                                                                     "4px",
@@ -586,7 +586,7 @@ function IndexContent({
                                                         <span
                                                             style={{
                                                                 fontSize:
-                                                                    "17px",
+                                                                    "1.0625rem",
                                                                 fontWeight: 700,
                                                                 color: "#BA7517",
                                                                 border: "1px solid #BA7517",
@@ -861,7 +861,7 @@ function IndexContent({
                                                                     fontWeight: 600,
                                                                     cursor: "pointer",
                                                                     fontSize:
-                                                                        "15px",
+                                                                        "0.9375rem",
                                                                 }}
                                                             >
                                                                 Save
@@ -879,7 +879,7 @@ function IndexContent({
                                                                     border: "none",
                                                                     cursor: "pointer",
                                                                     fontSize:
-                                                                        "15px",
+                                                                        "0.9375rem",
                                                                 }}
                                                             >
                                                                 Cancel
@@ -902,7 +902,7 @@ function IndexContent({
                                                                         fontWeight: 600,
                                                                         cursor: "pointer",
                                                                         fontSize:
-                                                                            "15px",
+                                                                            "0.9375rem",
                                                                     }}
                                                                 >
                                                                     Edit
@@ -925,7 +925,7 @@ function IndexContent({
                                                                             border: "none",
                                                                             cursor: "pointer",
                                                                             fontSize:
-                                                                                "15px",
+                                                                                "0.9375rem",
                                                                         }}
                                                                     >
                                                                         Delete
@@ -960,7 +960,7 @@ function IndexContent({
                             dangerouslySetInnerHTML={{ __html: link.label }}
                             style={{
                                 padding: "6px 12px",
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 border: `1px solid ${border}`,
                                 background: link.active ? "#1D9E75" : surface,
                                 color: link.active ? "#FFFFFF" : text,

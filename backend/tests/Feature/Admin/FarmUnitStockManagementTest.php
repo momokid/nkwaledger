@@ -2,6 +2,7 @@
 
 use App\Enums\MovementReason;
 use App\Enums\StockSource;
+use App\Models\AuditLog;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
@@ -139,6 +140,7 @@ test('recording a movement notifies people who can confirm it, except the person
 
 test('the count starts at the opening quantity', function () {
     $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'source' => 'opening_balance',
         'opening_quantity' => 150,
     ]));
 
@@ -196,13 +198,15 @@ test('a user without the create permission cannot add a stock', function () {
         ->assertForbidden();
 });
 
+// only admin can confirm what an agent recorded, so this uses admin — a plain "can this be
+// confirmed at all" check, not the agent-vs-agent rule (that gets its own tests below)
 test('a stock can be confirmed', function () {
     $stock = FarmUnitStock::factory()->create([
         'farm_unit_id' => $this->unit->id,
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
         ->assertSessionDoesntHaveErrors();
 
     expect($stock->fresh()->isConfirmed())->toBeTrue();
@@ -214,19 +218,19 @@ test('confirming a stock records who did it', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm");
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm");
 
-    expect($stock->fresh()->confirmed_by)->toBe($this->agent->id);
+    expect($stock->fresh()->confirmed_by)->toBe($this->admin->id);
 });
 
 // whoever wrote the number down is not the one who checks it
 test('the person who added a stock cannot confirm it', function () {
     $stock = FarmUnitStock::factory()->create([
         'farm_unit_id' => $this->unit->id,
-        'recorded_by' => $this->agent->id,
+        'recorded_by' => $this->admin->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
         ->assertSessionHasErrors();
 
     expect($stock->fresh()->isConfirmed())->toBeFalse();
@@ -249,8 +253,71 @@ test('an already confirmed stock cannot be confirmed again', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+        ->assertSessionHasErrors();
+});
+
+// an agent's own colleague cannot wave an entry through — only admin may
+test('an agent cannot confirm a stock recorded by another agent', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
     $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
         ->assertSessionHasErrors();
+
+    expect($stock->fresh()->isConfirmed())->toBeFalse();
+});
+
+// but the path stays open for when a farmer records their own entry directly
+test('an agent can confirm a stock recorded by the farmer', function () {
+    $farmerUser = User::factory()->create();
+    $farmerUser->assignRole('farmer');
+
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $farmerUser->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+        ->assertSessionDoesntHaveErrors();
+
+    expect($stock->fresh()->isConfirmed())->toBeTrue();
+});
+
+// the audit trail names the farmer and the agent, not just a bare record id
+test('confirming a stock records the farmer and agent for the admin audit trail', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm");
+
+    $entry = AuditLog::where('action', 'farm_unit_stock.confirmed')->latest('id')->first();
+
+    expect($entry->new_values['farmer'])->toBe(trim("{$this->farmer->user?->surname} {$this->farmer->user?->first_name}"));
+    expect($entry->new_values['agent'])->toBe(trim("{$this->agent->surname} {$this->agent->first_name}"));
+    expect($entry->new_values['checked_by'])->toBe(trim("{$this->admin->surname} {$this->admin->first_name}"));
+});
+
+// confirming a purchased batch has to also confirm the opening number that started it, or
+// the count would stay at zero forever even after approval
+test('confirming a purchased stock also confirms its opening movement', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'source' => App\Enums\StockSource::Purchase,
+        'opening_quantity' => 30,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm");
+
+    $opening = $stock->movements()->where('reason', MovementReason::Opening)->first();
+
+    expect($opening->isConfirmed())->toBeTrue();
+    expect($stock->fresh()->current_quantity)->toBe('30.00');
 });
 
 test('a movement can be recorded', function () {
@@ -262,13 +329,29 @@ test('a movement can be recorded', function () {
     expect($stock->fresh()->current_quantity)->toBe('195.00');
 });
 
-test('a birth adds to the count', function () {
+test('an unconfirmed birth does not add to the count yet', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
 
     $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'birth',
         'quantity' => 3,
     ]));
+
+    expect($stock->fresh()->current_quantity)->toBe('10.00');
+});
+
+test('a confirmed birth adds to the count', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
+
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'reason' => MovementReason::Birth,
+        'quantity' => 3,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
+        ->assertSessionDoesntHaveErrors();
 
     expect($stock->fresh()->current_quantity)->toBe('13.00');
 });
@@ -336,6 +419,71 @@ test('a downward correction takes away', function () {
     expect($stock->fresh()->current_quantity)->toBe('96.00');
 });
 
+// selling or losing more than what is on record would let a farmer report a sale that
+// never happened, or hide a shortfall behind a loss bigger than what was ever there
+test('a death cannot take away more than the stock currently has', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+        'reason' => 'death',
+        'quantity' => 15,
+    ]))->assertSessionHasErrors('quantity');
+
+    expect($stock->fresh()->current_quantity)->toBe('10.00');
+});
+
+test('a sale recorded directly on a stock cannot exceed what it has', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+        'reason' => 'sale',
+        'quantity' => 11,
+    ]))->assertSessionHasErrors('quantity');
+});
+
+test('a downward correction cannot take away more than the stock has', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+        'reason' => 'correction',
+        'quantity' => 12,
+        'is_increase' => false,
+    ]))->assertSessionHasErrors('quantity');
+});
+
+// a purchased batch nobody has confirmed yet has nothing recorded against it either
+test('nothing can be reported sold, lost, or dead against an unconfirmed purchase', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'source' => App\Enums\StockSource::Purchase,
+        'opening_quantity' => 10,
+    ]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+        'reason' => 'death',
+        'quantity' => 1,
+    ]))->assertSessionHasErrors('quantity');
+});
+
+// an addition is never checked against what is already there — that would make no sense
+test('an addition is not checked against the current quantity', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+        'reason' => 'birth',
+        'quantity' => 999,
+    ]))->assertSessionDoesntHaveErrors();
+});
+
+test('a decrease exactly equal to the current quantity is allowed', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+        'reason' => 'death',
+        'quantity' => 10,
+    ]))->assertSessionDoesntHaveErrors();
+});
+
 test('a movement can be confirmed', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
     $movement = FarmUnitStockMovement::factory()->create([
@@ -343,7 +491,7 @@ test('a movement can be confirmed', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
         ->assertSessionDoesntHaveErrors();
 
     expect($movement->fresh()->isConfirmed())->toBeTrue();
@@ -353,7 +501,21 @@ test('the person who recorded a movement cannot confirm it', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
     $movement = FarmUnitStockMovement::factory()->create([
         'farm_unit_stock_id' => $stock->id,
-        'recorded_by' => $this->agent->id,
+        'recorded_by' => $this->admin->id,
+    ]);
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
+        ->assertSessionHasErrors();
+
+    expect($movement->fresh()->isConfirmed())->toBeFalse();
+});
+
+// an agent's own colleague cannot wave a movement through either — only admin may
+test('an agent cannot confirm a movement recorded by another agent', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'recorded_by' => $this->otherAgent->id,
     ]);
 
     $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
@@ -386,6 +548,17 @@ test('the page says what this user may do', function () {
     $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
         ->assertInertia(fn($page) => $page->where('permissions.create', true)
             ->where('permissions.confirm', true));
+});
+
+// the button offered matches what the backend will actually allow
+test('an agent is not offered confirm on a colleague-recorded stock', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+        ->assertInertia(fn($page) => $page->where('stocks.0.can_confirm', false));
 });
 
 test('expected_ready_on is optional', function () {
@@ -434,7 +607,7 @@ test('a stock can be rejected', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
         'reason' => 'Wrong number of animals',
     ])->assertSessionDoesntHaveErrors();
 
@@ -447,7 +620,7 @@ test('a reason is required to reject a stock', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
         'reason' => '',
     ])->assertSessionHasErrors('reason');
 });
@@ -456,10 +629,10 @@ test('a reason is required to reject a stock', function () {
 test('the person who added a stock cannot reject it', function () {
     $stock = FarmUnitStock::factory()->create([
         'farm_unit_id' => $this->unit->id,
-        'recorded_by' => $this->agent->id,
+        'recorded_by' => $this->admin->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
         'reason' => 'Wrong number',
     ])->assertSessionHasErrors();
 
@@ -478,6 +651,20 @@ test('a user without the confirm permission cannot reject a stock', function () 
     ])->assertForbidden();
 });
 
+// an agent's own colleague cannot send back an entry either — only admin may
+test('an agent cannot reject a stock recorded by another agent', function () {
+    $stock = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->unit->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+        'reason' => 'Wrong number',
+    ])->assertSessionHasErrors();
+
+    expect($stock->fresh()->isRejected())->toBeFalse();
+});
+
 test('a movement can be rejected', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
     $movement = FarmUnitStockMovement::factory()->create([
@@ -485,7 +672,7 @@ test('a movement can be rejected', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
         'reason' => 'Wrong reason chosen',
     ])->assertSessionDoesntHaveErrors();
 
@@ -502,6 +689,21 @@ test('the person who recorded a movement cannot reject it', function () {
     $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
         'reason' => 'Wrong reason',
     ])->assertSessionHasErrors();
+});
+
+// an agent's own colleague cannot send back a movement either — only admin may
+test('an agent cannot reject a movement recorded by another agent', function () {
+    $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
+    $movement = FarmUnitStockMovement::factory()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'recorded_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+        'reason' => 'Wrong reason chosen',
+    ])->assertSessionHasErrors();
+
+    expect($movement->fresh()->isRejected())->toBeFalse();
 });
 
 test('the page shows a rejected stock', function () {
@@ -537,7 +739,7 @@ test('rejecting a stock notifies whoever recorded it', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
         'reason' => 'Wrong number of animals',
     ]);
 
@@ -553,7 +755,7 @@ test('rejecting a movement notifies whoever recorded it', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
         'reason' => 'Wrong reason chosen',
     ]);
 

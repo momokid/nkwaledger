@@ -101,6 +101,43 @@ test('each movement says which way it went', function () {
             ->where('units.0.stocks.0.movements.0.is_increase', true));
 });
 
+// the headline figure is what is actually there right now, not what moved through the ledger
+test('current stock level is shown, not just what was sold', function () {
+    $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
+
+    FarmUnitStock::factory()->confirmed()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 40,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-farm')
+        ->assertInertia(fn($page) => $page->where('units.0.analysis.current_stock', '40'));
+});
+
+// stock nobody has checked yet is not shown as if it were real
+test('unconfirmed stock is not counted in the current stock level', function () {
+    $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
+
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $unit->id,
+        'opening_quantity' => 40,
+    ]);
+
+    $this->actingAs($this->farmerUser)->get('/my-farm')
+        ->assertInertia(fn($page) => $page->where('units.0.analysis.current_stock', '0'));
+});
+
+// two confirmed batches on the same pen add up to one figure
+test('current stock level sums every confirmed batch on the unit', function () {
+    $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
+
+    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 40]);
+    FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 25]);
+
+    $this->actingAs($this->farmerUser)->get('/my-farm')
+        ->assertInertia(fn($page) => $page->where('units.0.analysis.current_stock', '65'));
+});
+
 // the farmer's own words: starts with, added, bought, lost, sold
 test('the timeline merges every batch into one running total', function () {
     $unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->profile->id]);
@@ -117,11 +154,17 @@ test('the timeline merges every batch into one running total', function () {
         'started_on' => '2026-02-01',
     ]);
 
-    $third = FarmUnitStock::factory()->create([
+    $third = FarmUnitStock::factory()->confirmed()->create([
         'farm_unit_id' => $unit->id,
+        'source' => \App\Enums\StockSource::Purchase,
         'opening_quantity' => 5,
         'started_on' => '2026-03-01',
     ]);
+
+    $third->movements()->where('reason', MovementReason::Opening)->first()->forceFill([
+        'confirmed_at' => now(),
+        'confirmed_by' => $this->farmerUser->id,
+    ])->save();
 
     $third->movements()->create([
         'reason' => MovementReason::Loss,

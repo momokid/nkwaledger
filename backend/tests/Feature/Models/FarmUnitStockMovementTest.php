@@ -21,7 +21,20 @@ test('creating a stock creates an opening movement', function () {
         ->and($stock->movements->first()->quantity)->toBe('200.00');
 });
 
-test('a birth adds to the count', function () {
+test('a confirmed birth adds to the count', function () {
+    $stock = FarmUnitStock::factory()->create(['opening_quantity' => 10]);
+
+    FarmUnitStockMovement::factory()->confirmed()->create([
+        'farm_unit_stock_id' => $stock->id,
+        'reason' => MovementReason::Birth,
+        'quantity' => 2,
+    ]);
+
+    expect($stock->fresh()->current_quantity)->toBe('12.00');
+});
+
+// a birth is an addition, held back the same as a purchase until someone else checks it
+test('an unconfirmed birth does not add to the count yet', function () {
     $stock = FarmUnitStock::factory()->create(['opening_quantity' => 10]);
 
     FarmUnitStockMovement::factory()->create([
@@ -30,7 +43,7 @@ test('a birth adds to the count', function () {
         'quantity' => 2,
     ]);
 
-    expect($stock->fresh()->current_quantity)->toBe('12.00');
+    expect($stock->fresh()->current_quantity)->toBe('10.00');
 });
 
 test('a death takes away from the count', function () {
@@ -60,7 +73,7 @@ test('a sale takes away from the count', function () {
 test('many movements add up', function () {
     $stock = FarmUnitStock::factory()->create(['opening_quantity' => 100]);
 
-    FarmUnitStockMovement::factory()->create([
+    FarmUnitStockMovement::factory()->confirmed()->create([
         'farm_unit_stock_id' => $stock->id,
         'reason' => MovementReason::Birth,
         'quantity' => 20,
@@ -176,17 +189,17 @@ test('the confirmed scope returns only confirmed movements', function () {
 });
 
 // an unchecked number still shows to the farmer, it just proves nothing
-test('an unconfirmed movement still changes the count', function () {
+test('an unconfirmed sale still changes the count', function () {
     $stock = FarmUnitStock::factory()->create(['opening_quantity' => 10]);
 
     FarmUnitStockMovement::factory()->create([
         'farm_unit_stock_id' => $stock->id,
-        'reason' => MovementReason::Birth,
+        'reason' => MovementReason::Sale,
         'quantity' => 3,
         'confirmed_at' => null,
     ]);
 
-    expect($stock->fresh()->current_quantity)->toBe('13.00');
+    expect($stock->fresh()->current_quantity)->toBe('7.00');
 });
 
 test('the reason casts to the enum', function () {

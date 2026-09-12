@@ -128,7 +128,7 @@ function IndexContent({
         border: `1px solid ${inputBorder}`,
         background: inputBg,
         color: text,
-        fontSize: "17px",
+        fontSize: "1.0625rem",
     } as const;
 
     const summary = [
@@ -155,7 +155,7 @@ function IndexContent({
             className="p-6"
             style={{ background: surface, border: `1px solid ${border}` }}
         >
-            <h2 style={{ fontSize: "22px", fontWeight: 700, color: text }}>
+            <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
                 {layout === "agent" ? `${farmer.name} — records` : "My records"}
             </h2>
 
@@ -165,7 +165,7 @@ function IndexContent({
                     style={{
                         background: noticeBg,
                         color: brand,
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                     }}
                 >
                     {flash.success}
@@ -179,12 +179,12 @@ function IndexContent({
                         className="p-4"
                         style={{ background: headerBg, minWidth: "160px" }}
                     >
-                        <p style={{ fontSize: "16px", color: textSecondary }}>
+                        <p style={{ fontSize: "1rem", color: textSecondary }}>
                             {item.label}
                         </p>
                         <p
                             style={{
-                                fontSize: "22px",
+                                fontSize: "1.375rem",
                                 fontWeight: 700,
                                 color: item.colour,
                                 marginTop: "2px",
@@ -202,7 +202,7 @@ function IndexContent({
                     style={{
                         background: warnBg,
                         color: "#B45309",
-                        fontSize: "16px",
+                        fontSize: "1rem",
                     }}
                 >
                     GHS {cedis(statement.provisional_held_back)} of this is on a
@@ -217,7 +217,7 @@ function IndexContent({
                     <label
                         style={{
                             display: "block",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                             color: textSecondary,
                             marginBottom: "4px",
                         }}
@@ -235,7 +235,7 @@ function IndexContent({
                     <label
                         style={{
                             display: "block",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                             color: textSecondary,
                             marginBottom: "4px",
                         }}
@@ -253,7 +253,7 @@ function IndexContent({
                     <label
                         style={{
                             display: "block",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                             color: textSecondary,
                             marginBottom: "4px",
                         }}
@@ -277,7 +277,7 @@ function IndexContent({
                     <label
                         style={{
                             display: "block",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                             color: textSecondary,
                             marginBottom: "4px",
                         }}
@@ -327,7 +327,7 @@ function IndexContent({
                                     className="px-4 py-3 text-left"
                                     style={{
                                         color: brand,
-                                        fontSize: "16px",
+                                        fontSize: "1rem",
                                         fontWeight: 600,
                                     }}
                                 >
@@ -356,7 +356,7 @@ function IndexContent({
                                     className="px-4 py-6 text-center"
                                     style={{
                                         color: textSecondary,
-                                        fontSize: "17px",
+                                        fontSize: "1.0625rem",
                                     }}
                                 >
                                     Nothing here yet. Record something and it
@@ -406,7 +406,7 @@ function IndexContent({
                                             <span
                                                 style={{
                                                     display: "block",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: textSecondary,
                                                 }}
                                             >
@@ -417,7 +417,7 @@ function IndexContent({
                                             <span
                                                 style={{
                                                     display: "block",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: textSecondary,
                                                 }}
                                             >
@@ -430,7 +430,7 @@ function IndexContent({
                                             <span
                                                 style={{
                                                     display: "block",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: "#B45309",
                                                 }}
                                             >
@@ -441,7 +441,7 @@ function IndexContent({
                                             <span
                                                 style={{
                                                     display: "block",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: "#B45309",
                                                 }}
                                             >
@@ -452,7 +452,7 @@ function IndexContent({
                                             <span
                                                 style={{
                                                     display: "block",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: textSecondary,
                                                 }}
                                             >
@@ -465,7 +465,7 @@ function IndexContent({
                                                     display: "inline-block",
                                                     marginTop: "4px",
                                                     padding: "1px 8px",
-                                                    fontSize: "13px",
+                                                    fontSize: "0.8125rem",
                                                     fontWeight: 600,
                                                     color: "#7C3AED",
                                                     background:
@@ -481,7 +481,7 @@ function IndexContent({
                                         className="px-4 py-3"
                                         style={{
                                             color: textSecondary,
-                                            fontSize: "16px",
+                                            fontSize: "1rem",
                                         }}
                                     >
                                         {row.reference}
@@ -555,7 +555,7 @@ function IndexContent({
                     >
                         Back
                     </Button>
-                    <span style={{ color: textSecondary, fontSize: "16px" }}>
+                    <span style={{ color: textSecondary, fontSize: "1rem" }}>
                         Page {statement.page} of {statement.last_page}
                     </span>
                     <Button
@@ -585,7 +585,7 @@ function IndexContent({
                     >
                         <h3
                             style={{
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 fontWeight: 700,
                                 color: text,
                             }}
@@ -595,7 +595,7 @@ function IndexContent({
 
                         <p
                             style={{
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 color: textSecondary,
                                 marginTop: "6px",
                             }}
@@ -606,7 +606,7 @@ function IndexContent({
 
                         <p
                             style={{
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: textSecondary,
                                 marginTop: "10px",
                             }}
@@ -619,7 +619,7 @@ function IndexContent({
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 fontWeight: 600,
                                 color: text,
                                 marginTop: "16px",
@@ -639,7 +639,7 @@ function IndexContent({
                         {errors.reason && (
                             <p
                                 style={{
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                     color: "#B91C1C",
                                     marginTop: "4px",
                                 }}

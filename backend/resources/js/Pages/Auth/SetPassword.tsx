@@ -39,14 +39,14 @@ export default function SetPassword({ firstName }: Props) {
         background: "#FFFFFF",
         color: "#111827",
         padding: "13px 14px",
-        fontSize: "23px",
+        fontSize: "1.4375rem",
         outline: "none",
         fontFamily: "inherit",
     });
 
     const labelStyle = {
         display: "block",
-        fontSize: "21px",
+        fontSize: "1.3125rem",
         fontWeight: 600,
         color: "#111827",
         marginBottom: "6px",
@@ -79,7 +79,7 @@ export default function SetPassword({ firstName }: Props) {
                 <h1
                     style={{
                         margin: 0,
-                        fontSize: "26px",
+                        fontSize: "1.625rem",
                         fontWeight: 700,
                         color: "#111827",
                     }}
@@ -90,7 +90,7 @@ export default function SetPassword({ firstName }: Props) {
                 <p
                     style={{
                         margin: "8px 0 28px",
-                        fontSize: "21px",
+                        fontSize: "1.3125rem",
                         lineHeight: 1.5,
                         color: "#6B7280",
                     }}
@@ -121,7 +121,7 @@ export default function SetPassword({ firstName }: Props) {
                             <p
                                 style={{
                                     margin: "6px 0 0",
-                                    fontSize: "20px",
+                                    fontSize: "1.25rem",
                                     color: "#DC2626",
                                 }}
                             >
@@ -132,7 +132,7 @@ export default function SetPassword({ firstName }: Props) {
                         <p
                             style={{
                                 margin: "6px 0 0",
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 color: "#6B7280",
                             }}
                         >
@@ -168,7 +168,7 @@ export default function SetPassword({ firstName }: Props) {
                             display: "flex",
                             alignItems: "center",
                             gap: "8px",
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             color: "#6B7280",
                             cursor: "pointer",
                         }}
@@ -198,7 +198,7 @@ export default function SetPassword({ firstName }: Props) {
                             color: "#FFFFFF",
                             border: "none",
                             padding: "13px 20px",
-                            fontSize: "23px",
+                            fontSize: "1.4375rem",
                             fontWeight: 600,
                             cursor: processing ? "not-allowed" : "pointer",
                             fontFamily: "inherit",

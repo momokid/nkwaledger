@@ -85,8 +85,8 @@ function Field({
 }) {
     return (
         <div style={{ marginBottom: "10px" }}>
-            <p style={{ fontSize: "14px", color: textSecondary }}>{label}</p>
-            <p style={{ fontSize: "17px", color: text, fontWeight: 600 }}>
+            <p style={{ fontSize: "0.875rem", color: textSecondary }}>{label}</p>
+            <p style={{ fontSize: "1.0625rem", color: text, fontWeight: 600 }}>
                 {value}
             </p>
         </div>
@@ -126,7 +126,7 @@ function FarmerProfileContent({
                 <div>
                     <p
                         style={{
-                            fontSize: "24px",
+                            fontSize: "1.5rem",
                             fontWeight: 700,
                             color: text,
                             marginBottom: "4px",
@@ -134,7 +134,7 @@ function FarmerProfileContent({
                     >
                         {farmer.name}
                     </p>
-                    <p style={{ fontSize: "17px", color: textSecondary }}>
+                    <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
                         Financial period: {filters.from} to {filters.to}
                     </p>
                 </div>
@@ -150,7 +150,7 @@ function FarmerProfileContent({
                         background: surface,
                         color: text,
                         padding: "10px 16px",
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                         textDecoration: "none",
                     }}
                 >
@@ -168,7 +168,7 @@ function FarmerProfileContent({
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "12px",
@@ -243,7 +243,7 @@ function FarmerProfileContent({
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "12px",
@@ -278,7 +278,7 @@ function FarmerProfileContent({
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "12px",
@@ -286,7 +286,7 @@ function FarmerProfileContent({
                 >
                     Farm types
                 </p>
-                <p style={{ fontSize: "17px", color: text }}>
+                <p style={{ fontSize: "1.0625rem", color: text }}>
                     {farmer.farm_types.length === 0
                         ? "None recorded."
                         : farmer.farm_types.join(", ")}
@@ -302,7 +302,7 @@ function FarmerProfileContent({
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "12px",
@@ -311,7 +311,7 @@ function FarmerProfileContent({
                     Farm units
                 </p>
                 {farmUnits.length === 0 ? (
-                    <p style={{ fontSize: "17px", color: textSecondary }}>
+                    <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
                         No farm units recorded.
                     </p>
                 ) : (
@@ -319,7 +319,7 @@ function FarmerProfileContent({
                         style={{
                             width: "100%",
                             borderCollapse: "collapse",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                         }}
                     >
                         <thead>
@@ -424,7 +424,7 @@ function FarmerProfileContent({
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "12px",
@@ -470,7 +470,7 @@ function FarmerProfileContent({
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "8px",
@@ -478,7 +478,7 @@ function FarmerProfileContent({
                 >
                     Credit score
                 </p>
-                <p style={{ fontSize: "17px", color: textSecondary }}>
+                <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
                     {creditScore}
                 </p>
             </div>

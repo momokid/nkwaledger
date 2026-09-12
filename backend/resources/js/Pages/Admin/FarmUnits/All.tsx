@@ -194,7 +194,7 @@ function AllContent({
     const thStyle = { color: headerText, fontWeight: 700 };
     const labelStyle = {
         color: text,
-        fontSize: "16px",
+        fontSize: "1rem",
         fontWeight: 600,
         display: "block",
         marginBottom: "4px",
@@ -202,7 +202,7 @@ function AllContent({
     const fieldStyle = {
         width: "100%",
         padding: "10px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         background: inputBg,
         color: text,
         border: `1px solid ${inputBorder}`,
@@ -212,13 +212,13 @@ function AllContent({
         background: readOnlyBg,
         color: textSecondary,
     };
-    const errorStyle = { color: "#DC2626", fontSize: "15px", marginTop: "4px" };
+    const errorStyle = { color: "#DC2626", fontSize: "0.9375rem", marginTop: "4px" };
     const buttonStyle = {
         background: "#1D9E75",
         color: "#FFFFFF",
         border: "none",
         padding: "10px 20px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
     };
@@ -226,7 +226,7 @@ function AllContent({
         background: "none",
         border: "none",
         color: headerText,
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
         padding: 0,
@@ -236,7 +236,7 @@ function AllContent({
         width: "100%",
         textAlign: "left" as const,
         padding: "10px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         background: surface,
         color: text,
         border: "none",
@@ -263,7 +263,7 @@ function AllContent({
                         <p
                             style={{
                                 color: text,
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 fontWeight: 600,
                             }}
                         >
@@ -295,7 +295,7 @@ function AllContent({
                                     <p
                                         style={{
                                             color: textSecondary,
-                                            fontSize: "16px",
+                                            fontSize: "1rem",
                                             padding: "10px",
                                         }}
                                     >
@@ -359,7 +359,7 @@ function AllContent({
                                 <p
                                     style={{
                                         color: text,
-                                        fontSize: "18px",
+                                        fontSize: "1.125rem",
                                         fontWeight: 600,
                                     }}
                                 >
@@ -397,7 +397,7 @@ function AllContent({
                                             <p
                                                 style={{
                                                     color: textSecondary,
-                                                    fontSize: "16px",
+                                                    fontSize: "1rem",
                                                     padding: "10px",
                                                 }}
                                             >
@@ -570,7 +570,7 @@ function AllContent({
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "18px" }}>
+                <table className="min-w-full" style={{ fontSize: "1.125rem" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th className="text-left px-4 py-3" style={thStyle}>
@@ -632,7 +632,7 @@ function AllContent({
                                         {!unit.is_active && (
                                             <span
                                                 style={{
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     display: "block",
                                                 }}
                                             >
@@ -704,7 +704,7 @@ function AllContent({
                         onClick={() => link.url && router.visit(link.url)}
                         style={{
                             padding: "6px 12px",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                             border: `1px solid ${border}`,
                             background: link.active ? "#1D9E75" : surface,
                             color: link.active ? "#FFFFFF" : text,

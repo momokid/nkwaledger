@@ -74,7 +74,8 @@ class FarmUnitStockController extends Controller
                     'is_rejected' => $stock->isRejected(),
                     'rejection_reason' => $stock->rejection_reason,
                     'counts_toward_credit' => $stock->countsTowardCredit(),
-                    'can_confirm' => $stock->conflictedUserId() !== $actorId,
+                    'can_confirm' => $stock->conflictedUserId() !== $actorId
+                        && (! $stock->requiresAdminToApprove() || $request->user()->hasRole('admin')),
                     'movements' => $stock->movements
                         ->sortByDesc('occurred_on')
                         ->values()
@@ -89,7 +90,8 @@ class FarmUnitStockController extends Controller
                             'is_confirmed' => $movement->isConfirmed(),
                             'is_rejected' => $movement->isRejected(),
                             'rejection_reason' => $movement->rejection_reason,
-                            'can_confirm' => $movement->conflictedUserId() !== $actorId,
+                            'can_confirm' => $movement->conflictedUserId() !== $actorId
+                                && (! $movement->requiresAdminToApprove() || $request->user()->hasRole('admin')),
                         ]),
                 ]),
             ...$this->frame($request),
@@ -135,6 +137,13 @@ class FarmUnitStockController extends Controller
             ]);
         }
 
+        // an agent's own entry is not waved through by another agent — only admin may
+        if ($stock->requiresAdminToApprove() && ! $request->user()->hasRole('admin')) {
+            throw ValidationException::withMessages([
+                'stock' => 'An admin needs to check this one.',
+            ]);
+        }
+
         // whoever wrote the number down is not the one who checks it
         if ($stock->conflictedUserId() === $request->user()->id) {
             throw ValidationException::withMessages([
@@ -147,7 +156,25 @@ class FarmUnitStockController extends Controller
             'confirmed_by' => $request->user()->id,
         ])->save();
 
-        $this->audit->recordOn('farm_unit_stock.confirmed', $stock);
+        // a purchased opening balance was held back the same as any other purchase; checking
+        // the batch checks the number that started it too, or the count would stay at zero
+        $stock->movements()
+            ->where('reason', MovementReason::Opening)
+            ->whereNull('confirmed_at')
+            ->first()
+            ?->forceFill([
+                'confirmed_at' => now(),
+                'confirmed_by' => $request->user()->id,
+            ])
+            ->save();
+
+        // an approval an agent makes still needs to be visible to admin, so the entry
+        // names the farmer and their agent, not just a bare model id
+        $this->audit->recordOn('farm_unit_stock.confirmed', $stock, null, [
+            'farmer' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
+            'agent' => $farmer->assignedAgent ? trim("{$farmer->assignedAgent->surname} {$farmer->assignedAgent->first_name}") : null,
+            'checked_by' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+        ]);
 
         return back()->with('success', 'The count is checked.');
     }
@@ -190,6 +217,13 @@ class FarmUnitStockController extends Controller
             ]);
         }
 
+        // an agent's own entry is not waved through by another agent — only admin may
+        if ($movement->requiresAdminToApprove() && ! $request->user()->hasRole('admin')) {
+            throw ValidationException::withMessages([
+                'movement' => 'An admin needs to check this one.',
+            ]);
+        }
+
         if ($movement->conflictedUserId() === $request->user()->id) {
             throw ValidationException::withMessages([
                 'movement' => 'Someone else needs to check this change.',
@@ -201,7 +235,11 @@ class FarmUnitStockController extends Controller
             'confirmed_by' => $request->user()->id,
         ])->save();
 
-        $this->audit->recordOn('farm_unit_stock_movement.confirmed', $movement);
+        $this->audit->recordOn('farm_unit_stock_movement.confirmed', $movement, null, [
+            'farmer' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
+            'agent' => $farmer->assignedAgent ? trim("{$farmer->assignedAgent->surname} {$farmer->assignedAgent->first_name}") : null,
+            'checked_by' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+        ]);
 
         return back()->with('success', 'The change is checked.');
     }
@@ -211,6 +249,13 @@ class FarmUnitStockController extends Controller
         $this->guardFarmer($request->user(), $farmer);
         $this->guardBelongsTo($farmer, $farmUnit);
         $this->guardStock($farmUnit, $stock);
+
+        // an agent's own entry is not sent back by another agent either — only admin may
+        if ($stock->requiresAdminToApprove() && ! $request->user()->hasRole('admin')) {
+            throw ValidationException::withMessages([
+                'stock' => 'An admin needs to check this one.',
+            ]);
+        }
 
         if ($stock->conflictedUserId() === $request->user()->id) {
             throw ValidationException::withMessages([
@@ -226,7 +271,11 @@ class FarmUnitStockController extends Controller
             ]);
         }
 
-        $this->audit->recordOn('farm_unit_stock.rejected', $stock);
+        $this->audit->recordOn('farm_unit_stock.rejected', $stock, null, [
+            'farmer' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
+            'agent' => $farmer->assignedAgent ? trim("{$farmer->assignedAgent->surname} {$farmer->assignedAgent->first_name}") : null,
+            'checked_by' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+        ]);
 
         if ($stock->recordedBy) {
             $this->notifications->send(
@@ -246,6 +295,13 @@ class FarmUnitStockController extends Controller
         $this->guardStock($farmUnit, $stock);
         $this->guardMovement($stock, $movement);
 
+        // an agent's own entry is not sent back by another agent either — only admin may
+        if ($movement->requiresAdminToApprove() && ! $request->user()->hasRole('admin')) {
+            throw ValidationException::withMessages([
+                'movement' => 'An admin needs to check this one.',
+            ]);
+        }
+
         if ($movement->conflictedUserId() === $request->user()->id) {
             throw ValidationException::withMessages([
                 'movement' => 'Someone else needs to check this change.',
@@ -260,7 +316,11 @@ class FarmUnitStockController extends Controller
             ]);
         }
 
-        $this->audit->recordOn('farm_unit_stock_movement.rejected', $movement);
+        $this->audit->recordOn('farm_unit_stock_movement.rejected', $movement, null, [
+            'farmer' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
+            'agent' => $farmer->assignedAgent ? trim("{$farmer->assignedAgent->surname} {$farmer->assignedAgent->first_name}") : null,
+            'checked_by' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+        ]);
 
         if ($movement->recordedBy) {
             $this->notifications->send(

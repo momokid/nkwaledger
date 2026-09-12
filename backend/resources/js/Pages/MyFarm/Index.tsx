@@ -45,6 +45,7 @@ interface TimelineEntry {
 }
 
 interface Analysis {
+    current_stock: string;
     total_income: number;
     total_expense: number;
     total_loss: number;
@@ -132,7 +133,7 @@ function IndexContent({ units, filters }: ContentProps) {
         border: `1px solid ${border}`,
         background: dark ? "#111827" : "#FFFFFF",
         color: text,
-        fontSize: "17px",
+        fontSize: "1.0625rem",
     } as const;
 
     const dateFilter = (
@@ -141,7 +142,7 @@ function IndexContent({ units, filters }: ContentProps) {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "16px",
+                        fontSize: "1rem",
                         color: textSecondary,
                         marginBottom: "4px",
                     }}
@@ -159,7 +160,7 @@ function IndexContent({ units, filters }: ContentProps) {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "16px",
+                        fontSize: "1rem",
                         color: textSecondary,
                         marginBottom: "4px",
                     }}
@@ -179,7 +180,7 @@ function IndexContent({ units, filters }: ContentProps) {
                     padding: "9px 20px",
                     background: "#1D9E75",
                     color: "#FFFFFF",
-                    fontSize: "17px",
+                    fontSize: "1.0625rem",
                     fontWeight: 600,
                     border: "none",
                 }}
@@ -199,7 +200,7 @@ function IndexContent({ units, filters }: ContentProps) {
     }
 
     return (
-        <div className="p-6" style={{ color: text, fontSize: "18px" }}>
+        <div className="p-6" style={{ color: text, fontSize: "1.125rem" }}>
             {dateFilter}
             {units.map((unit) => (
                 <div
@@ -221,7 +222,7 @@ function IndexContent({ units, filters }: ContentProps) {
                             <div
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "17px",
+                                    fontSize: "1.0625rem",
                                 }}
                             >
                                 {unit.farm_type ?? "—"}
@@ -242,14 +243,34 @@ function IndexContent({ units, filters }: ContentProps) {
                         style={{
                             borderTop: `1px solid ${border}`,
                             paddingTop: "12px",
-                            fontSize: "18px",
+                            fontSize: "1.125rem",
                         }}
                     >
+                        <div style={{ gridColumn: "span 2" }}>
+                            <span
+                                style={{
+                                    color: textSecondary,
+                                    fontSize: "1rem",
+                                }}
+                            >
+                                Current stock
+                            </span>
+                            <div
+                                style={{
+                                    color: text,
+                                    fontWeight: 700,
+                                    fontSize: "1.25rem",
+                                }}
+                            >
+                                {unit.analysis.current_stock}{" "}
+                                {unit.capacity_unit ?? ""}
+                            </div>
+                        </div>
                         <div>
                             <span
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 Produce sold
@@ -263,7 +284,7 @@ function IndexContent({ units, filters }: ContentProps) {
                             <span
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 Income
@@ -276,7 +297,7 @@ function IndexContent({ units, filters }: ContentProps) {
                             <span
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 Expenses
@@ -289,7 +310,7 @@ function IndexContent({ units, filters }: ContentProps) {
                             <span
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 Lost (no cash)
@@ -302,7 +323,7 @@ function IndexContent({ units, filters }: ContentProps) {
                             <span
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 Net profit
@@ -314,7 +335,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                             ? "#1D9E75"
                                             : "#B91C1C",
                                     fontWeight: 700,
-                                    fontSize: "20px",
+                                    fontSize: "1.25rem",
                                 }}
                             >
                                 GHS {cedis(unit.analysis.net)}
@@ -363,7 +384,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                         className="flex justify-between"
                                         style={{
                                             color: textSecondary,
-                                            fontSize: "16px",
+                                            fontSize: "1rem",
                                             marginTop: "2px",
                                         }}
                                     >
@@ -383,7 +404,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                         entry.rejection_reason && (
                                             <div
                                                 style={{
-                                                    fontSize: "16px",
+                                                    fontSize: "1rem",
                                                     marginTop: "2px",
                                                 }}
                                             >
@@ -398,7 +419,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                     onClick={() => toggleBatches(unit.id)}
                                     style={{
                                         marginTop: "12px",
-                                        fontSize: "16px",
+                                        fontSize: "1rem",
                                         color: textSecondary,
                                         textDecoration: "underline",
                                     }}
@@ -431,7 +452,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                                 </span>
                                                 <span
                                                     style={{
-                                                        fontSize: "17px",
+                                                        fontSize: "1.0625rem",
                                                     }}
                                                 >
                                                     {statusLabel(
@@ -443,7 +464,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                             <div
                                                 style={{
                                                     color: textSecondary,
-                                                    fontSize: "16px",
+                                                    fontSize: "1rem",
                                                 }}
                                             >
                                                 Started{" "}
@@ -456,7 +477,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                                 stock.rejection_reason && (
                                                     <div
                                                         style={{
-                                                            fontSize: "16px",
+                                                            fontSize: "1rem",
                                                             marginTop: "4px",
                                                         }}
                                                     >
@@ -476,7 +497,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                                                 className="flex justify-between"
                                                                 style={{
                                                                     fontSize:
-                                                                        "16px",
+                                                                        "1rem",
                                                                     padding:
                                                                         "2px 0",
                                                                 }}
