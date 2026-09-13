@@ -1,7 +1,7 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { PageProps } from "@/types";
 import { useState } from "react";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { shortDate, cedis } from "@/lib/format";
 
 interface Movement {
@@ -341,6 +341,21 @@ function IndexContent({ units, filters }: ContentProps) {
                                 GHS {cedis(unit.analysis.net)}
                             </div>
                         </div>
+                    </div>
+
+                    <div className="px-4 pb-4">
+                        <Link
+                            href={`/my-farm/${unit.id}/report-problem`}
+                            style={{
+                                display: "inline-block",
+                                fontSize: "1rem",
+                                fontWeight: 600,
+                                color: "#B45309",
+                                textDecoration: "underline",
+                            }}
+                        >
+                            Report a problem on this farm
+                        </Link>
                     </div>
 
                     {openUnit === unit.id && (

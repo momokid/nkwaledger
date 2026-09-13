@@ -20,7 +20,7 @@ interface Props {
 type Tab = "password" | "otp";
 
 const features = [
-    "MTN MoMo payments integrated",
+    "MoMo payments integrated",
     "AI-powered VetAI and CropAI",
     "Trusted by farmers across Ghana",
 ];

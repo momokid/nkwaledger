@@ -308,7 +308,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 textAlign: "center",
                             }}
                         >
-                            Used by farmers across Ghana · MTN MoMo integrated
+                            Used by farmers across Ghana
                         </p>
                     </div>
                 </div>

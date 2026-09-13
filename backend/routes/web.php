@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\TransactionTemplateController;
 use App\Http\Controllers\Admin\FarmerController;
 use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
+use App\Http\Controllers\Farm\DiseaseReportController;
 use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
@@ -168,6 +169,13 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
 Route::middleware(['auth', 'verified.phone'])->prefix('my-farm')->name('my-farm.')->group(function () {
     Route::middleware('access:farm-units.view')->group(function () {
         Route::get('/', [MyFarmController::class, 'index'])->name('index');
+    });
+
+    Route::middleware('access:disease-reports.create')->group(function () {
+        Route::get('/{farmUnit}/report-problem', [DiseaseReportController::class, 'create'])
+            ->name('report-problem.create');
+        Route::post('/{farmUnit}/report-problem', [DiseaseReportController::class, 'store'])
+            ->name('report-problem.store');
     });
 });
 
