@@ -7,6 +7,7 @@ use App\Enums\DiseaseReportStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DiseaseReports\RespondToDiseaseReportRequest;
 use App\Models\DiseaseReport;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +16,8 @@ use Inertia\Response;
 
 class DiseaseReportController extends Controller
 {
+    public function __construct(private readonly NotificationService $notifications) {}
+
     public function dashboard(Request $request): Response
     {
         $reports = DiseaseReport::query()
@@ -62,7 +65,41 @@ class DiseaseReportController extends Controller
             $request->validated('note'),
         );
 
+        $this->notifyResponse($report->fresh(['farmUnit', 'farmerProfile.user', 'farmerProfile.assignedAgent']));
+
         return back()->with('success', 'Your response has been saved.');
+    }
+
+    private function notifyResponse(DiseaseReport $report): void
+    {
+        $statusLabel = match ($report->status) {
+            DiseaseReportStatus::Reviewed => 'reviewed',
+            DiseaseReportStatus::Resolved => 'resolved',
+            DiseaseReportStatus::New => 'new',
+        };
+
+        $farmer = $report->farmerProfile;
+        $unitName = $report->farmUnit?->name;
+
+        if ($farmer?->user) {
+            $this->notifications->send(
+                $farmer->user,
+                'disease_report.responded',
+                "Your report on {$unitName} has been marked {$statusLabel}.",
+                '/my-farm/reports',
+            );
+        }
+
+        if ($farmer?->assignedAgent) {
+            $farmerName = trim("{$farmer->user?->surname} {$farmer->user?->first_name}");
+
+            $this->notifications->send(
+                $farmer->assignedAgent,
+                'disease_report.responded',
+                "A report for {$farmerName}'s {$unitName} was marked {$statusLabel}.",
+                "/agent/farmers/{$farmer->uuid}",
+            );
+        }
     }
 
     // an officer may only open or respond to a report actually routed to them
