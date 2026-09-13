@@ -1,7 +1,9 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import VerificationGate from "@/Components/VerificationGate";
 import NotificationBell from "@/Components/NotificationBell";
+import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
 import useIsVerified from "@/hooks/useIsVerified";
+import useOfflineSync from "@/hooks/useOfflineSync";
 import { PropsWithChildren, useEffect, useState } from "react";
 import {
     IconCategory,
@@ -27,7 +29,9 @@ import {
     IconChecklist,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
+import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import { PageProps } from "@/types";
+import { deleteDeviceKey } from "@/lib/offlineStore";
 import {
     ROOT_FONT_SIZE,
     TextSize,
@@ -208,6 +212,7 @@ export default function AdminLayout({ title, children }: Props) {
     const [dark, setDark] = useState(false);
     const [textSize, setTextSizeState] = useState<TextSize>("normal");
     const verified = useIsVerified();
+    useOfflineSync();
 
     useEffect(() => {
         const saved = localStorage.getItem("nkwa_theme");
@@ -262,6 +267,7 @@ export default function AdminLayout({ title, children }: Props) {
             {},
             {
                 onSuccess: () => {
+                    deleteDeviceKey();
                     window.history.replaceState({ loggedOut: true }, "");
                 },
             },
@@ -452,6 +458,7 @@ export default function AdminLayout({ title, children }: Props) {
             >
                 <Head title={title} />
                 <FlashMessages />
+                <OfflineNavigationNotice />
 
                 <aside
                     className="hidden lg:flex"
@@ -711,6 +718,8 @@ export default function AdminLayout({ title, children }: Props) {
                                     )}
                                 </button>
                             </div>
+
+                            <ConnectivityIndicator dark={dark} />
 
                             <NotificationBell dark={dark} />
                         </header>

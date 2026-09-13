@@ -41,6 +41,8 @@ class RecordTransactionRequest extends FormRequest
             'quantity_sold' => ['nullable', 'string'],
             'quantity_purchased' => ['nullable', 'string'],
             'narration' => ['nullable', 'string', 'max:255'],
+            // client-generated, so an offline entry synced twice never posts twice
+            'idempotency_key' => ['nullable', 'string', 'max:64'],
         ];
     }
 

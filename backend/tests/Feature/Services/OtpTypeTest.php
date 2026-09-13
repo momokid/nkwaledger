@@ -60,6 +60,55 @@ test('an invitation sms explains what to do', function () {
     expect($message)->toContain('1 hour');
 });
 
+// a developer testing locally needs a known code without a working sms provider — but
+// only for an explicitly listed number, and never anywhere but local/testing
+test('a listed test phone gets the fixed bypass code instead of a random one', function () {
+    config(['otp.test_phones' => '0244009999']);
+
+    $otp = app(OtpService::class)->generate('0244009999', 'login');
+
+    expect(Illuminate\Support\Facades\Hash::check('000000', $otp->code))->toBeTrue();
+});
+
+test('a listed test phone sends no real sms', function () {
+    config(['otp.test_phones' => '0244009999']);
+
+    app(OtpService::class)->generate('0244009999', 'login');
+
+    expect(app(App\Contracts\SmsProvider::class)->sentTo('0244009999'))->toBeFalse();
+});
+
+test('a phone not on the list still gets a real random code and a real sms', function () {
+    config(['otp.test_phones' => '0244009999']);
+
+    $otp = app(OtpService::class)->generate('0244000001', 'login');
+
+    expect(Illuminate\Support\Facades\Hash::check('000000', $otp->code))->toBeFalse();
+    expect(app(App\Contracts\SmsProvider::class)->sentTo('0244000001'))->toBeTrue();
+});
+
+test('the bypass never activates outside local or testing environments', function () {
+    config(['otp.test_phones' => '0244009999']);
+    app()->detectEnvironment(fn() => 'production');
+
+    $otp = app(OtpService::class)->generate('0244009999', 'login');
+
+    app()->detectEnvironment(fn() => 'testing');
+
+    expect(Illuminate\Support\Facades\Hash::check('000000', $otp->code))->toBeFalse();
+    expect(app(App\Contracts\SmsProvider::class)->sentTo('0244009999'))->toBeTrue();
+});
+
+test('several test phones can be listed at once, comma separated', function () {
+    config(['otp.test_phones' => '0244009999, 0244008888']);
+
+    $first = app(OtpService::class)->generate('0244009999', 'login');
+    $second = app(OtpService::class)->generate('0244008888', 'login');
+
+    expect(Illuminate\Support\Facades\Hash::check('000000', $first->code))->toBeTrue();
+    expect(Illuminate\Support\Facades\Hash::check('000000', $second->code))->toBeTrue();
+});
+
 test('a fresh code counts as live', function () {
     app(OtpService::class)->generate('0244001101', 'invitation');
 

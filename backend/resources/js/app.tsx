@@ -1,7 +1,7 @@
 import "../css/app.css";
 import "./bootstrap";
 
-import { createInertiaApp } from "@inertiajs/react";
+import { createInertiaApp, router } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 import { createRoot, hydrateRoot } from "react-dom/client";
 
@@ -15,6 +15,15 @@ window.addEventListener("pageshow", (e: PageTransitionEvent) => {
         } else {
             window.location.reload();
         }
+    }
+});
+
+// most pages still need a live connection; without this, a failed navigation while
+// offline throws an uncaught console error and leaves the farmer with nothing
+router.on("exception", (event) => {
+    if (!navigator.onLine) {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent("inertia-offline-blocked"));
     }
 });
 
