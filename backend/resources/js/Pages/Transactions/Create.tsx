@@ -11,6 +11,7 @@ interface Template {
     settlement_side: string;
     requires_farm_unit: boolean;
     is_produce_sale: boolean;
+    is_stock_purchase: boolean;
 }
 
 interface AccountOption {
@@ -86,6 +87,7 @@ function CreateContent({
         farm_unit_id: old.farm_unit_id ?? "",
         quantity_lost: old.quantity_lost ?? "",
         quantity_sold: old.quantity_sold ?? "",
+        quantity_purchased: old.quantity_purchased ?? "",
         narration: old.narration ?? "",
     });
 
@@ -102,6 +104,7 @@ function CreateContent({
     const needsUnit = chosen?.requires_farm_unit ?? false;
     const needsQuantityLost = chosen?.transaction_type === "LOSS";
     const needsQuantitySold = chosen?.is_produce_sale ?? false;
+    const needsQuantityPurchased = chosen?.is_stock_purchase ?? false;
 
     const chosenUnit =
         farmUnits.find((unit) => String(unit.id) === form.data.farm_unit_id) ??
@@ -123,6 +126,7 @@ function CreateContent({
                     "amount",
                     "quantity_lost",
                     "quantity_sold",
+                    "quantity_purchased",
                     "narration",
                 ),
         });
@@ -134,19 +138,19 @@ function CreateContent({
         border: `1px solid ${inputBorder}`,
         background: inputBg,
         color: text,
-        fontSize: "18px",
+        fontSize: "1.125rem",
     } as const;
 
     const label = {
         display: "block",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         color: text,
         marginBottom: "6px",
     } as const;
 
     const errorText = {
-        fontSize: "15px",
+        fontSize: "0.9375rem",
         color: "#B91C1C",
         marginTop: "4px",
     } as const;
@@ -160,14 +164,14 @@ function CreateContent({
                 maxWidth: "560px",
             }}
         >
-            <h2 style={{ fontSize: "22px", fontWeight: 700, color: text }}>
+            <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
                 {layout === "agent"
                     ? `Record for ${farmer.name}`
                     : "Record something"}
             </h2>
             <p
                 style={{
-                    fontSize: "17px",
+                    fontSize: "1.0625rem",
                     color: textSecondary,
                     marginTop: "4px",
                 }}
@@ -181,7 +185,7 @@ function CreateContent({
                     style={{
                         background: noticeBg,
                         color: brand,
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                     }}
                 >
                     {flash.success}
@@ -289,6 +293,28 @@ function CreateContent({
                     </div>
                 )}
 
+                {needsQuantityPurchased && (
+                    <div className="mb-4">
+                        <label style={label}>How many did you buy?</label>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="e.g. 10"
+                            style={field}
+                            value={form.data.quantity_purchased}
+                            onChange={(event) =>
+                                form.setData(
+                                    "quantity_purchased",
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        {errors.quantity_purchased && (
+                            <p style={errorText}>{errors.quantity_purchased}</p>
+                        )}
+                    </div>
+                )}
+
                 {needsAccount && (
                     <div className="mb-4">
                         <label style={label}>
@@ -369,7 +395,7 @@ function CreateContent({
                                 style={{
                                     background: warnBg,
                                     color: "#B45309",
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 This part of the farm has not been checked yet.

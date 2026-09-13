@@ -18,7 +18,7 @@ class FarmUnitStockFactory extends Factory
 
         return [
             'farm_unit_id' => FarmUnit::factory()->approved(),
-            'source' => StockSource::Purchase,
+            'source' => StockSource::OpeningBalance,
             'opening_quantity' => $quantity,
             'current_quantity' => $quantity,
             'unit_of_measure' => 'birds',

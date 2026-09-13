@@ -235,3 +235,19 @@ test('another agent\'s farmers do not appear in the roster', function () {
     $this->actingAs($this->agentUser)->get('/agent/dashboard')
         ->assertInertia(fn($page) => $page->where('roster', []));
 });
+
+test('the dashboard carries a real weekly trend for the chart, not a mock one', function () {
+    $farmer = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+    ($this->recordIncome)($farmer, '500', now()->toDateString());
+
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->has('weekly_trend', 5)
+            ->where('weekly_trend.4.income', 50000));
+});
+
+test('an agent with no assigned farmers still gets weekly buckets, not an error', function () {
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertOk()
+        ->assertInertia(fn($page) => $page->has('weekly_trend', 5));
+});

@@ -65,7 +65,7 @@ export default function QuickAddModal({
         background: inputBg,
         color: text,
         padding: "8px 10px",
-        fontSize: "15px",
+        fontSize: "0.9375rem",
         outline: "none",
         fontFamily: "inherit",
         width: "100%",
@@ -73,7 +73,7 @@ export default function QuickAddModal({
 
     const errorTextStyle = {
         color: "#DC2626",
-        fontSize: "13px",
+        fontSize: "0.8125rem",
         marginTop: "4px",
     };
 
@@ -186,7 +186,7 @@ export default function QuickAddModal({
                 >
                     <h3
                         style={{
-                            fontSize: "17px",
+                            fontSize: "1.0625rem",
                             fontWeight: 700,
                             color: text,
                             margin: 0,
@@ -201,7 +201,7 @@ export default function QuickAddModal({
                             border: "none",
                             color: textSecondary,
                             cursor: "pointer",
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                         }}
                     >
                         ×
@@ -209,7 +209,7 @@ export default function QuickAddModal({
                 </div>
 
                 <div style={{ overflowY: "auto", flex: 1 }}>
-                    <table className="min-w-full" style={{ fontSize: "15px" }}>
+                    <table className="min-w-full" style={{ fontSize: "0.9375rem" }}>
                         <tbody>
                             {loading && (
                                 <TableSkeletonRows rows={4} columns={2} />
@@ -301,7 +301,7 @@ export default function QuickAddModal({
                                                                 fontWeight: 600,
                                                                 cursor: "pointer",
                                                                 fontSize:
-                                                                    "14px",
+                                                                    "0.875rem",
                                                             }}
                                                         >
                                                             Save
@@ -322,7 +322,7 @@ export default function QuickAddModal({
                                                                 border: "none",
                                                                 cursor: "pointer",
                                                                 fontSize:
-                                                                    "14px",
+                                                                    "0.875rem",
                                                             }}
                                                         >
                                                             Cancel
@@ -361,7 +361,7 @@ export default function QuickAddModal({
                                                                         fontWeight: 600,
                                                                         cursor: "pointer",
                                                                         fontSize:
-                                                                            "14px",
+                                                                            "0.875rem",
                                                                     }}
                                                                 >
                                                                     Edit
@@ -381,7 +381,7 @@ export default function QuickAddModal({
                                                                         border: "none",
                                                                         cursor: "pointer",
                                                                         fontSize:
-                                                                            "14px",
+                                                                            "0.875rem",
                                                                     }}
                                                                 >
                                                                     Delete
@@ -428,7 +428,7 @@ export default function QuickAddModal({
                                 color: "#FFFFFF",
                                 border: "none",
                                 padding: "8px 16px",
-                                fontSize: "15px",
+                                fontSize: "0.9375rem",
                                 fontWeight: 600,
                                 cursor: creating ? "not-allowed" : "pointer",
                                 opacity: creating ? 0.7 : 1,

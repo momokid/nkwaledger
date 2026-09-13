@@ -51,7 +51,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
         color: string;
     }) =>
         rows.length === 0 ? (
-            <p style={{ fontSize: "16px", color: textSecondary }}>
+            <p style={{ fontSize: "1rem", color: textSecondary }}>
                 Nothing recorded in this period.
             </p>
         ) : (
@@ -59,7 +59,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
                 style={{
                     width: "100%",
                     borderCollapse: "collapse",
-                    fontSize: "16px",
+                    fontSize: "1rem",
                 }}
             >
                 <tbody>
@@ -99,7 +99,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
                 <div>
                     <p
                         style={{
-                            fontSize: "24px",
+                            fontSize: "1.5rem",
                             fontWeight: 700,
                             color: text,
                             marginBottom: "4px",
@@ -107,7 +107,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
                     >
                         Income &amp; Expense Summary
                     </p>
-                    <p style={{ fontSize: "17px", color: textSecondary }}>
+                    <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
                         {filters.from} to {filters.to}
                     </p>
                 </div>
@@ -124,7 +124,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
                         background: surface,
                         color: text,
                         padding: "10px 16px",
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                         textDecoration: "none",
                     }}
                 >
@@ -163,7 +163,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
                     >
                         <p
                             style={{
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: textSecondary,
                                 marginBottom: "8px",
                             }}
@@ -172,7 +172,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
                         </p>
                         <p
                             style={{
-                                fontSize: "26px",
+                                fontSize: "1.625rem",
                                 fontWeight: 700,
                                 color: item.color,
                             }}
@@ -192,7 +192,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "12px",
@@ -215,7 +215,7 @@ function IncomeSummaryContent({ summary, filters }: Props) {
             >
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "12px",

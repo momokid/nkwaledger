@@ -56,7 +56,8 @@ class FarmUnitController extends Controller
                 'capacity_unit' => $unit->capacity_unit,
                 'is_approved' => $unit->isApproved(),
                 'approved_by' => $unit->approvedBy?->surname,
-                'can_approve' => $unit->conflictedUserId() !== $user->id,
+                'can_approve' => $unit->conflictedUserId() !== $user->id
+                    && (! $unit->requiresAdminToApprove() || $user->hasRole('admin')),
                 'is_active' => $unit->is_active,
             ]);
 
@@ -131,8 +132,10 @@ class FarmUnitController extends Controller
                     'capacity_unit' => $unit->capacity_unit,
                     'is_approved' => $unit->isApproved(),
                     'approved_by' => $unit->approvedBy?->surname,
-                    // whoever set it up cannot be the one who says it exists
-                    'can_approve' => $unit->conflictedUserId() !== $request->user()->id,
+                    // whoever set it up cannot be the one who says it exists, and an agent's
+                    // colleague cannot wave it through either — only admin may in that case
+                    'can_approve' => $unit->conflictedUserId() !== $request->user()->id
+                        && (! $unit->requiresAdminToApprove() || $request->user()->hasRole('admin')),
                     'is_active' => $unit->is_active,
                 ]),
             ...$this->frame($request, 'farmers'),
@@ -179,6 +182,11 @@ class FarmUnitController extends Controller
             return back()->with('error', 'This unit is already approved.');
         }
 
+        // an agent's own entry is not waved through by another agent — only admin may
+        if ($farmUnit->requiresAdminToApprove() && ! $request->user()->hasRole('admin')) {
+            return back()->with('error', 'An admin needs to check this one.');
+        }
+
         // whoever set the pen up is not the one who says it exists
         if ($farmUnit->conflictedUserId() === $request->user()->id) {
             return back()->with('error', 'Someone other than the person who added this unit needs to approve it.');
@@ -189,7 +197,13 @@ class FarmUnitController extends Controller
             'approved_by' => $request->user()->id,
         ])->save();
 
-        $this->audit->recordOn('farm_unit.approved', $farmUnit);
+        // an approval an agent makes still needs to be visible to admin, so the entry
+        // names the farmer and their agent, not just a bare model id
+        $this->audit->recordOn('farm_unit.approved', $farmUnit, null, [
+            'farmer' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
+            'agent' => $farmer->assignedAgent ? trim("{$farmer->assignedAgent->surname} {$farmer->assignedAgent->first_name}") : null,
+            'checked_by' => trim("{$request->user()->surname} {$request->user()->first_name}"),
+        ]);
 
         return back()->with('success', 'The unit is approved.');
     }

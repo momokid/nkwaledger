@@ -77,6 +77,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'is_stock_purchase' => true,
             'category' => 'Livestock',
         ],
         [
@@ -159,6 +160,18 @@ class TransactionTemplateSeeder extends Seeder
             'category' => 'Crop',
         ],
         [
+            'name' => 'I bought seedlings',
+            'slug' => 'seedling_purchase',
+            'transaction_type' => 'EXPENSE',
+            'debit_account' => 'Crops in Field A/C',
+            'credit_account' => 'Cash A/C',
+            'settlement_side' => 'credit',
+            'requires_farm_unit' => true,
+            'is_produce_sale' => false,
+            'is_stock_purchase' => true,
+            'category' => 'Crop',
+        ],
+        [
             'name' => 'I lost all my farm produce',
             'slug' => 'crop_loss',
             'transaction_type' => 'LOSS',
@@ -179,6 +192,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'is_stock_purchase' => true,
             'category' => 'Aquatic',
         ],
         [
@@ -264,6 +278,9 @@ class TransactionTemplateSeeder extends Seeder
                     'settlement_side' => $template['settlement_side'],
                     'requires_farm_unit' => $template['requires_farm_unit'],
                     'is_produce_sale' => $template['is_produce_sale'],
+                    // most templates don't set this key at all, so it defaults to false rather
+                    // than requiring every entry in $templates to carry it
+                    'is_stock_purchase' => $template['is_stock_purchase'] ?? false,
                     'farm_type_category_id' => $categoryId,
                     'is_system' => true,
                     'is_active' => true,

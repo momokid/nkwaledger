@@ -185,7 +185,7 @@ export default function CommunityModal({
         background: inputBg,
         color: text,
         padding: "8px 10px",
-        fontSize: "15px",
+        fontSize: "0.9375rem",
         outline: "none",
         fontFamily: "inherit",
         width: "100%",
@@ -193,7 +193,7 @@ export default function CommunityModal({
 
     const labelStyle = {
         display: "block",
-        fontSize: "14px",
+        fontSize: "0.875rem",
         fontWeight: 600,
         color: text,
         marginBottom: "5px",
@@ -201,7 +201,7 @@ export default function CommunityModal({
 
     const errorTextStyle = {
         color: "#DC2626",
-        fontSize: "13px",
+        fontSize: "0.8125rem",
         marginTop: "4px",
     };
 
@@ -293,7 +293,7 @@ export default function CommunityModal({
                 <div className="flex justify-between items-center mb-4">
                     <p
                         style={{
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             fontWeight: 700,
                             color: text,
                         }}
@@ -307,7 +307,7 @@ export default function CommunityModal({
                             border: "none",
                             cursor: "pointer",
                             color: textSecondary,
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                         }}
                     >
                         ×
@@ -315,7 +315,7 @@ export default function CommunityModal({
                 </div>
 
                 {loading ? (
-                    <p style={{ color: textSecondary, fontSize: "15px" }}>
+                    <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>
                         Loading…
                     </p>
                 ) : (
@@ -413,7 +413,7 @@ export default function CommunityModal({
                                                     border: "none",
                                                     fontWeight: 600,
                                                     cursor: "pointer",
-                                                    fontSize: "14px",
+                                                    fontSize: "0.875rem",
                                                 }}
                                             >
                                                 Save
@@ -425,7 +425,7 @@ export default function CommunityModal({
                                                     background: "transparent",
                                                     border: "none",
                                                     cursor: "pointer",
-                                                    fontSize: "14px",
+                                                    fontSize: "0.875rem",
                                                 }}
                                             >
                                                 Cancel
@@ -438,7 +438,7 @@ export default function CommunityModal({
                                             <p
                                                 style={{
                                                     color: text,
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     margin: 0,
                                                 }}
                                             >
@@ -447,7 +447,7 @@ export default function CommunityModal({
                                             <p
                                                 style={{
                                                     color: textSecondary,
-                                                    fontSize: "12px",
+                                                    fontSize: "0.75rem",
                                                     margin: 0,
                                                 }}
                                             >
@@ -474,7 +474,7 @@ export default function CommunityModal({
                                                         border: "none",
                                                         fontWeight: 600,
                                                         cursor: "pointer",
-                                                        fontSize: "14px",
+                                                        fontSize: "0.875rem",
                                                     }}
                                                 >
                                                     Edit
@@ -494,7 +494,7 @@ export default function CommunityModal({
                                                             "transparent",
                                                         border: "none",
                                                         cursor: "pointer",
-                                                        fontSize: "14px",
+                                                        fontSize: "0.875rem",
                                                     }}
                                                 >
                                                     Delete
@@ -536,7 +536,7 @@ export default function CommunityModal({
                         />
                         <p
                             style={{
-                                fontSize: "13px",
+                                fontSize: "0.8125rem",
                                 color: textSecondary,
                                 marginBottom: "6px",
                             }}
@@ -572,7 +572,7 @@ export default function CommunityModal({
                                                     ? "none"
                                                     : `1px solid ${border}`,
                                             color: text,
-                                            fontSize: "14px",
+                                            fontSize: "0.875rem",
                                             cursor: "pointer",
                                         }}
                                     >
@@ -628,7 +628,7 @@ export default function CommunityModal({
                                 color: "#FFFFFF",
                                 border: "none",
                                 padding: "9px 20px",
-                                fontSize: "15px",
+                                fontSize: "0.9375rem",
                                 fontWeight: 600,
                                 cursor: creating ? "not-allowed" : "pointer",
                                 opacity: creating ? 0.7 : 1,

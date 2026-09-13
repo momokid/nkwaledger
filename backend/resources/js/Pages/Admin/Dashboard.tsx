@@ -33,7 +33,7 @@ function DashboardContent() {
                     border: `1px solid ${dark ? "rgba(180,83,9,0.3)" : "#FDE68A"}`,
                     padding: "12px 16px",
                     marginBottom: "20px",
-                    fontSize: "16px",
+                    fontSize: "1rem",
                     color: dark ? "#FBBF24" : "#92400E",
                 }}
             >
@@ -61,7 +61,7 @@ function DashboardContent() {
                     >
                         <p
                             style={{
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 color: textSecondary,
                                 marginBottom: "8px",
                             }}
@@ -70,7 +70,7 @@ function DashboardContent() {
                         </p>
                         <p
                             style={{
-                                fontSize: "26px",
+                                fontSize: "1.625rem",
                                 fontWeight: 700,
                                 color: text,
                                 letterSpacing: "-0.5px",

@@ -116,7 +116,17 @@ class MyFarmController extends Controller
             ->whereNull('rejected_at')
             ->sum('quantity');
 
+        // what is actually there right now, not what moved through the ledger — same rule
+        // the farmer dashboard already uses: confirmed and not rejected, summed across
+        // every batch on this unit, whatever the farm type (animals or crops alike)
+        $currentStock = FarmUnitStock::query()
+            ->where('farm_unit_id', $farmUnitId)
+            ->whereNotNull('confirmed_at')
+            ->whereNull('rejected_at')
+            ->sum('current_quantity');
+
         return [
+            'current_stock' => $this->trimmedQuantity((float) $currentStock),
             'total_income' => $income,
             'total_expense' => $expense,
             'total_loss' => $loss,

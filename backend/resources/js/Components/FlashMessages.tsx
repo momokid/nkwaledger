@@ -86,7 +86,7 @@ export default function FlashMessages() {
                 style={{
                     margin: 0,
                     flex: 1,
-                    fontSize: "16px",
+                    fontSize: "1rem",
                     lineHeight: 1.45,
                     color: "#111827",
                 }}

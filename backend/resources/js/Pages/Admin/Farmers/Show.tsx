@@ -184,7 +184,7 @@ function ShowContent({
 
     const labelStyle = {
         color: text,
-        fontSize: "16px",
+        fontSize: "1rem",
         fontWeight: 600,
         display: "block",
         marginBottom: "4px",
@@ -192,12 +192,12 @@ function ShowContent({
     const fieldStyle = {
         width: "100%",
         padding: "10px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         background: inputBg,
         color: text,
         border: `1px solid ${inputBorder}`,
     };
-    const errorStyle = { color: "#DC2626", fontSize: "15px", marginTop: "4px" };
+    const errorStyle = { color: "#DC2626", fontSize: "0.9375rem", marginTop: "4px" };
     const cardStyle = {
         background: surface,
         border: `1px solid ${border}`,
@@ -208,7 +208,7 @@ function ShowContent({
         color: "#FFFFFF",
         border: "none",
         padding: "10px 20px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
     };
@@ -226,7 +226,7 @@ function ShowContent({
                     background: "none",
                     border: "none",
                     color: headerText,
-                    fontSize: "17px",
+                    fontSize: "1.0625rem",
                     fontWeight: 600,
                     cursor: "pointer",
                     padding: 0,
@@ -236,10 +236,10 @@ function ShowContent({
             </button>
 
             <div style={cardStyle} className="space-y-2">
-                <p style={{ color: text, fontSize: "22px", fontWeight: 700 }}>
+                <p style={{ color: text, fontSize: "1.375rem", fontWeight: 700 }}>
                     {farmer.name}
                 </p>
-                <p style={{ color: text, fontSize: "17px" }}>
+                <p style={{ color: text, fontSize: "1.0625rem" }}>
                     {farmer.phone}
                     {!farmer.phone_verified && (
                         <span style={{ color: "#B45309" }}>
@@ -251,7 +251,7 @@ function ShowContent({
 
                 {!farmer.phone_verified &&
                     (farmer.has_live_code ? (
-                        <p style={{ color: textSecondary, fontSize: "16px" }}>
+                        <p style={{ color: textSecondary, fontSize: "1rem" }}>
                             A code is already on their phone. Ask them to check
                             their messages.
                         </p>
@@ -262,7 +262,7 @@ function ShowContent({
                                 background: "none",
                                 border: "none",
                                 color: headerText,
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 fontWeight: 600,
                                 cursor: "pointer",
                                 padding: 0,
@@ -271,19 +271,19 @@ function ShowContent({
                             Send them a new code
                         </button>
                     ))}
-                <p style={{ color: textSecondary, fontSize: "16px" }}>
+                <p style={{ color: textSecondary, fontSize: "1rem" }}>
                     Farms in {farmer.community} · Registered by{" "}
                     {farmer.registered_by ?? "themselves"}
                 </p>
                 <p
                     style={{
                         color: farmer.agent ? textSecondary : "#B45309",
-                        fontSize: "16px",
+                        fontSize: "1rem",
                     }}
                 >
                     Agent: {farmer.agent ?? "not assigned"}
                 </p>
-                <p style={{ color: textSecondary, fontSize: "16px" }}>
+                <p style={{ color: textSecondary, fontSize: "1rem" }}>
                     Produces: {farmer.farm_types.join(", ") || "not yet stated"}
                 </p>
 
@@ -296,7 +296,7 @@ function ShowContent({
                             background: "none",
                             border: "none",
                             color: headerText,
-                            fontSize: "17px",
+                            fontSize: "1.0625rem",
                             fontWeight: 600,
                             cursor: "pointer",
                             padding: 0,
@@ -313,7 +313,7 @@ function ShowContent({
                             background: "none",
                             border: "none",
                             color: headerText,
-                            fontSize: "17px",
+                            fontSize: "1.0625rem",
                             fontWeight: 600,
                             cursor: "pointer",
                             padding: 0,
@@ -330,7 +330,7 @@ function ShowContent({
                             background: "none",
                             border: "none",
                             color: headerText,
-                            fontSize: "17px",
+                            fontSize: "1.0625rem",
                             fontWeight: 600,
                             cursor: "pointer",
                             padding: 0,
@@ -346,7 +346,7 @@ function ShowContent({
                 style={cardStyle}
                 className="space-y-4"
             >
-                <p style={{ color: text, fontSize: "19px", fontWeight: 700 }}>
+                <p style={{ color: text, fontSize: "1.1875rem", fontWeight: 700 }}>
                     Details
                 </p>
 
@@ -520,7 +520,7 @@ function ShowContent({
                                 key={farmType.id}
                                 style={{
                                     color: text,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                     border: `1px solid ${inputBorder}`,
                                     padding: "8px 12px",
                                     cursor: "pointer",
@@ -548,7 +548,7 @@ function ShowContent({
                 </div>
 
                 <label
-                    style={{ color: text, fontSize: "16px", cursor: "pointer" }}
+                    style={{ color: text, fontSize: "1rem", cursor: "pointer" }}
                 >
                     <input
                         type="checkbox"
@@ -577,17 +577,17 @@ function ShowContent({
             </form>
 
             <div style={cardStyle} className="space-y-4">
-                <p style={{ color: text, fontSize: "19px", fontWeight: 700 }}>
+                <p style={{ color: text, fontSize: "1.1875rem", fontWeight: 700 }}>
                     Identity document
                 </p>
 
                 {farmer.identity_verified_at ? (
-                    <p style={{ color: headerText, fontSize: "17px" }}>
+                    <p style={{ color: headerText, fontSize: "1.0625rem" }}>
                         {farmer.identity_type_label} verified by{" "}
                         {farmer.identity_verified_by}
                     </p>
                 ) : (
-                    <p style={{ color: textSecondary, fontSize: "16px" }}>
+                    <p style={{ color: textSecondary, fontSize: "1rem" }}>
                         {farmer.has_identity
                             ? "A document is on file and is waiting to be verified."
                             : "No document yet. The farmer can still record transactions, but credit reports need one."}
@@ -647,7 +647,7 @@ function ShowContent({
                             </div>
                         </div>
 
-                        <p style={{ color: textSecondary, fontSize: "15px" }}>
+                        <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>
                             We store this number in a scrambled form, so it can
                             never be read back.
                         </p>

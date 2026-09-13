@@ -230,7 +230,7 @@ function StocksContent({
 
     const labelStyle = {
         color: text,
-        fontSize: "16px",
+        fontSize: "1rem",
         fontWeight: 600,
         display: "block",
         marginBottom: "4px",
@@ -238,12 +238,12 @@ function StocksContent({
     const fieldStyle = {
         width: "100%",
         padding: "10px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         background: inputBg,
         color: text,
         border: `1px solid ${inputBorder}`,
     };
-    const errorStyle = { color: "#DC2626", fontSize: "15px", marginTop: "4px" };
+    const errorStyle = { color: "#DC2626", fontSize: "0.9375rem", marginTop: "4px" };
     const cardStyle = {
         background: surface,
         border: `1px solid ${border}`,
@@ -254,7 +254,7 @@ function StocksContent({
         color: "#FFFFFF",
         border: "none",
         padding: "10px 20px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
     };
@@ -262,7 +262,7 @@ function StocksContent({
         background: "none",
         border: "none",
         color: headerText,
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
         padding: 0,
@@ -280,14 +280,14 @@ function StocksContent({
             </button>
 
             <div style={cardStyle} className="space-y-2">
-                <p style={{ color: text, fontSize: "22px", fontWeight: 700 }}>
+                <p style={{ color: text, fontSize: "1.375rem", fontWeight: 700 }}>
                     {unit.name}
                 </p>
-                <p style={{ color: textSecondary, fontSize: "16px" }}>
+                <p style={{ color: textSecondary, fontSize: "1rem" }}>
                     {unit.farm_type} · {farmer.name}
                 </p>
                 {!unit.is_approved && (
-                    <p style={{ color: "#B45309", fontSize: "16px" }}>
+                    <p style={{ color: "#B45309", fontSize: "1rem" }}>
                         This unit has not been checked yet, so nothing here
                         counts toward credit.
                     </p>
@@ -440,7 +440,7 @@ function StocksContent({
                         </div>
                     </div>
 
-                    <p style={{ color: textSecondary, fontSize: "15px" }}>
+                    <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>
                         Enter zero if nothing was paid.
                     </p>
 
@@ -459,7 +459,7 @@ function StocksContent({
 
             {stocks.length === 0 && (
                 <div style={cardStyle}>
-                    <p style={{ color: textSecondary, fontSize: "17px" }}>
+                    <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
                         Nothing recorded in this unit yet.
                     </p>
                 </div>
@@ -479,7 +479,7 @@ function StocksContent({
                             <p
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                 }}
                             >
                                 There now
@@ -487,7 +487,7 @@ function StocksContent({
                             <p
                                 style={{
                                     color: text,
-                                    fontSize: "22px",
+                                    fontSize: "1.375rem",
                                     fontWeight: 700,
                                 }}
                             >
@@ -498,12 +498,12 @@ function StocksContent({
                             <p
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                 }}
                             >
                                 Started with
                             </p>
-                            <p style={{ color: text, fontSize: "18px" }}>
+                            <p style={{ color: text, fontSize: "1.125rem" }}>
                                 {stock.opening_quantity}
                             </p>
                         </div>
@@ -511,12 +511,12 @@ function StocksContent({
                             <p
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                 }}
                             >
                                 Cost
                             </p>
-                            <p style={{ color: text, fontSize: "18px" }}>
+                            <p style={{ color: text, fontSize: "1.125rem" }}>
                                 {stock.acquisition_cost}
                             </p>
                         </div>
@@ -524,12 +524,12 @@ function StocksContent({
                             <p
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                 }}
                             >
                                 Cost each
                             </p>
-                            <p style={{ color: text, fontSize: "18px" }}>
+                            <p style={{ color: text, fontSize: "1.125rem" }}>
                                 {stock.cost_per_unit ?? "—"}
                             </p>
                         </div>
@@ -537,12 +537,12 @@ function StocksContent({
                             <p
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                 }}
                             >
                                 Since
                             </p>
-                            <p style={{ color: text, fontSize: "18px" }}>
+                            <p style={{ color: text, fontSize: "1.125rem" }}>
                                 {stock.started_on}
                             </p>
                         </div>
@@ -550,19 +550,19 @@ function StocksContent({
                             <p
                                 style={{
                                     color: textSecondary,
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                 }}
                             >
                                 Expected ready
                             </p>
-                            <p style={{ color: text, fontSize: "18px" }}>
+                            <p style={{ color: text, fontSize: "1.125rem" }}>
                                 {stock.expected_ready_on ?? "—"}
                             </p>
                         </div>
                     </div>
 
                     {stock.is_rejected ? (
-                        <p style={{ color: rejectColor, fontSize: "16px" }}>
+                        <p style={{ color: rejectColor, fontSize: "1rem" }}>
                             Sent back: {stock.rejection_reason}
                         </p>
                     ) : (
@@ -571,7 +571,7 @@ function StocksContent({
                                 color: stock.is_confirmed
                                     ? headerText
                                     : "#B45309",
-                                fontSize: "16px",
+                                fontSize: "1rem",
                             }}
                         >
                             {stock.is_confirmed
@@ -831,7 +831,7 @@ function StocksContent({
                         <p
                             style={{
                                 color: text,
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 fontWeight: 600,
                                 marginBottom: "8px",
                             }}
@@ -841,7 +841,7 @@ function StocksContent({
 
                         <table
                             className="min-w-full"
-                            style={{ fontSize: "17px" }}
+                            style={{ fontSize: "1.0625rem" }}
                         >
                             <tbody>
                                 {stock.movements.map((movement) => (

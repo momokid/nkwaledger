@@ -40,7 +40,7 @@ export default function AuthLayout({
                                 <div>
                                     <div
                                         style={{
-                                            fontSize: "20px",
+                                            fontSize: "1.25rem",
                                             fontWeight: 700,
                                             color: "#fff",
                                             letterSpacing: "-0.2px",
@@ -50,7 +50,7 @@ export default function AuthLayout({
                                     </div>
                                     <div
                                         style={{
-                                            fontSize: "12px",
+                                            fontSize: "0.75rem",
                                             fontWeight: 600,
                                             color: "rgba(255,255,255,0.45)",
                                             letterSpacing: "0.8px",
@@ -65,7 +65,7 @@ export default function AuthLayout({
                             <p
                                 style={{
                                     margin: "0 0 8px",
-                                    fontSize: "21px",
+                                    fontSize: "1.3125rem",
                                     fontWeight: 700,
                                     color: "#fff",
                                     lineHeight: 1.4,
@@ -77,7 +77,7 @@ export default function AuthLayout({
                             <p
                                 style={{
                                     margin: "0 0 1.5rem",
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                     color: "rgba(255,255,255,0.62)",
                                     lineHeight: 1.65,
                                 }}
@@ -113,7 +113,7 @@ export default function AuthLayout({
                                         </div>
                                         <span
                                             style={{
-                                                fontSize: "15px",
+                                                fontSize: "0.9375rem",
                                                 color: "rgba(255,255,255,0.75)",
                                             }}
                                         >
@@ -140,7 +140,7 @@ export default function AuthLayout({
                             <div>
                                 <div
                                     style={{
-                                        fontSize: "18px",
+                                        fontSize: "1.125rem",
                                         fontWeight: 700,
                                         color: "#0F6E56",
                                         letterSpacing: "-0.2px",
@@ -150,7 +150,7 @@ export default function AuthLayout({
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: "12px",
+                                        fontSize: "0.75rem",
                                         fontWeight: 600,
                                         color: "#0F6E56",
                                         opacity: 0.6,

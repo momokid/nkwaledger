@@ -144,7 +144,7 @@ function IndexContent({
         background: inputBg,
         color: text,
         padding: "10px 12px",
-        fontSize: "20px",
+        fontSize: "1.25rem",
         outline: "none",
         fontFamily: "inherit",
     };
@@ -154,7 +154,7 @@ function IndexContent({
         background: "transparent",
         color: "#1D9E75",
         fontWeight: 700,
-        fontSize: "20px",
+        fontSize: "1.25rem",
         width: "42px",
         height: "42px",
         cursor: quickAddBusy ? "not-allowed" : "pointer",
@@ -181,7 +181,7 @@ function IndexContent({
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 fontWeight: 600,
                                 color: text,
                                 marginBottom: "6px",
@@ -202,7 +202,7 @@ function IndexContent({
                             <p
                                 style={{
                                     color: "#DC2626",
-                                    fontSize: "18px",
+                                    fontSize: "1.125rem",
                                     marginTop: "4px",
                                 }}
                             >
@@ -214,7 +214,7 @@ function IndexContent({
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 fontWeight: 600,
                                 color: text,
                                 marginBottom: "6px",
@@ -257,7 +257,7 @@ function IndexContent({
                             <p
                                 style={{
                                     color: "#DC2626",
-                                    fontSize: "18px",
+                                    fontSize: "1.125rem",
                                     marginTop: "4px",
                                 }}
                             >
@@ -273,7 +273,7 @@ function IndexContent({
                             color: "#FFFFFF",
                             border: "none",
                             padding: "10px 20px",
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             fontWeight: 600,
                             cursor: createForm.processing
                                 ? "not-allowed"
@@ -290,7 +290,7 @@ function IndexContent({
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "20px" }}>
+                <table className="min-w-full" style={{ fontSize: "1.25rem" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th
@@ -430,7 +430,7 @@ function IndexContent({
                                                                 fontWeight: 600,
                                                                 cursor: "pointer",
                                                                 fontSize:
-                                                                    "15px",
+                                                                    "0.9375rem",
                                                             }}
                                                         >
                                                             Save
@@ -444,7 +444,7 @@ function IndexContent({
                                                                 border: "none",
                                                                 cursor: "pointer",
                                                                 fontSize:
-                                                                    "15px",
+                                                                    "0.9375rem",
                                                             }}
                                                         >
                                                             Cancel
@@ -467,7 +467,7 @@ function IndexContent({
                                                                     fontWeight: 600,
                                                                     cursor: "pointer",
                                                                     fontSize:
-                                                                        "15px",
+                                                                        "0.9375rem",
                                                                 }}
                                                             >
                                                                 Edit
@@ -488,7 +488,7 @@ function IndexContent({
                                                                     border: "none",
                                                                     cursor: "pointer",
                                                                     fontSize:
-                                                                        "15px",
+                                                                        "0.9375rem",
                                                                 }}
                                                             >
                                                                 Delete
@@ -523,7 +523,7 @@ function IndexContent({
                             dangerouslySetInnerHTML={{ __html: link.label }}
                             style={{
                                 padding: "6px 12px",
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 border: `1px solid ${border}`,
                                 background: link.active ? "#1D9E75" : surface,
                                 color: link.active ? "#FFFFFF" : text,

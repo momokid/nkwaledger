@@ -3,6 +3,7 @@
 namespace App\Services\Ledger;
 
 use App\Enums\MovementReason;
+use App\Enums\StockSource;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Models\AccountingPeriod;
 use App\Models\FarmUnit;
@@ -38,8 +39,9 @@ class PostingService
         $settlementAccountId = $this->resolveSettlementAccount($request, $template);
         $loss = $this->resolveQuantityLost($request, $template, $farmUnit);
         $sale = $this->resolveQuantitySold($request, $template, $farmUnit);
+        $purchase = $this->resolveQuantityPurchased($request, $template, $farmUnit);
 
-        return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss, $sale);
+        return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss, $sale, $purchase);
     }
 
     private function resolveQuantityLost(PostingRequest $request, TransactionTemplate $template, ?FarmUnit $farmUnit): ?array
@@ -105,6 +107,31 @@ class PostingService
         return [
             'quantity' => $request->quantitySold,
             'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand),
+        ];
+    }
+
+    // buying more does not need to know which batch it "came from" the way a sale or loss
+    // does, so there is no proportional split — it lands on the newest active batch, or
+    // starts a brand new one if nothing is active yet
+    private function resolveQuantityPurchased(PostingRequest $request, TransactionTemplate $template, ?FarmUnit $farmUnit): ?array
+    {
+        if (! $template->is_stock_purchase) {
+            return null;
+        }
+
+        if ($request->quantityPurchased === null || trim($request->quantityPurchased) === '') {
+            throw PostingFailed::because('Please say how many were bought.');
+        }
+
+        if (! is_numeric($request->quantityPurchased) || (float) $request->quantityPurchased <= 0) {
+            throw PostingFailed::because('The number bought needs to be more than zero.');
+        }
+
+        $stocks = $this->activeStocks($farmUnit);
+
+        return [
+            'quantity' => $request->quantityPurchased,
+            'stock' => $stocks->isEmpty() ? null : $stocks->last(),
         ];
     }
 
@@ -244,6 +271,7 @@ class PostingService
         int $amountMinor,
         ?array $loss = null,
         ?array $sale = null,
+        ?array $purchase = null,
     ): Transaction {
         [$debitAccountId, $creditAccountId] = $this->legs($template, $settlementAccountId);
 
@@ -257,7 +285,8 @@ class PostingService
             $debitAccountId,
             $creditAccountId,
             $loss,
-            $sale
+            $sale,
+            $purchase
         ) {
             $transaction = $this->writeTransaction(
                 $request,
@@ -267,7 +296,8 @@ class PostingService
                 $settlementAccountId,
                 $amountMinor,
                 $loss,
-                $sale
+                $sale,
+                $purchase
             );
 
             $entry = JournalEntry::create([
@@ -300,6 +330,7 @@ class PostingService
 
             $this->writeStockMovements($loss, MovementReason::Loss, $transaction, $request);
             $this->writeStockMovements($sale, MovementReason::Sale, $transaction, $request);
+            $this->writePurchase($purchase, $transaction, $request, $farmUnit);
 
             return $transaction;
         });
@@ -320,6 +351,37 @@ class PostingService
                 'recorded_by' => $request->recordedBy,
             ]);
         }
+    }
+
+    // an existing batch gets a Purchase movement, same as any other stock change; a farm
+    // unit with nothing active yet gets a brand new batch instead — both start unconfirmed,
+    // so either lands in the same approval queue a sale or loss movement already does
+    private function writePurchase(?array $resolved, Transaction $transaction, PostingRequest $request, ?FarmUnit $farmUnit): void
+    {
+        if ($resolved === null) {
+            return;
+        }
+
+        if ($resolved['stock'] !== null) {
+            FarmUnitStockMovement::create([
+                'farm_unit_stock_id' => $resolved['stock']->id,
+                'reason' => MovementReason::Purchase,
+                'quantity' => $resolved['quantity'],
+                'occurred_on' => $transaction->transaction_date,
+                'recorded_by' => $request->recordedBy,
+            ]);
+
+            return;
+        }
+
+        FarmUnitStock::create([
+            'farm_unit_id' => $farmUnit->id,
+            'source' => StockSource::Purchase,
+            'opening_quantity' => $resolved['quantity'],
+            'started_on' => $transaction->transaction_date,
+            'acquisition_cost' => $transaction->amount_minor / 100,
+            'recorded_by' => $request->recordedBy,
+        ]);
     }
 
     private function legs(TransactionTemplate $template, ?int $settlementAccountId): array
@@ -351,6 +413,7 @@ class PostingService
         int $amountMinor,
         ?array $loss = null,
         ?array $sale = null,
+        ?array $purchase = null,
     ): Transaction {
         $payload = [
             'farmer_profile_id' => $request->farmerProfileId,
@@ -361,6 +424,7 @@ class PostingService
             'amount_minor' => $amountMinor,
             'quantity_lost' => $loss['quantity'] ?? null,
             'quantity_sold' => $sale['quantity'] ?? null,
+            'quantity_purchased' => $purchase['quantity'] ?? null,
             'settlement_account_id' => $settlementAccountId,
             'farm_unit_id' => $farmUnit?->id,
             'narration' => $request->narration,

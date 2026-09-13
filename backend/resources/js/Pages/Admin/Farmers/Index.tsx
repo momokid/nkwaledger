@@ -181,7 +181,7 @@ function IndexContent({
     const thStyle = { color: headerText, fontWeight: 700 };
     const labelStyle = {
         color: text,
-        fontSize: "16px",
+        fontSize: "1rem",
         fontWeight: 600,
         display: "block",
         marginBottom: "4px",
@@ -189,18 +189,18 @@ function IndexContent({
     const fieldStyle = {
         width: "100%",
         padding: "10px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         background: inputBg,
         color: text,
         border: `1px solid ${inputBorder}`,
     };
-    const errorStyle = { color: "#DC2626", fontSize: "15px", marginTop: "4px" };
+    const errorStyle = { color: "#DC2626", fontSize: "0.9375rem", marginTop: "4px" };
     const buttonStyle = {
         background: "#1D9E75",
         color: "#FFFFFF",
         border: "none",
         padding: "10px 20px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
     };
@@ -222,19 +222,19 @@ function IndexContent({
                         <p
                             style={{
                                 color: text,
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 fontWeight: 700,
                             }}
                         >
                             Waiting for a farm profile
                         </p>
-                        <p style={{ color: textSecondary, fontSize: "15px" }}>
+                        <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>
                             These farmers signed up on their own. They cannot
                             record anything until their profile is filled in.
                         </p>
                     </div>
 
-                    <table className="min-w-full" style={{ fontSize: "18px" }}>
+                    <table className="min-w-full" style={{ fontSize: "1.125rem" }}>
                         <tbody>
                             {pending.map((row) => (
                                 <tr
@@ -256,7 +256,7 @@ function IndexContent({
                                             <span
                                                 style={{
                                                     color: "#B45309",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     display: "block",
                                                 }}
                                             >
@@ -275,7 +275,7 @@ function IndexContent({
                                                 background: "none",
                                                 border: "none",
                                                 color: headerText,
-                                                fontSize: "17px",
+                                                fontSize: "1.0625rem",
                                                 fontWeight: 600,
                                                 cursor: "pointer",
                                                 padding: 0,
@@ -556,7 +556,7 @@ function IndexContent({
                                     key={farmType.id}
                                     style={{
                                         color: text,
-                                        fontSize: "16px",
+                                        fontSize: "1rem",
                                         border: `1px solid ${inputBorder}`,
                                         padding: "8px 12px",
                                         cursor: "pointer",
@@ -585,7 +585,7 @@ function IndexContent({
                         )}
                     </div>
 
-                    <p style={{ color: textSecondary, fontSize: "15px" }}>
+                    <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>
                         We will send a code to this phone so the farmer can
                         confirm the number.
                     </p>
@@ -607,7 +607,7 @@ function IndexContent({
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "18px" }}>
+                <table className="min-w-full" style={{ fontSize: "1.125rem" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th className="text-left px-4 py-3" style={thStyle}>
@@ -677,7 +677,7 @@ function IndexContent({
                                             <span
                                                 style={{
                                                     color: "#B45309",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     display: "block",
                                                 }}
                                             >
@@ -737,7 +737,7 @@ function IndexContent({
                                                     background: "none",
                                                     border: "none",
                                                     color: headerText,
-                                                    fontSize: "17px",
+                                                    fontSize: "1.0625rem",
                                                     fontWeight: 600,
                                                     cursor: "pointer",
                                                     padding: 0,
@@ -761,7 +761,7 @@ function IndexContent({
                         onClick={() => link.url && router.visit(link.url)}
                         style={{
                             padding: "6px 12px",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                             border: `1px solid ${border}`,
                             background: link.active ? "#1D9E75" : surface,
                             color: link.active ? "#FFFFFF" : text,
