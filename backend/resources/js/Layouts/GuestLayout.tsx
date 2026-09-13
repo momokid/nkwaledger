@@ -51,7 +51,7 @@ export default function GuestLayout({ children }: PropsWithChildren) {
 
                     <div className="mt-auto flex flex-col gap-3">
                         {[
-                            "MTN MoMo payments integrated",
+                            "MoMo payments integrated",
                             "AI-powered VetAI and CropAI",
                             "Trusted by farmers across Ghana",
                         ].map((text) => (

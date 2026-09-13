@@ -117,6 +117,15 @@ return [
                 'reverse-approve' => 'Agree to a cancellation',
             ],
         ],
+        // a health/disease issue on a farm unit, routed to a vet or adviser
+        'disease-reports' => [
+            'label' => 'Disease & Health Reports',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Report a problem',
+                'respond' => 'Respond to a report',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -188,6 +197,9 @@ return [
             'transactions.create',
             'transactions.reverse-request',
             'approvals.view',
+            // an agent can see a report's progress, and may submit one for a farmer too
+            'disease-reports.view',
+            'disease-reports.create',
         ],
         // a farmer keeps their own books, and can see what is on their own farm
         'farmer' => [
@@ -195,6 +207,8 @@ return [
             'transactions.create',
             'transactions.reverse-request',
             'farm-units.view',
+            'disease-reports.view',
+            'disease-reports.create',
         ],
     ],
 
