@@ -1,5 +1,7 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import NotificationBell from "@/Components/NotificationBell";
+import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
+import { deleteDeviceKey } from "@/lib/offlineStore";
 import {
     IconBell,
     IconChevronLeft,
@@ -33,8 +35,10 @@ import {
     useState,
 } from "react";
 import FlashMessages from "@/Components/FlashMessages";
+import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import VerificationGate from "@/Components/VerificationGate";
 import useIsVerified from "@/hooks/useIsVerified";
+import useOfflineSync from "@/hooks/useOfflineSync";
 
 export type TextSize = "normal" | "large" | "extra-large";
 
@@ -291,6 +295,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const pendingApprovals =
         (auth as { pendingApprovals?: number })?.pendingApprovals ?? 0;
     const verified = useIsVerified();
+    useOfflineSync();
 
     const [dark, setDark] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
@@ -367,6 +372,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             {},
             {
                 onSuccess: () => {
+                    deleteDeviceKey();
                     window.history.replaceState({ loggedOut: true }, "");
                 },
             },
@@ -548,6 +554,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
         >
             <Head title={title} />
             <FlashMessages />
+            <OfflineNavigationNotice />
             <div
                 style={{
                     minHeight: "100vh",
@@ -784,6 +791,8 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     <IconMoon size={24} stroke={1.6} />
                                 )}
                             </button>
+
+                            <ConnectivityIndicator dark={dark} />
 
                             <NotificationBell dark={dark} />
 

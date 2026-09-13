@@ -38,6 +38,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Extended Session Lifetime (farmer / agent roles)
+    |--------------------------------------------------------------------------
+    |
+    | Farmers and agents often work with patchy connectivity, so their
+    | sessions are kept alive for much longer than the default above.
+    | See App\Session\RoleAwareDatabaseSessionHandler, which is the
+    | only place this value is read.
+    |
+    */
+
+    'extended_lifetime' => (int) env('SESSION_EXTENDED_LIFETIME_MINUTES', 60 * 24 * 7),
+
+    'extended_lifetime_roles' => ['farmer', 'agent'],
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Encryption
     |--------------------------------------------------------------------------
     |
