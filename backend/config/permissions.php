@@ -210,6 +210,15 @@ return [
             'disease-reports.view',
             'disease-reports.create',
         ],
+        // a vet only ever sees the reports routed to them, never anyone else's
+        'vet' => [
+            'disease-reports.view',
+            'disease-reports.respond',
+        ],
+        'adviser' => [
+            'disease-reports.view',
+            'disease-reports.respond',
+        ],
     ],
 
 ];

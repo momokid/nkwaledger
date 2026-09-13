@@ -1,27 +1,55 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import useAuthGuard from "@/hooks/useAuthGuard";
-import { Head } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import GreetingHeader from "@/Components/GreetingHeader";
 
-const kpis = [
-    { label: "Pending diagnoses", value: "7" },
-    { label: "Consultations today", value: "3" },
-    { label: "Active cases", value: "15" },
-    { label: "Farms under care", value: "18" },
-];
+interface ReportRow {
+    uuid: string;
+    farm_unit_name: string | null;
+    farmer_name: string;
+    category: string;
+    status: string;
+    created_at: string;
+}
 
-export default function Dashboard() {
+interface Props {
+    reports: ReportRow[];
+}
+
+function statusColor(status: string): string {
+    switch (status) {
+        case "resolved":
+            return "#1D9E75";
+        case "reviewed":
+            return "#BA7517";
+        default:
+            return "#B91C1C";
+    }
+}
+
+function statusLabel(status: string): string {
+    switch (status) {
+        case "resolved":
+            return "Resolved";
+        case "reviewed":
+            return "Reviewed";
+        default:
+            return "New";
+    }
+}
+
+export default function Dashboard({ reports }: Props) {
     useAuthGuard();
 
     return (
         <AuthenticatedLayout title="Dashboard">
             <Head title="Dashboard" />
-            <DashboardContent />
+            <DashboardContent reports={reports} />
         </AuthenticatedLayout>
     );
 }
 
-function DashboardContent() {
+function DashboardContent({ reports }: Props) {
     const { dark } = useTheme();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -31,58 +59,58 @@ function DashboardContent() {
 
     return (
         <div className="p-6">
-            <div
-                style={{
-                    background: dark ? "rgba(180,83,9,0.15)" : "#FEF3C7",
-                    border: `1px solid ${dark ? "rgba(180,83,9,0.3)" : "#FDE68A"}`,
-                    padding: "12px 16px",
-                    marginBottom: "20px",
-                    fontSize: "1rem",
-                    color: dark ? "#FBBF24" : "#92400E",
-                }}
-            >
-                Preview — this dashboard is under construction. The numbers
-                below are examples, not your real data.
-            </div>
+            <GreetingHeader subtitle="Here are the reports sent to you." />
 
-            <GreetingHeader subtitle="Here is your vet overview." />
+            {reports.length === 0 && (
+                <div
+                    className="mt-4"
+                    style={{ color: textSecondary, fontSize: "1.0625rem" }}
+                >
+                    No reports have been sent your way yet.
+                </div>
+            )}
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                    gap: "16px",
-                }}
-            >
-                {kpis.map((kpi) => (
-                    <div
-                        key={kpi.label}
+            <div className="mt-4">
+                {reports.map((report) => (
+                    <Link
+                        key={report.uuid}
+                        href={`/vet/reports/${report.uuid}`}
+                        className="block mb-3 p-4"
                         style={{
                             background: surface,
                             border: `1px solid ${border}`,
-                            padding: "18px",
                         }}
                     >
-                        <p
+                        <div className="flex justify-between items-baseline">
+                            <span
+                                style={{
+                                    fontWeight: 700,
+                                    color: text,
+                                    fontSize: "1.125rem",
+                                }}
+                            >
+                                {report.farm_unit_name} — {report.farmer_name}
+                            </span>
+                            <span
+                                style={{
+                                    color: statusColor(report.status),
+                                    fontWeight: 600,
+                                    fontSize: "1rem",
+                                }}
+                            >
+                                {statusLabel(report.status)}
+                            </span>
+                        </div>
+                        <div
                             style={{
-                                fontSize: "1.125rem",
                                 color: textSecondary,
-                                marginBottom: "8px",
+                                marginTop: "4px",
+                                fontSize: "1rem",
                             }}
                         >
-                            {kpi.label}
-                        </p>
-                        <p
-                            style={{
-                                fontSize: "1.625rem",
-                                fontWeight: 700,
-                                color: text,
-                                letterSpacing: "-0.5px",
-                            }}
-                        >
-                            {kpi.value}
-                        </p>
-                    </div>
+                            {report.category} · {report.created_at}
+                        </div>
+                    </Link>
                 ))}
             </div>
         </div>

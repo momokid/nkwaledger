@@ -169,6 +169,16 @@ test('removing the permission from a role is allowed when another role also gran
     expect($this->service->roleRemovalWouldEliminateLastHolder($adminRole, 'access-control.manage'))->toBeFalse();
 });
 
+// a role can carry a permission nobody has actually used yet — e.g. right after
+// it is added to that role's defaults, before any user of that role exists
+test('removing the permission from a role is allowed when nobody currently holds it at all', function () {
+    $permission = Permission::firstOrCreate(['name' => 'access-control.manage', 'guard_name' => 'web']);
+    $role = Role::firstOrCreate(['name' => 'vet', 'guard_name' => 'web']);
+    $role->givePermissionTo($permission);
+
+    expect($this->service->roleRemovalWouldEliminateLastHolder($role, 'access-control.manage'))->toBeFalse();
+});
+
 test('removing the permission from a role that does not have it returns false', function () {
     Permission::firstOrCreate(['name' => 'access-control.manage', 'guard_name' => 'web']);
     $role = Role::firstOrCreate(['name' => 'farmer', 'guard_name' => 'web']);

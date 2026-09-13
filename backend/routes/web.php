@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\FarmUnitController;
 use App\Http\Controllers\Admin\FarmUnitStockController;
 use App\Http\Controllers\Farm\DiseaseReportController;
 use App\Http\Controllers\Farm\FarmerDashboardController;
+use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
@@ -116,10 +117,14 @@ Route::middleware('auth')->group(function () {
         ->name('farmer.dashboard');
     Route::get('/agent/dashboard', [AgentDashboardController::class, 'index'])
         ->name('agent.dashboard');
-    Route::get('/vet/dashboard', fn() => Inertia::render('Vet/Dashboard'))
-        ->name('vet.dashboard');
-    Route::get('/adviser/dashboard', fn() => Inertia::render('Adviser/Dashboard'))
-        ->name('adviser.dashboard');
+    Route::middleware(['role:vet', 'access:disease-reports.view'])->group(function () {
+        Route::get('/vet/dashboard', [OfficerDiseaseReportController::class, 'dashboard'])
+            ->name('vet.dashboard');
+    });
+    Route::middleware(['role:adviser', 'access:disease-reports.view'])->group(function () {
+        Route::get('/adviser/dashboard', [OfficerDiseaseReportController::class, 'dashboard'])
+            ->name('adviser.dashboard');
+    });
     Route::get('/supplier/dashboard', fn() => Inertia::render('Dashboard'))
         ->name('supplier.dashboard');
 
@@ -147,6 +152,30 @@ Route::middleware('auth')->group(function () {
         ->name('otp.phone.send');
     Route::post('verify-phone/confirm', [PhoneVerificationController::class, 'confirm'])
         ->name('otp.phone.confirm');
+});
+
+// a vet's queue and the reports assigned to them
+Route::middleware(['auth', 'role:vet', 'verified.phone'])->prefix('vet')->name('vet.')->group(function () {
+    Route::middleware('access:disease-reports.view')->group(function () {
+        Route::get('/reports/{report:uuid}', [OfficerDiseaseReportController::class, 'show'])
+            ->name('reports.show');
+    });
+    Route::middleware('access:disease-reports.respond')->group(function () {
+        Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
+            ->name('reports.respond');
+    });
+});
+
+// the same controller, an adviser's own address so the frame and the url match their role
+Route::middleware(['auth', 'role:adviser', 'verified.phone'])->prefix('adviser')->name('adviser.')->group(function () {
+    Route::middleware('access:disease-reports.view')->group(function () {
+        Route::get('/reports/{report:uuid}', [OfficerDiseaseReportController::class, 'show'])
+            ->name('reports.show');
+    });
+    Route::middleware('access:disease-reports.respond')->group(function () {
+        Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
+            ->name('reports.respond');
+    });
 });
 
 // the farmer's own book, with nobody named in the address
