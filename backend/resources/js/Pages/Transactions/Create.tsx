@@ -1,8 +1,16 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent, useMemo } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Button from "@/Components/Button";
+import {
+    enqueue,
+    listNeedsAttention,
+    NeedsAttentionItem,
+    remove,
+} from "@/lib/offlineStore";
+import { QueuedSubmission } from "@/types/offlineQueue";
+import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
 interface Template {
     id: number;
@@ -115,20 +123,81 @@ function CreateContent({
             ? `/agent/farmers/${farmer.id}/records`
             : "/my-records";
 
+    const [savedOffline, setSavedOffline] = useState(false);
+    const [attentionItems, setAttentionItems] = useState<
+        NeedsAttentionItem<QueuedSubmission>[]
+    >([]);
+
+    const refreshAttentionItems = () => {
+        void listNeedsAttention<QueuedSubmission>().then(setAttentionItems);
+    };
+
+    useEffect(() => {
+        refreshAttentionItems();
+
+        // the sync engine runs from the layout, not from this page, so this
+        // page only learns about its results through this event
+        window.addEventListener(OFFLINE_SYNC_RAN_EVENT, refreshAttentionItems);
+
+        return () =>
+            window.removeEventListener(
+                OFFLINE_SYNC_RAN_EVENT,
+                refreshAttentionItems,
+            );
+    }, []);
+
+    const discardAttentionItem = async (id: string) => {
+        await remove(id);
+        refreshAttentionItems();
+    };
+
+    const resetEnteredFields = () =>
+        form.reset(
+            "amount",
+            "quantity_lost",
+            "quantity_sold",
+            "quantity_purchased",
+            "narration",
+        );
+
+    const queueOffline = async (data: Record<string, string>) => {
+        const submission: QueuedSubmission = { url: postUrl, data };
+
+        await enqueue(submission);
+
+        setSavedOffline(true);
+        resetEnteredFields();
+    };
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        setSavedOffline(false);
+
+        const dataWithIdempotencyKey = {
+            ...form.data,
+            idempotency_key: crypto.randomUUID(),
+        };
+
+        if (!navigator.onLine) {
+            void queueOffline(dataWithIdempotencyKey);
+
+            return;
+        }
+
+        form.transform(() => dataWithIdempotencyKey);
 
         form.post(postUrl, {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () =>
-                form.reset(
-                    "amount",
-                    "quantity_lost",
-                    "quantity_sold",
-                    "quantity_purchased",
-                    "narration",
-                ),
+            onSuccess: () => resetEnteredFields(),
+            onError: (errors) => {
+                // an empty errors object means the request never reached the
+                // server with a proper response, not that validation failed
+                if (Object.keys(errors).length === 0) {
+                    void queueOffline(dataWithIdempotencyKey);
+                }
+            },
         });
     };
 
@@ -179,6 +248,20 @@ function CreateContent({
                 Answer the questions below. We will keep the book for you.
             </p>
 
+            {savedOffline && (
+                <div
+                    className="mt-4 p-3"
+                    style={{
+                        background: warnBg,
+                        color: "#B45309",
+                        fontSize: "1.0625rem",
+                    }}
+                >
+                    Saved on your phone. It has not reached the server yet — it
+                    will send itself as soon as you are back online.
+                </div>
+            )}
+
             {flash?.success && (
                 <div
                     className="mt-4 p-3"
@@ -200,6 +283,53 @@ function CreateContent({
                             Reference {flash.reference}
                         </span>
                     )}
+                </div>
+            )}
+
+            {attentionItems.length > 0 && (
+                <div className="mt-4">
+                    {attentionItems.map((item) => (
+                        <div
+                            key={item.id}
+                            className="p-3 mb-2"
+                            style={{
+                                background: warnBg,
+                                fontSize: "1.0625rem",
+                            }}
+                        >
+                            <p style={{ color: "#B45309", margin: 0 }}>
+                                This entry needs your attention: {item.message}
+                            </p>
+                            <p
+                                style={{
+                                    color: textSecondary,
+                                    fontSize: "0.9375rem",
+                                    marginTop: "4px",
+                                }}
+                            >
+                                Amount: {item.payload.data.amount || "—"}
+                                {item.payload.data.narration
+                                    ? ` · ${item.payload.data.narration}`
+                                    : ""}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => discardAttentionItem(item.id)}
+                                style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "#B45309",
+                                    textDecoration: "underline",
+                                    cursor: "pointer",
+                                    fontSize: "0.9375rem",
+                                    padding: 0,
+                                    marginTop: "6px",
+                                }}
+                            >
+                                Discard this entry
+                            </button>
+                        </div>
+                    ))}
                 </div>
             )}
 

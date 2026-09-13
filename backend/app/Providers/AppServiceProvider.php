@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Contracts\SmsProvider;
 use App\Services\Sms\ArkeselSmsProvider;
+use App\Session\RoleAwareDatabaseSessionHandler;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -74,6 +75,14 @@ class AppServiceProvider extends ServiceProvider
         Route::model('farmer', \App\Models\FarmerProfile::class);
         // anything that is not a uuid is not an address, so it never reaches the database
         Route::pattern('farmer', '[0-9a-fA-F-]{36}');
+
+        // swaps in a lifetime that varies per session's user (see the handler for why)
+        $this->app->make('session')->extend('database', fn($app) => new RoleAwareDatabaseSessionHandler(
+            $app['db']->connection($app['config']['session.connection']),
+            $app['config']['session.table'],
+            $app['config']['session.lifetime'],
+            $app,
+        ));
 
         // registered here rather than in the model, since observing during boot re-enters the cycle
         foreach (self::AUDITED_MODELS as $model) {

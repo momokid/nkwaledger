@@ -385,3 +385,88 @@ it('turns a farmer away from the agent page', function () {
         ->get("/agent/farmers/{$this->profile->uuid}/records/create")
         ->assertNotFound();
 });
+
+// a retried offline sync must never double-post the same entry
+it('does not record the same submission twice when it carries the same idempotency key', function () {
+    $payload = $this->payload + ['idempotency_key' => 'client-generated-key-1'];
+
+    $this->actingAs($this->farmerUser)->post('/my-records', $payload)->assertRedirect();
+    $this->actingAs($this->farmerUser)->post('/my-records', $payload)->assertRedirect();
+
+    expect(Transaction::count())->toBe(1);
+});
+
+it('returns the same reference on a repeated idempotency key', function () {
+    $payload = $this->payload + ['idempotency_key' => 'client-generated-key-2'];
+
+    $firstReference = $this->actingAs($this->farmerUser)
+        ->post('/my-records', $payload)
+        ->getSession()
+        ->get('reference');
+
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', $payload)
+        ->assertSessionHas('reference', $firstReference);
+});
+
+it('treats a different idempotency key as a different record', function () {
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', $this->payload + ['idempotency_key' => 'key-a']);
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', $this->payload + ['idempotency_key' => 'key-b']);
+
+    expect(Transaction::count())->toBe(2);
+});
+
+// a validation-style refusal (like overselling stock) still isn't an HTTP error to the browser,
+// since the farmer sees it as an ordinary flash message on the same form
+it('flashes a plain error and keeps the form when a browser oversells stock', function () {
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'approved_at' => now()->subMonth(),
+    ]);
+    FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 5]);
+
+    $response = $this->actingAs($this->farmerUser)->post('/my-records', [
+        'transaction_template_id' => $this->lossTemplate->id,
+        'amount' => '100',
+        'settlement_account_id' => null,
+        'transaction_date' => now()->toDateString(),
+        'farm_unit_id' => $unit->id,
+        'quantity_lost' => '50',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('error', 'That is more than the farm has on record. Please check the number.');
+    expect(Transaction::count())->toBe(0);
+});
+
+// the offline sync engine posts with Accept: application/json and has no page to redirect back to,
+// so the same refusal needs to arrive as a real HTTP error it can detect and act on
+it('returns a 422 with the failure message for a JSON client overselling stock', function () {
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->profile->id,
+        'approved_at' => now()->subMonth(),
+    ]);
+    FarmUnitStock::factory()->create(['farm_unit_id' => $unit->id, 'opening_quantity' => 5]);
+
+    $response = $this->actingAs($this->farmerUser)->postJson('/my-records', [
+        'transaction_template_id' => $this->lossTemplate->id,
+        'amount' => '100',
+        'settlement_account_id' => null,
+        'transaction_date' => now()->toDateString(),
+        'farm_unit_id' => $unit->id,
+        'quantity_lost' => '50',
+    ]);
+
+    $response->assertStatus(422);
+    $response->assertJson(['message' => 'That is more than the farm has on record. Please check the number.']);
+    expect(Transaction::count())->toBe(0);
+});
+
+it('returns json with the reference for a JSON client on success, instead of a redirect', function () {
+    $response = $this->actingAs($this->farmerUser)->postJson('/my-records', $this->payload);
+
+    $response->assertOk();
+    $response->assertJson(['reference' => Transaction::first()->reference]);
+});
