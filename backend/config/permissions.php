@@ -121,9 +121,23 @@ return [
         'disease-reports' => [
             'label' => 'Disease & Health Reports',
             'actions' => [
+                // a farmer's own reports, an agent's farmers' reports, or an officer's assigned queue —
+                // never every report in the system, which is what "manage" is for below
                 'view' => 'View',
                 'create' => 'Report a problem',
                 'respond' => 'Respond to a report',
+                // the admin queue of reports with no officer assigned yet — deliberately
+                // its own action, so it is never granted just by holding the personal "view"
+                'manage' => 'View the unassigned queue',
+            ],
+        ],
+        // links an agent to the vets/advisers who handle their farmers' reports
+        'officer-assignments' => [
+            'label' => 'Officer Assignments',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Add',
+                'delete' => 'Remove',
             ],
         ],
     ],
@@ -177,6 +191,10 @@ return [
             'transactions.reverse-request',
             'transactions.reverse-approve',
             'approvals.view',
+            'disease-reports.manage',
+            'officer-assignments.view',
+            'officer-assignments.create',
+            'officer-assignments.delete',
         ],
         'agent' => [
             'farm-types.view',

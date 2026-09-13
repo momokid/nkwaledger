@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DiseaseReportQueueController;
 use App\Http\Controllers\Admin\FarmTypeCategoryController;
+use App\Http\Controllers\Admin\OfficerAssignmentController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\UserAccessController;
@@ -376,6 +378,26 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:farm-type-categories.delete')->group(function () {
         Route::delete('/farm-type-categories/{farmTypeCategory}', [FarmTypeCategoryController::class, 'destroy'])
             ->name('farm-type-categories.destroy');
+    });
+
+    // reports whose farmer's agent has no matching officer linked yet
+    Route::middleware('access:disease-reports.manage')->group(function () {
+        Route::get('/disease-reports', [DiseaseReportQueueController::class, 'index'])
+            ->name('disease-reports.index');
+    });
+
+    // links an agent to the vets/advisers who handle their farmers' reports
+    Route::middleware('access:officer-assignments.view')->group(function () {
+        Route::get('/officer-assignments', [OfficerAssignmentController::class, 'index'])
+            ->name('officer-assignments.index');
+    });
+    Route::middleware('access:officer-assignments.create')->group(function () {
+        Route::post('/officer-assignments', [OfficerAssignmentController::class, 'store'])
+            ->name('officer-assignments.store');
+    });
+    Route::middleware('access:officer-assignments.delete')->group(function () {
+        Route::delete('/officer-assignments/{assignment}', [OfficerAssignmentController::class, 'destroy'])
+            ->name('officer-assignments.destroy');
     });
 
     // farm types
