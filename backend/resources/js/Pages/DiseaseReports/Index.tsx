@@ -1,12 +1,8 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
-import useAuthGuard from "@/hooks/useAuthGuard";
-import { Head, Link } from "@inertiajs/react";
-import GreetingHeader from "@/Components/GreetingHeader";
+import { Head } from "@inertiajs/react";
 
 interface ReportRow {
     uuid: string;
-    farm_unit_name: string | null;
-    farmer_name: string;
     category: string;
     status: string;
     created_at: string;
@@ -38,18 +34,16 @@ function statusLabel(status: string): string {
     }
 }
 
-export default function Dashboard({ reports }: Props) {
-    useAuthGuard();
-
+export default function Index({ reports }: Props) {
     return (
-        <AuthenticatedLayout title="Dashboard">
-            <Head title="Dashboard" />
-            <DashboardContent reports={reports} />
+        <AuthenticatedLayout title="My Reports">
+            <Head title="My Reports" />
+            <IndexContent reports={reports} />
         </AuthenticatedLayout>
     );
 }
 
-function DashboardContent({ reports }: Props) {
+function IndexContent({ reports }: Props) {
     const { dark } = useTheme();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -58,24 +52,34 @@ function DashboardContent({ reports }: Props) {
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
 
     return (
-        <div className="p-6">
-            <GreetingHeader subtitle="Here are the reports sent to you." />
+        <div className="p-6" style={{ maxWidth: "560px" }}>
+            <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
+                My Reports
+            </h2>
+            <p
+                style={{
+                    fontSize: "1.0625rem",
+                    color: textSecondary,
+                    marginTop: "4px",
+                }}
+            >
+                Every problem you have reported, and where it stands.
+            </p>
 
             {reports.length === 0 && (
                 <div
                     className="mt-4"
                     style={{ color: textSecondary, fontSize: "1.0625rem" }}
                 >
-                    No reports have been sent your way yet.
+                    You have not reported anything yet.
                 </div>
             )}
 
             <div className="mt-4">
                 {reports.map((report) => (
-                    <Link
+                    <div
                         key={report.uuid}
-                        href={`/vet/reports/${report.uuid}`}
-                        className="block mb-3 p-4"
+                        className="mb-3 p-4"
                         style={{
                             background: surface,
                             border: `1px solid ${border}`,
@@ -89,7 +93,7 @@ function DashboardContent({ reports }: Props) {
                                     fontSize: "1.125rem",
                                 }}
                             >
-                                {report.farm_unit_name} — {report.farmer_name}
+                                {report.category}
                             </span>
                             <span
                                 style={{
@@ -108,9 +112,9 @@ function DashboardContent({ reports }: Props) {
                                 fontSize: "1rem",
                             }}
                         >
-                            {report.category} · {report.created_at}
+                            Reported {report.created_at}
                         </div>
-                    </Link>
+                    </div>
                 ))}
             </div>
         </div>

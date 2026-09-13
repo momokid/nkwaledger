@@ -67,6 +67,11 @@ class AccessControlService
 
         $holders = $this->effectiveHolders($permission);
 
+        // nobody holds it yet, so removing the grant leaves no one worse off
+        if ($holders->isEmpty()) {
+            return false;
+        }
+
         foreach ($holders as $holder) {
             if ($this->wouldRetainAccessWithoutRole($holder, $role, $permission)) {
                 return false;

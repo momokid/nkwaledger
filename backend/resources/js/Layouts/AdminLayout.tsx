@@ -27,6 +27,7 @@ import {
     IconArrowsExchange,
     IconUserCheck,
     IconChecklist,
+    IconStethoscope,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
@@ -169,6 +170,22 @@ const navItems: NavEntry[] = [
                 label: "Audit Log",
                 routeName: "admin.audit.index",
                 icon: IconHistory,
+            },
+        ],
+    },
+    {
+        label: "Disease & Health Reports",
+        icon: IconStethoscope,
+        children: [
+            {
+                label: "Waiting for Officer",
+                routeName: "admin.disease-reports.index",
+                icon: IconChecklist,
+            },
+            {
+                label: "Officer Assignments",
+                routeName: "admin.officer-assignments.index",
+                icon: IconUsersGroup,
             },
         ],
     },
