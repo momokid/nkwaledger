@@ -136,6 +136,9 @@ class DiseaseReportController extends Controller
             // built from the request, not config('app.url'), so it matches whatever
             // host the browser actually used (localhost, LAN IP, staging domain, ...)
             'photo_url' => $request->getSchemeAndHttpHost() . '/storage/' . $report->photo_path,
+            'audio_url' => $report->audio_path
+                ? $request->getSchemeAndHttpHost() . '/storage/' . $report->audio_path
+                : null,
             'contact_method' => $report->contact_method?->value,
             'response_note' => $report->response_note,
             'created_at' => $report->created_at->toDateString(),

@@ -33,6 +33,7 @@ interface ReportDetail {
     status: string;
     description: string;
     photo_url: string;
+    audio_url: string | null;
     contact_method: string | null;
     response_note: string | null;
     created_at: string;
@@ -222,6 +223,15 @@ function ReportShowContent({ report, history, basePath }: Props) {
                 >
                     Tap the photo to view it full size.
                 </p>
+
+                {report.audio_url && (
+                    <audio
+                        controls
+                        src={report.audio_url}
+                        className="mt-3"
+                        style={{ width: "100%" }}
+                    />
+                )}
 
                 <p style={{ marginTop: "12px", color: text, fontSize: "1.0625rem" }}>
                     {report.description}

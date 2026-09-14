@@ -11,6 +11,7 @@ use App\Models\FarmUnit;
 use App\Models\User;
 use App\Services\DiseaseReports\ReportRoutingService;
 use App\Services\NotificationService;
+use App\Support\AudioUpload;
 use App\Support\PhotoUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,6 +66,10 @@ class DiseaseReportController extends Controller
 
         $photoPath = PhotoUpload::store($request->file('photo'), 'disease-reports');
 
+        $audioPath = $request->hasFile('audio')
+            ? AudioUpload::store($request->file('audio'), 'disease-reports')
+            : null;
+
         $report = DiseaseReport::create([
             'farm_unit_id' => $farmUnit->id,
             'farmer_profile_id' => $farmer->id,
@@ -74,6 +79,7 @@ class DiseaseReportController extends Controller
             'assigned_officer_id' => $officer?->id,
             'description' => $request->validated('description'),
             'photo_path' => $photoPath,
+            'audio_path' => $audioPath,
         ]);
 
         $this->notifySubmission($report, $request->user(), $farmer, $farmUnit, $officer, $role);
