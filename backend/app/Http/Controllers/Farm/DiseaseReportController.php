@@ -45,6 +45,33 @@ class DiseaseReportController extends Controller
         ]);
     }
 
+    public function show(Request $request, DiseaseReport $report): Response
+    {
+        $farmer = $this->resolveFarmer($request);
+
+        // read-only, and only the farmer's own - not the agent's, not another farmer's
+        abort_if($report->farmer_profile_id !== $farmer->id, 403);
+
+        $report->load('farmUnit');
+
+        return Inertia::render('DiseaseReports/Show', [
+            'report' => [
+                'uuid' => $report->uuid,
+                'farm_unit_name' => $report->farmUnit?->name,
+                'category' => $report->category,
+                'status' => $report->status->value,
+                'description' => $report->description,
+                'photo_url' => $request->getSchemeAndHttpHost() . '/storage/' . $report->photo_path,
+                'audio_url' => $report->audio_path
+                    ? $request->getSchemeAndHttpHost() . '/storage/' . $report->audio_path
+                    : null,
+                'contact_method' => $report->contact_method?->value,
+                'response_note' => $report->response_note,
+                'created_at' => $report->created_at->toDateString(),
+            ],
+        ]);
+    }
+
     public function create(Request $request, FarmUnit $farmUnit): Response
     {
         $this->resolveFarmer($request, $farmUnit);
