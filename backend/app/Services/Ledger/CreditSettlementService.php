@@ -75,7 +75,7 @@ class CreditSettlementService
             return false;
         }
 
-        return in_array($original->settlement_account_id, $this->creditAccountIds(), true);
+        return in_array($original->settlement_account_id, LedgerAccount::creditSettlementAccountIds(), true);
     }
 
     private function settlementTemplate(Transaction $original): TransactionTemplate
@@ -96,13 +96,5 @@ class CreditSettlementService
         }
 
         return $template;
-    }
-
-    private function creditAccountIds(): array
-    {
-        return LedgerAccount::query()
-            ->whereIn('name', ['Accounts Receivable', 'Accounts Payable'])
-            ->pluck('id')
-            ->all();
     }
 }
