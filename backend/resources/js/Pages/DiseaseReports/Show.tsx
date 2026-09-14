@@ -1,5 +1,5 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { Head } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import { statusColor, statusLabel } from "@/Pages/DiseaseReports/Index";
 
 interface ReportDetail {
@@ -55,6 +55,22 @@ function ShowContent({ report }: Props) {
 
     return (
         <div className="p-6" style={{ maxWidth: "640px" }}>
+            <button
+                onClick={() => router.visit("/my-farm/reports")}
+                style={{
+                    background: "none",
+                    border: "none",
+                    color: text,
+                    fontSize: "1.0625rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    padding: 0,
+                    marginBottom: "16px",
+                }}
+            >
+                Back to Health Reports
+            </button>
+
             <div
                 className="p-6 mb-5"
                 style={{ background: surface, border: `1px solid ${border}` }}
