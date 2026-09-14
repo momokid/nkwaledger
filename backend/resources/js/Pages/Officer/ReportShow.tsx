@@ -1,8 +1,29 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { Head, useForm, usePage } from "@inertiajs/react";
-import { FormEvent, useEffect, useState } from "react";
-import { IconRotateClockwise, IconX } from "@tabler/icons-react";
+import { FormEvent, PointerEvent, useEffect, useRef, useState } from "react";
+import {
+    IconRotateClockwise,
+    IconX,
+    IconZoomIn,
+    IconZoomOut,
+    IconZoomReset,
+} from "@tabler/icons-react";
 import Button from "@/Components/Button";
+
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+
+const lightboxButton = (disabled: boolean) =>
+    ({
+        background: "#FFFFFF",
+        border: "none",
+        padding: "10px",
+        color: "#111827",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.4 : 1,
+        display: "flex",
+        alignItems: "center",
+    }) as const;
 
 interface ReportDetail {
     uuid: string;
@@ -59,6 +80,10 @@ function ReportShowContent({ report, history, basePath }: Props) {
 
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [rotation, setRotation] = useState(0);
+    const [zoom, setZoom] = useState(MIN_ZOOM);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [dragging, setDragging] = useState(false);
+    const dragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
     useEffect(() => {
         if (!lightboxOpen) return;
@@ -73,7 +98,49 @@ function ReportShowContent({ report, history, basePath }: Props) {
 
     const openLightbox = () => {
         setRotation(0);
+        setZoom(MIN_ZOOM);
+        setPan({ x: 0, y: 0 });
         setLightboxOpen(true);
+    };
+
+    const zoomIn = () => setZoom((current) => Math.min(MAX_ZOOM, current + 1));
+
+    const zoomOut = () =>
+        setZoom((current) => {
+            const next = Math.max(MIN_ZOOM, current - 1);
+            if (next === MIN_ZOOM) setPan({ x: 0, y: 0 });
+            return next;
+        });
+
+    const resetZoom = () => {
+        setZoom(MIN_ZOOM);
+        setPan({ x: 0, y: 0 });
+    };
+
+    // dragging only does anything once zoomed in - at 1x there is nothing to pan
+    const onPhotoPointerDown = (event: PointerEvent<HTMLImageElement>) => {
+        if (zoom <= MIN_ZOOM) return;
+
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragging(true);
+        dragStart.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
+    };
+
+    const onPhotoPointerMove = (event: PointerEvent<HTMLImageElement>) => {
+        if (!dragging || dragStart.current === null) return;
+
+        event.stopPropagation();
+        setPan({
+            x: dragStart.current.panX + (event.clientX - dragStart.current.x),
+            y: dragStart.current.panY + (event.clientY - dragStart.current.y),
+        });
+    };
+
+    const onPhotoPointerUp = (event: PointerEvent<HTMLImageElement>) => {
+        event.stopPropagation();
+        setDragging(false);
+        dragStart.current = null;
     };
 
     const form = useForm({
@@ -198,43 +265,105 @@ function ReportShowContent({ report, history, basePath }: Props) {
                         <IconX size={28} stroke={1.6} />
                     </button>
 
-                    <button
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            setRotation((current) => (current + 90) % 360);
-                        }}
+                    <div
+                        onClick={(event) => event.stopPropagation()}
                         style={{
                             position: "absolute",
                             bottom: "24px",
                             left: "50%",
                             transform: "translateX(-50%)",
-                            background: "#FFFFFF",
-                            border: "none",
-                            padding: "10px 18px",
-                            fontSize: "1.0625rem",
-                            fontWeight: 600,
-                            color: "#111827",
-                            cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
                             gap: "8px",
+                            flexWrap: "wrap",
+                            justifyContent: "center",
+                            maxWidth: "90vw",
                         }}
                     >
-                        <IconRotateClockwise size={22} stroke={1.8} />
-                        Rotate
-                    </button>
+                        <button
+                            onClick={zoomOut}
+                            disabled={zoom <= MIN_ZOOM}
+                            aria-label="Zoom out"
+                            style={lightboxButton(zoom <= MIN_ZOOM)}
+                        >
+                            <IconZoomOut size={22} stroke={1.8} />
+                        </button>
 
-                    <img
-                        src={report.photo_url}
-                        alt="Photo of the problem, full size"
-                        onClick={(event) => event.stopPropagation()}
+                        <span
+                            style={{
+                                background: "#FFFFFF",
+                                color: "#111827",
+                                fontWeight: 600,
+                                fontSize: "1.0625rem",
+                                padding: "10px 14px",
+                            }}
+                        >
+                            {zoom}x
+                        </span>
+
+                        <button
+                            onClick={zoomIn}
+                            disabled={zoom >= MAX_ZOOM}
+                            aria-label="Zoom in"
+                            style={lightboxButton(zoom >= MAX_ZOOM)}
+                        >
+                            <IconZoomIn size={22} stroke={1.8} />
+                        </button>
+
+                        <button
+                            onClick={resetZoom}
+                            aria-label="Reset zoom"
+                            style={lightboxButton(false)}
+                        >
+                            <IconZoomReset size={22} stroke={1.8} />
+                        </button>
+
+                        <button
+                            onClick={() => setRotation((current) => (current + 90) % 360)}
+                            style={{
+                                ...lightboxButton(false),
+                                gap: "8px",
+                                padding: "10px 18px",
+                            }}
+                        >
+                            <IconRotateClockwise size={22} stroke={1.8} />
+                            Rotate
+                        </button>
+                    </div>
+
+                    <div
                         style={{
                             maxWidth: "90vw",
                             maxHeight: "80vh",
-                            transform: `rotate(${rotation}deg)`,
-                            transition: "transform 0.2s ease",
+                            overflow: "hidden",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                         }}
-                    />
+                    >
+                        <img
+                            src={report.photo_url}
+                            alt="Photo of the problem, full size"
+                            onClick={(event) => event.stopPropagation()}
+                            onPointerDown={onPhotoPointerDown}
+                            onPointerMove={onPhotoPointerMove}
+                            onPointerUp={onPhotoPointerUp}
+                            onPointerCancel={onPhotoPointerUp}
+                            style={{
+                                maxWidth: "90vw",
+                                maxHeight: "80vh",
+                                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                                transition: dragging ? "none" : "transform 0.2s ease",
+                                cursor:
+                                    zoom > MIN_ZOOM
+                                        ? dragging
+                                            ? "grabbing"
+                                            : "grab"
+                                        : "default",
+                                touchAction: "none",
+                            }}
+                        />
+                    </div>
                 </div>
             )}
 
