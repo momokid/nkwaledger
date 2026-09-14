@@ -8,13 +8,13 @@ beforeEach(function () {
     Storage::fake('public');
 });
 
-it('stores the photo under the given directory as a jpeg', function () {
+it('stores the photo under the given directory as a webp', function () {
     $photo = UploadedFile::fake()->image('problem.png', 800, 600);
 
     $path = PhotoUpload::store($photo, 'disease-reports');
 
     expect($path)->toStartWith('disease-reports/');
-    expect($path)->toEndWith('.jpg');
+    expect($path)->toEndWith('.webp');
     Storage::disk('public')->assertExists($path);
 });
 

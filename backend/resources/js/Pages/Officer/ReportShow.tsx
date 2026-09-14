@@ -1,6 +1,7 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { Head, useForm, usePage } from "@inertiajs/react";
-import { FormEvent } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { IconRotateClockwise, IconX } from "@tabler/icons-react";
 import Button from "@/Components/Button";
 
 interface ReportDetail {
@@ -55,6 +56,25 @@ function ReportShowContent({ report, history, basePath }: Props) {
     const brand = "#1D9E75";
 
     const alreadyResolved = report.status === "resolved";
+
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [rotation, setRotation] = useState(0);
+
+    useEffect(() => {
+        if (!lightboxOpen) return;
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setLightboxOpen(false);
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [lightboxOpen]);
+
+    const openLightbox = () => {
+        setRotation(0);
+        setLightboxOpen(true);
+    };
 
     const form = useForm({
         status: report.status === "new" ? "reviewed" : report.status,
@@ -117,18 +137,106 @@ function ReportShowContent({ report, history, basePath }: Props) {
                 <img
                     src={report.photo_url}
                     alt="Photo of the problem"
+                    onClick={openLightbox}
                     className="mt-4"
                     style={{
                         maxWidth: "100%",
                         maxHeight: "360px",
                         border: `1px solid ${border}`,
+                        cursor: "zoom-in",
                     }}
                 />
+                <p
+                    style={{
+                        fontSize: "0.9375rem",
+                        color: textSecondary,
+                        marginTop: "4px",
+                    }}
+                >
+                    Tap the photo to view it full size.
+                </p>
 
                 <p style={{ marginTop: "12px", color: text, fontSize: "1.0625rem" }}>
                     {report.description}
                 </p>
             </div>
+
+            {lightboxOpen && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Photo of the problem, full size"
+                    onClick={() => setLightboxOpen(false)}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(0,0,0,0.85)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 100,
+                    }}
+                >
+                    <button
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setLightboxOpen(false);
+                        }}
+                        aria-label="Close"
+                        style={{
+                            position: "absolute",
+                            top: "16px",
+                            right: "16px",
+                            background: "transparent",
+                            border: "none",
+                            color: "#FFFFFF",
+                            cursor: "pointer",
+                            display: "flex",
+                            padding: "8px",
+                        }}
+                    >
+                        <IconX size={28} stroke={1.6} />
+                    </button>
+
+                    <button
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setRotation((current) => (current + 90) % 360);
+                        }}
+                        style={{
+                            position: "absolute",
+                            bottom: "24px",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            background: "#FFFFFF",
+                            border: "none",
+                            padding: "10px 18px",
+                            fontSize: "1.0625rem",
+                            fontWeight: 600,
+                            color: "#111827",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                        }}
+                    >
+                        <IconRotateClockwise size={22} stroke={1.8} />
+                        Rotate
+                    </button>
+
+                    <img
+                        src={report.photo_url}
+                        alt="Photo of the problem, full size"
+                        onClick={(event) => event.stopPropagation()}
+                        style={{
+                            maxWidth: "90vw",
+                            maxHeight: "80vh",
+                            transform: `rotate(${rotation}deg)`,
+                            transition: "transform 0.2s ease",
+                        }}
+                    />
+                </div>
+            )}
 
             {flash?.success && (
                 <div
