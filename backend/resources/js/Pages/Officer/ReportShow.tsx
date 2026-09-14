@@ -333,8 +333,8 @@ function ReportShowContent({ report, history, basePath }: Props) {
 
                     <div
                         style={{
-                            maxWidth: "90vw",
-                            maxHeight: "80vh",
+                            width: "90vw",
+                            height: "85vh",
                             overflow: "hidden",
                             display: "flex",
                             alignItems: "center",
@@ -350,8 +350,8 @@ function ReportShowContent({ report, history, basePath }: Props) {
                             onPointerUp={onPhotoPointerUp}
                             onPointerCancel={onPhotoPointerUp}
                             style={{
-                                maxWidth: "90vw",
-                                maxHeight: "80vh",
+                                maxWidth: "100%",
+                                maxHeight: "100%",
                                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) rotate(${rotation}deg)`,
                                 transition: dragging ? "none" : "transform 0.2s ease",
                                 cursor:
