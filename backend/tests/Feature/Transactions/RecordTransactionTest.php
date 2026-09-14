@@ -62,6 +62,9 @@ beforeEach(function () {
         'is_active' => true,
     ]);
 
+    $this->receivable = $account('Accounts Receivable', $assetSub->id, true);
+    $this->payable = $account('Accounts Payable', $assetSub->id, true);
+
     $this->cropTemplate = TransactionTemplate::create([
         'name' => 'I sold my produce',
         'slug' => 'produce_sale',
@@ -69,6 +72,7 @@ beforeEach(function () {
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $this->sales->id,
         'settlement_side' => 'debit',
+        'allows_credit' => true,
         'farm_type_category_id' => $this->cropCategory->id,
     ]);
 
@@ -80,6 +84,7 @@ beforeEach(function () {
         'credit_account_id' => $this->cash->id,
         'settlement_side' => 'credit',
         'requires_farm_unit' => true,
+        'allows_credit' => true,
         'farm_type_category_id' => $this->livestockCategory->id,
     ]);
 
@@ -469,4 +474,85 @@ it('returns json with the reference for a JSON client on success, instead of a r
 
     $response->assertOk();
     $response->assertJson(['reference' => Transaction::first()->reference]);
+});
+
+it('sends allows_credit on every template', function () {
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records/create')
+        ->assertInertia(fn($page) => $page
+            ->where('templates', fn($templates) => collect($templates)
+                ->firstWhere('id', $this->cropTemplate->id)['allows_credit'] === true));
+});
+
+// the farmer never sees or picks these directly - "Credit (not paid yet)" is a
+// synthetic option the frontend adds, not one of these real ledger accounts
+it('never offers Accounts Receivable or Accounts Payable as a settlement account choice', function () {
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records/create')
+        ->assertInertia(fn($page) => $page
+            ->where('settlementAccounts', fn($accounts) => ! collect($accounts)
+                ->pluck('name')
+                ->intersect(['Accounts Receivable', 'Accounts Payable'])
+                ->isNotEmpty()));
+});
+
+it('posts a credit sale against Accounts Receivable and marks it credit', function () {
+    $this->actingAs($this->farmerUser)->post('/my-records', [
+        'transaction_template_id' => $this->cropTemplate->id,
+        'amount' => '250.75',
+        'is_credit' => true,
+        'transaction_date' => now()->toDateString(),
+        'narration' => 'Sold maize, to be paid later',
+    ]);
+
+    $transaction = Transaction::first();
+
+    expect($transaction)->not->toBeNull();
+    expect($transaction->settlement_account_id)->toBe($this->receivable->id);
+    expect($transaction->is_credit)->toBeTrue();
+});
+
+it('posts a credit purchase against Accounts Payable and marks it credit', function () {
+    // this farmer only has the crop farm type attached, and feed_purchase belongs
+    // to livestock - give them livestock too, just for this test
+    $livestockType = FarmType::create([
+        'name' => 'Goats',
+        'category_id' => $this->livestockCategory->id,
+        'is_active' => true,
+    ]);
+    $this->profile->farmTypes()->attach($livestockType->id);
+
+    $this->actingAs($this->farmerUser)->post('/my-records', [
+        'transaction_template_id' => $this->livestockTemplate->id,
+        'amount' => '80',
+        'is_credit' => true,
+        'transaction_date' => now()->toDateString(),
+        'farm_unit_id' => $this->unit->id,
+    ]);
+
+    $transaction = Transaction::first();
+
+    expect($transaction)->not->toBeNull();
+    expect($transaction->settlement_account_id)->toBe($this->payable->id);
+    expect($transaction->is_credit)->toBeTrue();
+});
+
+it('still records a cash sale as not credit when is_credit is left off', function () {
+    $this->actingAs($this->farmerUser)->post('/my-records', $this->payload);
+
+    expect(Transaction::first()->is_credit)->toBeFalse();
+});
+
+it('refuses to force credit on a template that does not allow it, even by hand', function () {
+    $response = $this->actingAs($this->farmerUser)->post('/my-records', [
+        'transaction_template_id' => $this->lossTemplate->id,
+        'amount' => '80',
+        'is_credit' => true,
+        'transaction_date' => now()->toDateString(),
+        'farm_unit_id' => $this->unit->id,
+        'quantity_lost' => '1',
+    ]);
+
+    $response->assertSessionHasErrors('is_credit');
+    expect(Transaction::count())->toBe(0);
 });

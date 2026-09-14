@@ -31,6 +31,9 @@ class RecordTransactionRequest extends FormRequest
                     ->where('is_settlement', true)
                     ->where('is_active', true),
             ],
+            // "Credit (not paid yet)" - Receivable/Payable is resolved server-side,
+            // never chosen directly, so this is the only thing the farmer submits
+            'is_credit' => ['sometimes', 'boolean'],
             'transaction_date' => ['required', 'date', 'before_or_equal:today'],
             'farm_unit_id' => [
                 'nullable',
@@ -136,6 +139,18 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_purchased', 'The number bought needs to be more than zero.');
+                }
+            },
+            // a template that never allows credit cannot be forced into it by hand-crafting the request
+            function (Validator $validator) {
+                if (! $this->boolean('is_credit') || $validator->errors()->has('transaction_template_id')) {
+                    return;
+                }
+
+                $template = TransactionTemplate::find($this->input('transaction_template_id'));
+
+                if ($template !== null && ! $template->allows_credit) {
+                    $validator->errors()->add('is_credit', 'That kind of record cannot be put on credit.');
                 }
             },
         ];

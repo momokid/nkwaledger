@@ -20,7 +20,12 @@ interface Template {
     requires_farm_unit: boolean;
     is_produce_sale: boolean;
     is_stock_purchase: boolean;
+    allows_credit: boolean;
 }
+
+// a synthetic choice alongside the real settlement accounts - Receivable/Payable is
+// resolved server-side from the template's type, never named or chosen directly
+const CREDIT_OPTION = "credit";
 
 interface AccountOption {
     id: number;
@@ -90,7 +95,10 @@ function CreateContent({
     const form = useForm({
         transaction_template_id: old.transaction_template_id ?? "",
         amount: old.amount ?? "",
-        settlement_account_id: old.settlement_account_id ?? "",
+        settlement_account_id:
+            old.is_credit === "1"
+                ? CREDIT_OPTION
+                : (old.settlement_account_id ?? ""),
         transaction_date: old.transaction_date ?? today,
         farm_unit_id: old.farm_unit_id ?? "",
         quantity_lost: old.quantity_lost ?? "",
@@ -174,8 +182,14 @@ function CreateContent({
 
         setSavedOffline(false);
 
+        const isCredit = form.data.settlement_account_id === CREDIT_OPTION;
+
         const dataWithIdempotencyKey = {
             ...form.data,
+            // Receivable/Payable is resolved server-side from the template's type,
+            // never sent as a real account id
+            settlement_account_id: isCredit ? "" : form.data.settlement_account_id,
+            is_credit: isCredit ? "1" : "0",
             idempotency_key: crypto.randomUUID(),
         };
 
@@ -468,11 +482,19 @@ function CreateContent({
                                     {account.name}
                                 </option>
                             ))}
+                            {chosen?.allows_credit && (
+                                <option value={CREDIT_OPTION}>
+                                    Credit (not paid yet)
+                                </option>
+                            )}
                         </select>
                         {errors.settlement_account_id && (
                             <p style={errorText}>
                                 {errors.settlement_account_id}
                             </p>
+                        )}
+                        {errors.is_credit && (
+                            <p style={errorText}>{errors.is_credit}</p>
                         )}
                     </div>
                 )}
