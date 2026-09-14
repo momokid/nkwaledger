@@ -133,7 +133,7 @@ function CompleteContent({
 
     const labelStyle = {
         color: text,
-        fontSize: "16px",
+        fontSize: "1rem",
         fontWeight: 600,
         display: "block",
         marginBottom: "4px",
@@ -141,7 +141,7 @@ function CompleteContent({
     const fieldStyle = {
         width: "100%",
         padding: "10px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         background: inputBg,
         color: text,
         border: `1px solid ${inputBorder}`,
@@ -151,7 +151,7 @@ function CompleteContent({
         background: readOnlyBg,
         color: textSecondary,
     };
-    const errorStyle = { color: "#DC2626", fontSize: "15px", marginTop: "4px" };
+    const errorStyle = { color: "#DC2626", fontSize: "0.9375rem", marginTop: "4px" };
     const cardStyle = {
         background: surface,
         border: `1px solid ${border}`,
@@ -166,7 +166,7 @@ function CompleteContent({
                     background: "none",
                     border: "none",
                     color: headerText,
-                    fontSize: "17px",
+                    fontSize: "1.0625rem",
                     fontWeight: 600,
                     cursor: "pointer",
                     padding: 0,
@@ -176,10 +176,10 @@ function CompleteContent({
             </button>
 
             <div style={cardStyle} className="space-y-3">
-                <p style={{ color: text, fontSize: "19px", fontWeight: 700 }}>
+                <p style={{ color: text, fontSize: "1.1875rem", fontWeight: 700 }}>
                     The account
                 </p>
-                <p style={{ color: textSecondary, fontSize: "16px" }}>
+                <p style={{ color: textSecondary, fontSize: "1rem" }}>
                     This farmer signed up already. These details belong to their
                     account, so they cannot be changed here.
                 </p>
@@ -223,7 +223,7 @@ function CompleteContent({
                             <p
                                 style={{
                                     color: "#B45309",
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                     marginTop: "4px",
                                 }}
                             >
@@ -235,7 +235,7 @@ function CompleteContent({
             </div>
 
             <form onSubmit={submit} style={cardStyle} className="space-y-4">
-                <p style={{ color: text, fontSize: "19px", fontWeight: 700 }}>
+                <p style={{ color: text, fontSize: "1.1875rem", fontWeight: 700 }}>
                     Farm profile
                 </p>
 
@@ -404,7 +404,7 @@ function CompleteContent({
                                 key={farmType.id}
                                 style={{
                                     color: text,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                     border: `1px solid ${inputBorder}`,
                                     padding: "8px 12px",
                                     cursor: "pointer",
@@ -437,7 +437,7 @@ function CompleteContent({
                         color: "#FFFFFF",
                         border: "none",
                         padding: "10px 20px",
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                         fontWeight: 600,
                         cursor: form.processing ? "not-allowed" : "pointer",
                         opacity: form.processing ? 0.7 : 1,

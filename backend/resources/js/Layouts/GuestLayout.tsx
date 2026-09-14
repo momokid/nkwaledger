@@ -27,7 +27,7 @@ export default function GuestLayout({ children }: PropsWithChildren) {
                                 className="text-xs font-semibold uppercase tracking-widest"
                                 style={{
                                     color: "rgba(255,255,255,0.45)",
-                                    fontSize: "12px",
+                                    fontSize: "0.75rem",
                                 }}
                             >
                                 Farm Finance Platform
@@ -51,7 +51,7 @@ export default function GuestLayout({ children }: PropsWithChildren) {
 
                     <div className="mt-auto flex flex-col gap-3">
                         {[
-                            "MTN MoMo payments integrated",
+                            "MoMo payments integrated",
                             "AI-powered VetAI and CropAI",
                             "Trusted by farmers across Ghana",
                         ].map((text) => (
@@ -95,7 +95,7 @@ export default function GuestLayout({ children }: PropsWithChildren) {
                             className="font-semibold uppercase tracking-widest"
                             style={{
                                 color: "#0F6E56",
-                                fontSize: "12px",
+                                fontSize: "0.75rem",
                                 opacity: 0.6,
                             }}
                         >

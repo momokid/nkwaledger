@@ -11,6 +11,7 @@ use App\Models\LedgerAccount;
 use App\Models\TransactionTemplate;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -110,7 +111,7 @@ class RecordTransactionController extends Controller
         ]);
     }
 
-    public function store(RecordTransactionRequest $request, ?FarmerProfile $farmer = null): RedirectResponse
+    public function store(RecordTransactionRequest $request, ?FarmerProfile $farmer = null): RedirectResponse|JsonResponse
     {
         $data = $request->validated();
 
@@ -129,9 +130,20 @@ class RecordTransactionController extends Controller
                 recordedBy: $request->user()->id,
                 quantityLost: $data['quantity_lost'] ?? null,
                 quantitySold: $data['quantity_sold'] ?? null,
+                quantityPurchased: $data['quantity_purchased'] ?? null,
+                idempotencyKey: $data['idempotency_key'] ?? null,
             ));
         } catch (PostingFailed $failure) {
+            // the offline sync engine has no page to redirect back to, so it needs a real HTTP error
+            if ($request->wantsJson()) {
+                return response()->json(['message' => $failure->getMessage()], 422);
+            }
+
             return back()->withInput()->with('error', $failure->getMessage());
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(['reference' => $transaction->reference]);
         }
 
         return back()
@@ -169,7 +181,7 @@ class RecordTransactionController extends Controller
                 // some things are true on every farm, so they belong to no category
                 ->orWhereNull('farm_type_category_id'))
             ->orderBy('name')
-            ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale']);
+            ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale', 'is_stock_purchase']);
     }
 
     private function frame(Request $request): array

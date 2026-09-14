@@ -177,10 +177,10 @@ function IndexContent({
         border: `1px solid ${inputBorder}`,
         background: inputBg,
         color: text,
-        fontSize: "17px",
+        fontSize: "1.0625rem",
     } as const;
 
-    const th = { color: brand, fontSize: "16px", fontWeight: 600 } as const;
+    const th = { color: brand, fontSize: "1rem", fontWeight: 600 } as const;
 
     return (
         <div className="space-y-4">
@@ -208,7 +208,7 @@ function IndexContent({
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: textSecondary,
                                 marginBottom: "4px",
                             }}
@@ -226,7 +226,7 @@ function IndexContent({
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: textSecondary,
                                 marginBottom: "4px",
                             }}
@@ -245,7 +245,7 @@ function IndexContent({
                         <label
                             className="flex items-center gap-2"
                             style={{
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 color: text,
                                 paddingBottom: "8px",
                             }}
@@ -312,7 +312,7 @@ function IndexContent({
                                 ? "rgba(180,83,9,0.15)"
                                 : "#FEF3C7",
                             color: "#B45309",
-                            fontSize: "16px",
+                            fontSize: "1rem",
                         }}
                     >
                         GHS {cedis(report.provisional_held_back)} is on a part
@@ -374,7 +374,7 @@ function IndexContent({
                 >
                     <p
                         style={{
-                            fontSize: "15px",
+                            fontSize: "0.9375rem",
                             color: textSecondary,
                             margin: 0,
                         }}
@@ -413,7 +413,7 @@ function ReportHead({
         <div>
             <p
                 style={{
-                    fontSize: "16px",
+                    fontSize: "1rem",
                     fontWeight: 700,
                     color: brand,
                     margin: 0,
@@ -424,7 +424,7 @@ function ReportHead({
             </p>
             <h2
                 style={{
-                    fontSize: "24px",
+                    fontSize: "1.5rem",
                     fontWeight: 700,
                     color: text,
                     margin: "4px 0 0",
@@ -482,12 +482,12 @@ function Fact({
 }) {
     return (
         <div>
-            <p style={{ fontSize: "15px", color: textSecondary, margin: 0 }}>
+            <p style={{ fontSize: "0.9375rem", color: textSecondary, margin: 0 }}>
                 {label}
             </p>
             <p
                 style={{
-                    fontSize: "17px",
+                    fontSize: "1.0625rem",
                     color: text,
                     margin: "2px 0 0",
                     fontWeight: 600,
@@ -580,7 +580,7 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                     <span
                                         style={{
                                             display: "block",
-                                            fontSize: "15px",
+                                            fontSize: "0.9375rem",
                                             color: colours.textSecondary,
                                         }}
                                     >
@@ -591,7 +591,7 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                     <span
                                         style={{
                                             display: "block",
-                                            fontSize: "15px",
+                                            fontSize: "0.9375rem",
                                             color: colours.textSecondary,
                                         }}
                                     >
@@ -603,7 +603,7 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                     <span
                                         style={{
                                             display: "block",
-                                            fontSize: "15px",
+                                            fontSize: "0.9375rem",
                                             color: colours.textSecondary,
                                         }}
                                     >
@@ -615,7 +615,7 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                 className="px-4 py-3"
                                 style={{
                                     color: colours.textSecondary,
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 {row.reference}
@@ -707,7 +707,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                 <div key={section.label} style={{ marginBottom: "22px" }}>
                     <p
                         style={{
-                            fontSize: "18px",
+                            fontSize: "1.125rem",
                             fontWeight: 700,
                             color: colours.brand,
                             marginBottom: "6px",
@@ -719,7 +719,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                     {section.rows.length === 0 && (
                         <p
                             style={{
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 color: colours.textSecondary,
                                 margin: 0,
                             }}
@@ -739,7 +739,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                         >
                             <span
                                 style={{
-                                    fontSize: "17px",
+                                    fontSize: "1.0625rem",
                                     color: colours.text,
                                 }}
                             >
@@ -747,7 +747,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                             </span>
                             <span
                                 style={{
-                                    fontSize: "17px",
+                                    fontSize: "1.0625rem",
                                     color: colours.text,
                                 }}
                             >
@@ -763,7 +763,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                         >
                             <span
                                 style={{
-                                    fontSize: "17px",
+                                    fontSize: "1.0625rem",
                                     fontWeight: 700,
                                     color: colours.text,
                                 }}
@@ -772,7 +772,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                             </span>
                             <span
                                 style={{
-                                    fontSize: "17px",
+                                    fontSize: "1.0625rem",
                                     fontWeight: 700,
                                     color: colours.text,
                                 }}
@@ -790,7 +790,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
             >
                 <span
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         fontWeight: 700,
                         color: colours.text,
                     }}
@@ -799,7 +799,7 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                 </span>
                 <span
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         fontWeight: 700,
                         color: net < 0 ? "#B91C1C" : colours.brand,
                     }}
@@ -928,7 +928,7 @@ function TrialBalance({
             <p
                 style={{
                     marginTop: "12px",
-                    fontSize: "17px",
+                    fontSize: "1.0625rem",
                     fontWeight: 600,
                     color: report.is_balanced ? colours.brand : "#B91C1C",
                 }}

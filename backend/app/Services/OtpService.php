@@ -31,7 +31,8 @@ class OtpService
     {
         $this->guardType($type);
 
-        $plainCode = (string) random_int(100000, 999999);
+        $bypassCode = $this->testBypassCode($identifier);
+        $plainCode = $bypassCode ?? (string) random_int(100000, 999999);
 
         $otp = OtpCode::create([
             'identifier' => $identifier,
@@ -40,7 +41,11 @@ class OtpService
             'expires_at' => now()->addMinutes($this->lifetimeFor($type)),
         ]);
 
-        $this->sms->send($identifier, $this->messageFor($type, $plainCode));
+        // a bypass code is for a developer sitting at their own machine testing the app —
+        // it is never sent anywhere, so nobody outside a local/testing environment sees it
+        if ($bypassCode === null) {
+            $this->sms->send($identifier, $this->messageFor($type, $plainCode));
+        }
 
         return $otp;
     }
@@ -114,5 +119,23 @@ class OtpService
         if (! in_array($type, self::TYPES, true)) {
             throw new InvalidArgumentException('Unknown OTP type.');
         }
+    }
+
+    // lets a developer log in as a known test number without a real SMS provider —
+    // restricted to local/testing environments and an explicit allow-list, so it can
+    // never reach production or apply to a real farmer's number by accident
+    private function testBypassCode(string $identifier): ?string
+    {
+        if (! app()->environment('local', 'testing')) {
+            return null;
+        }
+
+        $testPhones = array_filter(array_map('trim', explode(',', (string) config('otp.test_phones'))));
+
+        if (! in_array($identifier, $testPhones, true)) {
+            return null;
+        }
+
+        return '000000';
     }
 }

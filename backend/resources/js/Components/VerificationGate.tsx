@@ -57,7 +57,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
     const inputStyle = {
         width: "100%",
         padding: "12px 14px",
-        fontSize: "16px",
+        fontSize: "1rem",
         letterSpacing: "4px",
         background: dark ? "#111827" : "#FFFFFF",
         border: `1px solid ${errors.code ? danger : border}`,
@@ -70,7 +70,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
     const buttonStyle = {
         width: "100%",
         padding: "12px 14px",
-        fontSize: "15px",
+        fontSize: "0.9375rem",
         fontWeight: 600,
         background: primary,
         color: "#FFFFFF",
@@ -101,7 +101,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
 
                 <h2
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         fontWeight: 600,
                         color: text,
                         margin: "16px 0 8px",
@@ -112,7 +112,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
 
                 <p
                     style={{
-                        fontSize: "15px",
+                        fontSize: "0.9375rem",
                         color: textSecondary,
                         lineHeight: 1.6,
                         marginBottom: "24px",
@@ -136,7 +136,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "14px",
+                                fontSize: "0.875rem",
                                 color: textSecondary,
                                 marginBottom: "8px",
                             }}
@@ -161,7 +161,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
                         {errors.code && (
                             <p
                                 style={{
-                                    fontSize: "14px",
+                                    fontSize: "0.875rem",
                                     color: danger,
                                     marginTop: "8px",
                                 }}
@@ -188,7 +188,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
                                 background: "transparent",
                                 border: "none",
                                 color: textSecondary,
-                                fontSize: "14px",
+                                fontSize: "0.875rem",
                                 cursor: "pointer",
                                 fontFamily: "'Inter', system-ui, sans-serif",
                             }}

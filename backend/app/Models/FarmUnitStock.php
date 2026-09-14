@@ -58,26 +58,42 @@ class FarmUnitStock extends Model
             }
         });
 
-        // the sum has to start somewhere, so the first batch writes its own movement
+        // the sum has to start somewhere, so the first batch writes its own movement. A
+        // declared opening balance is trusted immediately; a bought one is held back the
+        // same as any other purchase, until someone else checks it
         static::created(function (FarmUnitStock $stock) {
+            $isPurchased = $stock->source === StockSource::Purchase;
+
             $stock->movements()->create([
                 'reason' => MovementReason::Opening,
                 'quantity' => $stock->opening_quantity,
                 'is_increase' => true,
                 'occurred_on' => $stock->started_on,
                 'recorded_by' => $stock->recorded_by,
-                'confirmed_at' => now(),
-                'confirmed_by' => $stock->recorded_by,
+                'confirmed_at' => $isPurchased ? null : now(),
+                'confirmed_by' => $isPurchased ? null : $stock->recorded_by,
             ]);
         });
     }
 
-    // the count is the sum of every movement that still stands, so it can never drift
+    // the count is the sum of every movement that still stands and is trusted; a birth or
+    // purchase — including a purchased opening balance — sits out until someone else checks
+    // it, so a farmer cannot inflate their own count
     public function refreshCount(): void
     {
+        $isPurchasedBatch = $this->source === StockSource::Purchase;
+
         $total = $this->movements()
             ->whereNull('rejected_at')
-            ->get(['quantity', 'is_increase'])
+            ->get(['quantity', 'is_increase', 'reason', 'confirmed_at'])
+            ->reject(function (FarmUnitStockMovement $movement) use ($isPurchasedBatch) {
+                if ($movement->isConfirmed()) {
+                    return false;
+                }
+
+                return $movement->reason->mustBeConfirmedToCount()
+                    || ($movement->reason === MovementReason::Opening && $isPurchasedBatch);
+            })
             ->reduce(
                 fn(float $carry, FarmUnitStockMovement $movement) => $movement->is_increase
                     ? $carry + (float) $movement->quantity
@@ -113,6 +129,12 @@ class FarmUnitStock extends Model
     public function conflictedUserId(): ?int
     {
         return $this->recorded_by;
+    }
+
+    // an agent's own entry can never be waved through by another agent — only admin may
+    public function requiresAdminToApprove(): bool
+    {
+        return $this->recordedBy?->hasRole('agent') ?? false;
     }
 
     // a checked number in an unchecked pen proves nothing, so both must pass

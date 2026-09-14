@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Enums\MovementReason;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreStockMovementRequest extends FormRequest
 {
@@ -32,6 +33,39 @@ class StoreStockMovementRequest extends FormRequest
                 'boolean',
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $reason = MovementReason::from($this->input('reason'));
+            $isIncrease = $reason->needsDirection()
+                ? (bool) $this->input('is_increase')
+                : $reason->addsToCount();
+
+            // an addition is never checked against what is already there — only a
+            // decrease can report more than the farm actually has on record
+            if ($isIncrease) {
+                return;
+            }
+
+            $stock = $this->route('stock');
+
+            if ($stock === null) {
+                return;
+            }
+
+            if ((float) $this->input('quantity') > (float) $stock->current_quantity) {
+                $validator->errors()->add(
+                    'quantity',
+                    'That is more than the farm has on record. Please check the number.',
+                );
+            }
+        });
     }
 
     public function messages(): array

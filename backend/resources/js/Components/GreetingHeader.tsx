@@ -16,7 +16,7 @@ export default function GreetingHeader({ subtitle }: GreetingHeaderProps) {
         <>
             <p
                 style={{
-                    fontSize: "23px",
+                    fontSize: "1.4375rem",
                     fontWeight: 600,
                     color: text,
                     marginBottom: "4px",
@@ -26,7 +26,7 @@ export default function GreetingHeader({ subtitle }: GreetingHeaderProps) {
             </p>
             <p
                 style={{
-                    fontSize: "18px",
+                    fontSize: "1.125rem",
                     color: textSecondary,
                     marginBottom: "20px",
                 }}

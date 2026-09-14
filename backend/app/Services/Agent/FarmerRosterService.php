@@ -77,4 +77,50 @@ class FarmerRosterService
             ->pluck('last_activity', 'farmer_profile_id')
             ->map(fn($date) => $date === null ? null : Carbon::parse($date)->toDateString());
     }
+
+    // rolling 7-day buckets counting backward from `to`, always at least four so the
+    // chart never looks empty on a short filter. A bucket whose range falls entirely
+    // before `from` is left at zero rather than reaching outside the filter for data —
+    // padding buckets exist to fill the chart, not to leak extra history into it.
+    public function weeklyTotalsFor(int $agentId, string $from, string $to): array
+    {
+        $farmerIds = FarmerProfile::query()
+            ->where('assigned_agent_id', $agentId)
+            ->pluck('id');
+
+        $filterFrom = Carbon::parse($from);
+        $filterTo = Carbon::parse($to);
+        $bucketCount = max(4, (int) ceil(($filterFrom->diffInDays($filterTo) + 1) / 7));
+
+        $buckets = [];
+
+        for ($i = $bucketCount - 1; $i >= 0; $i--) {
+            $bucketTo = $filterTo->copy()->subDays($i * 7);
+            $bucketFrom = $bucketTo->copy()->subDays(6);
+
+            $effectiveFrom = $bucketFrom->greaterThan($filterFrom) ? $bucketFrom : $filterFrom;
+            $effectiveTo = $bucketTo->lessThan($filterTo) ? $bucketTo : $filterTo;
+            $inFilter = !$effectiveFrom->greaterThan($effectiveTo);
+
+            $buckets[] = [
+                'from' => $bucketFrom->toDateString(),
+                'to' => $bucketTo->toDateString(),
+                'income' => $inFilter ? $this->weeklySum($farmerIds, $effectiveFrom, $effectiveTo, Transaction::INCOME) : 0,
+                'expense' => $inFilter ? $this->weeklySum($farmerIds, $effectiveFrom, $effectiveTo, Transaction::EXPENSE) : 0,
+            ];
+        }
+
+        return $buckets;
+    }
+
+    private function weeklySum(Collection $farmerIds, Carbon $from, Carbon $to, string $type): int
+    {
+        return (int) Transaction::query()
+            ->whereIn('farmer_profile_id', $farmerIds)
+            ->where('transaction_type', $type)
+            ->where('is_provisional', false)
+            ->whereDate('transaction_date', '>=', $from->toDateString())
+            ->whereDate('transaction_date', '<=', $to->toDateString())
+            ->sum('amount_minor');
+    }
 }

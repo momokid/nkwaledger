@@ -23,7 +23,7 @@ function Divider({ label }: { label?: string }) {
             {label && (
                 <span
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         color: "#9CA3AF",
                         whiteSpace: "nowrap",
                     }}
@@ -52,7 +52,7 @@ function InputField({
             <label
                 style={{
                     display: "block",
-                    fontSize: "20px",
+                    fontSize: "1.25rem",
                     fontWeight: 600,
                     color: "#111827",
                     marginBottom: "6px",
@@ -62,7 +62,7 @@ function InputField({
                 {optional && (
                     <span
                         style={{
-                            fontSize: "18px",
+                            fontSize: "1.125rem",
                             fontWeight: 400,
                             color: "#9CA3AF",
                         }}
@@ -76,7 +76,7 @@ function InputField({
                 <p
                     style={{
                         marginTop: "4px",
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         color: "#DC2626",
                     }}
                 >
@@ -91,7 +91,7 @@ const inputStyle: React.CSSProperties = {
     width: "100%",
     border: "1px solid #9CA3AF",
     padding: "10px 12px",
-    fontSize: "20px",
+    fontSize: "1.25rem",
     color: "#111827",
     background: "#fff",
     outline: "none",
@@ -158,7 +158,7 @@ export default function Register() {
                     <div>
                         <div
                             style={{
-                                fontSize: "23px",
+                                fontSize: "1.4375rem",
                                 fontWeight: 700,
                                 color: "#fff",
                                 letterSpacing: "-0.2px",
@@ -168,7 +168,7 @@ export default function Register() {
                         </div>
                         <div
                             style={{
-                                fontSize: "15px",
+                                fontSize: "0.9375rem",
                                 fontWeight: 600,
                                 color: "rgba(255,255,255,0.45)",
                                 letterSpacing: "0.8px",
@@ -184,7 +184,7 @@ export default function Register() {
                     <h1
                         style={{
                             margin: "0 0 16px",
-                            fontSize: "38px",
+                            fontSize: "2.375rem",
                             fontWeight: 700,
                             color: "#fff",
                             lineHeight: 1.25,
@@ -196,7 +196,7 @@ export default function Register() {
                     <p
                         style={{
                             margin: "0 0 2rem",
-                            fontSize: "23px",
+                            fontSize: "1.4375rem",
                             color: "rgba(255,255,255,0.65)",
                             lineHeight: 1.65,
                         }}
@@ -216,7 +216,7 @@ export default function Register() {
                     <div
                         style={{
                             marginBottom: "6px",
-                            fontSize: "15px",
+                            fontSize: "0.9375rem",
                             fontWeight: 600,
                             color: "rgba(255,255,255,0.4)",
                             letterSpacing: "0.8px",
@@ -256,7 +256,7 @@ export default function Register() {
                                             display: "flex",
                                             alignItems: "center",
                                             justifyContent: "center",
-                                            fontSize: "15px",
+                                            fontSize: "0.9375rem",
                                             fontWeight: 700,
                                             color: "#fff",
                                         }}
@@ -290,7 +290,7 @@ export default function Register() {
                                 >
                                     <div
                                         style={{
-                                            fontSize: "20px",
+                                            fontSize: "1.25rem",
                                             fontWeight: step.active ? 600 : 400,
                                             color: step.active
                                                 ? "#fff"
@@ -307,7 +307,7 @@ export default function Register() {
 
                 <div
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         color: "rgba(255,255,255,0.35)",
                     }}
                 >
@@ -322,7 +322,7 @@ export default function Register() {
                         href="/"
                         className="inline-flex items-center gap-2 mb-8"
                         style={{
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             color: "#6B7280",
                             textDecoration: "none",
                         }}
@@ -341,7 +341,7 @@ export default function Register() {
                         <h2
                             style={{
                                 margin: 0,
-                                fontSize: "38px",
+                                fontSize: "2.375rem",
                                 fontWeight: 700,
                                 color: "#111827",
                                 letterSpacing: "-0.5px",
@@ -352,7 +352,7 @@ export default function Register() {
                         <span
                             className="inline-flex items-center gap-1"
                             style={{
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 fontWeight: 600,
                                 color: "#0F6E56",
                                 background: "#EAF5F0",
@@ -368,7 +368,7 @@ export default function Register() {
                     <p
                         style={{
                             margin: "0 0 1.75rem",
-                            fontSize: "23px",
+                            fontSize: "1.4375rem",
                             color: "#6B7280",
                         }}
                     >
@@ -443,7 +443,7 @@ export default function Register() {
                                         background: "#F9FAFB",
                                         border: "1px solid #9CA3AF",
                                         borderRight: "none",
-                                        fontSize: "20px",
+                                        fontSize: "1.25rem",
                                         color: "#111827",
                                         whiteSpace: "nowrap",
                                         flexShrink: 0,
@@ -534,7 +534,7 @@ export default function Register() {
                                 color: "#fff",
                                 border: "none",
                                 padding: "13px 20px",
-                                fontSize: "23px",
+                                fontSize: "1.4375rem",
                                 fontWeight: 600,
                                 cursor: processing ? "not-allowed" : "pointer",
                                 display: "flex",
@@ -575,7 +575,7 @@ export default function Register() {
                                 padding: "13px 12px",
                                 background: "#fff",
                                 border: "1px solid #9CA3AF",
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 color: "#111827",
                                 cursor: "pointer",
                                 display: "flex",
@@ -619,7 +619,7 @@ export default function Register() {
                                 padding: "13px 12px",
                                 background: "#1877F2",
                                 border: "none",
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 color: "#fff",
                                 cursor: "pointer",
                                 display: "flex",
@@ -660,7 +660,7 @@ export default function Register() {
                         <p
                             style={{
                                 margin: 0,
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 color: "#6B7280",
                                 lineHeight: 1.55,
                             }}
@@ -683,7 +683,7 @@ export default function Register() {
                     <p
                         style={{
                             textAlign: "center",
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             color: "#6B7280",
                             margin: 0,
                         }}

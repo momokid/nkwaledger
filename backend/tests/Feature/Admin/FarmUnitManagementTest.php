@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\Community;
 use App\Models\FarmerProfile;
 use App\Models\FarmType;
@@ -201,13 +202,15 @@ test('a unit belonging to another farmer cannot be edited here', function () {
         ->assertNotFound();
 });
 
+// only admin can approve what an agent created, so this uses admin — a plain "can this be
+// approved at all" check, not the agent-vs-agent rule (that gets its own tests below)
 test('a unit can be approved', function () {
     $unit = FarmUnit::factory()->create([
         'farmer_profile_id' => $this->farmer->id,
         'created_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
         ->assertSessionDoesntHaveErrors();
 
     expect($unit->fresh()->isApproved())->toBeTrue();
@@ -219,19 +222,19 @@ test('approving records who did it', function () {
         'created_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve");
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve");
 
-    expect($unit->fresh()->approved_by)->toBe($this->agent->id);
+    expect($unit->fresh()->approved_by)->toBe($this->admin->id);
 });
 
 // whoever set the pen up is not the one who says it exists
 test('the person who added a unit cannot approve it', function () {
     $unit = FarmUnit::factory()->create([
         'farmer_profile_id' => $this->farmer->id,
-        'created_by' => $this->agent->id,
+        'created_by' => $this->admin->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
         ->assertSessionHas('error');
 
     expect($unit->fresh()->isApproved())->toBeFalse();
@@ -254,8 +257,37 @@ test('an already approved unit cannot be approved again', function () {
         'created_by' => $this->otherAgent->id,
     ]);
 
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
+        ->assertSessionHas('error');
+});
+
+// an agent's own colleague cannot wave a new unit through — only admin may
+test('an agent cannot approve a unit created by another agent', function () {
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->farmer->id,
+        'created_by' => $this->otherAgent->id,
+    ]);
+
     $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
         ->assertSessionHas('error');
+
+    expect($unit->fresh()->isApproved())->toBeFalse();
+});
+
+// but the path stays open for when a farmer creates their own unit directly
+test('an agent can approve a unit created by the farmer', function () {
+    $farmerUser = User::factory()->create();
+    $farmerUser->assignRole('farmer');
+
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->farmer->id,
+        'created_by' => $farmerUser->id,
+    ]);
+
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
+        ->assertSessionDoesntHaveErrors();
+
+    expect($unit->fresh()->isApproved())->toBeTrue();
 });
 
 test('approving is written to the audit log', function () {
@@ -264,13 +296,40 @@ test('approving is written to the audit log', function () {
         'created_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve");
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve");
 
-    expect(App\Models\AuditLog::where('action', 'farm_unit.approved')->exists())->toBeTrue();
+    expect(AuditLog::where('action', 'farm_unit.approved')->exists())->toBeTrue();
+});
+
+// the audit trail names the farmer and the agent, not just a bare record id
+test('approving records the farmer and agent for the admin audit trail', function () {
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->farmer->id,
+        'created_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve");
+
+    $entry = AuditLog::where('action', 'farm_unit.approved')->latest('id')->first();
+
+    expect($entry->new_values['farmer'])->toBe(trim("{$this->farmer->user?->surname} {$this->farmer->user?->first_name}"));
+    expect($entry->new_values['agent'])->toBe(trim("{$this->agent->surname} {$this->agent->first_name}"));
+    expect($entry->new_values['checked_by'])->toBe(trim("{$this->admin->surname} {$this->admin->first_name}"));
 });
 
 test('the page says what this user may do', function () {
     $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units")
         ->assertInertia(fn($page) => $page->where('permissions.create', true)
             ->where('permissions.approve', true));
+});
+
+// the button offered matches what the backend will actually allow
+test('an agent is not offered approve on a colleague-created unit', function () {
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->farmer->id,
+        'created_by' => $this->otherAgent->id,
+    ]);
+
+    $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units")
+        ->assertInertia(fn($page) => $page->where('units.0.can_approve', false));
 });

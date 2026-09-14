@@ -168,7 +168,7 @@ function IndexContent({
     const thStyle = { color: headerText, fontWeight: 700 };
     const labelStyle = {
         color: text,
-        fontSize: "16px",
+        fontSize: "1rem",
         fontWeight: 600,
         display: "block",
         marginBottom: "4px",
@@ -176,18 +176,18 @@ function IndexContent({
     const fieldStyle = {
         width: "100%",
         padding: "10px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         background: inputBg,
         color: text,
         border: `1px solid ${inputBorder}`,
     };
-    const errorStyle = { color: "#DC2626", fontSize: "15px", marginTop: "4px" };
+    const errorStyle = { color: "#DC2626", fontSize: "0.9375rem", marginTop: "4px" };
     const buttonStyle = {
         background: "#1D9E75",
         color: "#FFFFFF",
         border: "none",
         padding: "10px 20px",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
     };
@@ -195,7 +195,7 @@ function IndexContent({
         background: "none",
         border: "1px",
         color: headerText,
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         cursor: "pointer",
         padding: "0 6px",
@@ -358,7 +358,7 @@ function IndexContent({
                         <label
                             style={{
                                 color: text,
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 cursor: "pointer",
                             }}
                         >
@@ -394,7 +394,7 @@ function IndexContent({
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "18px" }}>
+                <table className="min-w-full" style={{ fontSize: "1.125rem" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             <th className="text-left px-4 py-3" style={thStyle}>
@@ -453,7 +453,7 @@ function IndexContent({
                                     {!unit.is_active && (
                                         <span
                                             style={{
-                                                fontSize: "15px",
+                                                fontSize: "0.9375rem",
                                                 display: "block",
                                             }}
                                         >
@@ -538,7 +538,7 @@ function IndexContent({
                 </table>
             </div>
 
-            <p style={{ color: textSecondary, fontSize: "15px" }}>
+            <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>
                 A unit that is not checked still works, but nothing recorded
                 against it counts toward credit.
             </p>

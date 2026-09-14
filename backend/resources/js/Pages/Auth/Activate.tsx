@@ -45,7 +45,7 @@ export default function Activate() {
                 <h1
                     style={{
                         margin: 0,
-                        fontSize: "26px",
+                        fontSize: "1.625rem",
                         fontWeight: 700,
                         color: "#111827",
                     }}
@@ -56,7 +56,7 @@ export default function Activate() {
                 <p
                     style={{
                         margin: "8px 0 28px",
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         lineHeight: 1.5,
                         color: "#6B7280",
                     }}
@@ -70,7 +70,7 @@ export default function Activate() {
                         htmlFor="phone"
                         style={{
                             display: "block",
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             fontWeight: 600,
                             color: "#111827",
                             marginBottom: "6px",
@@ -97,7 +97,7 @@ export default function Activate() {
                             background: "#FFFFFF",
                             color: "#111827",
                             padding: "13px 14px",
-                            fontSize: "23px",
+                            fontSize: "1.4375rem",
                             outline: "none",
                             fontFamily: "inherit",
                         }}
@@ -115,7 +115,7 @@ export default function Activate() {
                         <p
                             style={{
                                 margin: "6px 0 0",
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 color: "#DC2626",
                             }}
                         >
@@ -133,7 +133,7 @@ export default function Activate() {
                             color: "#FFFFFF",
                             border: "none",
                             padding: "13px 20px",
-                            fontSize: "23px",
+                            fontSize: "1.4375rem",
                             fontWeight: 600,
                             cursor: processing ? "not-allowed" : "pointer",
                             fontFamily: "inherit",
@@ -146,7 +146,7 @@ export default function Activate() {
                 <p
                     style={{
                         margin: "24px 0 0",
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         color: "#6B7280",
                         textAlign: "center",
                     }}

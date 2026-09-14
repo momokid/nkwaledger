@@ -1,8 +1,16 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent, useMemo } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Button from "@/Components/Button";
+import {
+    enqueue,
+    listNeedsAttention,
+    NeedsAttentionItem,
+    remove,
+} from "@/lib/offlineStore";
+import { QueuedSubmission } from "@/types/offlineQueue";
+import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
 interface Template {
     id: number;
@@ -11,6 +19,7 @@ interface Template {
     settlement_side: string;
     requires_farm_unit: boolean;
     is_produce_sale: boolean;
+    is_stock_purchase: boolean;
 }
 
 interface AccountOption {
@@ -86,6 +95,7 @@ function CreateContent({
         farm_unit_id: old.farm_unit_id ?? "",
         quantity_lost: old.quantity_lost ?? "",
         quantity_sold: old.quantity_sold ?? "",
+        quantity_purchased: old.quantity_purchased ?? "",
         narration: old.narration ?? "",
     });
 
@@ -102,6 +112,7 @@ function CreateContent({
     const needsUnit = chosen?.requires_farm_unit ?? false;
     const needsQuantityLost = chosen?.transaction_type === "LOSS";
     const needsQuantitySold = chosen?.is_produce_sale ?? false;
+    const needsQuantityPurchased = chosen?.is_stock_purchase ?? false;
 
     const chosenUnit =
         farmUnits.find((unit) => String(unit.id) === form.data.farm_unit_id) ??
@@ -112,19 +123,81 @@ function CreateContent({
             ? `/agent/farmers/${farmer.id}/records`
             : "/my-records";
 
+    const [savedOffline, setSavedOffline] = useState(false);
+    const [attentionItems, setAttentionItems] = useState<
+        NeedsAttentionItem<QueuedSubmission>[]
+    >([]);
+
+    const refreshAttentionItems = () => {
+        void listNeedsAttention<QueuedSubmission>().then(setAttentionItems);
+    };
+
+    useEffect(() => {
+        refreshAttentionItems();
+
+        // the sync engine runs from the layout, not from this page, so this
+        // page only learns about its results through this event
+        window.addEventListener(OFFLINE_SYNC_RAN_EVENT, refreshAttentionItems);
+
+        return () =>
+            window.removeEventListener(
+                OFFLINE_SYNC_RAN_EVENT,
+                refreshAttentionItems,
+            );
+    }, []);
+
+    const discardAttentionItem = async (id: string) => {
+        await remove(id);
+        refreshAttentionItems();
+    };
+
+    const resetEnteredFields = () =>
+        form.reset(
+            "amount",
+            "quantity_lost",
+            "quantity_sold",
+            "quantity_purchased",
+            "narration",
+        );
+
+    const queueOffline = async (data: Record<string, string>) => {
+        const submission: QueuedSubmission = { url: postUrl, data };
+
+        await enqueue(submission);
+
+        setSavedOffline(true);
+        resetEnteredFields();
+    };
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        setSavedOffline(false);
+
+        const dataWithIdempotencyKey = {
+            ...form.data,
+            idempotency_key: crypto.randomUUID(),
+        };
+
+        if (!navigator.onLine) {
+            void queueOffline(dataWithIdempotencyKey);
+
+            return;
+        }
+
+        form.transform(() => dataWithIdempotencyKey);
 
         form.post(postUrl, {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () =>
-                form.reset(
-                    "amount",
-                    "quantity_lost",
-                    "quantity_sold",
-                    "narration",
-                ),
+            onSuccess: () => resetEnteredFields(),
+            onError: (errors) => {
+                // an empty errors object means the request never reached the
+                // server with a proper response, not that validation failed
+                if (Object.keys(errors).length === 0) {
+                    void queueOffline(dataWithIdempotencyKey);
+                }
+            },
         });
     };
 
@@ -134,19 +207,19 @@ function CreateContent({
         border: `1px solid ${inputBorder}`,
         background: inputBg,
         color: text,
-        fontSize: "18px",
+        fontSize: "1.125rem",
     } as const;
 
     const label = {
         display: "block",
-        fontSize: "17px",
+        fontSize: "1.0625rem",
         fontWeight: 600,
         color: text,
         marginBottom: "6px",
     } as const;
 
     const errorText = {
-        fontSize: "15px",
+        fontSize: "0.9375rem",
         color: "#B91C1C",
         marginTop: "4px",
     } as const;
@@ -160,14 +233,14 @@ function CreateContent({
                 maxWidth: "560px",
             }}
         >
-            <h2 style={{ fontSize: "22px", fontWeight: 700, color: text }}>
+            <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
                 {layout === "agent"
                     ? `Record for ${farmer.name}`
                     : "Record something"}
             </h2>
             <p
                 style={{
-                    fontSize: "17px",
+                    fontSize: "1.0625rem",
                     color: textSecondary,
                     marginTop: "4px",
                 }}
@@ -175,13 +248,27 @@ function CreateContent({
                 Answer the questions below. We will keep the book for you.
             </p>
 
+            {savedOffline && (
+                <div
+                    className="mt-4 p-3"
+                    style={{
+                        background: warnBg,
+                        color: "#B45309",
+                        fontSize: "1.0625rem",
+                    }}
+                >
+                    Saved on your phone. It has not reached the server yet — it
+                    will send itself as soon as you are back online.
+                </div>
+            )}
+
             {flash?.success && (
                 <div
                     className="mt-4 p-3"
                     style={{
                         background: noticeBg,
                         color: brand,
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                     }}
                 >
                     {flash.success}
@@ -196,6 +283,53 @@ function CreateContent({
                             Reference {flash.reference}
                         </span>
                     )}
+                </div>
+            )}
+
+            {attentionItems.length > 0 && (
+                <div className="mt-4">
+                    {attentionItems.map((item) => (
+                        <div
+                            key={item.id}
+                            className="p-3 mb-2"
+                            style={{
+                                background: warnBg,
+                                fontSize: "1.0625rem",
+                            }}
+                        >
+                            <p style={{ color: "#B45309", margin: 0 }}>
+                                This entry needs your attention: {item.message}
+                            </p>
+                            <p
+                                style={{
+                                    color: textSecondary,
+                                    fontSize: "0.9375rem",
+                                    marginTop: "4px",
+                                }}
+                            >
+                                Amount: {item.payload.data.amount || "—"}
+                                {item.payload.data.narration
+                                    ? ` · ${item.payload.data.narration}`
+                                    : ""}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => discardAttentionItem(item.id)}
+                                style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "#B45309",
+                                    textDecoration: "underline",
+                                    cursor: "pointer",
+                                    fontSize: "0.9375rem",
+                                    padding: 0,
+                                    marginTop: "6px",
+                                }}
+                            >
+                                Discard this entry
+                            </button>
+                        </div>
+                    ))}
                 </div>
             )}
 
@@ -289,6 +423,28 @@ function CreateContent({
                     </div>
                 )}
 
+                {needsQuantityPurchased && (
+                    <div className="mb-4">
+                        <label style={label}>How many did you buy?</label>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="e.g. 10"
+                            style={field}
+                            value={form.data.quantity_purchased}
+                            onChange={(event) =>
+                                form.setData(
+                                    "quantity_purchased",
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        {errors.quantity_purchased && (
+                            <p style={errorText}>{errors.quantity_purchased}</p>
+                        )}
+                    </div>
+                )}
+
                 {needsAccount && (
                     <div className="mb-4">
                         <label style={label}>
@@ -369,7 +525,7 @@ function CreateContent({
                                 style={{
                                     background: warnBg,
                                     color: "#B45309",
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                 }}
                             >
                                 This part of the farm has not been checked yet.

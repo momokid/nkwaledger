@@ -215,14 +215,14 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
         });
     };
 
-    const thStyle = { color: brand, fontWeight: 700, fontSize: "16px" };
+    const thStyle = { color: brand, fontWeight: 700, fontSize: "1rem" };
 
     const field = {
         padding: "8px 10px",
         border: `1px solid ${inputBorder}`,
         background: inputBg,
         color: text,
-        fontSize: "17px",
+        fontSize: "1.0625rem",
     } as const;
 
     const canAct = permissions.approve || permissions.confirm;
@@ -233,12 +233,12 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                 className="p-5"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <h2 style={{ fontSize: "22px", fontWeight: 700, color: text }}>
+                <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
                     Waiting for you
                 </h2>
                 <p
                     style={{
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                         color: textSecondary,
                         marginTop: "4px",
                     }}
@@ -251,7 +251,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                 className="overflow-x-auto"
                 style={{ background: surface, border: `1px solid ${border}` }}
             >
-                <table className="min-w-full" style={{ fontSize: "18px" }}>
+                <table className="min-w-full" style={{ fontSize: "1.125rem" }}>
                     <thead>
                         <tr style={{ background: headerBg }}>
                             {[
@@ -383,7 +383,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                 {!item.can_approve && (
                                                     <span
                                                         style={{
-                                                            fontSize: "15px",
+                                                            fontSize: "0.9375rem",
                                                             color: textSecondary,
                                                         }}
                                                     >
@@ -414,7 +414,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                                     <p
                                                                         style={{
                                                                             fontSize:
-                                                                                "15px",
+                                                                                "0.9375rem",
                                                                             color: textSecondary,
                                                                         }}
                                                                     >
@@ -426,7 +426,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                                     <p
                                                                         style={{
                                                                             fontSize:
-                                                                                "17px",
+                                                                                "1.0625rem",
                                                                             color: text,
                                                                             marginTop:
                                                                                 "2px",
@@ -485,7 +485,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                     >
                         <h3
                             style={{
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 fontWeight: 700,
                                 color: text,
                             }}
@@ -495,7 +495,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
 
                         <p
                             style={{
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 color: textSecondary,
                                 marginTop: "6px",
                             }}
@@ -505,7 +505,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
 
                         <p
                             style={{
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: textSecondary,
                                 marginTop: "10px",
                             }}
@@ -517,7 +517,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                         <label
                             style={{
                                 display: "block",
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 fontWeight: 600,
                                 color: text,
                                 marginTop: "16px",
@@ -537,7 +537,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                         {errors.reason && (
                             <p
                                 style={{
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                     color: "#B91C1C",
                                     marginTop: "4px",
                                 }}

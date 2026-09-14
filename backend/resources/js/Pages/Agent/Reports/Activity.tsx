@@ -51,7 +51,7 @@ function ActivityContent({ roster, filters }: Props) {
                 <div>
                     <p
                         style={{
-                            fontSize: "24px",
+                            fontSize: "1.5rem",
                             fontWeight: 700,
                             color: text,
                             marginBottom: "4px",
@@ -59,7 +59,7 @@ function ActivityContent({ roster, filters }: Props) {
                     >
                         Farmer Activity
                     </p>
-                    <p style={{ fontSize: "17px", color: textSecondary }}>
+                    <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
                         {filters.from} to {filters.to}
                     </p>
                 </div>
@@ -76,7 +76,7 @@ function ActivityContent({ roster, filters }: Props) {
                         background: surface,
                         color: text,
                         padding: "10px 16px",
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                         textDecoration: "none",
                     }}
                 >
@@ -93,7 +93,7 @@ function ActivityContent({ roster, filters }: Props) {
                 }}
             >
                 {roster.length === 0 ? (
-                    <p style={{ fontSize: "17px", color: textSecondary }}>
+                    <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
                         No farmers are assigned to you.
                     </p>
                 ) : (
@@ -102,7 +102,7 @@ function ActivityContent({ roster, filters }: Props) {
                             style={{
                                 width: "100%",
                                 borderCollapse: "collapse",
-                                fontSize: "16px",
+                                fontSize: "1rem",
                             }}
                         >
                             <thead>

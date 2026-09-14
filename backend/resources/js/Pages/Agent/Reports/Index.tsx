@@ -99,7 +99,7 @@ function ReportsContent({ query, farmers }: Props) {
             <div>
                 <p
                     style={{
-                        fontSize: "24px",
+                        fontSize: "1.5rem",
                         fontWeight: 700,
                         color: text,
                         marginBottom: "4px",
@@ -107,7 +107,7 @@ function ReportsContent({ query, farmers }: Props) {
                 >
                     Reports
                 </p>
-                <p style={{ fontSize: "17px", color: textSecondary }}>
+                <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
                     Find a farmer's statement, or view a report across all your
                     farmers.
                 </p>
@@ -123,7 +123,7 @@ function ReportsContent({ query, farmers }: Props) {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "8px",
@@ -152,7 +152,7 @@ function ReportsContent({ query, farmers }: Props) {
                             border: `1px solid ${inputBorder}`,
                             background: inputBg,
                             padding: "12px 12px 12px 40px",
-                            fontSize: "17px",
+                            fontSize: "1.0625rem",
                             color: text,
                             outline: "none",
                             fontFamily: "inherit",
@@ -165,7 +165,7 @@ function ReportsContent({ query, farmers }: Props) {
                         {searching ? (
                             <p
                                 style={{
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                     color: textSecondary,
                                 }}
                             >
@@ -174,7 +174,7 @@ function ReportsContent({ query, farmers }: Props) {
                         ) : farmers.length === 0 ? (
                             <p
                                 style={{
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                     color: textSecondary,
                                 }}
                             >
@@ -203,7 +203,7 @@ function ReportsContent({ query, farmers }: Props) {
                                         <div>
                                             <p
                                                 style={{
-                                                    fontSize: "17px",
+                                                    fontSize: "1.0625rem",
                                                     fontWeight: 600,
                                                     color: text,
                                                 }}
@@ -212,7 +212,7 @@ function ReportsContent({ query, farmers }: Props) {
                                             </p>
                                             <p
                                                 style={{
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: textSecondary,
                                                 }}
                                             >
@@ -233,7 +233,7 @@ function ReportsContent({ query, farmers }: Props) {
                                             <Link
                                                 href={`/agent/farmers/${farmer.id}/reports`}
                                                 style={{
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: textSecondary,
                                                     textDecoration: "none",
                                                 }}
@@ -246,7 +246,7 @@ function ReportsContent({ query, farmers }: Props) {
                                                     display: "flex",
                                                     alignItems: "center",
                                                     gap: "4px",
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: textSecondary,
                                                     textDecoration: "none",
                                                 }}
@@ -272,7 +272,7 @@ function ReportsContent({ query, farmers }: Props) {
             >
                 <p
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "14px",
@@ -300,7 +300,7 @@ function ReportsContent({ query, farmers }: Props) {
                             >
                                 <p
                                     style={{
-                                        fontSize: "17px",
+                                        fontSize: "1.0625rem",
                                         fontWeight: 600,
                                         color: text,
                                         marginBottom: "4px",
@@ -310,7 +310,7 @@ function ReportsContent({ query, farmers }: Props) {
                                 </p>
                                 <p
                                     style={{
-                                        fontSize: "15px",
+                                        fontSize: "0.9375rem",
                                         color: textSecondary,
                                         marginBottom: "8px",
                                     }}
@@ -319,7 +319,7 @@ function ReportsContent({ query, farmers }: Props) {
                                 </p>
                                 <p
                                     style={{
-                                        fontSize: "14px",
+                                        fontSize: "0.875rem",
                                         color: textSecondary,
                                     }}
                                 >

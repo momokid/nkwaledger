@@ -209,7 +209,7 @@ function DashboardContent({
                     >
                         <p
                             style={{
-                                fontSize: "18px",
+                                fontSize: "1.125rem",
                                 color: textSecondary,
                                 marginBottom: "8px",
                             }}
@@ -219,7 +219,7 @@ function DashboardContent({
                         </p>
                         <p
                             style={{
-                                fontSize: "26px",
+                                fontSize: "1.625rem",
                                 fontWeight: 700,
                                 color: text,
                                 marginBottom: "8px",
@@ -233,7 +233,7 @@ function DashboardContent({
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "4px",
-                                fontSize: "15px",
+                                fontSize: "0.9375rem",
                                 color: kpi.trend.color,
                             }}
                         >
@@ -260,7 +260,7 @@ function DashboardContent({
                 >
                     <p
                         style={{
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             fontWeight: 600,
                             color: text,
                             marginBottom: "16px",
@@ -270,7 +270,7 @@ function DashboardContent({
                     </p>
 
                     {recent_transactions.length === 0 ? (
-                        <p style={{ fontSize: "16px", color: textSecondary }}>
+                        <p style={{ fontSize: "1rem", color: textSecondary }}>
                             No transactions recorded yet.
                         </p>
                     ) : (
@@ -291,7 +291,7 @@ function DashboardContent({
                                 <div>
                                     <p
                                         style={{
-                                            fontSize: "18px",
+                                            fontSize: "1.125rem",
                                             fontWeight: 500,
                                             color: text,
                                             margin: 0,
@@ -301,7 +301,7 @@ function DashboardContent({
                                     </p>
                                     <p
                                         style={{
-                                            fontSize: "15px",
+                                            fontSize: "0.9375rem",
                                             color: textSecondary,
                                             margin: "2px 0 0",
                                         }}
@@ -311,7 +311,7 @@ function DashboardContent({
                                 </div>
                                 <span
                                     style={{
-                                        fontSize: "18px",
+                                        fontSize: "1.125rem",
                                         fontWeight: 600,
                                         color: t.income ? primary : danger,
                                     }}
@@ -341,7 +341,7 @@ function DashboardContent({
                     >
                         <p
                             style={{
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 fontWeight: 600,
                                 color: text,
                                 marginBottom: "12px",
@@ -351,7 +351,7 @@ function DashboardContent({
                         </p>
                         <p
                             style={{
-                                fontSize: "30px",
+                                fontSize: "1.875rem",
                                 fontWeight: 700,
                                 color: primary,
                                 marginBottom: "4px",
@@ -362,7 +362,7 @@ function DashboardContent({
                         </p>
                         <p
                             style={{
-                                fontSize: "15px",
+                                fontSize: "0.9375rem",
                                 color: textSecondary,
                                 marginBottom: "12px",
                             }}
@@ -396,7 +396,7 @@ function DashboardContent({
                         <div className="flex justify-between items-center mb-3">
                             <p
                                 style={{
-                                    fontSize: "20px",
+                                    fontSize: "1.25rem",
                                     fontWeight: 600,
                                     color: text,
                                     margin: 0,
@@ -408,7 +408,7 @@ function DashboardContent({
                                 <Link
                                     href="/my-farm"
                                     style={{
-                                        fontSize: "15px",
+                                        fontSize: "0.9375rem",
                                         fontWeight: 600,
                                         color: primary,
                                     }}
@@ -421,7 +421,7 @@ function DashboardContent({
                         {farm_produce.items.length === 0 ? (
                             <p
                                 style={{
-                                    fontSize: "16px",
+                                    fontSize: "1rem",
                                     color: textSecondary,
                                 }}
                             >
@@ -439,7 +439,7 @@ function DashboardContent({
                                     <div key={`${item.farm}-${item.type}`}>
                                         <p
                                             style={{
-                                                fontSize: "23px",
+                                                fontSize: "1.4375rem",
                                                 fontWeight: 700,
                                                 color: text,
                                                 margin: 0,
@@ -449,7 +449,7 @@ function DashboardContent({
                                             {item.unit ? (
                                                 <span
                                                     style={{
-                                                        fontSize: "15px",
+                                                        fontSize: "0.9375rem",
                                                         fontWeight: 500,
                                                         color: textSecondary,
                                                     }}
@@ -461,7 +461,7 @@ function DashboardContent({
                                         </p>
                                         <p
                                             style={{
-                                                fontSize: "18px",
+                                                fontSize: "1.125rem",
                                                 color: text,
                                                 margin: "2px 0 0",
                                             }}
@@ -470,7 +470,7 @@ function DashboardContent({
                                         </p>
                                         <p
                                             style={{
-                                                fontSize: "14px",
+                                                fontSize: "0.875rem",
                                                 color: textSecondary,
                                                 margin: "1px 0 0",
                                             }}
@@ -546,7 +546,7 @@ function WeatherCard({ entry, dark }: { entry: WeatherEntry; dark: boolean }) {
             >
                 <p
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         fontWeight: 600,
                         color: dark ? "#F9FAFB" : "#111827",
                         marginBottom: "6px",
@@ -554,7 +554,7 @@ function WeatherCard({ entry, dark }: { entry: WeatherEntry; dark: boolean }) {
                 >
                     {entry.community}
                 </p>
-                <p style={{ fontSize: "16px", color: textSecondary }}>
+                <p style={{ fontSize: "1rem", color: textSecondary }}>
                     Weather isn't available for this location right now.
                 </p>
             </div>
@@ -606,7 +606,7 @@ function WeatherCard({ entry, dark }: { entry: WeatherEntry; dark: boolean }) {
                 </span>
                 <p
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         fontWeight: 600,
                         color: textColor,
                         margin: 0,
@@ -617,7 +617,7 @@ function WeatherCard({ entry, dark }: { entry: WeatherEntry; dark: boolean }) {
             </div>
             <p
                 style={{
-                    fontSize: "15px",
+                    fontSize: "0.9375rem",
                     color: textSecondary,
                     marginBottom: "10px",
                 }}
@@ -629,7 +629,7 @@ function WeatherCard({ entry, dark }: { entry: WeatherEntry; dark: boolean }) {
                 <p
                     key={item.category}
                     style={{
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                         color: textSoft,
                         lineHeight: 1.6,
                         margin: "0 0 8px",
@@ -675,7 +675,7 @@ function DetailModal({
         <div className="mb-4">
             <p
                 style={{
-                    fontSize: "16px",
+                    fontSize: "1rem",
                     fontWeight: 600,
                     color: textSecondary,
                     marginBottom: "6px",
@@ -684,7 +684,7 @@ function DetailModal({
                 {label}
             </p>
             {rows.length === 0 ? (
-                <p style={{ fontSize: "16px", color: textSecondary }}>
+                <p style={{ fontSize: "1rem", color: textSecondary }}>
                     Nothing recorded for this period.
                 </p>
             ) : (
@@ -697,12 +697,12 @@ function DetailModal({
                             borderBottom: `1px solid ${border}`,
                         }}
                     >
-                        <span style={{ fontSize: "17px", color: text }}>
+                        <span style={{ fontSize: "1.0625rem", color: text }}>
                             {row.account}
                         </span>
                         <span
                             style={{
-                                fontSize: "17px",
+                                fontSize: "1.0625rem",
                                 fontWeight: 600,
                                 color,
                             }}
@@ -743,7 +743,7 @@ function DetailModal({
                 <div className="flex justify-between items-center mb-4">
                     <p
                         style={{
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             fontWeight: 700,
                             color: text,
                         }}
@@ -779,7 +779,7 @@ function DetailModal({
                     style={{
                         display: "inline-block",
                         marginTop: "8px",
-                        fontSize: "16px",
+                        fontSize: "1rem",
                         fontWeight: 600,
                         color: primary,
                     }}

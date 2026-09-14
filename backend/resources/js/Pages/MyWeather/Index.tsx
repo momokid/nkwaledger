@@ -103,7 +103,7 @@ function IndexContent({ locations }: ContentProps) {
             <div className="p-6">
                 <p
                     style={{
-                        fontSize: "26px",
+                        fontSize: "1.625rem",
                         fontWeight: 700,
                         color: text,
                         marginBottom: "16px",
@@ -120,7 +120,7 @@ function IndexContent({ locations }: ContentProps) {
                 >
                     <p
                         style={{
-                            fontSize: "18px",
+                            fontSize: "1.125rem",
                             color: textSecondary,
                             marginBottom: "12px",
                         }}
@@ -130,7 +130,7 @@ function IndexContent({ locations }: ContentProps) {
                     <Link
                         href="/my-farm"
                         style={{
-                            fontSize: "18px",
+                            fontSize: "1.125rem",
                             fontWeight: 600,
                             color: "#1D9E75",
                         }}
@@ -152,7 +152,7 @@ function IndexContent({ locations }: ContentProps) {
 
             <p
                 style={{
-                    fontSize: "26px",
+                    fontSize: "1.625rem",
                     fontWeight: 700,
                     color: text,
                     marginBottom: "20px",
@@ -224,7 +224,7 @@ function LocationCard({
             >
                 <p
                     style={{
-                        fontSize: "20px",
+                        fontSize: "1.25rem",
                         fontWeight: 600,
                         color: text,
                         marginBottom: "8px",
@@ -232,7 +232,7 @@ function LocationCard({
                 >
                     {location.community}
                 </p>
-                <p style={{ fontSize: "16px", color: textSecondary }}>
+                <p style={{ fontSize: "1rem", color: textSecondary }}>
                     Weather isn't available for this location right now.
                 </p>
             </div>
@@ -258,7 +258,7 @@ function LocationCard({
         >
             <p
                 style={{
-                    fontSize: "20px",
+                    fontSize: "1.25rem",
                     fontWeight: 600,
                     color: text,
                     marginBottom: "14px",
@@ -283,7 +283,7 @@ function LocationCard({
                 />
                 <p
                     style={{
-                        fontSize: "18px",
+                        fontSize: "1.125rem",
                         fontWeight: 600,
                         color: bannerText,
                     }}
@@ -305,7 +305,7 @@ function LocationCard({
                         <p
                             key={alert.farm_type}
                             style={{
-                                fontSize: "16px",
+                                fontSize: "1rem",
                                 color: warnText,
                                 background: warnBg,
                                 padding: "10px 12px",
@@ -332,7 +332,7 @@ function LocationCard({
                     {location.advice.map((item) => (
                         <p
                             key={item.category}
-                            style={{ fontSize: "16px", color: textSecondary }}
+                            style={{ fontSize: "1rem", color: textSecondary }}
                         >
                             <span style={{ fontWeight: 600, color: text }}>
                                 {item.category}:
@@ -346,7 +346,7 @@ function LocationCard({
             {location.outlook && (
                 <p
                     style={{
-                        fontSize: "17px",
+                        fontSize: "1.0625rem",
                         color: textSecondary,
                         marginBottom: "16px",
                     }}
@@ -375,7 +375,7 @@ function LocationCard({
                         >
                             <p
                                 style={{
-                                    fontSize: "15px",
+                                    fontSize: "0.9375rem",
                                     color: textSecondary,
                                     marginBottom: "8px",
                                 }}
@@ -392,7 +392,7 @@ function LocationCard({
                             />
                             <p
                                 style={{
-                                    fontSize: "17px",
+                                    fontSize: "1.0625rem",
                                     fontWeight: 600,
                                     color: text,
                                 }}
@@ -403,7 +403,7 @@ function LocationCard({
                             </p>
                             <p
                                 style={{
-                                    fontSize: "14px",
+                                    fontSize: "0.875rem",
                                     color: textSecondary,
                                 }}
                             >
@@ -426,7 +426,7 @@ function LocationCard({
                 >
                     <p
                         style={{
-                            fontSize: "16px",
+                            fontSize: "1rem",
                             fontWeight: 600,
                             color: text,
                             marginBottom: "10px",
@@ -452,13 +452,13 @@ function LocationCard({
                             >
                                 <p
                                     style={{
-                                        fontSize: "15px",
+                                        fontSize: "0.9375rem",
                                         color: textSecondary,
                                     }}
                                 >
                                     {weekdayLabel(entry.date)}
                                 </p>
-                                <p style={{ fontSize: "15px", color: text }}>
+                                <p style={{ fontSize: "0.9375rem", color: text }}>
                                     {entry.headline}
                                 </p>
                             </div>

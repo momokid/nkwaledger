@@ -96,6 +96,17 @@ beforeEach(function () {
         'is_produce_sale' => true,
     ]);
 
+    $this->purchaseTemplate = TransactionTemplate::create([
+        'name' => 'I bought stock',
+        'slug' => 'stock_purchase_tracked',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->livestock->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+        'requires_farm_unit' => true,
+        'is_stock_purchase' => true,
+    ]);
+
     $this->period = AccountingPeriod::create([
         'name' => 'Test Period',
         'starts_on' => now()->startOfYear()->toDateString(),
@@ -602,4 +613,108 @@ it('refuses a sale when the unit has no live stock to sell from', function () {
         'farmUnitId' => $this->approvedUnit->id,
         'quantitySold' => '6',
     ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});
+
+it('records the quantity bought on the transaction', function () {
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 20,
+        'started_on' => now()->subMonth(),
+    ]);
+
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityPurchased' => '10',
+    ]));
+
+    expect($transaction->quantity_purchased)->toBe('10.00');
+});
+
+// buying more does not need to know which batch it "came from" like a sale does — it just
+// needs somewhere to land, and the newest batch is the one still actively being grown
+it('adds a purchase movement to the most recently started active batch, unconfirmed', function () {
+    $older = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 20,
+        'started_on' => now()->subMonths(3),
+    ]);
+
+    $newer = FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 15,
+        'started_on' => now()->subMonth(),
+    ]);
+
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityPurchased' => '10',
+    ]));
+
+    $movement = $newer->fresh()->movements()->where('reason', MovementReason::Purchase)->first();
+
+    expect($movement)->not->toBeNull();
+    expect($movement->quantity)->toBe('10.00');
+    expect($movement->isConfirmed())->toBeFalse();
+    // the purchase is recorded, but it does not count until someone else checks it
+    expect($newer->fresh()->current_quantity)->toBe('15.00');
+    expect($older->fresh()->current_quantity)->toBe('20.00');
+});
+
+it('creates a brand new batch when no active stock exists yet', function () {
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'amount' => '500',
+        'quantityPurchased' => '12',
+    ]));
+
+    $stock = FarmUnitStock::where('farm_unit_id', $this->approvedUnit->id)->first();
+
+    expect($stock)->not->toBeNull();
+    expect($stock->source)->toBe(App\Enums\StockSource::Purchase);
+    expect($stock->opening_quantity)->toBe('12.00');
+    // a purchased opening balance does not count until confirmed, same as any other purchase
+    expect($stock->current_quantity)->toBe('0.00');
+    expect($stock->acquisition_cost)->toBe('500.00');
+    expect($stock->started_on->toDateString())->toBe($transaction->transaction_date->toDateString());
+});
+
+it('leaves a new batch from a purchase unconfirmed, pending approval', function () {
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityPurchased' => '12',
+    ]));
+
+    $stock = FarmUnitStock::where('farm_unit_id', $this->approvedUnit->id)->first();
+
+    expect($stock->confirmed_at)->toBeNull();
+});
+
+it('refuses a purchase with no quantity given', function () {
+    FarmUnitStock::factory()->create(['farm_unit_id' => $this->approvedUnit->id]);
+
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});
+
+it('refuses a purchase quantity that is not a positive number', function () {
+    expect(fn() => $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityPurchased' => '0',
+    ])))->toThrow(App\Exceptions\Ledger\PostingFailed::class);
+});
+
+it('does not ask for a quantity on an ordinary expense template', function () {
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->feedTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+    ]));
+
+    expect($transaction->quantity_purchased)->toBeNull();
 });

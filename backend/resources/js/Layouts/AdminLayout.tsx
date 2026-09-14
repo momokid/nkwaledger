@@ -1,7 +1,9 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import VerificationGate from "@/Components/VerificationGate";
 import NotificationBell from "@/Components/NotificationBell";
+import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
 import useIsVerified from "@/hooks/useIsVerified";
+import useOfflineSync from "@/hooks/useOfflineSync";
 import { PropsWithChildren, useEffect, useState } from "react";
 import {
     IconCategory,
@@ -25,10 +27,17 @@ import {
     IconArrowsExchange,
     IconUserCheck,
     IconChecklist,
+    IconStethoscope,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
+import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import { PageProps } from "@/types";
-import { ThemeContext } from "@/Layouts/AuthenticatedLayout"; // reuses the same theme context shape, not the whole layout
+import { deleteDeviceKey } from "@/lib/offlineStore";
+import {
+    ROOT_FONT_SIZE,
+    TextSize,
+    ThemeContext,
+} from "@/Layouts/AuthenticatedLayout"; // reuses the same theme context shape, not the whole layout
 
 interface Props extends PropsWithChildren {
     title: string;
@@ -164,6 +173,22 @@ const navItems: NavEntry[] = [
             },
         ],
     },
+    {
+        label: "Disease & Health Reports",
+        icon: IconStethoscope,
+        children: [
+            {
+                label: "Waiting for Officer",
+                routeName: "admin.disease-reports.index",
+                icon: IconChecklist,
+            },
+            {
+                label: "Officer Assignments",
+                routeName: "admin.officer-assignments.index",
+                icon: IconUsersGroup,
+            },
+        ],
+    },
 ];
 
 // a group is active if any of its children match the current route
@@ -202,12 +227,28 @@ export default function AdminLayout({ title, children }: Props) {
 
     const [collapsed, setCollapsed] = useState(false);
     const [dark, setDark] = useState(false);
+    const [textSize, setTextSizeState] = useState<TextSize>("normal");
     const verified = useIsVerified();
+    useOfflineSync();
 
     useEffect(() => {
         const saved = localStorage.getItem("nkwa_theme");
+        const savedTextSize = localStorage.getItem("nkwa_text_size");
         if (saved === "dark") setDark(true);
+        if (
+            savedTextSize === "normal" ||
+            savedTextSize === "large" ||
+            savedTextSize === "extra-large"
+        ) {
+            setTextSizeState(savedTextSize);
+        }
     }, []);
+
+    // every rem value in the app scales from this root font-size, so changing it here
+    // is what actually makes the "large" / "extra-large" choice take effect app-wide
+    useEffect(() => {
+        document.documentElement.style.fontSize = ROOT_FONT_SIZE[textSize];
+    }, [textSize]);
 
     const toggleTheme = () => {
         setDark((previous) => {
@@ -215,6 +256,12 @@ export default function AdminLayout({ title, children }: Props) {
             return !previous;
         });
     };
+
+    const setTextSize = (size: TextSize) => {
+        localStorage.setItem("nkwa_text_size", size);
+        setTextSizeState(size);
+    };
+
     const [hovered, setHovered] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<string | null>(
         items.filter(isGroup).find(groupIsActive)?.label ?? null,
@@ -237,6 +284,7 @@ export default function AdminLayout({ title, children }: Props) {
             {},
             {
                 onSuccess: () => {
+                    deleteDeviceKey();
                     window.history.replaceState({ loggedOut: true }, "");
                 },
             },
@@ -278,7 +326,7 @@ export default function AdminLayout({ title, children }: Props) {
                             indented && !collapsed
                                 ? "11px 16px 11px 48px"
                                 : "13px 16px",
-                        fontSize: indented ? "18px" : "19px",
+                        fontSize: indented ? "1.125rem" : "1.1875rem",
                         fontWeight: active ? 600 : 400,
                         color: active ? primary : text,
                         background: active ? hoverBg : "transparent",
@@ -298,7 +346,7 @@ export default function AdminLayout({ title, children }: Props) {
                         <span
                             style={{
                                 marginLeft: "auto",
-                                fontSize: "15px",
+                                fontSize: "0.9375rem",
                                 fontWeight: 700,
                                 color: "#FFFFFF",
                                 background: gold,
@@ -319,7 +367,7 @@ export default function AdminLayout({ title, children }: Props) {
                             transform: "translateY(-50%)",
                             background: dark ? "#374151" : "#111827",
                             color: "#FFFFFF",
-                            fontSize: "20px",
+                            fontSize: "1.25rem",
                             padding: "7px 14px",
                             whiteSpace: "nowrap",
                             zIndex: 60,
@@ -353,7 +401,7 @@ export default function AdminLayout({ title, children }: Props) {
                             gap: "12px",
                             width: "100%",
                             padding: "13px 16px",
-                            fontSize: "21px",
+                            fontSize: "1.3125rem",
                             fontWeight: active ? 600 : 400,
                             color: active ? primary : text,
                             background: "transparent",
@@ -394,7 +442,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 transform: "translateY(-50%)",
                                 background: dark ? "#374151" : "#111827",
                                 color: "#FFFFFF",
-                                fontSize: "20px",
+                                fontSize: "1.25rem",
                                 padding: "7px 14px",
                                 whiteSpace: "nowrap",
                                 zIndex: 60,
@@ -414,7 +462,9 @@ export default function AdminLayout({ title, children }: Props) {
     };
 
     return (
-        <ThemeContext.Provider value={{ dark, toggle: toggleTheme }}>
+        <ThemeContext.Provider
+            value={{ dark, toggle: toggleTheme, textSize, setTextSize }}
+        >
             <div
                 style={{
                     minHeight: "100vh",
@@ -425,6 +475,7 @@ export default function AdminLayout({ title, children }: Props) {
             >
                 <Head title={title} />
                 <FlashMessages />
+                <OfflineNavigationNotice />
 
                 <aside
                     className="hidden lg:flex"
@@ -465,7 +516,7 @@ export default function AdminLayout({ title, children }: Props) {
                             <div>
                                 <div
                                     style={{
-                                        fontSize: "23px",
+                                        fontSize: "1.4375rem",
                                         fontWeight: 700,
                                         color: text,
                                     }}
@@ -474,7 +525,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: "20px",
+                                        fontSize: "1.25rem",
                                         color: textSecondary,
                                     }}
                                 >
@@ -507,7 +558,7 @@ export default function AdminLayout({ title, children }: Props) {
                             <div style={{ marginBottom: "12px" }}>
                                 <div
                                     style={{
-                                        fontSize: "21px",
+                                        fontSize: "1.3125rem",
                                         fontWeight: 600,
                                         color: text,
                                     }}
@@ -516,7 +567,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 </div>
                                 <div
                                     style={{
-                                        fontSize: "20px",
+                                        fontSize: "1.25rem",
                                         color: textSecondary,
                                     }}
                                 >
@@ -534,7 +585,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 background: "transparent",
                                 border: "none",
                                 color: textSecondary,
-                                fontSize: "21px",
+                                fontSize: "1.3125rem",
                                 cursor: "pointer",
                                 padding: "8px 0",
                                 fontFamily: "inherit",
@@ -597,7 +648,7 @@ export default function AdminLayout({ title, children }: Props) {
                                 </button>
                                 <h1
                                     style={{
-                                        fontSize: "26px",
+                                        fontSize: "1.625rem",
                                         fontWeight: 700,
                                         color: text,
                                         margin: 0,
@@ -606,7 +657,67 @@ export default function AdminLayout({ title, children }: Props) {
                                     {title}
                                 </h1>
                             </div>
-                            <div>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "14px",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: "4px",
+                                    }}
+                                >
+                                    {(
+                                        [
+                                            "normal",
+                                            "large",
+                                            "extra-large",
+                                        ] as TextSize[]
+                                    ).map((size, index) => {
+                                        const active = textSize === size;
+                                        const glyphSize = 14 + index * 4;
+
+                                        return (
+                                            <button
+                                                key={size}
+                                                onClick={() =>
+                                                    setTextSize(size)
+                                                }
+                                                title={size
+                                                    .replace("-", " ")
+                                                    .replace(/^\w/, (c) =>
+                                                        c.toUpperCase(),
+                                                    )}
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    width: "30px",
+                                                    height: "30px",
+                                                    fontSize: `${glyphSize}px`,
+                                                    fontWeight: active
+                                                        ? 700
+                                                        : 400,
+                                                    color: active
+                                                        ? "#FFFFFF"
+                                                        : textSecondary,
+                                                    background: active
+                                                        ? primary
+                                                        : "transparent",
+                                                    border: `1px solid ${dark ? "#374151" : "#E5E7EB"}`,
+                                                    cursor: "pointer",
+                                                    fontFamily:
+                                                        "'Inter', system-ui, sans-serif",
+                                                }}
+                                            >
+                                                A
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                                 <button
                                     onClick={toggleTheme}
                                     style={{
@@ -624,6 +735,8 @@ export default function AdminLayout({ title, children }: Props) {
                                     )}
                                 </button>
                             </div>
+
+                            <ConnectivityIndicator dark={dark} />
 
                             <NotificationBell dark={dark} />
                         </header>
@@ -643,7 +756,7 @@ export default function AdminLayout({ title, children }: Props) {
                         >
                             <h1
                                 style={{
-                                    fontSize: "26px",
+                                    fontSize: "1.625rem",
                                     fontWeight: 700,
                                     color: text,
                                     margin: 0,

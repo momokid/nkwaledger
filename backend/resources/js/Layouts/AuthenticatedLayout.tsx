@@ -1,5 +1,7 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import NotificationBell from "@/Components/NotificationBell";
+import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
+import { deleteDeviceKey } from "@/lib/offlineStore";
 import {
     IconBell,
     IconChevronLeft,
@@ -33,22 +35,44 @@ import {
     useState,
 } from "react";
 import FlashMessages from "@/Components/FlashMessages";
+import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import VerificationGate from "@/Components/VerificationGate";
 import useIsVerified from "@/hooks/useIsVerified";
+import useOfflineSync from "@/hooks/useOfflineSync";
+
+export type TextSize = "normal" | "large" | "extra-large";
 
 interface ThemeValue {
     dark: boolean;
     toggle: () => void;
+    textSize: TextSize;
+    setTextSize: (size: TextSize) => void;
 }
 
 export const ThemeContext = createContext<ThemeValue>({
     dark: false,
     toggle: () => {},
+    textSize: "normal",
+    setTextSize: () => {},
 });
 
 export function useTheme() {
     return useContext(ThemeContext);
 }
+
+// every rem-based font-size in the app is relative to this — one change here scales
+// the whole app instead of touching every component's hardcoded pixel value
+export const ROOT_FONT_SIZE: Record<TextSize, string> = {
+    normal: "16px",
+    large: "18px",
+    "extra-large": "20px",
+};
+
+const TEXT_SIZE_LABELS: Record<TextSize, string> = {
+    normal: "A",
+    large: "A",
+    "extra-large": "A",
+};
 
 interface NavItem {
     label: string;
@@ -157,6 +181,12 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 label: "My Farm",
                 href: "/my-farm",
                 icon: IconPlant,
+                ready: true,
+            },
+            {
+                label: "Health Reports",
+                href: "/my-farm/reports",
+                icon: IconStethoscope,
                 ready: true,
             },
             { label: "Credit", href: "#", icon: IconCreditCard, ready: false },
@@ -271,21 +301,37 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const pendingApprovals =
         (auth as { pendingApprovals?: number })?.pendingApprovals ?? 0;
     const verified = useIsVerified();
+    useOfflineSync();
 
     const [dark, setDark] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [hovered, setHovered] = useState<string | null>(null);
     const [cogOpen, setCogOpen] = useState(false);
+    const [textSize, setTextSizeState] = useState<TextSize>("normal");
 
     const cogRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem("nkwa_theme");
         const savedCollapse = localStorage.getItem("nkwa_sidebar");
+        const savedTextSize = localStorage.getItem("nkwa_text_size");
         if (savedTheme === "dark") setDark(true);
         if (savedCollapse === "collapsed") setCollapsed(true);
+        if (
+            savedTextSize === "normal" ||
+            savedTextSize === "large" ||
+            savedTextSize === "extra-large"
+        ) {
+            setTextSizeState(savedTextSize);
+        }
     }, []);
+
+    // every rem value in the app scales from this root font-size, so changing it here
+    // is what actually makes the "large" / "extra-large" choice take effect app-wide
+    useEffect(() => {
+        document.documentElement.style.fontSize = ROOT_FONT_SIZE[textSize];
+    }, [textSize]);
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 1024);
@@ -311,6 +357,11 @@ export default function AuthenticatedLayout({ children, title }: Props) {
         });
     };
 
+    const setTextSize = (size: TextSize) => {
+        localStorage.setItem("nkwa_text_size", size);
+        setTextSizeState(size);
+    };
+
     const toggleCollapse = () => {
         setCollapsed((prev) => {
             localStorage.setItem(
@@ -327,6 +378,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             {},
             {
                 onSuccess: () => {
+                    deleteDeviceKey();
                     window.history.replaceState({ loggedOut: true }, "");
                 },
             },
@@ -374,7 +426,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             alignItems: "center",
             gap: "12px",
             padding: "12px 16px",
-            fontSize: "18px",
+            fontSize: "1.125rem",
             fontFamily: "'Inter', system-ui, sans-serif",
             whiteSpace: "nowrap" as const,
             overflow: "hidden",
@@ -397,7 +449,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                             {item.label}
                             <span
                                 style={{
-                                    fontSize: "13px",
+                                    fontSize: "0.8125rem",
                                     padding: "1px 6px",
                                     border: `1px solid ${textSecondary}`,
                                     marginLeft: "auto",
@@ -432,7 +484,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                     <span
                         style={{
                             marginLeft: "auto",
-                            fontSize: "14px",
+                            fontSize: "0.875rem",
                             fontWeight: 700,
                             color: "#FFFFFF",
                             background: gold,
@@ -454,7 +506,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                 {!collapsed && (
                     <p
                         style={{
-                            fontSize: "15px",
+                            fontSize: "0.9375rem",
                             fontWeight: 600,
                             color: textSecondary,
                             textTransform: "uppercase",
@@ -484,7 +536,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     transform: "translateY(-50%)",
                                     background: dark ? "#374151" : "#111827",
                                     color: "#FFFFFF",
-                                    fontSize: "18px",
+                                    fontSize: "1.125rem",
                                     padding: "6px 12px",
                                     whiteSpace: "nowrap",
                                     zIndex: 60,
@@ -503,9 +555,12 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     };
 
     return (
-        <ThemeContext.Provider value={{ dark, toggle: toggleTheme }}>
+        <ThemeContext.Provider
+            value={{ dark, toggle: toggleTheme, textSize, setTextSize }}
+        >
             <Head title={title} />
             <FlashMessages />
+            <OfflineNavigationNotice />
             <div
                 style={{
                     minHeight: "100vh",
@@ -554,7 +609,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                 <div>
                                     <div
                                         style={{
-                                            fontSize: "21px",
+                                            fontSize: "1.3125rem",
                                             fontWeight: 700,
                                             color: dark ? "#A8D9C8" : "#0F6E56",
                                             lineHeight: 1.2,
@@ -564,7 +619,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     </div>
                                     <div
                                         style={{
-                                            fontSize: "12px",
+                                            fontSize: "0.75rem",
                                             color: textSecondary,
                                             textTransform: "uppercase",
                                             letterSpacing: "0.8px",
@@ -608,7 +663,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "center",
-                                        fontSize: "18px",
+                                        fontSize: "1.125rem",
                                         fontWeight: 600,
                                         flexShrink: 0,
                                     }}
@@ -619,7 +674,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     <div style={{ overflow: "hidden" }}>
                                         <div
                                             style={{
-                                                fontSize: "18px",
+                                                fontSize: "1.125rem",
                                                 fontWeight: 600,
                                                 whiteSpace: "nowrap",
                                             }}
@@ -628,7 +683,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: "15px",
+                                                fontSize: "0.9375rem",
                                                 color: textSecondary,
                                                 textTransform: "capitalize",
                                             }}
@@ -649,7 +704,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     background: "transparent",
                                     border: "none",
                                     color: textSecondary,
-                                    fontSize: "18px",
+                                    fontSize: "1.125rem",
                                     cursor: "pointer",
                                     padding: "8px 0",
                                     fontFamily:
@@ -709,7 +764,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                             )}
                             <h1
                                 style={{
-                                    fontSize: "23px",
+                                    fontSize: "1.4375rem",
                                     fontWeight: 600,
                                     color: text,
                                     margin: 0,
@@ -742,6 +797,8 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                     <IconMoon size={24} stroke={1.6} />
                                 )}
                             </button>
+
+                            <ConnectivityIndicator dark={dark} />
 
                             <NotificationBell dark={dark} />
 
@@ -779,7 +836,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         >
                                             <p
                                                 style={{
-                                                    fontSize: "18px",
+                                                    fontSize: "1.125rem",
                                                     fontWeight: 600,
                                                     margin: 0,
                                                 }}
@@ -788,7 +845,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                             </p>
                                             <p
                                                 style={{
-                                                    fontSize: "15px",
+                                                    fontSize: "0.9375rem",
                                                     color: textSecondary,
                                                     margin: "2px 0 0",
                                                     textTransform: "capitalize",
@@ -796,6 +853,100 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                             >
                                                 {primaryRole}
                                             </p>
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                padding: "12px 16px",
+                                                borderBottom: `1px solid ${dark ? "#374151" : "#E5E7EB"}`,
+                                            }}
+                                        >
+                                            <p
+                                                style={{
+                                                    fontSize: "0.8125rem",
+                                                    fontWeight: 600,
+                                                    color: textSecondary,
+                                                    textTransform: "uppercase",
+                                                    letterSpacing: "0.6px",
+                                                    margin: "0 0 8px",
+                                                }}
+                                            >
+                                                Text size
+                                            </p>
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    gap: "6px",
+                                                }}
+                                            >
+                                                {(
+                                                    [
+                                                        "normal",
+                                                        "large",
+                                                        "extra-large",
+                                                    ] as TextSize[]
+                                                ).map((size, index) => {
+                                                    const active =
+                                                        textSize === size;
+                                                    const glyphSize =
+                                                        14 + index * 4;
+
+                                                    return (
+                                                        <button
+                                                            key={size}
+                                                            onClick={() =>
+                                                                setTextSize(
+                                                                    size,
+                                                                )
+                                                            }
+                                                            title={size
+                                                                .replace(
+                                                                    "-",
+                                                                    " ",
+                                                                )
+                                                                .replace(
+                                                                    /^\w/,
+                                                                    (c) =>
+                                                                        c.toUpperCase(),
+                                                                )}
+                                                            style={{
+                                                                flex: 1,
+                                                                display: "flex",
+                                                                alignItems:
+                                                                    "center",
+                                                                justifyContent:
+                                                                    "center",
+                                                                padding:
+                                                                    "8px 0",
+                                                                fontSize: `${glyphSize}px`,
+                                                                fontWeight:
+                                                                    active
+                                                                        ? 700
+                                                                        : 400,
+                                                                color: active
+                                                                    ? "#FFFFFF"
+                                                                    : text,
+                                                                background:
+                                                                    active
+                                                                        ? primary
+                                                                        : dark
+                                                                          ? "#111827"
+                                                                          : "#F9FAFB",
+                                                                border: `1px solid ${dark ? "#374151" : "#E5E7EB"}`,
+                                                                cursor: "pointer",
+                                                                fontFamily:
+                                                                    "'Inter', system-ui, sans-serif",
+                                                            }}
+                                                        >
+                                                            {
+                                                                TEXT_SIZE_LABELS[
+                                                                    size
+                                                                ]
+                                                            }
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
 
                                         {[
@@ -809,7 +960,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 style={{
                                                     display: "block",
                                                     padding: "12px 16px",
-                                                    fontSize: "18px",
+                                                    fontSize: "1.125rem",
                                                     color: text,
                                                     textDecoration: "none",
                                                     fontFamily:
@@ -827,7 +978,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 width: "100%",
                                                 textAlign: "left",
                                                 padding: "12px 16px",
-                                                fontSize: "18px",
+                                                fontSize: "1.125rem",
                                                 color: "#DC2626",
                                                 background: "transparent",
                                                 border: "none",
@@ -873,7 +1024,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                 display: "flex",
                                 flexDirection: "column" as const,
                                 alignItems: "center",
-                                fontSize: "15px",
+                                fontSize: "0.9375rem",
                                 paddingTop: "6px",
                                 textDecoration: "none",
                                 fontFamily: "'Inter', system-ui, sans-serif",

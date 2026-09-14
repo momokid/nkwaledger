@@ -76,6 +76,12 @@ class FarmUnitStockMovement extends Model
         return $this->recorded_by;
     }
 
+    // an agent's own entry can never be waved through by another agent — only admin may
+    public function requiresAdminToApprove(): bool
+    {
+        return $this->recordedBy?->hasRole('agent') ?? false;
+    }
+
     public function reject(int $userId, string $reason): void
     {
         if ($this->isConfirmed()) {

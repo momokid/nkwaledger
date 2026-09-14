@@ -81,6 +81,16 @@ it('treats buying fingerlings as an asset', function () {
         ->toBe('Fish Stock A/C');
 });
 
+// buying the tracked animal itself should move the count; buying an input for it should not
+it('marks animal, fingerling, and seedling purchases as stock purchases', function () {
+    expect(TransactionTemplate::where('slug', 'animal_purchase')->first()->is_stock_purchase)->toBeTrue();
+    expect(TransactionTemplate::where('slug', 'fingerling_purchase')->first()->is_stock_purchase)->toBeTrue();
+    expect(TransactionTemplate::where('slug', 'seedling_purchase')->first()->is_stock_purchase)->toBeTrue();
+    expect(TransactionTemplate::where('slug', 'feed_purchase')->first()->is_stock_purchase)->toBeFalse();
+    expect(TransactionTemplate::where('slug', 'seed_purchase')->first()->is_stock_purchase)->toBeFalse();
+    expect(TransactionTemplate::where('slug', 'vet_cost')->first()->is_stock_purchase)->toBeFalse();
+});
+
 // value gone is not money paid
 it('records a death as a loss', function () {
     foreach (['animal_loss', 'crop_loss', 'fish_loss'] as $slug) {

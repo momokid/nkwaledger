@@ -17,4 +17,9 @@ return [
 
     ],
 
+    // comma-separated phone numbers that get a fixed, known code ("000000") instead of a
+    // real SMS, so a developer can log in locally without a working SMS provider. Only
+    // ever takes effect in local/testing environments — see OtpService::testBypassCode()
+    'test_phones' => env('OTP_TEST_PHONES', ''),
+
 ];

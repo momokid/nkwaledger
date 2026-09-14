@@ -17,5 +17,6 @@ class PostingRequest
         public readonly ?string $idempotencyKey = null,
         public readonly ?string $quantityLost = null,
         public readonly ?string $quantitySold = null,
+        public readonly ?string $quantityPurchased = null,
     ) {}
 }
