@@ -10,7 +10,6 @@ use App\Models\DiseaseReport;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,7 +48,7 @@ class DiseaseReportController extends Controller
             ]);
 
         return Inertia::render('Officer/ReportShow', [
-            'report' => $this->detail($report),
+            'report' => $this->detail($request, $report),
             'history' => $history,
             'basePath' => $request->user()->hasRole('vet') ? '/vet' : '/adviser',
         ]);
@@ -125,7 +124,7 @@ class DiseaseReportController extends Controller
         ];
     }
 
-    private function detail(DiseaseReport $report): array
+    private function detail(Request $request, DiseaseReport $report): array
     {
         return [
             'uuid' => $report->uuid,
@@ -134,7 +133,9 @@ class DiseaseReportController extends Controller
             'category' => $report->category,
             'status' => $report->status->value,
             'description' => $report->description,
-            'photo_url' => Storage::disk('public')->url($report->photo_path),
+            // built from the request, not config('app.url'), so it matches whatever
+            // host the browser actually used (localhost, LAN IP, staging domain, ...)
+            'photo_url' => $request->getSchemeAndHttpHost() . '/storage/' . $report->photo_path,
             'contact_method' => $report->contact_method?->value,
             'response_note' => $report->response_note,
             'created_at' => $report->created_at->toDateString(),
