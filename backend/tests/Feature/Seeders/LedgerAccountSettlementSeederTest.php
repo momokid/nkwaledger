@@ -3,12 +3,13 @@
 use App\Models\LedgerAccount;
 use Database\Seeders\LedgerAccountSeeder;
 
-// the only three places a farmer's money can sit
-it('ticks the three money accounts', function () {
+// Cash/MoMo/Bank are money the farmer actually holds; Receivable/Payable are ticked
+// too, since settling a sale or purchase against one of these is what "on credit" means
+it('ticks the money accounts and the receivable/payable accounts', function () {
     $this->seed(LedgerAccountSeeder::class);
 
     expect(LedgerAccount::settlement()->pluck('name')->sort()->values()->all())
-        ->toBe(['Bank A/C', 'Cash A/C', 'Momo A/C']);
+        ->toBe(['Accounts Payable', 'Accounts Receivable', 'Bank A/C', 'Cash A/C', 'Momo A/C']);
 });
 
 it('leaves every other account unticked', function () {
@@ -24,5 +25,5 @@ it('keeps the ticks when it runs again', function () {
     $this->seed(LedgerAccountSeeder::class);
     $this->seed(LedgerAccountSeeder::class);
 
-    expect(LedgerAccount::settlement()->count())->toBe(3);
+    expect(LedgerAccount::settlement()->count())->toBe(5);
 });

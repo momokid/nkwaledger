@@ -29,6 +29,7 @@ class TransactionTemplate extends Model
         'is_active',
         'is_produce_sale',
         'is_stock_purchase',
+        'allows_credit',
     ];
 
     protected $attributes = [
@@ -38,6 +39,7 @@ class TransactionTemplate extends Model
         'is_active' => true,
         'is_produce_sale' => false,
         'is_stock_purchase' => false,
+        'allows_credit' => false,
     ];
 
     protected function casts(): array
@@ -48,6 +50,7 @@ class TransactionTemplate extends Model
             'is_active' => 'boolean',
             'is_produce_sale' => 'boolean',
             'is_stock_purchase' => 'boolean',
+            'allows_credit' => 'boolean',
         ];
     }
 

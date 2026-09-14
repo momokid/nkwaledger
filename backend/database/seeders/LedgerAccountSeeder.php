@@ -24,17 +24,24 @@ class LedgerAccountSeeder extends Seeder
     protected array $subcategories = [
         'Money' => 'Assets',
         'Farm Assets' => 'Assets',
+        // what other people owe the farmer, kept apart from money already in hand
+        'Receivables' => 'Assets',
         'Farm Income' => 'Income',
         'Farm Expenses' => 'Expenses',
         'Borrowings' => 'Liabilities',
+        // what the farmer owes someone else for a sale or purchase, kept apart from a loan
+        'Payables' => 'Liabilities',
         'Owner Funds' => 'Equity',
     ];
 
-    // the last value ticks the accounts a farmer's money can sit in
+    // the last value ticks the accounts a farmer's money can sit in - Receivable/Payable
+    // are ticked too, since a credit sale or purchase "settles" against one of these
+    // instead of Cash/MoMo, which is exactly what marks it as sold or bought on credit
     protected array $accounts = [
         ['1001', 'Cash A/C', 'Money', true],
         ['1002', 'Momo A/C', 'Money', true],
         ['1003', 'Bank A/C', 'Money', true],
+        ['1005', 'Accounts Receivable', 'Receivables', true],
         ['1201', 'Livestock A/C', 'Farm Assets', false],
         // fish are not goats, so a bank sees them apart
         ['1204', 'Fish Stock A/C', 'Farm Assets', false],
@@ -49,6 +56,7 @@ class LedgerAccountSeeder extends Seeder
         ['5005', 'Expense on Transport', 'Farm Expenses', false],
         ['5009', 'Loss on Farm Assets', 'Farm Expenses', false],
         ['2001', 'Loan Payable', 'Borrowings', false],
+        ['2002', 'Accounts Payable', 'Payables', true],
         ['3001', 'Stated Capital', 'Owner Funds', false],
     ];
 

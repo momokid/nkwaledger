@@ -20,6 +20,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'debit',
             'requires_farm_unit' => true,
             'is_produce_sale' => true,
+            'allows_credit' => true,
             'category' => null,
         ],
         [
@@ -64,6 +65,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'allows_credit' => true,
             'category' => null,
         ],
 
@@ -78,6 +80,7 @@ class TransactionTemplateSeeder extends Seeder
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
             'is_stock_purchase' => true,
+            'allows_credit' => true,
             'category' => 'Livestock',
         ],
         [
@@ -89,6 +92,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'allows_credit' => true,
             'category' => 'Livestock',
         ],
         [
@@ -100,6 +104,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'allows_credit' => true,
             'category' => 'Livestock',
         ],
         [
@@ -111,6 +116,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'debit',
             'requires_farm_unit' => true,
             'is_produce_sale' => true,
+            'allows_credit' => true,
             'category' => 'Livestock',
         ],
         [
@@ -122,6 +128,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'debit',
             'requires_farm_unit' => true,
             'is_produce_sale' => true,
+            'allows_credit' => true,
             'category' => 'Livestock',
         ],
         // value gone, not money paid, so nothing settles anywhere
@@ -146,6 +153,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'allows_credit' => true,
             'category' => 'Crop',
         ],
         [
@@ -157,6 +165,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'allows_credit' => true,
             'category' => 'Crop',
         ],
         [
@@ -169,6 +178,7 @@ class TransactionTemplateSeeder extends Seeder
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
             'is_stock_purchase' => true,
+            'allows_credit' => true,
             'category' => 'Crop',
         ],
         [
@@ -193,6 +203,7 @@ class TransactionTemplateSeeder extends Seeder
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
             'is_stock_purchase' => true,
+            'allows_credit' => true,
             'category' => 'Aquatic',
         ],
         [
@@ -204,6 +215,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'credit',
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
+            'allows_credit' => true,
             'category' => 'Aquatic',
         ],
         [
@@ -215,6 +227,7 @@ class TransactionTemplateSeeder extends Seeder
             'settlement_side' => 'debit',
             'requires_farm_unit' => true,
             'is_produce_sale' => true,
+            'allows_credit' => true,
             'category' => 'Aquatic',
         ],
         [
@@ -237,6 +250,34 @@ class TransactionTemplateSeeder extends Seeder
             'debit_account' => 'Cash A/C',
             'credit_account' => 'Income on Sales',
             'settlement_side' => 'none',
+            'requires_farm_unit' => false,
+            'is_produce_sale' => false,
+            'category' => null,
+        ],
+
+        // these two never appear in a farmer's own "add transaction" picker (which excludes
+        // every ADJUSTMENT template already) - CreditSettlementService creates them
+        // programmatically, paying down what a credit sale/purchase still owes
+        [
+            'name' => 'Payment received',
+            'slug' => 'payment_received',
+            'transaction_type' => 'ADJUSTMENT',
+            // the settlement account the farmer actually picks (Cash/MoMo) replaces this
+            'debit_account' => 'Cash A/C',
+            'credit_account' => 'Accounts Receivable',
+            'settlement_side' => 'debit',
+            'requires_farm_unit' => false,
+            'is_produce_sale' => false,
+            'category' => null,
+        ],
+        [
+            'name' => 'Payment made',
+            'slug' => 'payment_made',
+            'transaction_type' => 'ADJUSTMENT',
+            'debit_account' => 'Accounts Payable',
+            // the settlement account the farmer actually picks (Cash/MoMo) replaces this
+            'credit_account' => 'Cash A/C',
+            'settlement_side' => 'credit',
             'requires_farm_unit' => false,
             'is_produce_sale' => false,
             'category' => null,
@@ -278,9 +319,10 @@ class TransactionTemplateSeeder extends Seeder
                     'settlement_side' => $template['settlement_side'],
                     'requires_farm_unit' => $template['requires_farm_unit'],
                     'is_produce_sale' => $template['is_produce_sale'],
-                    // most templates don't set this key at all, so it defaults to false rather
-                    // than requiring every entry in $templates to carry it
+                    // most templates don't set these keys at all, so they default to false
+                    // rather than requiring every entry in $templates to carry them
                     'is_stock_purchase' => $template['is_stock_purchase'] ?? false,
+                    'allows_credit' => $template['allows_credit'] ?? false,
                     'farm_type_category_id' => $categoryId,
                     'is_system' => true,
                     'is_active' => true,

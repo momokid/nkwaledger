@@ -69,6 +69,33 @@ it('seeds what is owed and what is owned', function () {
     $this->assertDatabaseHas('ledger_accounts', ['name' => 'Stated Capital']);
 });
 
+it('seeds accounts receivable and payable, both selectable as a settlement account', function () {
+    $this->seed(LedgerAccountSeeder::class);
+
+    $this->assertDatabaseHas('ledger_accounts', [
+        'name' => 'Accounts Receivable',
+        'is_settlement' => true,
+    ]);
+    $this->assertDatabaseHas('ledger_accounts', [
+        'name' => 'Accounts Payable',
+        'is_settlement' => true,
+    ]);
+});
+
+// what other people owe the farmer is still money-in-waiting, so it sits on the debit side
+it('puts accounts receivable on the debit side', function () {
+    $this->seed(LedgerAccountSeeder::class);
+
+    expect(LedgerAccount::where('name', 'Accounts Receivable')->first()->class)->toBe('Dr');
+});
+
+// what the farmer owes someone else grows on the credit side, same as a loan
+it('puts accounts payable on the credit side', function () {
+    $this->seed(LedgerAccountSeeder::class);
+
+    expect(LedgerAccount::where('name', 'Accounts Payable')->first()->class)->toBe('Cr');
+});
+
 // money and things owned sit on the debit side
 it('puts assets on the debit side', function () {
     $this->seed(LedgerAccountSeeder::class);
