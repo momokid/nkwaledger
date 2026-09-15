@@ -145,6 +145,27 @@ it('can run again without doubling anything', function () {
     expect(TransactionTemplate::count())->toBe($before);
 });
 
+// staging/production already have these rows - re-running the seeder after a code
+// change (e.g. flipping allows_credit, moving an account) has to actually correct
+// the existing row, not silently leave it as it was
+it('updates an existing template rather than leaving it as it was', function () {
+    $wrongAccount = LedgerAccount::where('name', 'Other Income')->first();
+
+    TransactionTemplate::where('slug', 'produce_sale')->update([
+        'allows_credit' => false,
+        'credit_account_id' => $wrongAccount->id,
+        'is_active' => false,
+    ]);
+
+    $this->seed(TransactionTemplateSeeder::class);
+
+    $template = TransactionTemplate::where('slug', 'produce_sale')->first();
+
+    expect($template->allows_credit)->toBeTrue();
+    expect($template->creditAccount->name)->toBe('Income on Sales');
+    expect($template->is_active)->toBeTrue();
+});
+
 // a sale or purchase of something may be settled on credit; a service, a loss, or a
 // correction never can
 it('allows credit on sale and purchase templates only', function () {
