@@ -24,6 +24,16 @@ interface AccountOption {
     name: string;
 }
 
+interface CreditRow {
+    uuid: string;
+    reference: string;
+    date: string;
+    description: string | null;
+    narration: string | null;
+    amount: number;
+    outstanding: number;
+}
+
 interface Statement {
     rows: Row[];
     opening_balance: number;
@@ -42,6 +52,8 @@ interface Props extends PageProps {
     statement: Statement;
     filters: { from: string; to: string; account: number | null };
     accounts: AccountOption[];
+    creditRows: CreditRow[];
+    creditSettlementAccounts: AccountOption[];
     layout: "farmer" | "agent";
     basePath: string;
 }
@@ -58,7 +70,14 @@ export default function Index(props: Props) {
 
 type ContentProps = Pick<
     Props,
-    "farmer" | "statement" | "filters" | "accounts" | "layout" | "basePath"
+    | "farmer"
+    | "statement"
+    | "filters"
+    | "accounts"
+    | "creditRows"
+    | "creditSettlementAccounts"
+    | "layout"
+    | "basePath"
 >;
 
 function IndexContent({
@@ -66,6 +85,8 @@ function IndexContent({
     statement,
     filters,
     accounts,
+    creditRows,
+    creditSettlementAccounts,
     layout,
     basePath,
 }: ContentProps) {
@@ -123,6 +144,36 @@ function IndexContent({
         });
     };
 
+    const [tab, setTab] = useState<"all" | "credit">("all");
+    const [settling, setSettling] = useState<CreditRow | null>(null);
+
+    const settleForm = useForm({ amount: "", settlement_account_id: "" });
+
+    const settleUrl = (row: CreditRow) =>
+        layout === "agent"
+            ? `/agent/farmers/${farmer.id}/records/${row.uuid}/settle`
+            : `/my-records/${row.uuid}/settle`;
+
+    const openSettle = (row: CreditRow) => {
+        setSettling(row);
+        settleForm.setData({
+            amount: (row.outstanding / 100).toFixed(2),
+            settlement_account_id: "",
+        });
+    };
+
+    const submitSettle = () => {
+        if (settling === null) return;
+
+        settleForm.post(settleUrl(settling), {
+            preserveScroll: true,
+            onSuccess: () => {
+                settleForm.reset();
+                setSettling(null);
+            },
+        });
+    };
+
     const field = {
         padding: "8px 10px",
         border: `1px solid ${inputBorder}`,
@@ -172,6 +223,29 @@ function IndexContent({
                 </div>
             )}
 
+            <div className="mt-4 flex gap-2">
+                {(["all", "credit"] as const).map((option) => (
+                    <button
+                        key={option}
+                        onClick={() => setTab(option)}
+                        style={{
+                            background: "none",
+                            border: "none",
+                            borderBottom: `2px solid ${tab === option ? brand : "transparent"}`,
+                            color: tab === option ? brand : textSecondary,
+                            fontWeight: 600,
+                            fontSize: "1.0625rem",
+                            padding: "6px 4px",
+                            cursor: "pointer",
+                        }}
+                    >
+                        {option === "all" ? "All records" : "Credit"}
+                    </button>
+                ))}
+            </div>
+
+            {tab === "all" && (
+            <>
             <div className="mt-4 flex flex-wrap gap-4">
                 {summary.map((item) => (
                     <div
@@ -568,6 +642,127 @@ function IndexContent({
                     </Button>
                 </div>
             )}
+            </>
+            )}
+
+            {tab === "credit" && (
+                <div className="mt-5 overflow-x-auto">
+                    <table
+                        className="w-full"
+                        style={{ borderCollapse: "collapse" }}
+                    >
+                        <thead>
+                            <tr style={{ background: headerBg }}>
+                                {[
+                                    "Date",
+                                    "What happened",
+                                    "Amount",
+                                    "Still owed",
+                                    "",
+                                ].map((heading, index) => (
+                                    <th
+                                        key={index}
+                                        className="px-4 py-3 text-left"
+                                        style={{
+                                            color: brand,
+                                            fontSize: "1rem",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {heading}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {creditRows.length === 0 && (
+                                <tr>
+                                    <td
+                                        colSpan={5}
+                                        className="px-4 py-6 text-center"
+                                        style={{
+                                            color: textSecondary,
+                                            fontSize: "1.0625rem",
+                                        }}
+                                    >
+                                        Nothing on credit yet.
+                                    </td>
+                                </tr>
+                            )}
+
+                            {creditRows.map((row, index) => (
+                                <tr
+                                    key={row.uuid}
+                                    style={{
+                                        borderTop: `1px solid ${border}`,
+                                        background:
+                                            index % 2 === 1
+                                                ? rowAlt
+                                                : "transparent",
+                                    }}
+                                >
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {shortDate(row.date)}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {row.description}
+                                        {row.narration && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "0.9375rem",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                {row.narration}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{ color: text }}
+                                    >
+                                        {cedis(row.amount)}
+                                    </td>
+                                    <td
+                                        className="px-4 py-3"
+                                        style={{
+                                            color:
+                                                row.outstanding > 0
+                                                    ? "#B45309"
+                                                    : brand,
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {row.outstanding > 0
+                                            ? cedis(row.outstanding)
+                                            : "Paid"}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {row.outstanding > 0 && (
+                                            <Button
+                                                look="secondary"
+                                                size="small"
+                                                onClick={() =>
+                                                    openSettle(row)
+                                                }
+                                            >
+                                                Record payment
+                                            </Button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {cancelling !== null && (
                 <div
@@ -667,6 +862,144 @@ function IndexContent({
                                 }}
                             >
                                 Keep it
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {settling !== null && (
+                <div
+                    className="fixed inset-0 flex items-center justify-center p-4"
+                    style={{ background: "rgba(0,0,0,0.5)", zIndex: 50 }}
+                >
+                    <div
+                        className="p-6"
+                        style={{
+                            background: surface,
+                            border: `1px solid ${border}`,
+                            maxWidth: "460px",
+                            width: "100%",
+                        }}
+                    >
+                        <h3
+                            style={{
+                                fontSize: "1.25rem",
+                                fontWeight: 700,
+                                color: text,
+                            }}
+                        >
+                            Record a payment
+                        </h3>
+
+                        <p
+                            style={{
+                                fontSize: "1.0625rem",
+                                color: textSecondary,
+                                marginTop: "6px",
+                            }}
+                        >
+                            {settling.description}, reference{" "}
+                            {settling.reference}. Still owed: GHS{" "}
+                            {cedis(settling.outstanding)}.
+                        </p>
+
+                        <label
+                            style={{
+                                display: "block",
+                                fontSize: "1.0625rem",
+                                fontWeight: 600,
+                                color: text,
+                                marginTop: "16px",
+                                marginBottom: "6px",
+                            }}
+                        >
+                            How much, in cedis?
+                        </label>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            style={{ ...field, width: "100%" }}
+                            value={settleForm.data.amount}
+                            onChange={(event) =>
+                                settleForm.setData(
+                                    "amount",
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        {errors.amount && (
+                            <p
+                                style={{
+                                    fontSize: "0.9375rem",
+                                    color: "#B91C1C",
+                                    marginTop: "4px",
+                                }}
+                            >
+                                {errors.amount}
+                            </p>
+                        )}
+
+                        <label
+                            style={{
+                                display: "block",
+                                fontSize: "1.0625rem",
+                                fontWeight: 600,
+                                color: text,
+                                marginTop: "14px",
+                                marginBottom: "6px",
+                            }}
+                        >
+                            Where did it land?
+                        </label>
+                        <select
+                            style={{ ...field, width: "100%" }}
+                            value={settleForm.data.settlement_account_id}
+                            onChange={(event) =>
+                                settleForm.setData(
+                                    "settlement_account_id",
+                                    event.target.value,
+                                )
+                            }
+                        >
+                            <option value="">Choose one</option>
+                            {creditSettlementAccounts.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.name}
+                                </option>
+                            ))}
+                        </select>
+                        {errors.settlement_account_id && (
+                            <p
+                                style={{
+                                    fontSize: "0.9375rem",
+                                    color: "#B91C1C",
+                                    marginTop: "4px",
+                                }}
+                            >
+                                {errors.settlement_account_id}
+                            </p>
+                        )}
+
+                        <div
+                            className="flex gap-3"
+                            style={{ marginTop: "18px" }}
+                        >
+                            <Button
+                                onClick={submitSettle}
+                                busy={settleForm.processing}
+                                busyLabel="Saving..."
+                            >
+                                Save payment
+                            </Button>
+                            <Button
+                                look="secondary"
+                                onClick={() => {
+                                    settleForm.reset();
+                                    setSettling(null);
+                                }}
+                            >
+                                Cancel
                             </Button>
                         </div>
                     </div>
