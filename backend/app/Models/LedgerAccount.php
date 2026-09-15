@@ -70,6 +70,15 @@ class LedgerAccount extends Model
         return $query->where('is_settlement', true)->where('is_active', true);
     }
 
+    // settling against either of these, instead of Cash/MoMo/Bank, is what "on credit" means
+    public static function creditSettlementAccountIds(): array
+    {
+        return static::query()
+            ->whereIn('name', ['Accounts Receivable', 'Accounts Payable'])
+            ->pluck('id')
+            ->all();
+    }
+
     // walks subcategory to category to class, never stored — so a category's Dr/Cr
     // setting can never drift out of sync with the accounts that sit beneath it
     protected function class(): Attribute

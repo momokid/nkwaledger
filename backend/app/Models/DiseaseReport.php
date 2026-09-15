@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
     'assigned_officer_id',
     'status',
     'photo_path',
+    'audio_path',
     'description',
     'contact_method',
     'response_note',

@@ -87,6 +87,31 @@ describe('show', function () {
             ->assertNotFound();
     });
 
+    it('sends an audio url when the report has a voice note', function () {
+        $report = DiseaseReport::factory()->withAudio()->create([
+            'farm_unit_id' => $this->unit->id,
+            'farmer_profile_id' => $this->profile->id,
+            'assigned_officer_id' => $this->vet->id,
+        ]);
+
+        $this->actingAs($this->vet)
+            ->get("/vet/reports/{$report->uuid}")
+            ->assertInertia(fn($page) => $page
+                ->where('report.audio_url', fn($url) => str_ends_with($url, $report->audio_path)));
+    });
+
+    it('sends a null audio url when the report has no voice note', function () {
+        $report = DiseaseReport::factory()->create([
+            'farm_unit_id' => $this->unit->id,
+            'farmer_profile_id' => $this->profile->id,
+            'assigned_officer_id' => $this->vet->id,
+        ]);
+
+        $this->actingAs($this->vet)
+            ->get("/vet/reports/{$report->uuid}")
+            ->assertInertia(fn($page) => $page->where('report.audio_url', null));
+    });
+
     it('sends the farm unit\'s other reports as history, newest first, excluding itself', function () {
         $older = DiseaseReport::factory()->create([
             'farm_unit_id' => $this->unit->id,

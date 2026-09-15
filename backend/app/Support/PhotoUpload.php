@@ -6,7 +6,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 
 class PhotoUpload
@@ -18,7 +18,7 @@ class PhotoUpload
     // visibly fine at phone-screen size, a fraction of the original's bytes
     private const QUALITY = 75;
 
-    // corrected for orientation and shrunk to fit, then re-encoded as jpeg —
+    // corrected for orientation and shrunk to fit, then re-encoded as webp —
     // so a farmer's data plan never pays for the original file's full size
     public static function store(UploadedFile $file, string $directory): string
     {
@@ -28,11 +28,11 @@ class PhotoUpload
         $image->orient();
         $image->scaleDown(width: self::MAX_DIMENSION, height: self::MAX_DIMENSION);
 
-        $path = trim($directory, '/') . '/' . (string) Str::uuid7() . '.jpg';
+        $path = trim($directory, '/') . '/' . (string) Str::uuid7() . '.webp';
 
         Storage::disk('public')->put(
             $path,
-            (string) $image->encode(new JpegEncoder(quality: self::QUALITY)),
+            (string) $image->encode(new WebpEncoder(quality: self::QUALITY)),
         );
 
         return $path;

@@ -94,7 +94,11 @@ class RecordTransactionController extends Controller
                 'name' => "{$farmer->user?->surname} {$farmer->user?->first_name}",
             ],
             'templates' => $this->templates($farmer),
+            // Receivable/Payable are settlement accounts too (so a credit sale/purchase can be
+            // posted against them), but a farmer never picks them directly - "Credit (not paid
+            // yet)" is a separate, synthetic choice the frontend adds for allows_credit templates
             'settlementAccounts' => LedgerAccount::settlement()
+                ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'farmUnits' => $farmer->farmUnits()
@@ -116,13 +120,17 @@ class RecordTransactionController extends Controller
         $data = $request->validated();
 
         try {
+            $template = TransactionTemplate::findOrFail((int) $data['transaction_template_id']);
+
+            $settlementAccountId = ($data['is_credit'] ?? false)
+                ? $this->creditSettlementAccountFor($template)
+                : (isset($data['settlement_account_id']) ? (int) $data['settlement_account_id'] : null);
+
             $transaction = $this->posting->post(new PostingRequest(
                 farmerProfileId: $request->farmer()->id,
-                transactionTemplateId: (int) $data['transaction_template_id'],
+                transactionTemplateId: $template->id,
                 amount: $data['amount'],
-                settlementAccountId: isset($data['settlement_account_id'])
-                    ? (int) $data['settlement_account_id']
-                    : null,
+                settlementAccountId: $settlementAccountId,
                 transactionDate: $data['transaction_date'],
                 farmUnitId: isset($data['farm_unit_id']) ? (int) $data['farm_unit_id'] : null,
                 narration: $data['narration'] ?? null,
@@ -149,6 +157,25 @@ class RecordTransactionController extends Controller
         return back()
             ->with('success', 'Saved. Your record is in your book.')
             ->with('reference', $transaction->reference);
+    }
+
+    // the farmer never sees or chooses "Receivable"/"Payable" - which one applies
+    // follows straight from whether money is coming in or going out
+    private function creditSettlementAccountFor(TransactionTemplate $template): int
+    {
+        $name = match ($template->transaction_type) {
+            Transaction::INCOME => 'Accounts Receivable',
+            Transaction::EXPENSE => 'Accounts Payable',
+            default => throw PostingFailed::because('That kind of record cannot be put on credit.'),
+        };
+
+        $accountId = LedgerAccount::where('name', $name)->value('id');
+
+        if ($accountId === null) {
+            throw PostingFailed::because('Credit is not set up yet.');
+        }
+
+        return $accountId;
     }
 
     // the farmer's own page names nobody, the agent's page names the farmer
@@ -181,7 +208,7 @@ class RecordTransactionController extends Controller
                 // some things are true on every farm, so they belong to no category
                 ->orWhereNull('farm_type_category_id'))
             ->orderBy('name')
-            ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale', 'is_stock_purchase']);
+            ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale', 'is_stock_purchase', 'allows_credit']);
     }
 
     private function frame(Request $request): array

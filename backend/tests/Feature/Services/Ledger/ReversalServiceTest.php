@@ -177,6 +177,38 @@ it('posts the reversal when somebody else approves', function () {
     expect($reversal->reverses_transaction_id)->toBe($this->original->id);
 });
 
+// a farm can have more than one ADJUSTMENT template (a settlement is one too) - the
+// correction lookup has to find "correction" by slug, not by being first in row order.
+// "correction" is force-recreated with a higher id than the other one, so this only
+// passes if the lookup actually goes by slug
+it('still finds the correction template when another adjustment template has a lower id', function () {
+    TransactionTemplate::where('slug', 'correction')->forceDelete();
+
+    TransactionTemplate::create([
+        'name' => 'Payment received',
+        'slug' => 'payment_received',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->sales->id,
+        'settlement_side' => 'debit',
+    ]);
+
+    $this->adjustmentTemplate = TransactionTemplate::create([
+        'name' => 'A correction',
+        'slug' => 'correction',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->sales->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+    ]);
+
+    $request = ($this->ask)();
+
+    $reversal = $this->service->approve($request, $this->manager);
+
+    expect($reversal->transaction_template_id)->toBe($this->adjustmentTemplate->id);
+});
+
 it('marks the request approved', function () {
     $request = ($this->ask)();
 
