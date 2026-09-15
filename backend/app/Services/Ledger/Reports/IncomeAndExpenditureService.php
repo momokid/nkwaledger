@@ -6,11 +6,14 @@ use App\Models\FarmerProfile;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
 use App\Models\Transaction;
+use App\Services\Ledger\CreditSettlementService;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 
 class IncomeAndExpenditureService
 {
+    public function __construct(private readonly CreditSettlementService $creditSettlements) {}
+
     public function for(
         int $farmerProfileId,
         string $from,
@@ -58,7 +61,33 @@ class IncomeAndExpenditureService
                     'loss' => $this->sum($lossRows),
                 ],
             ),
+            cashCollectedMinor: $this->cashFlow($farmerProfileId, $from, $to, $includeProvisional, Transaction::INCOME),
+            cashPaidOutMinor: $this->cashFlow($farmerProfileId, $from, $to, $includeProvisional, Transaction::EXPENSE),
         );
+    }
+
+    // the cash/MoMo portion actually received or paid: every non-credit transaction
+    // in full, plus whatever has actually been settled so far on a credit one -
+    // "so far" reaches past the period's own end date on purpose, since a credit
+    // sale from this period settled next month should stop showing as uncollected
+    private function cashFlow(int $farmerProfileId, string $from, string $to, bool $includeProvisional, string $type): int
+    {
+        return (int) Transaction::query()
+            ->where('farmer_profile_id', $farmerProfileId)
+            ->where('transaction_type', $type)
+            ->whereDate('transaction_date', '>=', $from)
+            ->whereDate('transaction_date', '<=', $to)
+            ->when(! $includeProvisional, fn($query) => $query->where('is_provisional', false))
+            // outstandingAmount() needs the template relation and settlement account,
+            // so this reads full rows rather than a narrow column list
+            ->get()
+            ->sum(function (Transaction $transaction) {
+                if (! $transaction->is_credit) {
+                    return $transaction->amount_minor;
+                }
+
+                return $transaction->amount_minor - $this->creditSettlements->outstandingAmount($transaction);
+            });
     }
 
     /** @param array<int, IncomeLine> $rows */
