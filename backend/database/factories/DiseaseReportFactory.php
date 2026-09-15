@@ -34,4 +34,11 @@ class DiseaseReportFactory extends Factory
     {
         return $this->state(fn() => ['assigned_officer_id' => $officerId]);
     }
+
+    public function withAudio(): static
+    {
+        return $this->state(fn() => [
+            'audio_path' => 'disease-reports/' . $this->faker->uuid() . '.webm',
+        ]);
+    }
 }

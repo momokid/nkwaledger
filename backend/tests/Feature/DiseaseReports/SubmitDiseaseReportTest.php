@@ -126,6 +126,68 @@ it('assigns the report to the vet already linked to the farmer\'s agent', functi
     expect(DiseaseReport::first()->assigned_officer_id)->toBe($vet->id);
 });
 
+it('accepts an optional voice note and stores it alongside the photo', function () {
+    $this->actingAs($this->farmerUser)
+        ->post("/my-farm/{$this->unit->id}/report-problem", [
+            'description' => 'Some birds look weak.',
+            'photo' => UploadedFile::fake()->image('sick.jpg'),
+            'audio' => fakeAudioUpload(12),
+        ])
+        ->assertRedirect(route('my-farm.index'));
+
+    $report = DiseaseReport::first();
+
+    expect($report->audio_path)->not->toBeNull();
+    Storage::disk('public')->assertExists($report->audio_path);
+});
+
+it('submits successfully with no voice note at all', function () {
+    $this->actingAs($this->farmerUser)
+        ->post("/my-farm/{$this->unit->id}/report-problem", [
+            'description' => 'Some birds look weak.',
+            'photo' => UploadedFile::fake()->image('sick.jpg'),
+        ])
+        ->assertRedirect(route('my-farm.index'));
+
+    expect(DiseaseReport::first()->audio_path)->toBeNull();
+});
+
+it('refuses a voice note that is not an accepted audio type', function () {
+    $this->actingAs($this->farmerUser)
+        ->post("/my-farm/{$this->unit->id}/report-problem", [
+            'description' => 'Some birds look weak.',
+            'photo' => UploadedFile::fake()->image('sick.jpg'),
+            'audio' => UploadedFile::fake()->create('note.pdf', 100, 'application/pdf'),
+        ])
+        ->assertSessionHasErrors('audio');
+
+    expect(DiseaseReport::count())->toBe(0);
+});
+
+it('refuses a voice note longer than the safety margin', function () {
+    $this->actingAs($this->farmerUser)
+        ->post("/my-farm/{$this->unit->id}/report-problem", [
+            'description' => 'Some birds look weak.',
+            'photo' => UploadedFile::fake()->image('sick.jpg'),
+            'audio' => fakeAudioUpload(40),
+        ])
+        ->assertSessionHasErrors('audio');
+
+    expect(DiseaseReport::count())->toBe(0);
+});
+
+it('accepts a voice note right at the edge of the safety margin', function () {
+    $this->actingAs($this->farmerUser)
+        ->post("/my-farm/{$this->unit->id}/report-problem", [
+            'description' => 'Some birds look weak.',
+            'photo' => UploadedFile::fake()->image('sick.jpg'),
+            'audio' => fakeAudioUpload(30),
+        ])
+        ->assertSessionDoesntHaveErrors('audio');
+
+    expect(DiseaseReport::first())->not->toBeNull();
+});
+
 it('routes a crop farm unit to the adviser role', function () {
     $cropCategory = FarmTypeCategory::create(['name' => 'Crop']);
     $cropType = FarmType::factory()->withCategory($cropCategory)->create();

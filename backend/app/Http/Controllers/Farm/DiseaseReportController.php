@@ -11,6 +11,7 @@ use App\Models\FarmUnit;
 use App\Models\User;
 use App\Services\DiseaseReports\ReportRoutingService;
 use App\Services\NotificationService;
+use App\Support\AudioUpload;
 use App\Support\PhotoUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,6 +45,33 @@ class DiseaseReportController extends Controller
         ]);
     }
 
+    public function show(Request $request, DiseaseReport $report): Response
+    {
+        $farmer = $this->resolveFarmer($request);
+
+        // read-only, and only the farmer's own - not the agent's, not another farmer's
+        abort_if($report->farmer_profile_id !== $farmer->id, 403);
+
+        $report->load('farmUnit');
+
+        return Inertia::render('DiseaseReports/Show', [
+            'report' => [
+                'uuid' => $report->uuid,
+                'farm_unit_name' => $report->farmUnit?->name,
+                'category' => $report->category,
+                'status' => $report->status->value,
+                'description' => $report->description,
+                'photo_url' => $request->getSchemeAndHttpHost() . '/storage/' . $report->photo_path,
+                'audio_url' => $report->audio_path
+                    ? $request->getSchemeAndHttpHost() . '/storage/' . $report->audio_path
+                    : null,
+                'contact_method' => $report->contact_method?->value,
+                'response_note' => $report->response_note,
+                'created_at' => $report->created_at->toDateString(),
+            ],
+        ]);
+    }
+
     public function create(Request $request, FarmUnit $farmUnit): Response
     {
         $this->resolveFarmer($request, $farmUnit);
@@ -65,6 +93,10 @@ class DiseaseReportController extends Controller
 
         $photoPath = PhotoUpload::store($request->file('photo'), 'disease-reports');
 
+        $audioPath = $request->hasFile('audio')
+            ? AudioUpload::store($request->file('audio'), 'disease-reports')
+            : null;
+
         $report = DiseaseReport::create([
             'farm_unit_id' => $farmUnit->id,
             'farmer_profile_id' => $farmer->id,
@@ -74,6 +106,7 @@ class DiseaseReportController extends Controller
             'assigned_officer_id' => $officer?->id,
             'description' => $request->validated('description'),
             'photo_path' => $photoPath,
+            'audio_path' => $audioPath,
         ]);
 
         $this->notifySubmission($report, $request->user(), $farmer, $farmUnit, $officer, $role);

@@ -11,6 +11,7 @@ use App\Models\FarmUnitStock;
 use App\Models\FarmUnitStockMovement;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
+use App\Models\LedgerAccount;
 use App\Models\Transaction;
 use App\Models\TransactionTemplate;
 use App\Support\Money;
@@ -404,6 +405,18 @@ class PostingService
         return [$debit, $credit];
     }
 
+    // settling against Receivable/Payable, instead of Cash/MoMo/Bank, is what "on
+    // credit" means - denormalized here so a cash/credit filter never has to join
+    // out to journal lines to find out
+    private function isCreditSettlement(?int $settlementAccountId): bool
+    {
+        if ($settlementAccountId === null) {
+            return false;
+        }
+
+        return in_array($settlementAccountId, LedgerAccount::creditSettlementAccountIds(), true);
+    }
+
     private function writeTransaction(
         PostingRequest $request,
         TransactionTemplate $template,
@@ -426,6 +439,7 @@ class PostingService
             'quantity_sold' => $sale['quantity'] ?? null,
             'quantity_purchased' => $purchase['quantity'] ?? null,
             'settlement_account_id' => $settlementAccountId,
+            'is_credit' => $this->isCreditSettlement($settlementAccountId),
             'farm_unit_id' => $farmUnit?->id,
             'narration' => $request->narration,
             'channel' => $request->channel,

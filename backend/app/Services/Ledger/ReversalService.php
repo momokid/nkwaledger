@@ -219,8 +219,10 @@ class ReversalService
 
     private function adjustmentTemplate(): TransactionTemplate
     {
+        // more than one ADJUSTMENT template can exist now (a credit settlement is one
+        // too), so "correction" is found by slug, not by being first among them
         $template = TransactionTemplate::query()
-            ->where('transaction_type', Transaction::ADJUSTMENT)
+            ->where('slug', 'correction')
             ->where('is_active', true)
             ->first();
 

@@ -1,10 +1,35 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { useForm, usePage } from "@inertiajs/react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { IconMicrophone, IconPlayerStop, IconTrash } from "@tabler/icons-react";
 import Button from "@/Components/Button";
 
 interface Props {
     farmUnit: { id: number; name: string };
+}
+
+type RecordingState = "idle" | "requesting" | "recording" | "recorded";
+
+const MAX_RECORDING_SECONDS = 30;
+
+// whatever container MediaRecorder actually used, kept only for a sensible filename
+const EXTENSION_FOR_MIME: Record<string, string> = {
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/mp4": "m4a",
+    "audio/aac": "aac",
+    "audio/mpeg": "mp3",
+};
+
+function extensionFor(mimeType: string): string {
+    return EXTENSION_FOR_MIME[mimeType.split(";")[0].trim()] ?? "webm";
+}
+
+function formatSeconds(totalSeconds: number): string {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export default function Create(props: Props) {
@@ -27,12 +52,19 @@ function CreateContent({ farmUnit }: Props) {
     const inputBg = dark ? "#111827" : "#FFFFFF";
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
+    const danger = "#B91C1C";
 
     const [preview, setPreview] = useState<string | null>(null);
+    const photoInputRef = useRef<HTMLInputElement>(null);
 
-    const form = useForm<{ description: string; photo: File | null }>({
+    const form = useForm<{
+        description: string;
+        photo: File | null;
+        audio: File | null;
+    }>({
         description: "",
         photo: null,
+        audio: null,
     });
 
     const submit = (event: FormEvent) => {
@@ -48,6 +80,115 @@ function CreateContent({ farmUnit }: Props) {
 
         form.setData("photo", file);
         setPreview(file ? URL.createObjectURL(file) : null);
+    };
+
+    // --- voice note recording ---
+
+    const recorderSupported =
+        typeof window !== "undefined" && "MediaRecorder" in window;
+
+    const [recordingState, setRecordingState] = useState<RecordingState>("idle");
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [micError, setMicError] = useState<string | null>(null);
+
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const chunksRef = useRef<Blob[]>([]);
+    const streamRef = useRef<MediaStream | null>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const stopTimer = () => {
+        if (timerRef.current !== null) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+    };
+
+    const releaseStream = () => {
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+    };
+
+    useEffect(() => {
+        // leaving mid-recording should not leave the microphone running
+        return () => {
+            stopTimer();
+            releaseStream();
+        };
+    }, []);
+
+    const startRecording = async () => {
+        if (audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            setAudioUrl(null);
+        }
+
+        setMicError(null);
+        setRecordingState("requesting");
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            const recorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = recorder;
+            chunksRef.current = [];
+
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) chunksRef.current.push(event.data);
+            };
+
+            recorder.onstop = () => {
+                stopTimer();
+                releaseStream();
+
+                const mimeType = recorder.mimeType || "audio/webm";
+                const blob = new Blob(chunksRef.current, { type: mimeType });
+                const file = new File(
+                    [blob],
+                    `voice-note.${extensionFor(mimeType)}`,
+                    { type: mimeType },
+                );
+
+                form.setData("audio", file);
+                setAudioUrl(URL.createObjectURL(blob));
+                setRecordingState("recorded");
+            };
+
+            recorder.start();
+            setElapsedSeconds(0);
+            setRecordingState("recording");
+
+            timerRef.current = setInterval(() => {
+                setElapsedSeconds((current) => {
+                    const next = current + 1;
+
+                    if (next >= MAX_RECORDING_SECONDS) {
+                        recorder.stop();
+                    }
+
+                    return next;
+                });
+            }, 1000);
+        } catch {
+            setRecordingState("idle");
+            setMicError(
+                "We could not reach your microphone. You can still send this report without a voice note.",
+            );
+        }
+    };
+
+    const stopRecording = () => {
+        mediaRecorderRef.current?.stop();
+    };
+
+    const discardRecording = () => {
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+
+        setAudioUrl(null);
+        form.setData("audio", null);
+        setRecordingState("idle");
+        setElapsedSeconds(0);
     };
 
     const field = {
@@ -115,12 +256,21 @@ function CreateContent({ farmUnit }: Props) {
                 <div className="mb-5">
                     <label style={label}>A photo</label>
                     <input
+                        ref={photoInputRef}
                         type="file"
                         accept="image/*"
                         capture="environment"
-                        style={field}
                         onChange={onPhotoChange}
+                        style={{ display: "none" }}
                     />
+                    <Button
+                        type="button"
+                        look="secondary"
+                        size="small"
+                        onClick={() => photoInputRef.current?.click()}
+                    >
+                        {form.data.photo ? "Change photo" : "Choose a photo"}
+                    </Button>
                     {preview && (
                         <img
                             src={preview}
@@ -135,6 +285,98 @@ function CreateContent({ farmUnit }: Props) {
                     )}
                     {errors.photo && <p style={errorText}>{errors.photo}</p>}
                 </div>
+
+                {recorderSupported && (
+                    <div className="mb-5">
+                        <label style={label}>A voice note (optional)</label>
+
+                        {recordingState === "idle" && (
+                            <Button
+                                type="button"
+                                look="secondary"
+                                size="small"
+                                onClick={startRecording}
+                            >
+                                <IconMicrophone size={18} stroke={1.8} />
+                                Record a voice note
+                            </Button>
+                        )}
+
+                        {recordingState === "requesting" && (
+                            <p style={{ color: textSecondary, fontSize: "1rem" }}>
+                                Asking for microphone access...
+                            </p>
+                        )}
+
+                        {recordingState === "recording" && (
+                            <div
+                                className="flex items-center"
+                                style={{ gap: "12px" }}
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    style={{
+                                        width: "10px",
+                                        height: "10px",
+                                        borderRadius: "50%",
+                                        background: danger,
+                                    }}
+                                />
+                                <span
+                                    style={{
+                                        color: text,
+                                        fontSize: "1.0625rem",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    Recording... {formatSeconds(elapsedSeconds)} / 0:30
+                                </span>
+                                <Button
+                                    type="button"
+                                    look="danger"
+                                    size="small"
+                                    onClick={stopRecording}
+                                >
+                                    <IconPlayerStop size={18} stroke={1.8} />
+                                    Stop
+                                </Button>
+                            </div>
+                        )}
+
+                        {recordingState === "recorded" && audioUrl && (
+                            <div>
+                                <audio
+                                    controls
+                                    src={audioUrl}
+                                    style={{ width: "100%" }}
+                                />
+                                <div className="flex mt-2" style={{ gap: "10px" }}>
+                                    <Button
+                                        type="button"
+                                        look="secondary"
+                                        size="small"
+                                        onClick={startRecording}
+                                    >
+                                        <IconMicrophone size={18} stroke={1.8} />
+                                        Re-record
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        look="danger"
+                                        size="small"
+                                        onClick={discardRecording}
+                                    >
+                                        <IconTrash size={18} stroke={1.8} />
+                                        Remove
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {micError && <p style={errorText}>{micError}</p>}
+                        {errors.audio && <p style={errorText}>{errors.audio}</p>}
+                    </div>
+                )}
 
                 <Button
                     type="submit"

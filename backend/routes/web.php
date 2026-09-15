@@ -205,6 +205,8 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-farm')->name('my-farm.
     Route::middleware('access:disease-reports.view')->group(function () {
         Route::get('/reports', [DiseaseReportController::class, 'index'])
             ->name('reports.index');
+        Route::get('/reports/{report:uuid}', [DiseaseReportController::class, 'show'])
+            ->name('reports.show');
     });
 
     Route::middleware('access:disease-reports.create')->group(function () {

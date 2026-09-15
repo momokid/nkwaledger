@@ -1,5 +1,5 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { Head } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 
 interface ReportRow {
     uuid: string;
@@ -12,7 +12,7 @@ interface Props {
     reports: ReportRow[];
 }
 
-function statusColor(status: string): string {
+export function statusColor(status: string): string {
     switch (status) {
         case "resolved":
             return "#1D9E75";
@@ -23,7 +23,7 @@ function statusColor(status: string): string {
     }
 }
 
-function statusLabel(status: string): string {
+export function statusLabel(status: string): string {
     switch (status) {
         case "resolved":
             return "Resolved";
@@ -77,12 +77,14 @@ function IndexContent({ reports }: Props) {
 
             <div className="mt-4">
                 {reports.map((report) => (
-                    <div
+                    <Link
                         key={report.uuid}
-                        className="mb-3 p-4"
+                        href={`/my-farm/reports/${report.uuid}`}
+                        className="block mb-3 p-4"
                         style={{
                             background: surface,
                             border: `1px solid ${border}`,
+                            textDecoration: "none",
                         }}
                     >
                         <div className="flex justify-between items-baseline">
@@ -114,7 +116,7 @@ function IndexContent({ reports }: Props) {
                         >
                             Reported {report.created_at}
                         </div>
-                    </div>
+                    </Link>
                 ))}
             </div>
         </div>

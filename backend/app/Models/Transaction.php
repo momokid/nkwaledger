@@ -40,6 +40,7 @@ class Transaction extends Model
         'quantity_sold',
         'quantity_purchased',
         'settlement_account_id',
+        'is_credit',
         'farm_unit_id',
         'narration',
         'channel',
@@ -52,6 +53,7 @@ class Transaction extends Model
 
     protected $attributes = [
         'is_provisional' => false,
+        'is_credit' => false,
     ];
 
     protected function casts(): array
@@ -63,6 +65,7 @@ class Transaction extends Model
             'quantity_sold' => 'decimal:2',
             'quantity_purchased' => 'decimal:2',
             'is_provisional' => 'boolean',
+            'is_credit' => 'boolean',
             'posted_at' => 'datetime',
         ];
     }

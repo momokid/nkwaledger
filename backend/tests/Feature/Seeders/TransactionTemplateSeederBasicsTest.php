@@ -145,6 +145,54 @@ it('can run again without doubling anything', function () {
     expect(TransactionTemplate::count())->toBe($before);
 });
 
+// a sale or purchase of something may be settled on credit; a service, a loss, or a
+// correction never can
+it('allows credit on sale and purchase templates only', function () {
+    foreach ([
+        'produce_sale', 'animal_sale', 'produce_of_animal_sale', 'fish_sale',
+        'input_purchase', 'animal_purchase', 'feed_purchase', 'vet_cost',
+        'seed_purchase', 'fertiliser_purchase', 'seedling_purchase',
+        'fingerling_purchase', 'fish_feed_purchase',
+    ] as $slug) {
+        expect(TransactionTemplate::where('slug', $slug)->first()->allows_credit)
+            ->toBeTrue("{$slug} should allow credit");
+    }
+
+    foreach ([
+        'other_income', 'labour_cost', 'transport_cost',
+        'animal_loss', 'crop_loss', 'fish_loss', 'correction',
+        'payment_received', 'payment_made',
+    ] as $slug) {
+        expect(TransactionTemplate::where('slug', $slug)->first()->allows_credit)
+            ->toBeFalse("{$slug} should not allow credit");
+    }
+});
+
+it('seeds the two settlement templates as adjustments, hidden from the everyday picker', function () {
+    foreach (['payment_received', 'payment_made'] as $slug) {
+        $template = TransactionTemplate::where('slug', $slug)->first();
+
+        expect($template)->not->toBeNull();
+        expect($template->transaction_type)->toBe('ADJUSTMENT');
+        expect($template->is_active)->toBeTrue();
+        expect($template->requires_farm_unit)->toBeFalse();
+    }
+});
+
+it('settles a receivable by debiting whatever the farmer picks and crediting Accounts Receivable', function () {
+    $template = TransactionTemplate::where('slug', 'payment_received')->first();
+
+    expect($template->settlement_side)->toBe('debit');
+    expect($template->creditAccount->name)->toBe('Accounts Receivable');
+});
+
+it('settles a payable by crediting whatever the farmer picks and debiting Accounts Payable', function () {
+    $template = TransactionTemplate::where('slug', 'payment_made')->first();
+
+    expect($template->settlement_side)->toBe('credit');
+    expect($template->debitAccount->name)->toBe('Accounts Payable');
+});
+
 // a category that does not exist yet must not stop the deploy
 it('skips a template whose category is missing', function () {
     FarmTypeCategory::where('name', 'Aquatic')->delete();

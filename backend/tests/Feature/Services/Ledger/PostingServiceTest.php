@@ -52,6 +52,8 @@ beforeEach(function () {
     $this->feed = $account('Feed Expense', $expenseSub->id);
     $this->livestock = $account('Livestock', $assetSub->id);
     $this->lossOnStock = $account('Loss on Livestock', $incomeSub->id);
+    $this->receivable = $account('Accounts Receivable', $assetSub->id);
+    $this->payable = $account('Accounts Payable', $assetSub->id);
 
     // money comes in, so the settlement account replaces the debit leg
     $this->saleTemplate = TransactionTemplate::create([
@@ -717,4 +719,51 @@ it('does not ask for a quantity on an ordinary expense template', function () {
     ]));
 
     expect($transaction->quantity_purchased)->toBeNull();
+});
+
+// settling against Receivable/Payable, instead of Cash/MoMo/Bank, is what "on credit" means
+it('marks a transaction as credit when settled against Accounts Receivable', function () {
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->saleTemplate->id,
+        'settlementAccountId' => $this->receivable->id,
+    ]));
+
+    expect($transaction->settlement_account_id)->toBe($this->receivable->id);
+    expect($transaction->is_credit)->toBeTrue();
+});
+
+it('marks a transaction as credit when settled against Accounts Payable', function () {
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->feedTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'settlementAccountId' => $this->payable->id,
+    ]));
+
+    expect($transaction->settlement_account_id)->toBe($this->payable->id);
+    expect($transaction->is_credit)->toBeTrue();
+});
+
+it('leaves an ordinary cash transaction marked as not credit', function () {
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->saleTemplate->id,
+        'settlementAccountId' => $this->cash->id,
+    ]));
+
+    expect($transaction->is_credit)->toBeFalse();
+});
+
+it('leaves a transaction with no settlement account marked as not credit', function () {
+    FarmUnitStock::factory()->create([
+        'farm_unit_id' => $this->approvedUnit->id,
+        'opening_quantity' => 5,
+    ]);
+
+    $transaction = $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->lossTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'settlementAccountId' => null,
+        'quantityLost' => '1',
+    ]));
+
+    expect($transaction->is_credit)->toBeFalse();
 });
