@@ -22,7 +22,7 @@ class AgentDashboardController extends Controller
         $to = $request->query('to', Carbon::now()->toDateString());
         [$prevFrom, $prevTo] = $this->previousPeriod($from, $to);
 
-        [$income, $expense, $activeCount, $roster] = $this->roster->totalsFor(
+        [$income, $expense, $activeCount, $roster, $collected, $paidOut] = $this->roster->totalsFor(
             $request->user()->id,
             $from,
             $to,
@@ -31,7 +31,7 @@ class AgentDashboardController extends Controller
         [$prevIncome, $prevExpense] = $this->roster->totalsFor($request->user()->id, $prevFrom, $prevTo);
 
         return Inertia::render('Agent/Dashboard', [
-            'summary' => $this->summaryFrom($income, $expense, $prevIncome, $prevExpense),
+            'summary' => $this->summaryFrom($income, $expense, $prevIncome, $prevExpense, $collected, $paidOut),
             'farmer_count' => $activeCount,
             'roster' => $roster,
             'activity_feed' => $this->activityFeed->recentFor($request->user()->id, $from, $to),
@@ -40,8 +40,14 @@ class AgentDashboardController extends Controller
         ]);
     }
 
-    private function summaryFrom(int $income, int $expense, int $prevIncome, int $prevExpense): array
-    {
+    private function summaryFrom(
+        int $income,
+        int $expense,
+        int $prevIncome,
+        int $prevExpense,
+        int $collected,
+        int $paidOut,
+    ): array {
         $net = $income - $expense;
         $prevNet = $prevIncome - $prevExpense;
 
@@ -49,6 +55,11 @@ class AgentDashboardController extends Controller
             'total_income' => $income,
             'total_expense' => $expense,
             'net' => $net,
+            // net profit stays based on earned/incurred above; these two are shown
+            // as a secondary line under the existing cards, not new cards of their
+            // own - same split as the farmer dashboard, summed across the roster
+            'cash_collected' => $collected,
+            'cash_paid_out' => $paidOut,
             'trends' => [
                 'income' => $this->trend($income, $prevIncome, higherIsGood: true),
                 'expense' => $this->trend($expense, $prevExpense, higherIsGood: false),

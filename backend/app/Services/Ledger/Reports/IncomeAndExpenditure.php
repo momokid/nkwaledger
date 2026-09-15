@@ -30,6 +30,11 @@ class IncomeAndExpenditure
         public readonly array $lossRows,
         // the top and bottom every printed report carries
         public readonly ReportHeader $header,
+        // "earned"/"incurred" above count a credit sale or purchase in full; these
+        // two count only the cash/MoMo portion actually received or paid so far -
+        // net profit still uses earned/incurred, since that is correct accrual accounting
+        public readonly int $cashCollectedMinor,
+        public readonly int $cashPaidOutMinor,
     ) {
         $this->totalIncomeMinor = $this->sum($incomeRows);
         $this->totalExpenseMinor = $this->sum($expenseRows);

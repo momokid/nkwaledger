@@ -12,6 +12,7 @@ use App\Models\LedgerSubcategory;
 use App\Models\LedgerType;
 use App\Models\TransactionTemplate;
 use App\Models\User;
+use App\Services\Ledger\CreditSettlementService;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
 use App\Services\Ledger\Reports\IncomeAndExpenditure;
@@ -47,6 +48,8 @@ beforeEach(function () {
     };
 
     $this->cash = $account('Cash A/C', $assetSub->id, true);
+    $this->receivable = $account('Accounts Receivable', $assetSub->id, true);
+    $this->payable = $account('Accounts Payable', $assetSub->id, true);
     $this->sales = $account('Income on Sales', $incomeSub->id);
     $this->otherIncome = $account('Other Income', $incomeSub->id);
     $this->feed = $account('Expense on Feed', $expenseSub->id);
@@ -63,6 +66,7 @@ beforeEach(function () {
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $this->sales->id,
         'settlement_side' => 'debit',
+        'allows_credit' => true,
     ]);
 
     $this->giftTemplate = TransactionTemplate::create([
@@ -82,6 +86,7 @@ beforeEach(function () {
         'credit_account_id' => $this->cash->id,
         'settlement_side' => 'credit',
         'requires_farm_unit' => true,
+        'allows_credit' => true,
     ]);
 
     $this->labourTemplate = TransactionTemplate::create([
@@ -101,6 +106,24 @@ beforeEach(function () {
         'credit_account_id' => $this->livestock->id,
         'settlement_side' => 'none',
         'requires_farm_unit' => true,
+    ]);
+
+    TransactionTemplate::create([
+        'name' => 'Payment received',
+        'slug' => 'payment_received',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->receivable->id,
+        'settlement_side' => 'debit',
+    ]);
+
+    TransactionTemplate::create([
+        'name' => 'Payment made',
+        'slug' => 'payment_made',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->payable->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
     ]);
 
     AccountingPeriod::create([
@@ -138,18 +161,23 @@ beforeEach(function () {
         ?string $date = null,
         ?FarmUnit $unit = null,
         ?FarmerProfile $who = null,
+        ?int $settlementAccountId = null,
     ) use ($posting) {
         return $posting->post(new PostingRequest(
             farmerProfileId: ($who ?? $this->profile)->id,
             transactionTemplateId: $template->id,
             amount: $amount,
-            settlementAccountId: $template->settlement_side === 'none' ? null : $this->cash->id,
+            settlementAccountId: $template->settlement_side === 'none'
+                ? null
+                : ($settlementAccountId ?? $this->cash->id),
             transactionDate: $date ?? now()->toDateString(),
             farmUnitId: $template->requires_farm_unit ? ($unit ?? $this->approvedUnit)->id : null,
             recordedBy: $this->staff->id,
             quantityLost: $template->transaction_type === 'LOSS' ? '1' : null,
         ));
     };
+
+    $this->creditSettlements = app(CreditSettlementService::class);
 
     $this->service = app(IncomeAndExpenditureService::class);
 
@@ -364,4 +392,93 @@ it('signs losses apart from expenses', function () {
     ($this->post)($this->lossTemplate, '100');
 
     expect(($this->run)()->header->verificationCode)->not->toBe($first);
+});
+
+// "earned"/"incurred" count a credit sale or purchase in full the moment it is
+// recorded; "collected"/"paid out" count only the cash/MoMo portion actually in hand
+it('shows identical earned and collected when every record was settled in cash', function () {
+    ($this->post)($this->saleTemplate, '250');
+    ($this->post)($this->feedTemplate, '100');
+
+    $report = ($this->run)();
+
+    expect($report->totalIncomeMinor)->toBe($report->cashCollectedMinor);
+    expect($report->totalExpenseMinor)->toBe($report->cashPaidOutMinor);
+});
+
+it('shows earned ahead of collected for an unsettled credit sale', function () {
+    ($this->post)($this->saleTemplate, '500', settlementAccountId: $this->receivable->id);
+
+    $report = ($this->run)();
+
+    expect($report->totalIncomeMinor)->toBe(50000);
+    expect($report->cashCollectedMinor)->toBe(0);
+});
+
+it('shows collected between earned and zero after a partial settlement', function () {
+    $sale = ($this->post)($this->saleTemplate, '500', settlementAccountId: $this->receivable->id);
+
+    $this->creditSettlements->settle(
+        original: $sale,
+        amountMinor: 20000,
+        settlementAccountId: $this->cash->id,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->staff->id,
+    );
+
+    $report = ($this->run)();
+
+    expect($report->totalIncomeMinor)->toBe(50000);
+    expect($report->cashCollectedMinor)->toBe(20000);
+});
+
+it('shows earned equal to collected once a credit sale is fully settled', function () {
+    $sale = ($this->post)($this->saleTemplate, '500', settlementAccountId: $this->receivable->id);
+
+    $this->creditSettlements->settle(
+        original: $sale,
+        amountMinor: 50000,
+        settlementAccountId: $this->cash->id,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->staff->id,
+    );
+
+    $report = ($this->run)();
+
+    expect($report->totalIncomeMinor)->toBe($report->cashCollectedMinor);
+});
+
+// the same split, the other direction: what was bought on credit is incurred in
+// full straight away, but not paid out until it is actually settled
+it('shows incurred ahead of paid out for an unsettled credit purchase', function () {
+    ($this->post)($this->feedTemplate, '300', settlementAccountId: $this->payable->id);
+
+    $report = ($this->run)();
+
+    expect($report->totalExpenseMinor)->toBe(30000);
+    expect($report->cashPaidOutMinor)->toBe(0);
+});
+
+it('shows paid out equal to incurred once a credit purchase is fully settled', function () {
+    $purchase = ($this->post)($this->feedTemplate, '300', settlementAccountId: $this->payable->id);
+
+    $this->creditSettlements->settle(
+        original: $purchase,
+        amountMinor: 30000,
+        settlementAccountId: $this->cash->id,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->staff->id,
+    );
+
+    $report = ($this->run)();
+
+    expect($report->totalExpenseMinor)->toBe($report->cashPaidOutMinor);
+});
+
+// net profit is accrual, not cash - it must not move just because collection is slow
+it('keeps net profit based on earned and incurred, unaffected by collection', function () {
+    ($this->post)($this->saleTemplate, '500', settlementAccountId: $this->receivable->id);
+    ($this->post)($this->feedTemplate, '200');
+
+    expect(($this->run)()->netMinor)->toBe(30000);
 });
