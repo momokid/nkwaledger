@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\SmsProvider;
+use App\Models\User;
 use App\Services\Sms\ArkeselSmsProvider;
 use App\Session\RoleAwareDatabaseSessionHandler;
 use Illuminate\Support\Facades\Vite;
@@ -64,13 +65,24 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(20)->by($request->ip());
         });
 
-        // the number comes from the session, so a caller cannot spread the count across many keys
-        RateLimiter::for('otp-resend', fn(Request $request) => [
-            Limit::perHour(config('otp.throttle.resend.per_phone'))
-                ->by('resend-phone:' . $request->session()->get('auth.login_identifier')),
-            Limit::perHour(config('otp.throttle.resend.per_ip'))
-                ->by('resend-ip:' . $request->ip()),
-        ]);
+        // the number comes from the session, so a caller cannot spread the count across many keys.
+        // an email-channel login is keyed by the phone on file instead of the email itself, so
+        // falling back to sms mid-attempt shares the same budget rather than resetting it
+        RateLimiter::for('otp-resend', function (Request $request) {
+            $identifier = $request->session()->get('auth.login_identifier');
+            $key        = $identifier;
+
+            if ($identifier && filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+                $key = optional(User::where('email', $identifier)->first())->phone ?? $identifier;
+            }
+
+            return [
+                Limit::perHour(config('otp.throttle.resend.per_phone'))
+                    ->by('resend-phone:' . $key),
+                Limit::perHour(config('otp.throttle.resend.per_ip'))
+                    ->by('resend-ip:' . $request->ip()),
+            ];
+        });
 
         Route::model('farmer', \App\Models\FarmerProfile::class);
         // anything that is not a uuid is not an address, so it never reaches the database

@@ -38,9 +38,18 @@ class AuthenticatedSessionController extends Controller
 
         // admins always, and other staff roles on a device we do not recognise, must pass otp before a session exists
         if ($user->hasRole('admin') || $this->loginAnomaly->requiresOtp($user, $request)) {
-            $this->otpService->generate($user->phone, 'login');
+            // staff typing their email get the code there by default; a farmer never types an
+            // email-shaped identifier here in the first place, so this never touches them
+            $typedEmail = filter_var($request->input('identifier'), FILTER_VALIDATE_EMAIL) !== false;
 
-            $request->session()->put('auth.login_identifier', $user->phone);
+            if ($typedEmail && $user->hasAnyRole(LoginAnomalyService::TRACKED_ROLES)) {
+                $this->otpService->generate($user->email, 'login', 'email');
+                $request->session()->put('auth.login_identifier', $user->email);
+            } else {
+                $this->otpService->generate($user->phone, 'login');
+                $request->session()->put('auth.login_identifier', $user->phone);
+            }
+
             $request->session()->put('auth.otp_type', 'login');
 
             return redirect('/verify-otp');
