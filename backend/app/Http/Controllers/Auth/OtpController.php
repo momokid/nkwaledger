@@ -29,9 +29,12 @@ class OtpController extends Controller
 
     public function create(Request $request): Response
     {
-        // only the purpose reaches the browser; the number stays on the server
+        $identifier = $request->session()->get('auth.login_identifier');
+
+        // only the purpose reaches the browser; the number/email itself stays on the server
         return Inertia::render('Auth/VerifyOtp', [
-            'type' => $request->session()->get('auth.otp_type'),
+            'type'             => $request->session()->get('auth.otp_type'),
+            'canFallbackToSms' => $identifier !== null && filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false,
         ]);
     }
 
@@ -83,7 +86,8 @@ class OtpController extends Controller
             $this->loginAnomaly->checkAndRecord($user, $request);
             $request->session()->regenerate();
 
-            if ($this->outcome->verifiesPhone($type, $user)) {
+            // holding a code emailed to them proves nothing about the phone itself
+            if ($field === 'phone' && $this->outcome->verifiesPhone($type, $user)) {
                 $this->verification->markVerified($user);
             }
         }
@@ -112,8 +116,22 @@ class OtpController extends Controller
 
         // the step before this sets a session for any number, so without this check
         // resend would send an sms to whatever a stranger typed
-        if (User::where($field, $identifier)->exists()) {
-            $this->otpService->generate($identifier, $type);
+        $user = User::where($field, $identifier)->first();
+
+        if ($user) {
+            // an email-channel login can fall back to the phone on file — same attempt, same
+            // otp type/purpose, just a different destination and a fresh code, so no password
+            // re-check and no new login attempt
+            $fallbackToSms = $field === 'email' && $request->boolean('sms_fallback') && $user->phone;
+
+            $sendIdentifier = $fallbackToSms ? $user->phone : $identifier;
+            $channel        = $fallbackToSms || $field === 'phone' ? 'sms' : 'email';
+
+            $this->otpService->generate($sendIdentifier, $type, $channel);
+
+            if ($fallbackToSms) {
+                $request->session()->put('auth.login_identifier', $sendIdentifier);
+            }
         }
 
         // silent either way, so this cannot be used to find out which numbers are registered

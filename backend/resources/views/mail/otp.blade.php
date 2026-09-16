@@ -1,0 +1,3 @@
+{{ $bodyText }}
+
+- The NkwaLedger Team

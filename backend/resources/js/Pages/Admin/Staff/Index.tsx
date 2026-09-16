@@ -70,6 +70,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
         phone: "",
         email: "",
         role: "",
+        channel: "email" as "email" | "sms",
     });
 
     const inputStyle = {
@@ -98,6 +99,9 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
         if (!form.data.phone.trim())
             missing.phone =
                 "The invitation code goes to this number, so it can't be blank.";
+        if (form.data.channel === "email" && !form.data.email.trim())
+            missing.email =
+                "We need an email address to send the invite there.";
         if (!form.data.role)
             missing.role = "Choose what this person will do on NkwaLedger.";
 
@@ -523,7 +527,7 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                             }}
                         >
                             They'll get a code by SMS and set their own
-                            password. You never choose it for them.
+                            password.
                         </p>
 
                         {Object.keys(form.errors).length > 0 && (
@@ -635,7 +639,11 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                             </Field>
 
                             <Field
-                                label="Email (optional)"
+                                label={
+                                    form.data.channel === "email"
+                                        ? "Email"
+                                        : "Email (optional)"
+                                }
                                 error={form.errors.email}
                                 text={text}
                             >
@@ -648,6 +656,56 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                     }
                                     style={inputStyle}
                                 />
+                            </Field>
+
+                            <Field
+                                label="Send invite via"
+                                error={form.errors.channel}
+                                text={text}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: "20px",
+                                        padding: "4px 0",
+                                    }}
+                                >
+                                    {(
+                                        [
+                                            ["email", "Email"],
+                                            ["sms", "SMS"],
+                                        ] as const
+                                    ).map(([value, label]) => (
+                                        <label
+                                            key={value}
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "8px",
+                                                fontSize: type.input,
+                                                color: text,
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="channel"
+                                                value={value}
+                                                checked={
+                                                    form.data.channel ===
+                                                    value
+                                                }
+                                                onChange={() =>
+                                                    form.setData(
+                                                        "channel",
+                                                        value,
+                                                    )
+                                                }
+                                            />
+                                            {label}
+                                        </label>
+                                    ))}
+                                </div>
                             </Field>
 
                             <Field

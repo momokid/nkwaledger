@@ -4,9 +4,10 @@ import { FormEventHandler, useEffect, useRef, useState } from "react";
 
 interface Props {
     masked: string | null;
+    canFallbackToSms?: boolean;
 }
 
-export default function VerifyOtp({ masked }: Props) {
+export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
     const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
     const [countdown, setCountdown] = useState(60);
     const [canResend, setCanResend] = useState(false);
@@ -77,6 +78,23 @@ export default function VerifyOtp({ masked }: Props) {
         router.post(
             route("otp.resend"),
             {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    setCountdown(60);
+                    setCanResend(false);
+                    setDigits(["", "", "", "", "", ""]);
+                },
+            },
+        );
+    };
+
+    const handleSmsFallback = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        router.post(
+            route("otp.resend"),
+            { sms_fallback: true },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -168,7 +186,7 @@ export default function VerifyOtp({ masked }: Props) {
                                 textAlign: "center",
                             }}
                         >
-                            Enter the 6-digit code sent to your phone number.
+                            Enter the 6-digit code we sent you.
                         </p>
 
                         {errors.code && (
@@ -242,7 +260,9 @@ export default function VerifyOtp({ masked }: Props) {
                                     textAlign: "center",
                                     fontSize: "1.25rem",
                                     color: "#6B7280",
-                                    margin: "0 0 1.5rem",
+                                    margin: canFallbackToSms
+                                        ? "0 0 0.5rem"
+                                        : "0 0 1.5rem",
                                 }}
                             >
                                 Didn't receive it?{" "}
@@ -269,6 +289,30 @@ export default function VerifyOtp({ masked }: Props) {
                                     </span>
                                 )}
                             </p>
+
+                            {canFallbackToSms && canResend && (
+                                <p
+                                    style={{
+                                        textAlign: "center",
+                                        fontSize: "1.25rem",
+                                        color: "#6B7280",
+                                        margin: "0 0 1.5rem",
+                                    }}
+                                >
+                                    Didn't get it?{" "}
+                                    <a
+                                        href="#"
+                                        onClick={handleSmsFallback}
+                                        style={{
+                                            color: "#1D9E75",
+                                            textDecoration: "none",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        Send by SMS instead
+                                    </a>
+                                </p>
+                            )}
 
                             <div className="flex flex-col gap-2">
                                 <button

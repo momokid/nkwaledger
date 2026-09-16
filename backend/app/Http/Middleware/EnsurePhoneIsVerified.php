@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\LoginAnomalyService;
 use App\Support\DashboardRouteResolver;
 use Closure;
 use Illuminate\Http\Request;
@@ -39,7 +40,18 @@ class EnsurePhoneIsVerified
 
         return redirect()
             ->route($this->dashboard->routeName($user))
-            ->with('error', 'Please verify your phone number to continue.');
+            ->with('error', $this->messageFor($user));
+    }
+
+    // same condition PhoneVerificationController::send() uses to pick the default channel,
+    // so the wording here never promises a channel the code won't actually go by
+    private function messageFor($user): string
+    {
+        if ($user->hasAnyRole(LoginAnomalyService::TRACKED_ROLES) && $user->email) {
+            return 'Please check your email to verify your account.';
+        }
+
+        return 'Please verify your phone number to continue.';
     }
 
     // says whether this route name is open to an unverified user
