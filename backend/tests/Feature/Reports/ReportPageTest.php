@@ -49,6 +49,7 @@ beforeEach(function () {
     };
 
     $this->cash = $account('Cash A/C', $assetSub->id, true);
+    $this->receivable = $account('Accounts Receivable', $assetSub->id, true);
     $this->sales = $account('Income on Sales', $incomeSub->id);
     $this->feed = $account('Expense on Feed', $expenseSub->id);
 
@@ -66,6 +67,16 @@ beforeEach(function () {
         'transaction_type' => 'INCOME',
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $this->sales->id,
+        'settlement_side' => 'debit',
+        'allows_credit' => true,
+    ]);
+
+    TransactionTemplate::create([
+        'name' => 'Payment received',
+        'slug' => 'payment_received',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->receivable->id,
         'settlement_side' => 'debit',
     ]);
 
@@ -136,6 +147,17 @@ beforeEach(function () {
             recordedBy: $this->farmerUser->id,
         ));
     };
+
+    $this->sellOnCredit = function (string $amount) use ($posting) {
+        return $posting->post(new PostingRequest(
+            farmerProfileId: $this->profile->id,
+            transactionTemplateId: $this->saleTemplate->id,
+            amount: $amount,
+            settlementAccountId: $this->receivable->id,
+            transactionDate: now()->toDateString(),
+            recordedBy: $this->farmerUser->id,
+        ));
+    };
 });
 
 it('shows the reports page to a farmer', function () {
@@ -185,6 +207,18 @@ it('shows income and expenditure when asked', function () {
             ->where('report.total_income', 25000)
             ->where('report.total_expense', 10000)
             ->where('report.net', 15000));
+});
+
+// net profit above stays accrual-based; cash_collected is the same shared service's
+// separate, cash-basis figure - confirmed here on the admin-facing farmer report too
+it('shows cash collected short of income earned for an unsettled credit sale, on the admin farmer report', function () {
+    ($this->sellOnCredit)('250');
+
+    $this->actingAs($this->admin)
+        ->get("/admin/farmers/{$this->profile->uuid}/reports?kind=income")
+        ->assertInertia(fn($page) => $page
+            ->where('report.total_income', 25000)
+            ->where('report.cash_collected', 0));
 });
 
 it('shows a trial balance when staff ask', function () {

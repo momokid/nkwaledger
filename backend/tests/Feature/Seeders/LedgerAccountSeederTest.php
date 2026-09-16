@@ -160,6 +160,38 @@ it('can run twice without duplicating rows', function () {
         ->and(LedgerCategory::count())->toBe(5);
 });
 
+// staging/production already have these rows - re-running the seeder after a code
+// change (e.g. flipping is_settlement, renumbering account_code) has to actually
+// correct the existing row, not silently leave it as it was
+it('updates an existing account rather than leaving it as it was', function () {
+    $this->seed(LedgerAccountSeeder::class);
+
+    LedgerAccount::where('name', 'Accounts Receivable')->update([
+        'account_code' => '9999',
+        'is_settlement' => false,
+        'is_active' => false,
+    ]);
+
+    $this->seed(LedgerAccountSeeder::class);
+
+    $account = LedgerAccount::where('name', 'Accounts Receivable')->first();
+
+    expect($account->account_code)->toBe('1005');
+    expect($account->is_settlement)->toBeTrue();
+    expect($account->is_active)->toBeTrue();
+});
+
+it('updates an existing category\'s class rather than leaving it as it was', function () {
+    $this->seed(LedgerAccountSeeder::class);
+
+    $wrongClass = LedgerClass::firstOrCreate(['name' => 'Wrong']);
+    LedgerCategory::where('name', 'Liabilities')->update(['class_id' => $wrongClass->id]);
+
+    $this->seed(LedgerAccountSeeder::class);
+
+    expect(LedgerCategory::where('name', 'Liabilities')->first()->class->name)->toBe('Cr');
+});
+
 // the templates look accounts up by name, so both seeders have to work together
 // the seeder skips a template whose accounts are missing, so none should be skipped here
 it('leaves the transaction templates able to find their accounts', function () {

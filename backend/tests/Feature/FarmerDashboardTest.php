@@ -71,6 +71,8 @@ beforeEach(function () {
     $this->cash = $account('Cash A/C', $assetSub->id, true);
     $this->sales = $account('Sales A/C', $incomeSub->id);
     $this->feed = $account('Feed A/C', $expenseSub->id);
+    $this->receivable = $account('Accounts Receivable', $assetSub->id, true);
+    $this->payable = $account('Accounts Payable', $assetSub->id, true);
     $suspense = $account('Suspense A/C', $assetSub->id);
 
     AccountingPeriod::create([
@@ -86,6 +88,7 @@ beforeEach(function () {
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $this->sales->id,
         'settlement_side' => 'debit',
+        'allows_credit' => true,
     ]);
 
     $this->expenseTemplate = TransactionTemplate::create([
@@ -104,6 +107,15 @@ beforeEach(function () {
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $suspense->id,
         'settlement_side' => 'none',
+    ]);
+
+    TransactionTemplate::create([
+        'name' => 'Payment received',
+        'slug' => 'payment_received',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->receivable->id,
+        'settlement_side' => 'debit',
     ]);
 
     $this->farmerUser = User::factory()->create();
@@ -136,6 +148,19 @@ beforeEach(function () {
             recordedBy: $this->farmerUser->id,
         ));
     };
+
+    $this->recordCreditIncome = function (string $amount, string $date) use ($posting) {
+        return $posting->post(new PostingRequest(
+            farmerProfileId: $this->profile->id,
+            transactionTemplateId: $this->incomeTemplate->id,
+            amount: $amount,
+            settlementAccountId: $this->receivable->id,
+            transactionDate: $date,
+            recordedBy: $this->farmerUser->id,
+        ));
+    };
+
+    $this->creditSettlements = app(\App\Services\Ledger\CreditSettlementService::class);
 });
 
 test('a guest is redirected to login', function () {
@@ -169,6 +194,41 @@ test('shows income, expense and net profit for the last 30 days by default', fun
             ->where('summary.total_income', 50000)
             ->where('summary.total_expense', 20000)
             ->where('summary.net', 30000));
+});
+
+test('shows cash collected equal to income when everything was paid in cash', function () {
+    ($this->recordIncome)('500', now()->toDateString());
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('summary.total_income', 50000)
+            ->where('summary.cash_collected', 50000));
+});
+
+test('shows cash collected below income earned for an unsettled credit sale', function () {
+    ($this->recordCreditIncome)('500', now()->toDateString());
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('summary.total_income', 50000)
+            ->where('summary.cash_collected', 0));
+});
+
+test('shows cash collected equal to income once a credit sale is fully settled', function () {
+    $sale = ($this->recordCreditIncome)('500', now()->toDateString());
+
+    $this->creditSettlements->settle(
+        original: $sale,
+        amountMinor: 50000,
+        settlementAccountId: $this->cash->id,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->farmerUser->id,
+    );
+
+    $this->actingAs($this->farmerUser)->get('/farmer/dashboard')
+        ->assertInertia(fn($page) => $page
+            ->where('summary.total_income', 50000)
+            ->where('summary.cash_collected', 50000));
 });
 
 test('does not include another farmer\'s transactions', function () {

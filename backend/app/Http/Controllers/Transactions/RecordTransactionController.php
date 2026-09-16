@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Transactions;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Transactions\RecordTransactionRequest;
+use App\Http\Requests\Transactions\SettleTransactionRequest;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\LedgerAccount;
 use App\Models\TransactionTemplate;
+use App\Services\Ledger\CreditSettlementService;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
+use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +30,7 @@ class RecordTransactionController extends Controller
     public function __construct(
         private readonly PostingService $posting,
         private readonly AccountStatementService $statements,
+        private readonly CreditSettlementService $creditSettlements,
     ) {}
 
     public function index(Request $request, ?FarmerProfile $farmer = null): Response
@@ -80,8 +84,37 @@ class RecordTransactionController extends Controller
             ],
             'filters' => ['from' => $from, 'to' => $to, 'account' => $accountId],
             'accounts' => LedgerAccount::settlement()->orderBy('name')->get(['id', 'name']),
+            // unfiltered by date range - a credit sale from three months ago is still
+            // owed today, so scoping it to "this month" would just hide it
+            'creditRows' => $this->creditRows($farmer),
+            'creditSettlementAccounts' => LedgerAccount::settlement()
+                ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
+                ->orderBy('name')
+                ->get(['id', 'name']),
             ...$this->frame($request),
         ]);
+    }
+
+    // every credit sale/purchase, with what is still owed on each - fully settled
+    // ones stay listed (marked paid) rather than vanishing, so the tab still
+    // reads as a record of what was ever put on credit, not just a to-do list
+    private function creditRows(FarmerProfile $farmer): Collection
+    {
+        return Transaction::query()
+            ->where('farmer_profile_id', $farmer->id)
+            ->where('is_credit', true)
+            ->with('template')
+            ->orderByDesc('transaction_date')
+            ->get()
+            ->map(fn(Transaction $transaction) => [
+                'uuid' => $transaction->uuid,
+                'reference' => $transaction->reference,
+                'date' => $transaction->transaction_date->toDateString(),
+                'description' => $transaction->template?->name,
+                'narration' => $transaction->narration,
+                'amount' => $transaction->amount_minor,
+                'outstanding' => $this->creditSettlements->outstandingAmount($transaction),
+            ]);
     }
 
     public function create(Request $request, ?FarmerProfile $farmer = null): Response
@@ -157,6 +190,32 @@ class RecordTransactionController extends Controller
         return back()
             ->with('success', 'Saved. Your record is in your book.')
             ->with('reference', $transaction->reference);
+    }
+
+    public function settle(
+        SettleTransactionRequest $request,
+        Transaction $transaction,
+        ?FarmerProfile $farmer = null,
+    ): RedirectResponse {
+        $farmer = $this->resolveFarmer($request, $farmer);
+
+        abort_if($transaction->farmer_profile_id !== $farmer->id, 404);
+
+        $data = $request->validated();
+
+        try {
+            $this->creditSettlements->settle(
+                original: $transaction,
+                amountMinor: Money::toMinor($data['amount']),
+                settlementAccountId: (int) $data['settlement_account_id'],
+                transactionDate: now()->toDateString(),
+                recordedBy: $request->user()->id,
+            );
+        } catch (PostingFailed $failure) {
+            throw ValidationException::withMessages(['amount' => $failure->getMessage()]);
+        }
+
+        return back()->with('success', 'Payment recorded.');
     }
 
     // the farmer never sees or chooses "Receivable"/"Payable" - which one applies

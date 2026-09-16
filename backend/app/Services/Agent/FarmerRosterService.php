@@ -32,6 +32,8 @@ class FarmerRosterService
 
         $income = 0;
         $expense = 0;
+        $collected = 0;
+        $paidOut = 0;
         $activeCount = 0;
         $rows = [];
 
@@ -40,6 +42,8 @@ class FarmerRosterService
 
             $income += $report->totalIncomeMinor;
             $expense += $report->totalExpenseMinor;
+            $collected += $report->cashCollectedMinor;
+            $paidOut += $report->cashPaidOutMinor;
 
             $isActive = $report->totalIncomeMinor > 0 || $report->totalExpenseMinor > 0;
 
@@ -63,7 +67,7 @@ class FarmerRosterService
 
         usort($rows, fn($a, $b) => $a['name'] <=> $b['name']);
 
-        return [$income, $expense, $activeCount, $rows];
+        return [$income, $expense, $activeCount, $rows, $collected, $paidOut];
     }
 
     // the most recent transaction date each farmer has ever posted, regardless of the

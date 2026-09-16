@@ -139,6 +139,10 @@ class ReportController extends Controller
             'total_expense' => $report->totalExpenseMinor,
             'total_loss' => $report->totalLossMinor,
             'net' => $report->netMinor,
+            // net profit above stays accrual-based; these two are the cash/MoMo
+            // portion actually received or paid so far, shown alongside it
+            'cash_collected' => $report->cashCollectedMinor,
+            'cash_paid_out' => $report->cashPaidOutMinor,
             'provisional_held_back' => $report->provisionalHeldBackMinor,
         ];
     }

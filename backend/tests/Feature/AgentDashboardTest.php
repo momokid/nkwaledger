@@ -47,6 +47,7 @@ beforeEach(function () {
     $this->cash = $account('Cash A/C', $assetSub->id, true);
     $this->sales = $account('Sales A/C', $incomeSub->id);
     $this->feed = $account('Feed A/C', $expenseSub->id);
+    $this->receivable = $account('Accounts Receivable', $assetSub->id, true);
 
     AccountingPeriod::create([
         'name' => 'Test Period',
@@ -61,6 +62,7 @@ beforeEach(function () {
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $this->sales->id,
         'settlement_side' => 'debit',
+        'allows_credit' => true,
     ]);
 
     $this->expenseTemplate = TransactionTemplate::create([
@@ -98,6 +100,17 @@ beforeEach(function () {
             recordedBy: $this->agentUser->id,
         ));
     };
+
+    $this->recordCreditIncome = function (FarmerProfile $farmer, string $amount, string $date) use ($posting) {
+        return $posting->post(new PostingRequest(
+            farmerProfileId: $farmer->id,
+            transactionTemplateId: $this->incomeTemplate->id,
+            amount: $amount,
+            settlementAccountId: $this->receivable->id,
+            transactionDate: $date,
+            recordedBy: $this->agentUser->id,
+        ));
+    };
 });
 
 test('a guest is redirected to login', function () {
@@ -129,6 +142,22 @@ test('income and expense are summed across every assigned farmer', function () {
             ->where('summary.total_income', 80000)
             ->where('summary.total_expense', 20000)
             ->where('summary.net', 60000));
+});
+
+// the roster-wide cash figure is a genuine sum across farmers, not just a copy
+// of income - one farmer paid cash, the other sold on credit and unsettled
+test('cash collected is summed across the roster, short of income while a credit sale sits unsettled', function () {
+    $farmerA = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+    $farmerB = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentUser->id]);
+
+    ($this->recordIncome)($farmerA, '500', now()->toDateString());
+    ($this->recordCreditIncome)($farmerB, '300', now()->toDateString());
+
+    $this->actingAs($this->agentUser)->get('/agent/dashboard')
+        ->assertOk()
+        ->assertInertia(fn($page) => $page
+            ->where('summary.total_income', 80000)
+            ->where('summary.cash_collected', 50000));
 });
 
 test('a farmer with no activity in the period is not counted', function () {

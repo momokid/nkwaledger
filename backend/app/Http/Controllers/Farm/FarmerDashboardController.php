@@ -124,6 +124,11 @@ class FarmerDashboardController extends Controller
             'total_income' => $income,
             'total_expense' => $expense,
             'net' => $net,
+            // net profit stays based on earned/incurred above (correct accrual
+            // accounting) - these two are shown as a secondary line under the
+            // existing Income/Expense/Net cards, not a replacement or new cards
+            'cash_collected' => $report->cashCollectedMinor,
+            'cash_paid_out' => $report->cashPaidOutMinor,
             'trends' => [
                 'income' => $this->trend($income, $prevIncome, higherIsGood: true),
                 'expense' => $this->trend($expense, $prevExpense, higherIsGood: false),
@@ -257,7 +262,13 @@ class FarmerDashboardController extends Controller
             'total_income' => 0,
             'total_expense' => 0,
             'net' => 0,
-            'trends' => ['income' => $flat, 'expense' => $flat, 'net' => $flat],
+            'cash_collected' => 0,
+            'cash_paid_out' => 0,
+            'trends' => [
+                'income' => $flat,
+                'expense' => $flat,
+                'net' => $flat,
+            ],
         ];
     }
 

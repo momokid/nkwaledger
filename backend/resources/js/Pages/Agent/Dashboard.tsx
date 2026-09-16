@@ -26,6 +26,7 @@ interface Trend {
 interface Kpi {
     label: string;
     value: string;
+    secondary?: string;
     trend: Trend;
 }
 
@@ -110,6 +111,8 @@ interface BackendSummary {
     total_income: number;
     total_expense: number;
     net: number;
+    cash_collected: number;
+    cash_paid_out: number;
     trends: {
         income: Trend;
         expense: Trend;
@@ -257,20 +260,25 @@ function buildDashboardData(
     const incomeSeries = weeklyTrend.map((bucket) => bucket.income);
     const expenseSeries = weeklyTrend.map((bucket) => bucket.expense);
 
+    const netCash = summary.cash_collected - summary.cash_paid_out;
+
     const kpis: Kpi[] = [
         {
             label: "Income (30 days)",
             value: `GHS ${formatMoney(summary.total_income)}`,
+            secondary: `GHS ${formatMoney(summary.cash_collected)} collected`,
             trend: summary.trends.income,
         },
         {
             label: "Expenses (30 days)",
             value: `GHS ${formatMoney(summary.total_expense)}`,
+            secondary: `GHS ${formatMoney(summary.cash_paid_out)} paid out`,
             trend: summary.trends.expense,
         },
         {
             label: "Net profit",
             value: `GHS ${formatMoney(summary.net)}`,
+            secondary: `${netCash < 0 ? "-" : ""}GHS ${formatMoney(Math.abs(netCash))} net (cash)`,
             trend: summary.trends.net,
         },
         {
@@ -462,11 +470,25 @@ function DashboardContent({
                                                 fontWeight: 700,
                                                 color: text,
                                                 letterSpacing: "-0.5px",
-                                                marginBottom: "6px",
+                                                marginBottom: (kpi as Kpi)
+                                                    .secondary
+                                                    ? "2px"
+                                                    : "6px",
                                             }}
                                         >
                                             {(kpi as Kpi).value}
                                         </p>
+                                        {(kpi as Kpi).secondary && (
+                                            <p
+                                                style={{
+                                                    fontSize: "0.8125rem",
+                                                    color: textSecondary,
+                                                    marginBottom: "6px",
+                                                }}
+                                            >
+                                                {(kpi as Kpi).secondary}
+                                            </p>
+                                        )}
                                         <div
                                             style={{
                                                 display: "flex",

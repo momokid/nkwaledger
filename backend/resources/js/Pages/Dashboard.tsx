@@ -25,6 +25,8 @@ interface Summary {
     total_income: number;
     total_expense: number;
     net: number;
+    cash_collected: number;
+    cash_paid_out: number;
     trends: {
         income: Trend;
         expense: Trend;
@@ -139,11 +141,14 @@ function DashboardContent({
         return { TrendIcon, color, label };
     };
 
+    const netCash = summary.cash_collected - summary.cash_paid_out;
+
     const kpis = [
         {
             key: "income" as const,
             label: "Income (30 days)",
             value: `GHS ${cedis(summary.total_income)}`,
+            secondary: `GHS ${cedis(summary.cash_collected)} collected`,
             trend: trendMeta(summary.trends.income),
             soon: false,
             clickable: true,
@@ -152,6 +157,7 @@ function DashboardContent({
             key: "expense" as const,
             label: "Expenses (30 days)",
             value: `GHS ${cedis(summary.total_expense)}`,
+            secondary: `GHS ${cedis(summary.cash_paid_out)} paid out`,
             trend: trendMeta(summary.trends.expense),
             soon: false,
             clickable: true,
@@ -160,6 +166,7 @@ function DashboardContent({
             key: "net" as const,
             label: "Net profit",
             value: `${summary.net < 0 ? "-" : ""}GHS ${cedis(Math.abs(summary.net))}`,
+            secondary: `${netCash < 0 ? "-" : ""}GHS ${cedis(Math.abs(netCash))} net (cash)`,
             trend: trendMeta(summary.trends.net),
             soon: false,
             clickable: true,
@@ -168,6 +175,7 @@ function DashboardContent({
             key: "loans" as const,
             label: "Active loans",
             value: "GH 2,000",
+            secondary: null,
             trend: {
                 TrendIcon: IconMinus,
                 color: textSecondary,
@@ -222,12 +230,23 @@ function DashboardContent({
                                 fontSize: "1.625rem",
                                 fontWeight: 700,
                                 color: text,
-                                marginBottom: "8px",
+                                marginBottom: kpi.secondary ? "2px" : "8px",
                                 letterSpacing: "-0.5px",
                             }}
                         >
                             {kpi.value}
                         </p>
+                        {kpi.secondary && (
+                            <p
+                                style={{
+                                    fontSize: "0.9375rem",
+                                    color: textSecondary,
+                                    marginBottom: "8px",
+                                }}
+                            >
+                                {kpi.secondary}
+                            </p>
+                        )}
                         <div
                             style={{
                                 display: "flex",
@@ -506,6 +525,7 @@ function DashboardContent({
                 <DetailModal
                     kind={openDetail}
                     breakdown={breakdown}
+                    summary={summary}
                     filters={filters}
                     surface={surface}
                     border={border}
@@ -645,6 +665,7 @@ function WeatherCard({ entry, dark }: { entry: WeatherEntry; dark: boolean }) {
 function DetailModal({
     kind,
     breakdown,
+    summary,
     filters,
     surface,
     border,
@@ -656,6 +677,7 @@ function DetailModal({
 }: {
     kind: "income" | "expense" | "net";
     breakdown: Breakdown;
+    summary: Summary;
     filters: Filters;
     surface: string;
     border: string;
@@ -671,18 +693,34 @@ function DetailModal({
         net: "How net profit was worked out",
     };
 
-    const section = (label: string, rows: BreakdownRow[], color: string) => (
+    const section = (
+        label: string,
+        rows: BreakdownRow[],
+        color: string,
+        secondary?: string,
+    ) => (
         <div className="mb-4">
             <p
                 style={{
                     fontSize: "1rem",
                     fontWeight: 600,
                     color: textSecondary,
-                    marginBottom: "6px",
+                    marginBottom: secondary ? "2px" : "6px",
                 }}
             >
                 {label}
             </p>
+            {secondary && (
+                <p
+                    style={{
+                        fontSize: "0.9375rem",
+                        color: textSecondary,
+                        marginBottom: "6px",
+                    }}
+                >
+                    {secondary}
+                </p>
+            )}
             {rows.length === 0 ? (
                 <p style={{ fontSize: "1rem", color: textSecondary }}>
                     Nothing recorded for this period.
@@ -764,9 +802,19 @@ function DetailModal({
                 </div>
 
                 {(kind === "income" || kind === "net") &&
-                    section("Income", breakdown.income_rows, primary)}
+                    section(
+                        "Income",
+                        breakdown.income_rows,
+                        primary,
+                        `GHS ${cedis(summary.cash_collected)} collected`,
+                    )}
                 {(kind === "expense" || kind === "net") &&
-                    section("Expenses", breakdown.expense_rows, danger)}
+                    section(
+                        "Expenses",
+                        breakdown.expense_rows,
+                        danger,
+                        `GHS ${cedis(summary.cash_paid_out)} paid out`,
+                    )}
                 {kind === "net" &&
                     section(
                         "Lost (no cash)",

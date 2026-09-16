@@ -189,6 +189,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
     Route::middleware('access:transactions.create')->group(function () {
         Route::get('/create', [RecordTransactionController::class, 'create'])->name('create');
         Route::post('/', [RecordTransactionController::class, 'store'])->name('store');
+        Route::post('/{transaction}/settle', [RecordTransactionController::class, 'settle'])->name('settle');
     });
 
     Route::middleware('access:transactions.reverse-request')->group(function () {
@@ -336,6 +337,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
     Route::middleware('access:transactions.create')->group(function () {
         Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
         Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
+        Route::post('/farmers/{farmer}/records/{transaction}/settle', [RecordTransactionController::class, 'settle'])->name('records.settle');
     });
 
     Route::middleware('access:transactions.reverse-request')->group(function () {
@@ -776,6 +778,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:transactions.create')->group(function () {
         Route::get('/farmers/{farmer}/records/create', [RecordTransactionController::class, 'create'])->name('records.create');
         Route::post('/farmers/{farmer}/records', [RecordTransactionController::class, 'store'])->name('records.store');
+        Route::post('/farmers/{farmer}/records/{transaction}/settle', [RecordTransactionController::class, 'settle'])->name('records.settle');
     });
 
     Route::middleware('access:transactions.reverse-request')->group(function () {

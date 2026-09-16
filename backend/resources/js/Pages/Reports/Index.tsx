@@ -63,6 +63,8 @@ interface Report {
     total_expense?: number;
     total_loss?: number;
     net?: number;
+    cash_collected?: number;
+    cash_paid_out?: number;
     total_debit?: number;
     total_credit?: number;
     is_balanced?: boolean;
@@ -806,6 +808,56 @@ function Income({ report, colours }: { report: Report; colours: Colours }) {
                 >
                     GHS {cedis(Math.abs(net))}
                 </span>
+            </div>
+
+            <div
+                className="flex flex-wrap gap-4"
+                style={{ marginTop: "14px" }}
+            >
+                <div
+                    className="p-3"
+                    style={{ background: colours.headerBg, minWidth: "180px" }}
+                >
+                    <p
+                        style={{
+                            fontSize: "0.9375rem",
+                            color: colours.textSecondary,
+                        }}
+                    >
+                        Cash collected
+                    </p>
+                    <p
+                        style={{
+                            fontSize: "1.125rem",
+                            fontWeight: 700,
+                            color: colours.brand,
+                        }}
+                    >
+                        GHS {cedis(report.cash_collected ?? 0)}
+                    </p>
+                </div>
+                <div
+                    className="p-3"
+                    style={{ background: colours.headerBg, minWidth: "180px" }}
+                >
+                    <p
+                        style={{
+                            fontSize: "0.9375rem",
+                            color: colours.textSecondary,
+                        }}
+                    >
+                        Cash paid out
+                    </p>
+                    <p
+                        style={{
+                            fontSize: "1.125rem",
+                            fontWeight: 700,
+                            color: colours.text,
+                        }}
+                    >
+                        GHS {cedis(report.cash_paid_out ?? 0)}
+                    </p>
+                </div>
             </div>
         </div>
     );
