@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Contracts\SmsProvider;
+use App\Mail\OtpMail;
 use App\Models\OtpCode;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
 
 class OtpService
@@ -18,6 +20,8 @@ class OtpService
         'invitation',
     ];
 
+    private const CHANNELS = ['sms', 'email'];
+
     private const DEFAULT_LIFETIME = 5;
 
     // an invited person may not reach a computer for hours, so their code outlives the rest
@@ -27,9 +31,10 @@ class OtpService
 
     public function __construct(private readonly SmsProvider $sms) {}
 
-    public function generate(string $identifier, string $type): OtpCode
+    public function generate(string $identifier, string $type, string $channel = 'sms'): OtpCode
     {
         $this->guardType($type);
+        $this->guardChannel($channel);
 
         $bypassCode = $this->testBypassCode($identifier);
         $plainCode = $bypassCode ?? (string) random_int(100000, 999999);
@@ -44,7 +49,13 @@ class OtpService
         // a bypass code is for a developer sitting at their own machine testing the app —
         // it is never sent anywhere, so nobody outside a local/testing environment sees it
         if ($bypassCode === null) {
-            $this->sms->send($identifier, $this->messageFor($type, $plainCode));
+            $message = $this->messageFor($type, $plainCode);
+
+            if ($channel === 'email') {
+                Mail::to($identifier)->send(new OtpMail($message));
+            } else {
+                $this->sms->send($identifier, $message);
+            }
         }
 
         return $otp;
@@ -118,6 +129,13 @@ class OtpService
     {
         if (! in_array($type, self::TYPES, true)) {
             throw new InvalidArgumentException('Unknown OTP type.');
+        }
+    }
+
+    private function guardChannel(string $channel): void
+    {
+        if (! in_array($channel, self::CHANNELS, true)) {
+            throw new InvalidArgumentException('Unknown OTP channel.');
         }
     }
 

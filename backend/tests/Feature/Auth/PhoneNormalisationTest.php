@@ -175,6 +175,7 @@ test('an invite accepts the format an admin would type', function () {
         'phone'      => '024 444 5566',
         'email'      => 'kofi@nkwaledger.com',
         'role'       => 'agent',
+        'channel'    => 'sms',
     ]);
 
     expect(User::where('phone', '0244445566')->exists())->toBeTrue();
