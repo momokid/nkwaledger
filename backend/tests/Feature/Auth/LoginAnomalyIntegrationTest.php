@@ -108,7 +108,7 @@ test('vet, adviser and supplier are all sent to otp on an unknown device', funct
     $index = 70;
 
     foreach (['vet', 'adviser', 'supplier'] as $role) {
-        $phone = '02440005' . random_int(10, 99);
+        $phone = '024' . str_pad((string) random_int(0, 9999999), 7, '0', STR_PAD_LEFT);
 
         $user = User::factory()->create([
             'phone'    => $phone,
