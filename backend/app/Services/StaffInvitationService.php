@@ -17,10 +17,10 @@ class StaffInvitationService
 
     public function __construct(private readonly OtpService $otpService) {}
 
-    /** @param array{surname:string,first_name:string,other_name:?string,phone:string,email:?string,role:string} $details */
+    /** @param array{surname:string,first_name:string,other_name:?string,phone:string,email:?string,role:string,channel:string} $details */
     public function invite(array $details): User
     {
-        // a failed sms must not leave an account nobody can ever activate
+        // a failed send must not leave an account nobody can ever activate
         return DB::transaction(function () use ($details) {
             $user = User::create([
                 'surname'           => $details['surname'],
@@ -33,7 +33,10 @@ class StaffInvitationService
 
             $user->assignRole($details['role']);
 
-            $this->otpService->generate($user->phone, 'invitation');
+            $channel = $details['channel'] ?? 'sms';
+            $identifier = $channel === 'email' ? $details['email'] : $user->phone;
+
+            $this->otpService->generate($identifier, 'invitation', $channel);
 
             return $user;
         });

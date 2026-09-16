@@ -58,6 +58,7 @@ test('a controller message shows once', function () {
         'phone'      => '0244445566',
         'email'      => 'kofi@nkwaledger.com',
         'role'       => 'agent',
+        'channel'    => 'sms',
     ]);
 
     $this->actingAs($admin)->get('/admin/dashboard')

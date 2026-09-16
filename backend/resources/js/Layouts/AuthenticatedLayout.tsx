@@ -63,9 +63,9 @@ export function useTheme() {
 // every rem-based font-size in the app is relative to this — one change here scales
 // the whole app instead of touching every component's hardcoded pixel value
 export const ROOT_FONT_SIZE: Record<TextSize, string> = {
-    normal: "16px",
-    large: "18px",
-    "extra-large": "20px",
+    normal: "12px",
+    large: "14px",
+    "extra-large": "16px",
 };
 
 const TEXT_SIZE_LABELS: Record<TextSize, string> = {

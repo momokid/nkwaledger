@@ -29,17 +29,21 @@ class StoreStaffRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'other_name' => ['nullable', 'string', 'max:255'],
             'phone'      => $this->phoneRules(['unique:users,phone']),
-            'email'      => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'email'      => ['nullable', 'email', 'max:255', 'unique:users,email', 'required_if:channel,email'],
             'role'       => ['required', Rule::in(StaffInvitationService::INVITABLE_ROLES)],
+            'channel'    => ['required', Rule::in(['email', 'sms'])],
         ];
     }
 
     public function messages(): array
     {
         return array_merge($this->phoneMessages(), [
-            'phone.unique' => 'Someone is already registered on that number.',
-            'email.unique' => 'Someone is already registered on that email.',
-            'role.in'      => 'Pick one of agent, vet, adviser or supplier. Farmers register themselves, and admins are set up separately.',
+            'phone.unique'        => 'Someone is already registered on that number.',
+            'email.unique'        => 'Someone is already registered on that email.',
+            'email.required_if'   => "We need an email address to send the invite there.",
+            'role.in'             => 'Pick one of agent, vet, adviser or supplier. Farmers register themselves, and admins are set up separately.',
+            'channel.required'    => 'Choose how to send the invitation.',
+            'channel.in'          => 'Choose how to send the invitation.',
         ]);
     }
 }

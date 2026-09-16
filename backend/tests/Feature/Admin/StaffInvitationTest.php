@@ -1,10 +1,12 @@
 <?php
 
 use App\Contracts\SmsProvider;
+use App\Mail\OtpMail;
 use App\Models\OtpCode;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\Mail;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -26,6 +28,7 @@ function staffPayload(array $overrides = []): array
         'phone'      => '0244000501',
         'email'      => 'kofi.mensah@nkwaledger.com',
         'role'       => 'agent',
+        'channel'    => 'sms',
     ], $overrides);
 }
 
@@ -146,4 +149,50 @@ test('an invite needs no password confirmation', function () {
 
     $response->assertSessionDoesntHaveErrors();
     expect(User::where('phone', '0244000501')->exists())->toBeTrue();
+});
+
+test('an sms-channel invite behaves exactly as today', function () {
+    $response = $this->actingAs($this->admin)->post('/admin/staff', staffPayload([
+        'channel' => 'sms',
+    ]));
+
+    $response->assertSessionDoesntHaveErrors();
+
+    $otp = OtpCode::where('identifier', '0244000501')->where('type', 'invitation')->first();
+
+    expect($otp)->not->toBeNull();
+    expect(app(SmsProvider::class)->sentTo('0244000501'))->toBeTrue();
+});
+
+test('an email-channel invite creates the code against the email and emails it, not sms', function () {
+    Mail::fake();
+
+    $response = $this->actingAs($this->admin)->post('/admin/staff', staffPayload([
+        'channel' => 'email',
+    ]));
+
+    $response->assertSessionDoesntHaveErrors();
+
+    $otp = OtpCode::where('identifier', 'kofi.mensah@nkwaledger.com')->where('type', 'invitation')->first();
+
+    expect($otp)->not->toBeNull();
+    Mail::assertSent(OtpMail::class);
+    expect(app(SmsProvider::class)->sentTo('0244000501'))->toBeFalse();
+});
+
+test('an email-channel invite needs an email address', function () {
+    $response = $this->actingAs($this->admin)->post('/admin/staff', staffPayload([
+        'channel' => 'email',
+        'email'   => null,
+    ]));
+
+    $response->assertSessionHasErrors('email');
+});
+
+test('an unknown channel is rejected', function () {
+    $response = $this->actingAs($this->admin)->post('/admin/staff', staffPayload([
+        'channel' => 'carrier_pigeon',
+    ]));
+
+    $response->assertSessionHasErrors('channel');
 });
