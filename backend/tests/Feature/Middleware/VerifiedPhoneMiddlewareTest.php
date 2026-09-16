@@ -39,3 +39,22 @@ test('the block message says nothing technical', function () {
     $this->actingAs($user)->get('/test-guarded')
         ->assertSessionHas('error', 'Please verify your phone number to continue.');
 });
+
+// a tracked role with an email on file defaults to the email channel (Step C), so the
+// block message should point them at their inbox, not a phone number
+test('a tracked role with an email on file is told to check their email', function () {
+    $user = User::factory()->unverified()->create(['email' => 'agent@nkwaledger.com']);
+    $user->assignRole('agent');
+
+    $this->actingAs($user)->get('/test-guarded')
+        ->assertSessionHas('error', 'Please check your email to verify your account.');
+});
+
+// no email on file means the code still goes by sms, same as PhoneVerificationController::send()
+test('a tracked role with no email on file still sees the phone wording', function () {
+    $user = User::factory()->unverified()->create(['email' => null]);
+    $user->assignRole('agent');
+
+    $this->actingAs($user)->get('/test-guarded')
+        ->assertSessionHas('error', 'Please verify your phone number to continue.');
+});

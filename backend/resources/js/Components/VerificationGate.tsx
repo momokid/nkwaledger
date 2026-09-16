@@ -3,10 +3,15 @@ import { PropsWithChildren, useState } from "react";
 import { IconShieldLock } from "@tabler/icons-react";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 
+// mirrors LoginAnomalyService::TRACKED_ROLES - farmers are left out on purpose
+const TRACKED_ROLES = ["admin", "agent", "vet", "adviser", "supplier"];
+
 interface GateProps {
     auth: {
         user: {
             phone?: string;
+            email?: string | null;
+            roles?: string[];
             is_phone_verified?: boolean;
         } | null;
     };
@@ -27,6 +32,10 @@ export default function VerificationGate({ children }: PropsWithChildren) {
         return <>{children}</>;
     }
 
+    const canFallbackToSms =
+        !!auth.user?.email &&
+        (auth.user?.roles ?? []).some((role) => TRACKED_ROLES.includes(role));
+
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
     const text = dark ? "#F9FAFB" : "#111827";
@@ -34,11 +43,11 @@ export default function VerificationGate({ children }: PropsWithChildren) {
     const primary = "#1D9E75";
     const danger = "#DC2626";
 
-    const sendCode = () => {
+    const sendCode = (smsFallback = false) => {
         setSending(true);
         router.post(
             route("otp.phone.send"),
-            {},
+            smsFallback ? { sms_fallback: true } : {},
             {
                 preserveScroll: true,
                 onSuccess: () => setSent(true),
@@ -125,7 +134,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
 
                 {!sent ? (
                     <button
-                        onClick={sendCode}
+                        onClick={() => sendCode()}
                         disabled={sending}
                         style={buttonStyle}
                     >
@@ -179,7 +188,7 @@ export default function VerificationGate({ children }: PropsWithChildren) {
                         </button>
 
                         <button
-                            onClick={sendCode}
+                            onClick={() => sendCode()}
                             disabled={sending}
                             style={{
                                 width: "100%",
@@ -195,6 +204,26 @@ export default function VerificationGate({ children }: PropsWithChildren) {
                         >
                             Send a new code
                         </button>
+
+                        {canFallbackToSms && (
+                            <button
+                                onClick={() => sendCode(true)}
+                                disabled={sending}
+                                style={{
+                                    width: "100%",
+                                    marginTop: "4px",
+                                    padding: "10px",
+                                    background: "transparent",
+                                    border: "none",
+                                    color: textSecondary,
+                                    fontSize: "0.875rem",
+                                    cursor: "pointer",
+                                    fontFamily: "'Inter', system-ui, sans-serif",
+                                }}
+                            >
+                                Didn't get it? Send by SMS instead
+                            </button>
+                        )}
                     </>
                 )}
             </div>
