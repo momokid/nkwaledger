@@ -190,17 +190,24 @@ test('expected_ready_on is nullable', function () {
     expect($stock->expected_ready_on)->toBeNull();
 });
 
-test('the opening movement is confirmed as soon as it is created', function () {
-    $stock = FarmUnitStock::factory()->create(['source' => App\Enums\StockSource::OpeningBalance]);
+// declared stock can count toward credit once confirmed (countsTowardCredit() checks only
+// confirmation and unit approval, not source) - so nobody's own say-so, "already had it" or
+// "just bought it", is ever trusted without a second person checking it first
+test('an opening-balance batch does not count until its opening movement is confirmed', function () {
+    $stock = FarmUnitStock::factory()->pendingOpening()->create([
+        'source' => App\Enums\StockSource::OpeningBalance,
+        'opening_quantity' => 50,
+    ]);
 
     $opening = $stock->movements()->where('reason', MovementReason::Opening)->first();
 
-    expect($opening->isConfirmed())->toBeTrue();
+    expect($opening->isConfirmed())->toBeFalse();
+    expect($stock->fresh()->current_quantity)->toBe('0.00');
 });
 
 // a purchased batch is an addition, so it waits the same as any other purchase
 test('a purchased batch does not count until its opening movement is confirmed', function () {
-    $stock = FarmUnitStock::factory()->create([
+    $stock = FarmUnitStock::factory()->pendingOpening()->create([
         'source' => App\Enums\StockSource::Purchase,
         'opening_quantity' => 50,
     ]);

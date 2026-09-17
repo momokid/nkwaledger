@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\MovementReason;
 use App\Enums\StockSource;
+use App\Exceptions\Ledger\PostingFailed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RejectionRequest;
 use App\Http\Requests\Admin\StoreFarmUnitStockRequest;
@@ -12,9 +13,13 @@ use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
 use App\Models\FarmUnitStockMovement;
+use App\Models\LedgerAccount;
+use App\Models\TransactionTemplate;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\Ledger\PostingRequest;
+use App\Services\Ledger\PostingService;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +35,7 @@ class FarmUnitStockController extends Controller
         private readonly AccessControlService $access,
         private readonly AuditService $audit,
         private readonly NotificationService $notifications,
+        private readonly PostingService $posting,
     ) {}
 
     public function index(Request $request, FarmerProfile $farmer, FarmUnit $farmUnit): Response
@@ -101,6 +107,13 @@ class FarmUnitStockController extends Controller
             ],
             'sources' => StockSource::options(),
             'reasons' => MovementReason::options(),
+            // Receivable/Payable are settlement accounts too, but never chosen directly -
+            // "Credit (not paid yet)" is the synthetic frontend choice for those, same as
+            // the farmer-facing transaction form
+            'settlementAccounts' => LedgerAccount::settlement()
+                ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -109,10 +122,43 @@ class FarmUnitStockController extends Controller
         $this->guardFarmer($request->user(), $farmer);
         $this->guardBelongsTo($farmer, $farmUnit);
 
-        $stock = $farmUnit->stocks()->create([
-            ...$request->validated(),
-            'recorded_by' => $request->user()->id,
-        ]);
+        $data = $request->validated();
+        $source = StockSource::from($data['source']);
+
+        $template = $this->stockTemplateFor($farmUnit, $source);
+
+        if ($template === null) {
+            throw ValidationException::withMessages([
+                'source' => 'Nothing is set up yet for this kind of farm.',
+            ]);
+        }
+
+        $settlementAccountId = $source === StockSource::Purchase
+            ? (($data['is_credit'] ?? false) ? $this->payableAccountId() : (int) $data['settlement_account_id'])
+            : null;
+
+        try {
+            $this->posting->post(new PostingRequest(
+                farmerProfileId: $farmer->id,
+                transactionTemplateId: $template->id,
+                amount: (string) $data['acquisition_cost'],
+                settlementAccountId: $settlementAccountId,
+                transactionDate: $data['started_on'],
+                farmUnitId: $farmUnit->id,
+                recordedBy: $request->user()->id,
+                quantityPurchased: (string) $data['opening_quantity'],
+                unitOfMeasure: $data['unit_of_measure'] ?? null,
+                expectedReadyOn: $data['expected_ready_on'] ?? null,
+            ));
+        } catch (PostingFailed $failure) {
+            throw ValidationException::withMessages([
+                'acquisition_cost' => $failure->getMessage(),
+            ]);
+        }
+
+        // PostingService returns the transaction, not the stock it created or added to -
+        // this is the same batch either way, so the newest one is always the right one
+        $stock = $farmUnit->stocks()->latest('id')->first();
 
         $this->notifications->sendToPermission(
             permission: 'farm-units.confirm',
@@ -123,6 +169,37 @@ class FarmUnitStockController extends Controller
         );
 
         return back()->with('success', 'The count is saved. Someone else needs to check it.');
+    }
+
+    // the farm unit's own category says which purchase (or opening-balance) template
+    // applies - never chosen by hand, so it can never be mismatched to the wrong stock account
+    private function stockTemplateFor(FarmUnit $farmUnit, StockSource $source): ?TransactionTemplate
+    {
+        $categoryId = $farmUnit->farmType?->category_id;
+
+        if ($categoryId === null) {
+            return null;
+        }
+
+        return TransactionTemplate::query()
+            ->where('farm_type_category_id', $categoryId)
+            ->where('is_stock_purchase', true)
+            ->where('stock_source', $source->value)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    private function payableAccountId(): int
+    {
+        $id = LedgerAccount::where('name', 'Accounts Payable')->value('id');
+
+        if ($id === null) {
+            throw ValidationException::withMessages([
+                'is_credit' => 'Credit is not set up yet.',
+            ]);
+        }
+
+        return $id;
     }
 
     public function confirmStock(Request $request, FarmerProfile $farmer, FarmUnit $farmUnit, FarmUnitStock $stock): RedirectResponse

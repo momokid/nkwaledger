@@ -58,41 +58,33 @@ class FarmUnitStock extends Model
             }
         });
 
-        // the sum has to start somewhere, so the first batch writes its own movement. A
-        // declared opening balance is trusted immediately; a bought one is held back the
-        // same as any other purchase, until someone else checks it
+        // the sum has to start somewhere, so the first batch writes its own movement - held
+        // back the same as any other addition, whatever the source, until someone else checks it
         static::created(function (FarmUnitStock $stock) {
-            $isPurchased = $stock->source === StockSource::Purchase;
-
             $stock->movements()->create([
                 'reason' => MovementReason::Opening,
                 'quantity' => $stock->opening_quantity,
                 'is_increase' => true,
                 'occurred_on' => $stock->started_on,
                 'recorded_by' => $stock->recorded_by,
-                'confirmed_at' => $isPurchased ? null : now(),
-                'confirmed_by' => $isPurchased ? null : $stock->recorded_by,
             ]);
         });
     }
 
-    // the count is the sum of every movement that still stands and is trusted; a birth or
-    // purchase — including a purchased opening balance — sits out until someone else checks
-    // it, so a farmer cannot inflate their own count
+    // the count is the sum of every movement that still stands and is trusted; a birth,
+    // purchase, or opening count sits out until someone else checks it, so nobody's own
+    // say-so can inflate their own count
     public function refreshCount(): void
     {
-        $isPurchasedBatch = $this->source === StockSource::Purchase;
-
         $total = $this->movements()
             ->whereNull('rejected_at')
             ->get(['quantity', 'is_increase', 'reason', 'confirmed_at'])
-            ->reject(function (FarmUnitStockMovement $movement) use ($isPurchasedBatch) {
+            ->reject(function (FarmUnitStockMovement $movement) {
                 if ($movement->isConfirmed()) {
                     return false;
                 }
 
-                return $movement->reason->mustBeConfirmedToCount()
-                    || ($movement->reason === MovementReason::Opening && $isPurchasedBatch);
+                return $movement->reason->mustBeConfirmedToCount();
             })
             ->reduce(
                 fn(float $carry, FarmUnitStockMovement $movement) => $movement->is_increase

@@ -9,6 +9,16 @@ interface Choice {
     label: string;
 }
 
+interface AccountOption {
+    id: number;
+    name: string;
+}
+
+// a synthetic choice alongside the real settlement accounts - Receivable/Payable is
+// resolved server-side, never named or chosen directly (same pattern as the
+// farmer-facing transaction form)
+const CREDIT_OPTION = "credit";
+
 interface MovementRow {
     id: number;
     reason: string;
@@ -55,6 +65,7 @@ interface Props extends PageProps {
     stocks: StockRow[];
     sources: Choice[];
     reasons: Choice[];
+    settlementAccounts: AccountOption[];
     layout: "admin" | "agent";
     basePath: string;
     permissions: { create: boolean; confirm: boolean };
@@ -96,6 +107,7 @@ type ContentProps = Pick<
     | "stocks"
     | "sources"
     | "reasons"
+    | "settlementAccounts"
     | "basePath"
     | "permissions"
 >;
@@ -106,6 +118,7 @@ function StocksContent({
     stocks,
     sources,
     reasons,
+    settlementAccounts,
     basePath,
     permissions,
 }: ContentProps) {
@@ -146,6 +159,7 @@ function StocksContent({
         acquisition_cost: "",
         started_on: "",
         expected_ready_on: "",
+        settlement_account_id: "",
     });
 
     const movementForm = useForm({
@@ -158,6 +172,16 @@ function StocksContent({
 
     const submitStock = (event: FormEvent) => {
         event.preventDefault();
+
+        const isCredit =
+            stockForm.data.settlement_account_id === CREDIT_OPTION;
+
+        stockForm.transform((data) => ({
+            ...data,
+            settlement_account_id: isCredit ? "" : data.settlement_account_id,
+            is_credit: isCredit ? "1" : "0",
+        }));
+
         stockForm.post(`${unitPath}/stocks`, {
             preserveScroll: true,
             onSuccess: () => {
@@ -438,11 +462,53 @@ function StocksContent({
                                 </p>
                             )}
                         </div>
-                    </div>
 
-                    <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>
-                        Enter zero if nothing was paid.
-                    </p>
+                        {stockForm.data.source === "purchase" && (
+                            <div>
+                                <label style={labelStyle}>
+                                    Where did the money go?
+                                </label>
+                                <select
+                                    value={
+                                        stockForm.data.settlement_account_id
+                                    }
+                                    onChange={(event) =>
+                                        stockForm.setData(
+                                            "settlement_account_id",
+                                            event.target.value,
+                                        )
+                                    }
+                                    style={fieldStyle}
+                                >
+                                    <option value="">Choose one</option>
+                                    {settlementAccounts.map((account) => (
+                                        <option
+                                            key={account.id}
+                                            value={account.id}
+                                        >
+                                            {account.name}
+                                        </option>
+                                    ))}
+                                    <option value={CREDIT_OPTION}>
+                                        Credit (not paid yet)
+                                    </option>
+                                </select>
+                                {(stockForm.errors.settlement_account_id ||
+                                    errors.settlement_account_id) && (
+                                    <p style={errorStyle}>
+                                        {stockForm.errors
+                                            .settlement_account_id ||
+                                            errors.settlement_account_id}
+                                    </p>
+                                )}
+                                {errors.is_credit && (
+                                    <p style={errorStyle}>
+                                        {errors.is_credit}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     <button
                         type="submit"
