@@ -2,18 +2,37 @@
 
 use App\Enums\MovementReason;
 use App\Enums\StockSource;
+use App\Models\AccountingPeriod;
 use App\Models\AuditLog;
 use App\Models\FarmerProfile;
+use App\Models\FarmType;
+use App\Models\FarmTypeCategory;
 use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
 use App\Models\FarmUnitStockMovement;
+use App\Models\LedgerAccount;
 use App\Models\User;
+use Database\Seeders\LedgerAccountSeeder;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Database\Seeders\TransactionTemplateSeeder;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
+    $this->seed(LedgerAccountSeeder::class);
+
+    foreach (['Livestock', 'Crop', 'Aquatic'] as $name) {
+        FarmTypeCategory::firstOrCreate(['name' => $name]);
+    }
+
+    $this->seed(TransactionTemplateSeeder::class);
+
+    AccountingPeriod::create([
+        'name' => 'Test Period',
+        'starts_on' => now()->startOfYear()->toDateString(),
+        'ends_on' => now()->endOfYear()->toDateString(),
+    ]);
 
     $this->admin = User::factory()->create();
     $this->admin->assignRole('admin');
@@ -25,7 +44,19 @@ beforeEach(function () {
     $this->otherAgent->assignRole('agent');
 
     $this->farmer = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agent->id]);
-    $this->unit = FarmUnit::factory()->approved()->create(['farmer_profile_id' => $this->farmer->id]);
+
+    // matches one of the seeded stock-purchase/opening-balance templates, so posting
+    // through PostingService can always find the template it needs
+    $this->livestockType = FarmType::factory()
+        ->withCategory(FarmTypeCategory::where('name', 'Livestock')->first())
+        ->create();
+
+    $this->unit = FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->farmer->id,
+        'farm_type_id' => $this->livestockType->id,
+    ]);
+
+    $this->cashAccountId = LedgerAccount::where('name', 'Cash A/C')->value('id');
 });
 
 function stockPayload(array $overrides = []): array
@@ -36,6 +67,7 @@ function stockPayload(array $overrides = []): array
         'unit_of_measure' => 'birds',
         'acquisition_cost' => 4000,
         'started_on' => now()->subMonth()->toDateString(),
+        'settlement_account_id' => test()->cashAccountId,
     ], $overrides);
 }
 
@@ -138,18 +170,34 @@ test('recording a movement notifies people who can confirm it, except the person
         ->exists())->toBeFalse();
 });
 
-test('the count starts at the opening quantity', function () {
+test('the count starts at the opening quantity once confirmed', function () {
     $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'source' => 'opening_balance',
         'opening_quantity' => 150,
     ]));
 
-    expect($this->unit->fresh()->stocks->first()->current_quantity)->toBe('150.00');
+    $stock = $this->unit->fresh()->stocks->first();
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm");
+
+    expect($stock->fresh()->current_quantity)->toBe('150.00');
+});
+
+// declared stock does not count on nobody's own say-so, "already had it" included
+test('an opening-balance count does not count until confirmed', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'source' => 'opening_balance',
+        'opening_quantity' => 150,
+    ]));
+
+    expect($this->unit->fresh()->stocks->first()->current_quantity)->toBe('0.00');
 });
 
 // the farmer is never blocked, the entry just does not count yet
 test('a stock can be added to a unit that is not checked', function () {
-    $unit = FarmUnit::factory()->create(['farmer_profile_id' => $this->farmer->id]);
+    $unit = FarmUnit::factory()->create([
+        'farmer_profile_id' => $this->farmer->id,
+        'farm_type_id' => $this->livestockType->id,
+    ]);
 
     $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/stocks", stockPayload())
         ->assertSessionDoesntHaveErrors();
@@ -596,6 +644,21 @@ test('the page shows the expected ready date for each stock', function () {
     $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
         ->assertInertia(fn($page) => $page->where('stocks.0.expected_ready_on', '2026-12-01'));
 });
+test('the page sends the accounts money can sit in', function () {
+    $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+        ->assertInertia(fn($page) => $page->has('settlementAccounts'));
+});
+
+// a synthetic option the frontend adds, not one of these real ledger accounts
+test('never offers Accounts Receivable or Accounts Payable as a settlement account choice', function () {
+    $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+        ->assertInertia(fn($page) => $page
+            ->where('settlementAccounts', fn($accounts) => ! collect($accounts)
+                ->pluck('name')
+                ->intersect(['Accounts Receivable', 'Accounts Payable'])
+                ->isNotEmpty()));
+});
+
 test('the page tells the category of the farm type', function () {
     $this->actingAs($this->admin)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
         ->assertInertia(fn($page) => $page->has('unit.farm_type_category'));
@@ -762,4 +825,163 @@ test('rejecting a movement notifies whoever recorded it', function () {
     expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
         ->where('kind', 'farm_unit_stock_movement.rejected')
         ->exists())->toBeTrue();
+});
+
+// --- routed through PostingService: real ledger postings, cash/credit, and the full
+// declare -> confirm lifecycle this now shares with a real farmer-recorded purchase ---
+
+test('a purchase declaration posts a real transaction, not just a bare stock row', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload())
+        ->assertSessionDoesntHaveErrors();
+
+    $transaction = \App\Models\Transaction::where('farmer_profile_id', $this->farmer->id)->first();
+
+    expect($transaction)->not->toBeNull();
+    expect($transaction->transaction_type)->toBe('EXPENSE');
+    expect($transaction->amount_minor)->toBe(400000);
+    expect($transaction->quantity_purchased)->toBe('200.00');
+});
+
+test('the auto-created stock carries the acquisition cost from the transaction amount', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'acquisition_cost' => 500,
+    ]));
+
+    expect($this->unit->fresh()->stocks->first()->acquisition_cost)->toBe('500.00');
+});
+
+test('a purchase paid in cash settles against cash, not credit', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
+
+    $transaction = \App\Models\Transaction::where('farmer_profile_id', $this->farmer->id)->first();
+
+    expect($transaction->is_credit)->toBeFalse();
+    expect((int) $transaction->settlement_account_id)->toBe((int) $this->cashAccountId);
+});
+
+test('cash payment requires saying where the money went', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'settlement_account_id' => null,
+    ]))->assertSessionHasErrors('settlement_account_id');
+});
+
+test('a purchase can be put on credit instead of paid in cash', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'is_credit' => true,
+        'settlement_account_id' => null,
+    ]))->assertSessionDoesntHaveErrors();
+
+    $transaction = \App\Models\Transaction::where('farmer_profile_id', $this->farmer->id)->first();
+    $payable = LedgerAccount::where('name', 'Accounts Payable')->value('id');
+
+    expect($transaction->is_credit)->toBeTrue();
+    expect((int) $transaction->settlement_account_id)->toBe((int) $payable);
+});
+
+test('a credit purchase can be partially settled, same as any other credit purchase', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'is_credit' => true,
+        'settlement_account_id' => null,
+    ]));
+
+    $transaction = \App\Models\Transaction::where('farmer_profile_id', $this->farmer->id)->first();
+    $settlements = app(\App\Services\Ledger\CreditSettlementService::class);
+
+    expect($settlements->outstandingAmount($transaction))->toBe(400000);
+
+    $settlements->settle(
+        original: $transaction,
+        amountMinor: 150000,
+        settlementAccountId: $this->cashAccountId,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->admin->id,
+    );
+
+    expect($settlements->outstandingAmount($transaction->fresh()))->toBe(250000);
+});
+
+// "already had it" is an asset gained without cash leaving anyone's hand, so it credits
+// owner funds and never offers - or needs - a cash/credit choice at all
+test('an opening-balance declaration posts against Stated Capital, never cash or credit', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'source' => 'opening_balance',
+        'settlement_account_id' => null,
+    ]))->assertSessionDoesntHaveErrors();
+
+    $transaction = \App\Models\Transaction::where('farmer_profile_id', $this->farmer->id)->first();
+    $statedCapital = LedgerAccount::where('name', 'Stated Capital')->value('id');
+
+    expect($transaction->is_credit)->toBeFalse();
+    expect($transaction->settlement_account_id)->toBeNull();
+    expect($transaction->template->credit_account_id)->toBe($statedCapital);
+});
+
+test('a farm unit whose category has no matching template is refused clearly', function () {
+    $type = FarmType::factory()->create(['category_id' => null]);
+    $unit = FarmUnit::factory()->approved()->create([
+        'farmer_profile_id' => $this->farmer->id,
+        'farm_type_id' => $type->id,
+    ]);
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/stocks", stockPayload())
+        ->assertSessionHasErrors('source');
+});
+
+test('a zero-cost declaration is refused, same as a real purchase', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'acquisition_cost' => 0,
+    ]))->assertSessionHasErrors('acquisition_cost');
+});
+
+// the whole point: declared stock now goes through the same confirm/reject queue a real
+// farmer-recorded purchase already uses, end to end over HTTP
+test('a declared purchase counts only after an admin confirms it, then blocks a second confirm', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'opening_quantity' => 75,
+    ]));
+
+    $stock = $this->unit->fresh()->stocks->first();
+    expect($stock->current_quantity)->toBe('0.00');
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+        ->assertSessionDoesntHaveErrors();
+
+    expect($stock->fresh()->current_quantity)->toBe('75.00');
+    expect($stock->fresh()->countsTowardCredit())->toBeTrue();
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+        ->assertSessionHasErrors();
+});
+
+test('a declared purchase can be rejected instead, and never counts', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'opening_quantity' => 75,
+    ]));
+
+    $stock = $this->unit->fresh()->stocks->first();
+
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+        'reason' => 'Numbers do not match the field visit',
+    ])->assertSessionDoesntHaveErrors();
+
+    expect($stock->fresh()->isRejected())->toBeTrue();
+    expect($stock->fresh()->current_quantity)->toBe('0.00');
+});
+
+test('a purchase declaration adds to the most recently started active batch instead of starting a new one', function () {
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'opening_quantity' => 100,
+    ]));
+    $first = $this->unit->fresh()->stocks->first();
+    $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$first->id}/confirm");
+
+    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+        'opening_quantity' => 40,
+    ]));
+
+    expect($this->unit->fresh()->stocks)->toHaveCount(1);
+
+    $movement = $first->fresh()->movements()->where('reason', MovementReason::Purchase)->first();
+    expect($movement)->not->toBeNull();
+    expect($movement->quantity)->toBe('40.00');
 });

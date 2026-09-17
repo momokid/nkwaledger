@@ -10,6 +10,9 @@ Schedule::command('verification:expire')->dailyAt('02:00')->withoutOverlapping()
 // builds up weather advisory history one day at a time
 Schedule::command('weather:snapshot-advisories')->dailyAt('03:00')->withoutOverlapping();
 
+// nudges farmers about credit still outstanding, repeating every three days until settled
+Schedule::command('credit:remind')->dailyAt('04:00')->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

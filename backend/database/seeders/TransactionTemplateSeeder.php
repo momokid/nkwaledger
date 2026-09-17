@@ -80,7 +80,25 @@ class TransactionTemplateSeeder extends Seeder
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
             'is_stock_purchase' => true,
+            'stock_source' => 'purchase',
             'allows_credit' => true,
+            'category' => 'Livestock',
+        ],
+
+        // what the farmer already had when they joined - an asset gained without a cash
+        // outflow, so it credits owner funds instead of Cash/Payable and offers no
+        // cash/credit choice at all
+        [
+            'name' => 'I already had this many animals',
+            'slug' => 'animal_opening_balance',
+            'transaction_type' => 'ADJUSTMENT',
+            'debit_account' => 'Livestock A/C',
+            'credit_account' => 'Stated Capital',
+            'settlement_side' => 'none',
+            'requires_farm_unit' => true,
+            'is_produce_sale' => false,
+            'is_stock_purchase' => true,
+            'stock_source' => 'opening_balance',
             'category' => 'Livestock',
         ],
         [
@@ -178,7 +196,21 @@ class TransactionTemplateSeeder extends Seeder
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
             'is_stock_purchase' => true,
+            'stock_source' => 'purchase',
             'allows_credit' => true,
+            'category' => 'Crop',
+        ],
+        [
+            'name' => 'I already had these seedlings',
+            'slug' => 'seedling_opening_balance',
+            'transaction_type' => 'ADJUSTMENT',
+            'debit_account' => 'Crops in Field A/C',
+            'credit_account' => 'Stated Capital',
+            'settlement_side' => 'none',
+            'requires_farm_unit' => true,
+            'is_produce_sale' => false,
+            'is_stock_purchase' => true,
+            'stock_source' => 'opening_balance',
             'category' => 'Crop',
         ],
         [
@@ -203,7 +235,21 @@ class TransactionTemplateSeeder extends Seeder
             'requires_farm_unit' => true,
             'is_produce_sale' => false,
             'is_stock_purchase' => true,
+            'stock_source' => 'purchase',
             'allows_credit' => true,
+            'category' => 'Aquatic',
+        ],
+        [
+            'name' => 'I already had these fingerlings',
+            'slug' => 'fingerling_opening_balance',
+            'transaction_type' => 'ADJUSTMENT',
+            'debit_account' => 'Fish Stock A/C',
+            'credit_account' => 'Stated Capital',
+            'settlement_side' => 'none',
+            'requires_farm_unit' => true,
+            'is_produce_sale' => false,
+            'is_stock_purchase' => true,
+            'stock_source' => 'opening_balance',
             'category' => 'Aquatic',
         ],
         [
@@ -322,6 +368,7 @@ class TransactionTemplateSeeder extends Seeder
                     // most templates don't set these keys at all, so they default to false
                     // rather than requiring every entry in $templates to carry them
                     'is_stock_purchase' => $template['is_stock_purchase'] ?? false,
+                    'stock_source' => $template['stock_source'] ?? null,
                     'allows_credit' => $template['allows_credit'] ?? false,
                     'farm_type_category_id' => $categoryId,
                     'is_system' => true,

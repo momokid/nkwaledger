@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MovementReason;
 use App\Enums\StockSource;
 use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
@@ -31,6 +32,28 @@ class FarmUnitStockFactory extends Factory
         ];
     }
 
+    // most tests just need an established batch to build other behaviour on top of, not
+    // to exercise the confirmation policy itself - so an opening-balance batch (the
+    // default source) is confirmed straight after creation, same as the old default.
+    // a test that explicitly asks for a Purchase-sourced batch is almost always
+    // deliberately exercising the held-back-until-checked behaviour, so that one is
+    // left alone here; use ->pendingOpening() to hold back an opening-balance batch too
+    public function configure(): static
+    {
+        return $this->afterCreating(function (FarmUnitStock $stock) {
+            if ($stock->source !== StockSource::OpeningBalance) {
+                return;
+            }
+
+            $stock->movements()->where('reason', MovementReason::Opening)->update([
+                'confirmed_at' => now(),
+                'confirmed_by' => $stock->recorded_by,
+            ]);
+
+            $stock->refreshCount();
+        });
+    }
+
     // checked by someone other than whoever wrote the number down
     public function confirmed(): static
     {
@@ -38,6 +61,20 @@ class FarmUnitStockFactory extends Factory
             'confirmed_at' => now(),
             'confirmed_by' => User::factory(),
         ]);
+    }
+
+    // opt-in for a test that specifically wants an opening count nobody has checked yet -
+    // reverses configure()'s usual convenience
+    public function pendingOpening(): static
+    {
+        return $this->afterCreating(function (FarmUnitStock $stock) {
+            $stock->movements()->where('reason', MovementReason::Opening)->update([
+                'confirmed_at' => null,
+                'confirmed_by' => null,
+            ]);
+
+            $stock->refreshCount();
+        });
     }
 
     public function openingBalance(): static
