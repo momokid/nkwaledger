@@ -331,7 +331,7 @@ class PostingService
 
             $this->writeStockMovements($loss, MovementReason::Loss, $transaction, $request);
             $this->writeStockMovements($sale, MovementReason::Sale, $transaction, $request);
-            $this->writePurchase($purchase, $transaction, $request, $farmUnit);
+            $this->writePurchase($purchase, $transaction, $request, $farmUnit, $template);
 
             return $transaction;
         });
@@ -356,8 +356,10 @@ class PostingService
 
     // an existing batch gets a Purchase movement, same as any other stock change; a farm
     // unit with nothing active yet gets a brand new batch instead — both start unconfirmed,
-    // so either lands in the same approval queue a sale or loss movement already does
-    private function writePurchase(?array $resolved, Transaction $transaction, PostingRequest $request, ?FarmUnit $farmUnit): void
+    // so either lands in the same approval queue a sale or loss movement already does.
+    // the template says which StockSource to stamp - a real purchase and a declared
+    // opening balance both flow through here, they just credit different accounts
+    private function writePurchase(?array $resolved, Transaction $transaction, PostingRequest $request, ?FarmUnit $farmUnit, TransactionTemplate $template): void
     {
         if ($resolved === null) {
             return;
@@ -377,9 +379,11 @@ class PostingService
 
         FarmUnitStock::create([
             'farm_unit_id' => $farmUnit->id,
-            'source' => StockSource::Purchase,
+            'source' => $template->stock_source ?? StockSource::Purchase,
             'opening_quantity' => $resolved['quantity'],
+            'unit_of_measure' => $request->unitOfMeasure,
             'started_on' => $transaction->transaction_date,
+            'expected_ready_on' => $request->expectedReadyOn,
             'acquisition_cost' => $transaction->amount_minor / 100,
             'recorded_by' => $request->recordedBy,
         ]);

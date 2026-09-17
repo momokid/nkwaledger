@@ -29,12 +29,13 @@ enum MovementReason: string
         return $this === self::Correction;
     }
 
-    // buying or being born adds to the count on trust; someone else has to check it before
-    // it stands, so a farmer cannot inflate a headcount to flatter their own statement
+    // buying, being born, or a declared starting count all add to the count on trust;
+    // someone else has to check it before it stands, so nobody's own say-so - "already
+    // had it" included - can inflate a headcount or the credit it counts toward
     public function mustBeConfirmedToCount(): bool
     {
         return match ($this) {
-            self::Birth, self::Purchase => true,
+            self::Birth, self::Purchase, self::Opening => true,
             default => false,
         };
     }

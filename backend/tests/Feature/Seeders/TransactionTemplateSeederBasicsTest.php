@@ -91,6 +91,48 @@ it('marks animal, fingerling, and seedling purchases as stock purchases', functi
     expect(TransactionTemplate::where('slug', 'vet_cost')->first()->is_stock_purchase)->toBeFalse();
 });
 
+// what the farmer already had is an asset gained without any cash leaving their hand
+it('seeds an opening-balance template alongside each stock-purchase template', function () {
+    foreach ([
+        'animal_purchase' => 'animal_opening_balance',
+        'seedling_purchase' => 'seedling_opening_balance',
+        'fingerling_purchase' => 'fingerling_opening_balance',
+    ] as $purchaseSlug => $openingSlug) {
+        $purchase = TransactionTemplate::where('slug', $purchaseSlug)->first();
+        $opening = TransactionTemplate::where('slug', $openingSlug)->first();
+
+        expect($opening)->not->toBeNull("{$openingSlug} should exist");
+        // the same stock account is debited either way, only what it credits differs
+        expect($opening->debit_account_id)->toBe($purchase->debit_account_id);
+        expect($opening->creditAccount->name)->toBe('Stated Capital');
+        expect($opening->transaction_type)->toBe('ADJUSTMENT');
+        expect($opening->settlement_side)->toBe('none');
+        expect($opening->is_stock_purchase)->toBeTrue();
+        expect($opening->farm_type_category_id)->toBe($purchase->farm_type_category_id);
+    }
+});
+
+it('stamps each stock-purchase template with the purchase StockSource', function () {
+    foreach (['animal_purchase', 'seedling_purchase', 'fingerling_purchase'] as $slug) {
+        expect(TransactionTemplate::where('slug', $slug)->first()->stock_source)
+            ->toBe(App\Enums\StockSource::Purchase);
+    }
+});
+
+it('stamps each opening-balance template with the opening-balance StockSource', function () {
+    foreach (['animal_opening_balance', 'seedling_opening_balance', 'fingerling_opening_balance'] as $slug) {
+        expect(TransactionTemplate::where('slug', $slug)->first()->stock_source)
+            ->toBe(App\Enums\StockSource::OpeningBalance);
+    }
+});
+
+// no cash/credit choice makes sense for something that was never bought
+it('never allows credit on an opening-balance template', function () {
+    foreach (['animal_opening_balance', 'seedling_opening_balance', 'fingerling_opening_balance'] as $slug) {
+        expect(TransactionTemplate::where('slug', $slug)->first()->allows_credit)->toBeFalse();
+    }
+});
+
 // value gone is not money paid
 it('records a death as a loss', function () {
     foreach (['animal_loss', 'crop_loss', 'fish_loss'] as $slug) {
