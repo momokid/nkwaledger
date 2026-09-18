@@ -1,7 +1,13 @@
 <?php
 
+use App\Enums\DiseaseReportStatus;
 use App\Models\AccountingPeriod;
+use App\Models\Community;
+use App\Models\District;
+use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
+use App\Models\FarmUnit;
+use App\Models\Region;
 use App\Models\LedgerAccount;
 use App\Models\LedgerCategory;
 use App\Models\LedgerClass;
@@ -302,4 +308,157 @@ test('an unrecognised sort value falls back to net', function () {
     $default = $this->service->agentLeaderboard($this->periodFrom, $this->periodTo);
 
     expect($rows)->toBe($default);
+});
+
+// --- regionalTrends ---
+
+test('farmer_count and farm_unit_count are correct per region', function () {
+    $region = Region::create(['name' => 'Northern']);
+    $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
+    $community = Community::create(['name' => 'Kalpohin', 'district_id' => $district->id]);
+
+    $farmer = FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agentA->id,
+        'community_id' => $community->id,
+    ]);
+    \App\Models\FarmUnit::factory()->count(2)->create(['farmer_profile_id' => $farmer->id]);
+
+    $rows = collect($this->service->regionalTrends($this->periodFrom, $this->periodTo));
+    $row = $rows->firstWhere('region_id', $region->id);
+
+    expect($row['farmer_count'])->toBe(1);
+    expect($row['farm_unit_count'])->toBe(2);
+});
+
+test('income, expense and net are correct per region for the given period', function () {
+    $region = Region::create(['name' => 'Ashanti']);
+    $district = District::create(['name' => 'Kumasi', 'region_id' => $region->id]);
+    $community = Community::create(['name' => 'Bantama', 'district_id' => $district->id]);
+
+    $farmer = FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agentA->id,
+        'community_id' => $community->id,
+    ]);
+
+    ($this->recordIncome)($farmer, '500', now()->toDateString());
+    ($this->recordExpense)($farmer, '200', now()->toDateString());
+
+    $rows = collect($this->service->regionalTrends($this->periodFrom, $this->periodTo));
+    $row = $rows->firstWhere('region_id', $region->id);
+
+    expect($row['income'])->toBe(50000);
+    expect($row['expense'])->toBe(20000);
+    expect($row['net'])->toBe(30000);
+});
+
+test('a transaction outside the filtered period is excluded from a region\'s totals', function () {
+    $region = Region::create(['name' => 'Volta']);
+    $district = District::create(['name' => 'Ho', 'region_id' => $region->id]);
+    $community = Community::create(['name' => 'Bankoe', 'district_id' => $district->id]);
+
+    $farmer = FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agentA->id,
+        'community_id' => $community->id,
+    ]);
+
+    ($this->recordIncome)($farmer, '500', now()->subDays(200)->toDateString());
+
+    $rows = collect($this->service->regionalTrends($this->periodFrom, $this->periodTo));
+    $row = $rows->firstWhere('region_id', $region->id);
+
+    expect($row['income'])->toBe(0);
+});
+
+test('each region appears exactly once, even with multiple farmers and communities in it', function () {
+    $region = Region::create(['name' => 'Bono']);
+    $districtOne = District::create(['name' => 'Sunyani', 'region_id' => $region->id]);
+    $districtTwo = District::create(['name' => 'Berekum', 'region_id' => $region->id]);
+    $communityOne = Community::create(['name' => 'Abesim', 'district_id' => $districtOne->id]);
+    $communityTwo = Community::create(['name' => 'Jamdede', 'district_id' => $districtTwo->id]);
+
+    FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentA->id, 'community_id' => $communityOne->id]);
+    FarmerProfile::factory()->create(['assigned_agent_id' => $this->agentA->id, 'community_id' => $communityTwo->id]);
+
+    $rows = collect($this->service->regionalTrends($this->periodFrom, $this->periodTo));
+
+    expect($rows->where('region_id', $region->id)->count())->toBe(1);
+    expect($rows->firstWhere('region_id', $region->id)['farmer_count'])->toBe(2);
+});
+
+// --- healthTrends ---
+
+test('total, by_category and by_status counts are correct per region', function () {
+    $region = Region::create(['name' => 'Northern']);
+    $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
+    $community = Community::create(['name' => 'Kalpohin', 'district_id' => $district->id]);
+    $farmer = FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agentA->id,
+        'community_id' => $community->id,
+    ]);
+    $unit = FarmUnit::factory()->create(['farmer_profile_id' => $farmer->id]);
+
+    DiseaseReport::factory()->create([
+        'farmer_profile_id' => $farmer->id,
+        'farm_unit_id' => $unit->id,
+        'category' => 'Livestock',
+        'status' => DiseaseReportStatus::New,
+    ]);
+    DiseaseReport::factory()->create([
+        'farmer_profile_id' => $farmer->id,
+        'farm_unit_id' => $unit->id,
+        'category' => 'Crop',
+        'status' => DiseaseReportStatus::Resolved,
+    ]);
+
+    $rows = collect($this->service->healthTrends($this->periodFrom, $this->periodTo));
+    $row = $rows->firstWhere('region_id', $region->id);
+
+    expect($row['total'])->toBe(2);
+    expect($row['by_category']['Livestock'])->toBe(1);
+    expect($row['by_category']['Crop'])->toBe(1);
+    expect($row['by_status']['new'])->toBe(1);
+    expect($row['by_status']['resolved'])->toBe(1);
+});
+
+test('a report outside the filtered period is excluded from a region\'s health totals', function () {
+    $region = Region::create(['name' => 'Ashanti']);
+    $district = District::create(['name' => 'Kumasi', 'region_id' => $region->id]);
+    $community = Community::create(['name' => 'Bantama', 'district_id' => $district->id]);
+    $farmer = FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agentA->id,
+        'community_id' => $community->id,
+    ]);
+    $unit = FarmUnit::factory()->create(['farmer_profile_id' => $farmer->id]);
+
+    DiseaseReport::factory()->create([
+        'farmer_profile_id' => $farmer->id,
+        'farm_unit_id' => $unit->id,
+        'created_at' => now()->subDays(200),
+    ]);
+
+    $rows = collect($this->service->healthTrends($this->periodFrom, $this->periodTo));
+    $row = $rows->firstWhere('region_id', $region->id);
+
+    expect($row['total'] ?? 0)->toBe(0);
+});
+
+test('each region appears exactly once in health trends, even with multiple reports', function () {
+    $region = Region::create(['name' => 'Volta']);
+    $district = District::create(['name' => 'Ho', 'region_id' => $region->id]);
+    $community = Community::create(['name' => 'Bankoe', 'district_id' => $district->id]);
+    $farmer = FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agentA->id,
+        'community_id' => $community->id,
+    ]);
+    $unit = FarmUnit::factory()->create(['farmer_profile_id' => $farmer->id]);
+
+    DiseaseReport::factory()->count(3)->create([
+        'farmer_profile_id' => $farmer->id,
+        'farm_unit_id' => $unit->id,
+    ]);
+
+    $rows = collect($this->service->healthTrends($this->periodFrom, $this->periodTo));
+
+    expect($rows->where('region_id', $region->id)->count())->toBe(1);
+    expect($rows->firstWhere('region_id', $region->id)['total'])->toBe(3);
 });

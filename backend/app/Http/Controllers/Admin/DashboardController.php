@@ -22,6 +22,8 @@ class DashboardController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'snapshot' => $this->analytics->platformSnapshot($from, $to),
             'leaderboard' => $this->analytics->agentLeaderboard($from, $to, $sort),
+            'regionalTrends' => $this->analytics->regionalTrends($from, $to),
+            'healthTrends' => $this->analytics->healthTrends($from, $to),
             'sort' => $sort,
             'filters' => ['from' => $from, 'to' => $to],
         ]);
