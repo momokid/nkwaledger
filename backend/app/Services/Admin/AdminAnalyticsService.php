@@ -2,8 +2,11 @@
 
 namespace App\Services\Admin;
 
+use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
+use App\Models\FarmUnit;
 use App\Models\JournalLine;
+use App\Models\Region;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Agent\FarmerRosterService;
@@ -14,6 +17,77 @@ class AdminAnalyticsService
     private const SORTS = ['net', 'activity'];
 
     public function __construct(private readonly FarmerRosterService $roster) {}
+
+    public function regionalTrends(string $from, string $to): array
+    {
+        $farmerIds = FarmerProfile::query()
+            ->whereHas('community')
+            ->pluck('id', 'id');
+
+        $farmerRegions = FarmerProfile::query()
+            ->whereIn('id', $farmerIds)
+            ->with('community.district.region')
+            ->get()
+            ->filter(fn($farmer) => $farmer->community?->district?->region !== null)
+            ->groupBy(fn($farmer) => $farmer->community->district->region->id);
+
+        $incomeByFarmer = Transaction::query()
+            ->whereDate('transaction_date', '>=', $from)
+            ->whereDate('transaction_date', '<=', $to)
+            ->where('transaction_type', 'INCOME')
+            ->selectRaw('farmer_profile_id, SUM(amount_minor) as total')
+            ->groupBy('farmer_profile_id')
+            ->pluck('total', 'farmer_profile_id');
+
+        $expenseByFarmer = Transaction::query()
+            ->whereDate('transaction_date', '>=', $from)
+            ->whereDate('transaction_date', '<=', $to)
+            ->where('transaction_type', 'EXPENSE')
+            ->selectRaw('farmer_profile_id, SUM(amount_minor) as total')
+            ->groupBy('farmer_profile_id')
+            ->pluck('total', 'farmer_profile_id');
+
+        $farmUnitCounts = FarmUnit::query()
+            ->selectRaw('farmer_profile_id, COUNT(*) as total')
+            ->groupBy('farmer_profile_id')
+            ->pluck('total', 'farmer_profile_id');
+
+        return $farmerRegions->map(function ($farmers, $regionId) use ($incomeByFarmer, $expenseByFarmer, $farmUnitCounts) {
+            $income = $farmers->sum(fn($farmer) => $incomeByFarmer[$farmer->id] ?? 0);
+            $expense = $farmers->sum(fn($farmer) => $expenseByFarmer[$farmer->id] ?? 0);
+
+            return [
+                'region_id' => (int) $regionId,
+                'region_name' => Region::find($regionId)?->name ?? '',
+                'farmer_count' => $farmers->count(),
+                'farm_unit_count' => $farmers->sum(fn($farmer) => $farmUnitCounts[$farmer->id] ?? 0),
+                'income' => (int) $income,
+                'expense' => (int) $expense,
+                'net' => (int) ($income - $expense),
+            ];
+        })->values()->all();
+    }
+
+    public function healthTrends(string $from, string $to): array
+    {
+        $reports = DiseaseReport::query()
+            ->whereDate('created_at', '>=', $from)
+            ->whereDate('created_at', '<=', $to)
+            ->with('farmerProfile.community.district.region')
+            ->get()
+            ->filter(fn($report) => $report->farmerProfile?->community?->district?->region !== null)
+            ->groupBy(fn($report) => $report->farmerProfile->community->district->region->id);
+
+        return $reports->map(function ($regionReports, $regionId) {
+            return [
+                'region_id' => (int) $regionId,
+                'region_name' => Region::find($regionId)?->name ?? '',
+                'total' => $regionReports->count(),
+                'by_category' => $regionReports->countBy('category')->all(),
+                'by_status' => $regionReports->countBy(fn($report) => $report->status->value)->all(),
+            ];
+        })->values()->all();
+    }
 
     public function platformSnapshot(string $from, string $to): array
     {
