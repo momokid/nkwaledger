@@ -8,8 +8,12 @@ use App\Services\Ledger\Reports\AccountStatementService;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use App\Services\Ledger\Reports\ReportHeader;
 use App\Services\Ledger\Reports\TrialBalanceService;
+use App\Support\Money;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Contracts\View\View as ViewResponse;
@@ -196,6 +200,82 @@ class ReportController extends Controller
             'kind' => $kind,
             'report' => $this->build($kind, $farmer, $from, $to, $includeProvisional),
         ]);
+    }
+
+    // the statement only - same layout as reports.print, just handed to dompdf
+    // instead of the browser's own print dialog
+    public function pdf(Request $request, ?FarmerProfile $farmer = null): HttpResponse
+    {
+        [$farmer, $report] = $this->statementFor($request, $farmer);
+
+        // uncompressed, so the same file that goes to the farmer is also the one
+        // a test (or a support agent) can grep for the numbers it should contain
+        $binary = Pdf::loadView('reports.print', ['kind' => 'statement', 'report' => $report])
+            ->output(['compress' => 0]);
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $this->filenameFor($farmer, $report, 'pdf') . '"',
+        ]);
+    }
+
+    public function csv(Request $request, ?FarmerProfile $farmer = null): HttpResponse
+    {
+        [$farmer, $report] = $this->statementFor($request, $farmer);
+
+        $handle = fopen('php://temp', 'w+');
+
+        fputcsv($handle, ['Date', 'Reference', 'Description', 'Money In (GHS)', 'Money Out (GHS)', 'Balance (GHS)']);
+        fputcsv($handle, ['', '', 'Brought forward', '', '', Money::toDecimal($report['opening_balance'])]);
+
+        foreach ($report['rows'] as $row) {
+            fputcsv($handle, [
+                $row['date'],
+                $row['reference'],
+                $row['description'],
+                $row['money_in'] > 0 ? Money::toDecimal($row['money_in']) : '',
+                $row['money_out'] > 0 ? Money::toDecimal($row['money_out']) : '',
+                Money::toDecimal($row['balance']),
+            ]);
+        }
+
+        fputcsv($handle, [
+            '', '', 'Totals',
+            Money::toDecimal($report['total_in']),
+            Money::toDecimal($report['total_out']),
+            Money::toDecimal($report['closing_balance']),
+        ]);
+
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $this->filenameFor($farmer, $report, 'csv') . '"',
+        ]);
+    }
+
+    /** @return array{0: FarmerProfile, 1: array} */
+    private function statementFor(Request $request, ?FarmerProfile $farmer): array
+    {
+        $ownBooks = $farmer === null;
+
+        $farmer = $this->resolveFarmer($request, $farmer);
+
+        $from = $request->query('from', Carbon::now()->startOfYear()->toDateString());
+        $to = $request->query('to', Carbon::now()->endOfYear()->toDateString());
+
+        $includeProvisional = $ownBooks || $request->query('provisional') === '1';
+
+        return [$farmer, $this->statement($farmer, $from, $to, $includeProvisional)];
+    }
+
+    private function filenameFor(FarmerProfile $farmer, array $report, string $extension): string
+    {
+        $name = Str::slug(trim("{$farmer->user?->surname} {$farmer->user?->first_name}")) ?: 'farmer';
+
+        return "statement-{$name}-{$report['header']['from']}-to-{$report['header']['to']}.{$extension}";
     }
 
     private function header(ReportHeader $header): array
