@@ -3,6 +3,14 @@
 
     $cedis = fn(int $minor) => number_format($minor / 100, 2);
     $day = fn(?string $value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('d/m/Y') : '—';
+    $classLabel = fn(?string $class) => match ($class) {
+        'asset' => 'Asset',
+        'expenditure' => 'Expenditure',
+        'income' => 'Income',
+        'liability' => 'Liability',
+        default => null,
+    };
+    $subtotalCell = 'font-weight:400;color:#6B7280;font-size:9.5pt;border-top:none;';
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -269,8 +277,18 @@
                                 @endif
                             </td>
                             <td>{{ $row['reference'] }}</td>
-                            <td class="right">{{ $row['money_in'] > 0 ? $cedis($row['money_in']) : '—' }}</td>
-                            <td class="right">{{ $row['money_out'] > 0 ? $cedis($row['money_out']) : '—' }}</td>
+                            <td class="right">
+                                {{ $row['money_in'] > 0 ? $cedis($row['money_in']) : '—' }}
+                                @if ($row['money_in'] > 0 && $classLabel($row['money_class']))
+                                    <span class="muted">{{ $classLabel($row['money_class']) }}</span>
+                                @endif
+                            </td>
+                            <td class="right">
+                                {{ $row['money_out'] > 0 ? $cedis($row['money_out']) : '—' }}
+                                @if ($row['money_out'] > 0 && $classLabel($row['money_class']))
+                                    <span class="muted">{{ $classLabel($row['money_class']) }}</span>
+                                @endif
+                            </td>
                             <td class="right">{{ $cedis($row['balance']) }}</td>
                         </tr>
                     @empty
@@ -286,6 +304,32 @@
                         <td class="right">{{ $cedis($report['total_out']) }}</td>
                         <td class="right">{{ $cedis($report['closing_balance']) }}</td>
                     </tr>
+                    <tr>
+                        <td colspan="3" style="{{ $subtotalCell }}">Assets</td>
+                        <td class="right" style="{{ $subtotalCell }}"></td>
+                        <td class="right" style="{{ $subtotalCell }}">{{ $cedis($report['total_assets']) }}</td>
+                        <td class="right" style="{{ $subtotalCell }}"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="{{ $subtotalCell }}">Expenditure</td>
+                        <td class="right" style="{{ $subtotalCell }}"></td>
+                        <td class="right" style="{{ $subtotalCell }}">{{ $cedis($report['total_expenditure']) }}</td>
+                        <td class="right" style="{{ $subtotalCell }}"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="{{ $subtotalCell }}">Income</td>
+                        <td class="right" style="{{ $subtotalCell }}">{{ $cedis($report['total_income']) }}</td>
+                        <td class="right" style="{{ $subtotalCell }}"></td>
+                        <td class="right" style="{{ $subtotalCell }}"></td>
+                    </tr>
+                    @if ($report['total_liability'] > 0)
+                        <tr>
+                            <td colspan="3" style="{{ $subtotalCell }}">Liability</td>
+                            <td class="right" style="{{ $subtotalCell }}">{{ $cedis($report['total_liability']) }}</td>
+                            <td class="right" style="{{ $subtotalCell }}"></td>
+                            <td class="right" style="{{ $subtotalCell }}"></td>
+                        </tr>
+                    @endif
                 </tfoot>
             </table>
         @endif
