@@ -8,8 +8,11 @@ import {
     IconPlant2,
 } from "@tabler/icons-react";
 import { FormEventHandler } from "react";
+import GuestThemeProvider from "@/theme/GuestThemeProvider";
+import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { type } from "@/theme/typography";
 
-function Divider({ label }: { label?: string }) {
+function Divider({ label, border, textSecondary }: { label?: string; border: string; textSecondary: string }) {
     return (
         <div
             style={{
@@ -19,32 +22,41 @@ function Divider({ label }: { label?: string }) {
                 margin: "14px 0",
             }}
         >
-            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+            <div style={{ flex: 1, height: "1px", background: border }} />
             {label && (
                 <span
                     style={{
-                        fontSize: "1.25rem",
-                        color: "#9CA3AF",
+                        fontSize: type.body,
+                        color: textSecondary,
                         whiteSpace: "nowrap",
                     }}
                 >
                     {label}
                 </span>
             )}
-            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+            <div style={{ flex: 1, height: "1px", background: border }} />
         </div>
     );
+}
+
+interface FieldPalette {
+    text: string;
+    textSecondary: string;
+    inputBorder: string;
+    inputBg: string;
 }
 
 function InputField({
     label,
     optional = false,
     error,
+    palette,
     children,
 }: {
     label: string;
     optional?: boolean;
     error?: string;
+    palette: FieldPalette;
     children: React.ReactNode;
 }) {
     return (
@@ -52,9 +64,9 @@ function InputField({
             <label
                 style={{
                     display: "block",
-                    fontSize: "1.25rem",
+                    fontSize: type.body,
                     fontWeight: 600,
-                    color: "#111827",
+                    color: palette.text,
                     marginBottom: "6px",
                 }}
             >
@@ -62,9 +74,9 @@ function InputField({
                 {optional && (
                     <span
                         style={{
-                            fontSize: "1.125rem",
+                            fontSize: type.input,
                             fontWeight: 400,
-                            color: "#9CA3AF",
+                            color: palette.textSecondary,
                         }}
                     >
                         (optional)
@@ -76,7 +88,7 @@ function InputField({
                 <p
                     style={{
                         marginTop: "4px",
-                        fontSize: "1.125rem",
+                        fontSize: type.input,
                         color: "#DC2626",
                     }}
                 >
@@ -87,17 +99,6 @@ function InputField({
     );
 }
 
-const inputStyle: React.CSSProperties = {
-    width: "100%",
-    border: "1px solid #9CA3AF",
-    padding: "10px 12px",
-    fontSize: "1.25rem",
-    color: "#111827",
-    background: "#fff",
-    outline: "none",
-    fontFamily: "inherit",
-};
-
 const steps = [
     { number: "1", label: "Your details", active: true },
     { number: "2", label: "Verify phone", active: false },
@@ -105,6 +106,15 @@ const steps = [
 ];
 
 export default function Register() {
+    return (
+        <GuestThemeProvider>
+            <RegisterContent />
+        </GuestThemeProvider>
+    );
+}
+
+function RegisterContent() {
+    const { dark } = useTheme();
     const { data, setData, post, processing, errors } = useForm({
         surname: "",
         first_name: "",
@@ -114,6 +124,26 @@ export default function Register() {
         password: "",
         password_confirmation: "",
     });
+
+    const surface = dark ? "#1F2937" : "#FFFFFF";
+    const border = dark ? "#374151" : "#E5E7EB";
+    const inputBorder = dark ? "#4B5563" : "#9CA3AF";
+    const inputBg = dark ? "#111827" : "#FFFFFF";
+    const text = dark ? "#F9FAFB" : "#111827";
+    const textSecondary = dark ? "#9CA3AF" : "#6B7280";
+    const hoverNeutral = dark ? "#374151" : "#F3F4F6";
+    const palette: FieldPalette = { text, textSecondary, inputBorder, inputBg };
+
+    const inputStyle: React.CSSProperties = {
+        width: "100%",
+        border: `1px solid ${inputBorder}`,
+        padding: "10px 12px",
+        fontSize: type.body,
+        color: text,
+        background: inputBg,
+        outline: "none",
+        fontFamily: "inherit",
+    };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -126,7 +156,7 @@ export default function Register() {
     };
 
     const blurStyle = (e: React.FocusEvent<HTMLInputElement>) => {
-        e.target.style.border = "1px solid #9CA3AF";
+        e.target.style.border = `1px solid ${inputBorder}`;
         e.target.style.padding = "10px 12px";
     };
 
@@ -290,7 +320,7 @@ export default function Register() {
                                 >
                                     <div
                                         style={{
-                                            fontSize: "1.25rem",
+                                            fontSize: type.body,
                                             fontWeight: step.active ? 600 : 400,
                                             color: step.active
                                                 ? "#fff"
@@ -307,7 +337,7 @@ export default function Register() {
 
                 <div
                     style={{
-                        fontSize: "1.125rem",
+                        fontSize: type.input,
                         color: "rgba(255,255,255,0.35)",
                     }}
                 >
@@ -316,21 +346,24 @@ export default function Register() {
                 </div>
             </div>
 
-            <div className="w-full lg:w-3/5 flex flex-col justify-center items-center px-8 py-12 bg-white">
+            <div
+                className="w-full lg:w-3/5 flex flex-col justify-center items-center px-8 py-12"
+                style={{ background: surface }}
+            >
                 <div className="w-[90%] mx-auto">
                     <Link
                         href="/"
                         className="inline-flex items-center gap-2 mb-8"
                         style={{
-                            fontSize: "1.25rem",
-                            color: "#6B7280",
+                            fontSize: type.body,
+                            color: textSecondary,
                             textDecoration: "none",
                         }}
                         onMouseOver={(e) =>
-                            (e.currentTarget.style.color = "#111827")
+                            (e.currentTarget.style.color = text)
                         }
                         onMouseOut={(e) =>
-                            (e.currentTarget.style.color = "#6B7280")
+                            (e.currentTarget.style.color = textSecondary)
                         }
                     >
                         <IconArrowLeft size={18} />
@@ -341,9 +374,9 @@ export default function Register() {
                         <h2
                             style={{
                                 margin: 0,
-                                fontSize: "2.375rem",
+                                fontSize: type.pageTitle,
                                 fontWeight: 700,
-                                color: "#111827",
+                                color: text,
                                 letterSpacing: "-0.5px",
                             }}
                         >
@@ -352,15 +385,20 @@ export default function Register() {
                         <span
                             className="inline-flex items-center gap-1"
                             style={{
-                                fontSize: "1.125rem",
+                                fontSize: type.input,
                                 fontWeight: 600,
-                                color: "#0F6E56",
-                                background: "#EAF5F0",
-                                border: "1px solid #A8D9C8",
+                                color: dark ? "#A8D9C8" : "#0F6E56",
+                                background: dark
+                                    ? "rgba(29,158,117,0.15)"
+                                    : "#EAF5F0",
+                                border: `1px solid ${dark ? "#1D9E75" : "#A8D9C8"}`,
                                 padding: "4px 10px",
                             }}
                         >
-                            <IconPlant2 size={14} color="#0F6E56" />
+                            <IconPlant2
+                                size={14}
+                                color={dark ? "#A8D9C8" : "#0F6E56"}
+                            />
                             Farmer
                         </span>
                     </div>
@@ -368,8 +406,8 @@ export default function Register() {
                     <p
                         style={{
                             margin: "0 0 1.75rem",
-                            fontSize: "1.4375rem",
-                            color: "#6B7280",
+                            fontSize: type.body,
+                            color: textSecondary,
                         }}
                     >
                         Fill in your details to get started
@@ -383,7 +421,11 @@ export default function Register() {
                                 gap: "0 16px",
                             }}
                         >
-                            <InputField label="Surname" error={errors.surname}>
+                            <InputField
+                                label="Surname"
+                                error={errors.surname}
+                                palette={palette}
+                            >
                                 <input
                                     type="text"
                                     placeholder="Mensah"
@@ -400,6 +442,7 @@ export default function Register() {
                             <InputField
                                 label="First name"
                                 error={errors.first_name}
+                                palette={palette}
                             >
                                 <input
                                     type="text"
@@ -419,6 +462,7 @@ export default function Register() {
                             label="Other name"
                             optional
                             error={errors.other_name}
+                            palette={palette}
                         >
                             <input
                                 type="text"
@@ -433,18 +477,24 @@ export default function Register() {
                             />
                         </InputField>
 
-                        <InputField label="Phone number" error={errors.phone}>
+                        <InputField
+                            label="Phone number"
+                            error={errors.phone}
+                            palette={palette}
+                        >
                             <div style={{ display: "flex" }}>
                                 <div
                                     style={{
                                         display: "flex",
                                         alignItems: "center",
                                         padding: "10px 12px",
-                                        background: "#F9FAFB",
-                                        border: "1px solid #9CA3AF",
+                                        background: dark
+                                            ? "#111827"
+                                            : "#F9FAFB",
+                                        border: `1px solid ${inputBorder}`,
                                         borderRight: "none",
-                                        fontSize: "1.25rem",
-                                        color: "#111827",
+                                        fontSize: type.body,
+                                        color: text,
                                         whiteSpace: "nowrap",
                                         flexShrink: 0,
                                     }}
@@ -465,8 +515,7 @@ export default function Register() {
                                         e.target.style.padding = "9px 11px";
                                     }}
                                     onBlur={(e) => {
-                                        e.target.style.border =
-                                            "1px solid #9CA3AF";
+                                        e.target.style.border = `1px solid ${inputBorder}`;
                                         e.target.style.padding = "10px 12px";
                                     }}
                                 />
@@ -477,6 +526,7 @@ export default function Register() {
                             label="Email address"
                             optional
                             error={errors.email}
+                            palette={palette}
                         >
                             <input
                                 type="email"
@@ -491,7 +541,11 @@ export default function Register() {
                             />
                         </InputField>
 
-                        <InputField label="Password" error={errors.password}>
+                        <InputField
+                            label="Password"
+                            error={errors.password}
+                            palette={palette}
+                        >
                             <input
                                 type="password"
                                 placeholder="At least 6 characters"
@@ -508,6 +562,7 @@ export default function Register() {
                         <InputField
                             label="Confirm password"
                             error={errors.password_confirmation}
+                            palette={palette}
                         >
                             <input
                                 type="password"
@@ -534,7 +589,7 @@ export default function Register() {
                                 color: "#fff",
                                 border: "none",
                                 padding: "13px 20px",
-                                fontSize: "1.4375rem",
+                                fontSize: type.button,
                                 fontWeight: 600,
                                 cursor: processing ? "not-allowed" : "pointer",
                                 display: "flex",
@@ -559,7 +614,11 @@ export default function Register() {
                         </button>
                     </form>
 
-                    <Divider label="or continue with" />
+                    <Divider
+                        label="or continue with"
+                        border={border}
+                        textSecondary={textSecondary}
+                    />
 
                     <div
                         style={{
@@ -573,10 +632,10 @@ export default function Register() {
                             href="/auth/google"
                             style={{
                                 padding: "13px 12px",
-                                background: "#fff",
-                                border: "1px solid #9CA3AF",
-                                fontSize: "1.25rem",
-                                color: "#111827",
+                                background: surface,
+                                border: `1px solid ${inputBorder}`,
+                                fontSize: type.body,
+                                color: text,
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
@@ -586,10 +645,11 @@ export default function Register() {
                                 fontFamily: "inherit",
                             }}
                             onMouseOver={(e) =>
-                                (e.currentTarget.style.background = "#F3F4F6")
+                                (e.currentTarget.style.background =
+                                    hoverNeutral)
                             }
                             onMouseOut={(e) =>
-                                (e.currentTarget.style.background = "#fff")
+                                (e.currentTarget.style.background = surface)
                             }
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24">
@@ -619,7 +679,7 @@ export default function Register() {
                                 padding: "13px 12px",
                                 background: "#1877F2",
                                 border: "none",
-                                fontSize: "1.25rem",
+                                fontSize: type.body,
                                 color: "#fff",
                                 cursor: "pointer",
                                 display: "flex",
@@ -644,8 +704,8 @@ export default function Register() {
                     <div
                         style={{
                             padding: "14px 16px",
-                            background: "#F9FAFB",
-                            border: "1px solid #E5E7EB",
+                            background: dark ? "#111827" : "#F9FAFB",
+                            border: `1px solid ${border}`,
                             display: "flex",
                             gap: "12px",
                             alignItems: "flex-start",
@@ -654,14 +714,14 @@ export default function Register() {
                     >
                         <IconInfoCircle
                             size={18}
-                            color="#9CA3AF"
+                            color={textSecondary}
                             style={{ flexShrink: 0, marginTop: "2px" }}
                         />
                         <p
                             style={{
                                 margin: 0,
-                                fontSize: "1.125rem",
-                                color: "#6B7280",
+                                fontSize: type.input,
+                                color: textSecondary,
                                 lineHeight: 1.55,
                             }}
                         >
@@ -683,8 +743,8 @@ export default function Register() {
                     <p
                         style={{
                             textAlign: "center",
-                            fontSize: "1.25rem",
-                            color: "#6B7280",
+                            fontSize: type.body,
+                            color: textSecondary,
                             margin: 0,
                         }}
                     >

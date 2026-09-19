@@ -11,6 +11,9 @@ import {
     IconPlant,
 } from "@tabler/icons-react";
 import { FormEventHandler, useState } from "react";
+import GuestThemeProvider from "@/theme/GuestThemeProvider";
+import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { type } from "@/theme/typography";
 
 interface Props {
     canResetPassword: boolean;
@@ -25,7 +28,7 @@ const features = [
     "Trusted by farmers across Ghana",
 ];
 
-function Divider({ label }: { label?: string }) {
+function Divider({ label, border, textSecondary }: { label?: string; border: string; textSecondary: string }) {
     return (
         <div
             style={{
@@ -35,24 +38,36 @@ function Divider({ label }: { label?: string }) {
                 margin: "14px 0",
             }}
         >
-            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+            <div style={{ flex: 1, height: "1px", background: border }} />
             {label && (
                 <span
                     style={{
-                        fontSize: "1.25rem",
-                        color: "#9CA3AF",
+                        fontSize: type.body,
+                        color: textSecondary,
                         whiteSpace: "nowrap",
                     }}
                 >
                     {label}
                 </span>
             )}
-            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+            <div style={{ flex: 1, height: "1px", background: border }} />
         </div>
     );
 }
 
-function PasswordForm({ canResetPassword, status }: Props) {
+interface FormPalette {
+    text: string;
+    textSecondary: string;
+    inputBorder: string;
+    inputBg: string;
+}
+
+function PasswordForm({
+    canResetPassword,
+    status,
+    palette,
+}: Props & { palette: FormPalette }) {
+    const { text, textSecondary, inputBorder, inputBg } = palette;
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
         identifier: "",
@@ -70,7 +85,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                 <div
                     style={{
                         marginBottom: "1rem",
-                        fontSize: "1.25rem",
+                        fontSize: type.body,
                         color: "#1D9E75",
                     }}
                 >
@@ -82,9 +97,9 @@ function PasswordForm({ canResetPassword, status }: Props) {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "1.25rem",
+                        fontSize: type.body,
                         fontWeight: 600,
-                        color: "#111827",
+                        color: text,
                         marginBottom: "6px",
                     }}
                 >
@@ -100,7 +115,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                             pointerEvents: "none",
                         }}
                     >
-                        <IconPhone size={18} color="#9CA3AF" />
+                        <IconPhone size={18} color={textSecondary} />
                     </span>
                     <input
                         type="text"
@@ -109,11 +124,11 @@ function PasswordForm({ canResetPassword, status }: Props) {
                         onChange={(e) => setData("identifier", e.target.value)}
                         style={{
                             width: "100%",
-                            border: "1px solid #9CA3AF",
+                            border: `1px solid ${inputBorder}`,
                             padding: "10px 12px 10px 40px",
-                            fontSize: "1.25rem",
-                            color: "#111827",
-                            background: "#fff",
+                            fontSize: type.body,
+                            color: text,
+                            background: inputBg,
                             outline: "none",
                             fontFamily: "inherit",
                         }}
@@ -122,7 +137,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                             e.target.style.paddingLeft = "39px";
                         }}
                         onBlur={(e) => {
-                            e.target.style.border = "1px solid #9CA3AF";
+                            e.target.style.border = `1px solid ${inputBorder}`;
                             e.target.style.paddingLeft = "40px";
                         }}
                     />
@@ -131,7 +146,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             marginTop: "4px",
-                            fontSize: "1.125rem",
+                            fontSize: type.input,
                             color: "#DC2626",
                         }}
                     >
@@ -144,9 +159,9 @@ function PasswordForm({ canResetPassword, status }: Props) {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "1.25rem",
+                        fontSize: type.body,
                         fontWeight: 600,
-                        color: "#111827",
+                        color: text,
                         marginBottom: "6px",
                     }}
                 >
@@ -162,7 +177,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                             pointerEvents: "none",
                         }}
                     >
-                        <IconLock size={18} color="#9CA3AF" />
+                        <IconLock size={18} color={textSecondary} />
                     </span>
                     <input
                         type={showPassword ? "text" : "password"}
@@ -171,11 +186,11 @@ function PasswordForm({ canResetPassword, status }: Props) {
                         onChange={(e) => setData("password", e.target.value)}
                         style={{
                             width: "100%",
-                            border: "1px solid #9CA3AF",
+                            border: `1px solid ${inputBorder}`,
                             padding: "10px 40px 10px 40px",
-                            fontSize: "1.25rem",
-                            color: "#111827",
-                            background: "#fff",
+                            fontSize: type.body,
+                            color: text,
+                            background: inputBg,
                             outline: "none",
                             fontFamily: "inherit",
                         }}
@@ -184,7 +199,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                             e.target.style.paddingLeft = "39px";
                         }}
                         onBlur={(e) => {
-                            e.target.style.border = "1px solid #9CA3AF";
+                            e.target.style.border = `1px solid ${inputBorder}`;
                             e.target.style.paddingLeft = "40px";
                         }}
                     />
@@ -204,9 +219,9 @@ function PasswordForm({ canResetPassword, status }: Props) {
                         }}
                     >
                         {showPassword ? (
-                            <IconEyeOff size={18} color="#9CA3AF" />
+                            <IconEyeOff size={18} color={textSecondary} />
                         ) : (
-                            <IconEye size={18} color="#9CA3AF" />
+                            <IconEye size={18} color={textSecondary} />
                         )}
                     </button>
                 </div>
@@ -214,7 +229,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             marginTop: "4px",
-                            fontSize: "1.125rem",
+                            fontSize: type.input,
                             color: "#DC2626",
                         }}
                     >
@@ -228,7 +243,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     <Link
                         href={route("password.request")}
                         style={{
-                            fontSize: "1.125rem",
+                            fontSize: type.input,
                             fontWeight: 600,
                             color: "#1D9E75",
                             textDecoration: "none",
@@ -248,7 +263,7 @@ function PasswordForm({ canResetPassword, status }: Props) {
                     color: "#fff",
                     border: "none",
                     padding: "13px 20px",
-                    fontSize: "1.4375rem",
+                    fontSize: type.button,
                     fontWeight: 600,
                     cursor: processing ? "not-allowed" : "pointer",
                     display: "flex",
@@ -271,7 +286,8 @@ function PasswordForm({ canResetPassword, status }: Props) {
     );
 }
 
-function OtpForm() {
+function OtpForm({ palette }: { palette: FormPalette }) {
+    const { text, textSecondary, inputBorder, inputBg } = palette;
     const { data, setData, post, processing, errors } = useForm({ phone: "" });
 
     const submit: FormEventHandler = (e) => {
@@ -285,9 +301,9 @@ function OtpForm() {
                 <label
                     style={{
                         display: "block",
-                        fontSize: "1.25rem",
+                        fontSize: type.body,
                         fontWeight: 600,
-                        color: "#111827",
+                        color: text,
                         marginBottom: "6px",
                     }}
                 >
@@ -303,7 +319,7 @@ function OtpForm() {
                             pointerEvents: "none",
                         }}
                     >
-                        <IconPhone size={18} color="#9CA3AF" />
+                        <IconPhone size={18} color={textSecondary} />
                     </span>
                     <input
                         type="tel"
@@ -312,11 +328,11 @@ function OtpForm() {
                         onChange={(e) => setData("phone", e.target.value)}
                         style={{
                             width: "100%",
-                            border: "1px solid #9CA3AF",
+                            border: `1px solid ${inputBorder}`,
                             padding: "10px 12px 10px 40px",
-                            fontSize: "1.25rem",
-                            color: "#111827",
-                            background: "#fff",
+                            fontSize: type.body,
+                            color: text,
+                            background: inputBg,
                             outline: "none",
                             fontFamily: "inherit",
                         }}
@@ -325,7 +341,7 @@ function OtpForm() {
                             e.target.style.paddingLeft = "39px";
                         }}
                         onBlur={(e) => {
-                            e.target.style.border = "1px solid #9CA3AF";
+                            e.target.style.border = `1px solid ${inputBorder}`;
                             e.target.style.paddingLeft = "40px";
                         }}
                         autoComplete="off"
@@ -335,7 +351,7 @@ function OtpForm() {
                     <p
                         style={{
                             marginTop: "4px",
-                            fontSize: "1.125rem",
+                            fontSize: type.input,
                             color: "#DC2626",
                         }}
                     >
@@ -353,7 +369,7 @@ function OtpForm() {
                     color: "#fff",
                     border: "none",
                     padding: "13px 20px",
-                    fontSize: "1.4375rem",
+                    fontSize: type.button,
                     fontWeight: 600,
                     cursor: processing ? "not-allowed" : "pointer",
                     display: "flex",
@@ -378,8 +394,8 @@ function OtpForm() {
             <p
                 style={{
                     marginTop: "14px",
-                    fontSize: "1.125rem",
-                    color: "#6B7280",
+                    fontSize: type.input,
+                    color: textSecondary,
                     textAlign: "center",
                 }}
             >
@@ -389,8 +405,26 @@ function OtpForm() {
     );
 }
 
-export default function Login({ canResetPassword, status }: Props) {
+export default function Login(props: Props) {
+    return (
+        <GuestThemeProvider>
+            <LoginContent {...props} />
+        </GuestThemeProvider>
+    );
+}
+
+function LoginContent({ canResetPassword, status }: Props) {
+    const { dark } = useTheme();
     const [tab, setTab] = useState<Tab>("password");
+
+    const surface = dark ? "#1F2937" : "#FFFFFF";
+    const border = dark ? "#374151" : "#E5E7EB";
+    const inputBorder = dark ? "#4B5563" : "#9CA3AF";
+    const inputBg = dark ? "#111827" : "#FFFFFF";
+    const text = dark ? "#F9FAFB" : "#111827";
+    const textSecondary = dark ? "#9CA3AF" : "#6B7280";
+    const hoverNeutral = dark ? "#374151" : "#F3F4F6";
+    const palette: FormPalette = { text, textSecondary, inputBorder, inputBg };
 
     return (
         <div
@@ -490,7 +524,7 @@ export default function Login({ canResetPassword, status }: Props) {
                                 </div>
                                 <span
                                     style={{
-                                        fontSize: "1.25rem",
+                                        fontSize: type.body,
                                         color: "rgba(255,255,255,0.75)",
                                     }}
                                 >
@@ -503,7 +537,7 @@ export default function Login({ canResetPassword, status }: Props) {
 
                 <div
                     style={{
-                        fontSize: "1.125rem",
+                        fontSize: type.input,
                         color: "rgba(255,255,255,0.35)",
                     }}
                 >
@@ -512,21 +546,24 @@ export default function Login({ canResetPassword, status }: Props) {
                 </div>
             </div>
 
-            <div className="w-full lg:w-3/5 flex flex-col justify-center items-center px-8 py-12 bg-white">
+            <div
+                className="w-full lg:w-3/5 flex flex-col justify-center items-center px-8 py-12"
+                style={{ background: surface }}
+            >
                 <div className="w-[90%] mx-auto">
                     <Link
                         href="/"
                         className="inline-flex items-center gap-2 mb-8"
                         style={{
-                            fontSize: "1.25rem",
-                            color: "#6B7280",
+                            fontSize: type.body,
+                            color: textSecondary,
                             textDecoration: "none",
                         }}
                         onMouseOver={(e) =>
-                            (e.currentTarget.style.color = "#111827")
+                            (e.currentTarget.style.color = text)
                         }
                         onMouseOut={(e) =>
-                            (e.currentTarget.style.color = "#6B7280")
+                            (e.currentTarget.style.color = textSecondary)
                         }
                     >
                         <IconArrowLeft size={18} />
@@ -536,9 +573,9 @@ export default function Login({ canResetPassword, status }: Props) {
                     <h2
                         style={{
                             margin: "0 0 4px",
-                            fontSize: "2.375rem",
+                            fontSize: type.pageTitle,
                             fontWeight: 700,
-                            color: "#111827",
+                            color: text,
                             letterSpacing: "-0.5px",
                         }}
                     >
@@ -547,8 +584,8 @@ export default function Login({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             margin: "0 0 1.75rem",
-                            fontSize: "1.4375rem",
-                            color: "#6B7280",
+                            fontSize: type.body,
+                            color: textSecondary,
                         }}
                     >
                         to continue to NkwaLedger
@@ -556,7 +593,7 @@ export default function Login({ canResetPassword, status }: Props) {
 
                     <div
                         style={{
-                            borderBottom: "1px solid #E5E7EB",
+                            borderBottom: `1px solid ${border}`,
                             display: "flex",
                             marginBottom: "1.75rem",
                         }}
@@ -568,9 +605,9 @@ export default function Login({ canResetPassword, status }: Props) {
                                 onClick={() => setTab(key)}
                                 style={{
                                     padding: "10px 18px",
-                                    fontSize: "1.25rem",
+                                    fontSize: type.body,
                                     fontWeight: tab === key ? 600 : 400,
-                                    color: tab === key ? "#1D9E75" : "#6B7280",
+                                    color: tab === key ? "#1D9E75" : textSecondary,
                                     background: "none",
                                     border: "none",
                                     borderBottom:
@@ -593,12 +630,17 @@ export default function Login({ canResetPassword, status }: Props) {
                         <PasswordForm
                             canResetPassword={canResetPassword}
                             status={status}
+                            palette={palette}
                         />
                     ) : (
-                        <OtpForm />
+                        <OtpForm palette={palette} />
                     )}
 
-                    <Divider label="or continue with" />
+                    <Divider
+                        label="or continue with"
+                        border={border}
+                        textSecondary={textSecondary}
+                    />
 
                     <div
                         style={{
@@ -612,10 +654,10 @@ export default function Login({ canResetPassword, status }: Props) {
                             href="/auth/google"
                             style={{
                                 padding: "13px 12px",
-                                background: "#fff",
-                                border: "1px solid #9CA3AF",
-                                fontSize: "1.25rem",
-                                color: "#111827",
+                                background: surface,
+                                border: `1px solid ${inputBorder}`,
+                                fontSize: type.body,
+                                color: text,
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
@@ -625,10 +667,11 @@ export default function Login({ canResetPassword, status }: Props) {
                                 fontFamily: "inherit",
                             }}
                             onMouseOver={(e) =>
-                                (e.currentTarget.style.background = "#F3F4F6")
+                                (e.currentTarget.style.background =
+                                    hoverNeutral)
                             }
                             onMouseOut={(e) =>
-                                (e.currentTarget.style.background = "#fff")
+                                (e.currentTarget.style.background = surface)
                             }
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24">
@@ -658,7 +701,7 @@ export default function Login({ canResetPassword, status }: Props) {
                                 padding: "13px 12px",
                                 background: "#1877F2",
                                 border: "none",
-                                fontSize: "1.25rem",
+                                fontSize: type.body,
                                 color: "#fff",
                                 cursor: "pointer",
                                 display: "flex",
@@ -683,8 +726,8 @@ export default function Login({ canResetPassword, status }: Props) {
                     <p
                         style={{
                             textAlign: "center",
-                            fontSize: "1.25rem",
-                            color: "#6B7280",
+                            fontSize: type.body,
+                            color: textSecondary,
                             margin: 0,
                         }}
                     >
