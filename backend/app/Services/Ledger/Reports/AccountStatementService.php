@@ -81,7 +81,10 @@ class AccountStatementService
 
     private function cancelState(Transaction $transaction): string
     {
-        if ($transaction->transaction_type === Transaction::ADJUSTMENT) {
+        // a credit settlement (payment_received/payment_made) is also an ADJUSTMENT,
+        // but it is new real activity, not a reversal of something earlier - only a
+        // transaction that actually reverses another one is a "correction"
+        if ($transaction->transaction_type === Transaction::ADJUSTMENT && $transaction->reverses_transaction_id !== null) {
             return 'correction';
         }
 
@@ -246,13 +249,19 @@ class AccountStatementService
             ->when($accountId !== null, fn(Builder $query) => $query->where('settlement_account_id', $accountId));
     }
 
-    // reads the few ticked accounts instead of scanning every transaction ever made
+    // reads the few ticked accounts instead of scanning every transaction ever made.
+    // Accounts Receivable/Payable carry is_settlement too (CreditSettlementService needs
+    // that), but they are not real cash - a credit sale/purchase must show no money
+    // moving until it is actually settled against one of these real accounts
     private function settlementAccounts(?int $accountId): Collection
     {
         if ($accountId !== null) {
             return collect([$accountId]);
         }
 
-        return LedgerAccount::settlement()->pluck('id')->map(fn($id) => (int) $id);
+        return LedgerAccount::settlement()
+            ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
+            ->pluck('id')
+            ->map(fn($id) => (int) $id);
     }
 }
