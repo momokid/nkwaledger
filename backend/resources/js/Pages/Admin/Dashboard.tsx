@@ -2,9 +2,52 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import GreetingHeader from "@/Components/GreetingHeader";
 import Button from "@/Components/Button";
+import Drawer from "@/Components/Drawer";
 import { cedis as formatMoney } from "@/lib/format";
 import { router } from "@inertiajs/react";
 import { useState } from "react";
+
+interface AgentDetail {
+    summary: {
+        total_income: number;
+        total_expense: number;
+        net: number;
+        cash_collected: number;
+        cash_paid_out: number;
+    };
+    farmer_count: number;
+    roster: Array<{
+        id: string;
+        name: string;
+        community: string | null;
+        income: number;
+        expense: number;
+        status: string;
+    }>;
+}
+
+interface RegionDetail {
+    region_name: string;
+    farmers: Array<{
+        id: string;
+        name: string;
+        community: string | null;
+        income: number;
+        expense: number;
+    }>;
+}
+
+interface HealthDetail {
+    region_name: string;
+    reports: Array<{
+        uuid: string;
+        farmer_name: string;
+        category: string;
+        status: string;
+        description: string;
+        created_at: string;
+    }>;
+}
 
 type Sort = "net" | "activity";
 
@@ -82,6 +125,44 @@ function DashboardContent({
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
     const [loading, setLoading] = useState(false);
+    const [drawerAgent, setDrawerAgent] = useState<LeaderboardRow | null>(null);
+    const [agentDetail, setAgentDetail] = useState<AgentDetail | null>(null);
+    const [drawerRegion, setDrawerRegion] = useState<RegionalRow | null>(null);
+    const [regionDetail, setRegionDetail] = useState<RegionDetail | null>(null);
+    const [drawerHealth, setDrawerHealth] = useState<HealthRow | null>(null);
+    const [healthDetail, setHealthDetail] = useState<HealthDetail | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+
+    const openAgentDetail = (row: LeaderboardRow) => {
+        setDrawerAgent(row);
+        setDetailLoading(true);
+        fetch(
+            `/admin/agents/${row.agent_id}/detail?from=${filters.from}&to=${filters.to}`,
+        )
+            .then((response) => response.json())
+            .then((data: AgentDetail) => setAgentDetail(data))
+            .finally(() => setDetailLoading(false));
+    };
+
+    const openRegionDetail = (row: RegionalRow) => {
+        setDrawerRegion(row);
+        setDetailLoading(true);
+        fetch(
+            `/admin/regions/${row.region_id}/detail?from=${filters.from}&to=${filters.to}`,
+        )
+            .then((response) => response.json())
+            .then((data: RegionDetail) => setRegionDetail(data))
+            .finally(() => setDetailLoading(false));
+    };
+
+    const openHealthDetail = (row: HealthRow) => {
+        setDrawerHealth(row);
+        setDetailLoading(true);
+        fetch(`/admin/regions/${row.region_id}/health-detail`)
+            .then((response) => response.json())
+            .then((data: HealthDetail) => setHealthDetail(data))
+            .finally(() => setDetailLoading(false));
+    };
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -334,8 +415,10 @@ function DashboardContent({
                                 {leaderboard.map((row) => (
                                     <tr
                                         key={row.agent_id}
+                                        onClick={() => openAgentDetail(row)}
                                         style={{
                                             borderBottom: `1px solid ${border}`,
+                                            cursor: "pointer",
                                         }}
                                     >
                                         <td
@@ -477,8 +560,12 @@ function DashboardContent({
                                     .map((row) => (
                                         <tr
                                             key={row.region_id}
+                                            onClick={() =>
+                                                openRegionDetail(row)
+                                            }
                                             style={{
                                                 borderBottom: `1px solid ${border}`,
+                                                cursor: "pointer",
                                             }}
                                         >
                                             <td
@@ -601,8 +688,12 @@ function DashboardContent({
                                     .map((row) => (
                                         <tr
                                             key={row.region_id}
+                                            onClick={() =>
+                                                openHealthDetail(row)
+                                            }
                                             style={{
                                                 borderBottom: `1px solid ${border}`,
+                                                cursor: "pointer",
                                             }}
                                         >
                                             <td
@@ -656,6 +747,270 @@ function DashboardContent({
                     </div>
                 )}
             </div>
+
+            <Drawer
+                open={drawerAgent !== null}
+                title={drawerAgent ? `${drawerAgent.name}'s farmers` : ""}
+                onClose={() => {
+                    setDrawerAgent(null);
+                    setAgentDetail(null);
+                }}
+            >
+                {detailLoading || !agentDetail ? (
+                    <p style={{ color: text }}>Loading…</p>
+                ) : (
+                    <div>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "20px",
+                                marginBottom: "20px",
+                            }}
+                        >
+                            <div>
+                                <p
+                                    style={{
+                                        fontSize: "0.875rem",
+                                        color: text,
+                                    }}
+                                >
+                                    Income
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "1.25rem",
+                                        fontWeight: 700,
+                                        color: text,
+                                    }}
+                                >
+                                    GHS{" "}
+                                    {formatMoney(
+                                        agentDetail.summary.total_income,
+                                    )}
+                                </p>
+                            </div>
+                            <div>
+                                <p
+                                    style={{
+                                        fontSize: "0.875rem",
+                                        color: text,
+                                    }}
+                                >
+                                    Expense
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "1.25rem",
+                                        fontWeight: 700,
+                                        color: text,
+                                    }}
+                                >
+                                    GHS{" "}
+                                    {formatMoney(
+                                        agentDetail.summary.total_expense,
+                                    )}
+                                </p>
+                            </div>
+                            <div>
+                                <p
+                                    style={{
+                                        fontSize: "0.875rem",
+                                        color: text,
+                                    }}
+                                >
+                                    Net
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "1.25rem",
+                                        fontWeight: 700,
+                                        color: text,
+                                    }}
+                                >
+                                    GHS {formatMoney(agentDetail.summary.net)}
+                                </p>
+                            </div>
+                        </div>
+
+                        <p
+                            style={{
+                                fontSize: "1.0625rem",
+                                fontWeight: 700,
+                                color: text,
+                                marginBottom: "10px",
+                            }}
+                        >
+                            Farmers ({agentDetail.farmer_count} active)
+                        </p>
+
+                        {agentDetail.roster.length === 0 ? (
+                            <p style={{ color: text }}>No farmers assigned.</p>
+                        ) : (
+                            <table
+                                style={{
+                                    width: "100%",
+                                    borderCollapse: "collapse",
+                                }}
+                            >
+                                <tbody>
+                                    {agentDetail.roster.map((farmer) => (
+                                        <tr
+                                            key={farmer.id}
+                                            style={{
+                                                borderBottom: `1px solid ${border}`,
+                                            }}
+                                        >
+                                            <td
+                                                style={{
+                                                    padding: "8px 0",
+                                                    color: text,
+                                                }}
+                                            >
+                                                {farmer.name}
+                                                <div
+                                                    style={{
+                                                        fontSize: "0.8125rem",
+                                                        color: text,
+                                                    }}
+                                                >
+                                                    {farmer.community}
+                                                </div>
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "8px 0",
+                                                    color: text,
+                                                    textAlign: "right",
+                                                }}
+                                            >
+                                                GHS {formatMoney(farmer.income)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                )}
+            </Drawer>
+
+            <Drawer
+                open={drawerRegion !== null}
+                title={
+                    drawerRegion ? `${drawerRegion.region_name} farmers` : ""
+                }
+                onClose={() => {
+                    setDrawerRegion(null);
+                    setRegionDetail(null);
+                }}
+            >
+                {detailLoading || !regionDetail ? (
+                    <p style={{ color: text }}>Loading…</p>
+                ) : regionDetail.farmers.length === 0 ? (
+                    <p style={{ color: text }}>No farmers in this region.</p>
+                ) : (
+                    <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                        <tbody>
+                            {regionDetail.farmers.map((farmer) => (
+                                <tr
+                                    key={farmer.id}
+                                    style={{
+                                        borderBottom: `1px solid ${border}`,
+                                    }}
+                                >
+                                    <td
+                                        style={{
+                                            padding: "8px 0",
+                                            color: text,
+                                        }}
+                                    >
+                                        {farmer.name}
+                                        <div
+                                            style={{
+                                                fontSize: "0.8125rem",
+                                                color: text,
+                                            }}
+                                        >
+                                            {farmer.community}
+                                        </div>
+                                    </td>
+                                    <td
+                                        style={{
+                                            padding: "8px 0",
+                                            color: text,
+                                            textAlign: "right",
+                                        }}
+                                    >
+                                        GHS {formatMoney(farmer.income)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </Drawer>
+
+            <Drawer
+                open={drawerHealth !== null}
+                title={
+                    drawerHealth
+                        ? `${drawerHealth.region_name} disease reports`
+                        : ""
+                }
+                onClose={() => {
+                    setDrawerHealth(null);
+                    setHealthDetail(null);
+                }}
+            >
+                {detailLoading || !healthDetail ? (
+                    <p style={{ color: text }}>Loading…</p>
+                ) : healthDetail.reports.length === 0 ? (
+                    <p style={{ color: text }}>No reports in this region.</p>
+                ) : (
+                    <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                        <tbody>
+                            {healthDetail.reports.map((report) => (
+                                <tr
+                                    key={report.uuid}
+                                    style={{
+                                        borderBottom: `1px solid ${border}`,
+                                    }}
+                                >
+                                    <td
+                                        style={{
+                                            padding: "8px 0",
+                                            color: text,
+                                        }}
+                                    >
+                                        {report.farmer_name}
+                                        <div
+                                            style={{
+                                                fontSize: "0.8125rem",
+                                                color: text,
+                                            }}
+                                        >
+                                            {report.category} · {report.status}{" "}
+                                            · {report.created_at}
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                color: text,
+                                            }}
+                                        >
+                                            {report.description}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </Drawer>
         </div>
     );
 }

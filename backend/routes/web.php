@@ -354,6 +354,15 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
+    Route::get('/agents/{agent}/detail', [\App\Http\Controllers\Admin\AgentDetailController::class, 'show'])
+        ->name('agents.detail');
+
+    Route::get('/regions/{region}/detail', [\App\Http\Controllers\Admin\RegionDetailController::class, 'show'])
+        ->name('regions.detail');
+
+    Route::get('/regions/{region}/health-detail', [\App\Http\Controllers\Admin\RegionHealthDetailController::class, 'show'])
+        ->name('regions.health-detail');
+
     Route::middleware('access:access-control.manage')->prefix('permissions')->name('permissions.')->group(function () {
         Route::get('/roles', [RolePermissionController::class, 'index'])->name('roles.index');
         Route::get('/users', [UserAccessController::class, 'index'])->name('users.index');
