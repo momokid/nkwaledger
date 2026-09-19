@@ -423,30 +423,6 @@ function IndexContent({
                         ))}
                     </select>
                 </div>
-                <div>
-                    <label
-                        style={{
-                            display: "block",
-                            fontSize: "1rem",
-                            color: textSecondary,
-                            marginBottom: "4px",
-                        }}
-                    >
-                        Money kept in
-                    </label>
-                    <select
-                        style={field}
-                        value={account}
-                        onChange={(event) => setAccount(event.target.value)}
-                    >
-                        <option value="">All</option>
-                        {accounts.map((option) => (
-                            <option key={option.id} value={option.id}>
-                                {option.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
                 <Button
                     onClick={() => visit({ page: 1 })}
                     busy={loading}
