@@ -29,6 +29,7 @@ class TransactionTemplate extends Model
         'is_active',
         'is_produce_sale',
         'is_stock_purchase',
+        'is_liability',
         'allows_credit',
     ];
 
@@ -39,6 +40,7 @@ class TransactionTemplate extends Model
         'is_active' => true,
         'is_produce_sale' => false,
         'is_stock_purchase' => false,
+        'is_liability' => false,
         'allows_credit' => false,
     ];
 
@@ -50,6 +52,7 @@ class TransactionTemplate extends Model
             'is_active' => 'boolean',
             'is_produce_sale' => 'boolean',
             'is_stock_purchase' => 'boolean',
+            'is_liability' => 'boolean',
             'allows_credit' => 'boolean',
         ];
     }

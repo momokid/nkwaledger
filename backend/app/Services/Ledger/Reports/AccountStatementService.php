@@ -2,6 +2,8 @@
 
 namespace App\Services\Ledger\Reports;
 
+use App\Enums\MoneyClass;
+use App\Models\CreditSettlement;
 use App\Models\FarmerProfile;
 use App\Models\LedgerAccount;
 use App\Models\Transaction;
@@ -11,6 +13,8 @@ use App\Models\JournalLine;
 
 class AccountStatementService
 {
+    public function __construct(private readonly MoneyClassifier $classifier) {}
+
     public function for(
         int $farmerProfileId,
         string $from,
@@ -33,7 +37,7 @@ class AccountStatementService
         $opening = $this->balanceBefore($farmerProfileId, $from, $to, $includeProvisional, $accountId, $page, $perPage, $settlementAccounts);
 
         $transactions = (clone $base)
-            ->with(['template:id,name', 'settlementAccount:id,name'])
+            ->with(['template:id,name,is_stock_purchase,is_liability', 'settlementAccount:id,name'])
             ->withExists('reversedBy as is_cancelled')
             ->withExists(['reversalRequests as has_pending_cancel' => fn($query) => $query->where('status', 'pending')])
             ->whereDate('transaction_date', '>=', $from)
@@ -44,7 +48,9 @@ class AccountStatementService
             ->forPage($page, $perPage)
             ->get();
 
-        $rows = $this->rows($transactions, $opening, $settlementAccounts);
+        $originals = $this->loadOriginals($transactions);
+
+        $rows = $this->rows($transactions, $opening, $settlementAccounts, $originals);
 
         $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
 
@@ -74,14 +80,66 @@ class AccountStatementService
                     'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
                     'closing' => $rows === [] ? $opening : $rows[array_key_last($rows)]->balanceMinor,
                     'page' => $page,
+                    'assets' => $this->sumByClass($rows, MoneyClass::Asset),
+                    'expenditure' => $this->sumByClass($rows, MoneyClass::Expenditure),
+                    'income' => $this->sumByClass($rows, MoneyClass::Income),
+                    'liability' => $this->sumByClass($rows, MoneyClass::Liability),
                 ],
             ),
         );
     }
 
+    // every ADJUSTMENT row on the page (correction or settlement) needs the transaction it
+    // reverses or settles, resolved once here instead of once per row
+    private function loadOriginals(Collection $transactions): Collection
+    {
+        $adjustments = $transactions->where('transaction_type', Transaction::ADJUSTMENT);
+
+        $corrections = $adjustments->whereNotNull('reverses_transaction_id');
+        $settlements = $adjustments->whereNull('reverses_transaction_id');
+
+        $settlementOriginalIds = $settlements->isEmpty()
+            ? collect()
+            : CreditSettlement::query()
+                ->whereIn('settlement_transaction_id', $settlements->pluck('id'))
+                ->pluck('transaction_id', 'settlement_transaction_id');
+
+        $originalIds = $corrections->pluck('reverses_transaction_id')
+            ->merge($settlementOriginalIds->values())
+            ->unique();
+
+        if ($originalIds->isEmpty()) {
+            return collect();
+        }
+
+        $originalsById = Transaction::query()
+            ->whereIn('id', $originalIds)
+            ->with('template:id,is_stock_purchase,is_liability')
+            ->get()
+            ->keyBy('id');
+
+        return $adjustments->mapWithKeys(function (Transaction $adjustment) use ($originalsById, $settlementOriginalIds) {
+            $originalId = $adjustment->reverses_transaction_id ?? $settlementOriginalIds->get($adjustment->id);
+
+            return [$adjustment->id => $originalId !== null ? $originalsById->get($originalId) : null];
+        })->filter();
+    }
+
+    // an original not found (should never happen, but the classifier still refuses to throw) is
+    // simply missing from this map, which classify() already treats the same as null
+    private function sumByClass(array $rows, MoneyClass $class): int
+    {
+        return array_sum(array_map(
+            fn($row) => $row->moneyClass === $class ? $row->moneyInMinor + $row->moneyOutMinor : 0,
+            $rows,
+        ));
+    }
+
     private function cancelState(Transaction $transaction): string
     {
-        if ($transaction->transaction_type === Transaction::ADJUSTMENT) {
+        // an ADJUSTMENT with nothing to reverse is a settlement, not a correction - it moves
+        // real cash and belongs in the ordinary totals, not the cancelled pile
+        if ($transaction->transaction_type === Transaction::ADJUSTMENT && $transaction->reverses_transaction_id !== null) {
             return 'correction';
         }
 
@@ -97,7 +155,7 @@ class AccountStatementService
     }
 
     /** @return array<int, AccountStatementRow> */
-    private function rows(Collection $transactions, int $opening, Collection $settlementAccounts): array
+    private function rows(Collection $transactions, int $opening, Collection $settlementAccounts, Collection $originals): array
     {
         $balance = $opening;
         $rows = [];
@@ -125,6 +183,7 @@ class AccountStatementService
                 valueLostMinor: $transaction->transaction_type === Transaction::LOSS
                     ? (int) $transaction->amount_minor
                     : 0,
+                moneyClass: $this->classifier->classify($transaction, $in, $out, $originals->get($transaction->id)),
             );
         }
 

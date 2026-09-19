@@ -412,6 +412,27 @@ it('says nothing was lost on an ordinary record', function () {
 });
 
 // what was lost is not money out, so it stays out of the totals
+it('says how a record was classified', function () {
+    ($this->spend)('100');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page->where('statement.rows.0.money_class', 'expenditure'));
+});
+
+it('adds up the four money classes', function () {
+    ($this->sell)('250');
+    ($this->spend)('100');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-records')
+        ->assertInertia(fn($page) => $page
+            ->where('statement.total_income', 25000)
+            ->where('statement.total_expenditure', 10000)
+            ->where('statement.total_assets', 0)
+            ->where('statement.total_liability', 0));
+});
+
 it('keeps a loss out of the money totals', function () {
     ($this->sell)('250');
 

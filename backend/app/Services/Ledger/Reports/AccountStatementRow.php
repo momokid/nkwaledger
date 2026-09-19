@@ -2,6 +2,8 @@
 
 namespace App\Services\Ledger\Reports;
 
+use App\Enums\MoneyClass;
+
 class AccountStatementRow
 {
     public function __construct(
@@ -20,5 +22,7 @@ class AccountStatementRow
         public readonly string $cancelState,
         public readonly ?string $accountName,
         public readonly int $valueLostMinor,
+        // null when no cash moved - a credit sale/purchase, or a loss
+        public readonly ?MoneyClass $moneyClass,
     ) {}
 }

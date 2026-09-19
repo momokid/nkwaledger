@@ -10,12 +10,16 @@ use App\Models\LedgerClass;
 use App\Models\LedgerControl;
 use App\Models\LedgerSubcategory;
 use App\Models\LedgerType;
+use App\Enums\MoneyClass;
+use App\Models\Transaction;
 use App\Models\TransactionTemplate;
 use App\Models\User;
+use App\Services\Ledger\CreditSettlementService;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
 use App\Services\Ledger\Reports\AccountStatement;
 use App\Services\Ledger\Reports\AccountStatementService;
+use App\Support\Money;
 
 beforeEach(function () {
     // reports refuse to build without a secret to sign them
@@ -52,6 +56,9 @@ beforeEach(function () {
     $this->feed = $account('Feed Expense', $expenseSub->id);
     $this->livestock = $account('Livestock', $assetSub->id);
     $this->lossOnStock = $account('Loss on Livestock', $incomeSub->id);
+    // named exactly this way because LedgerAccount::creditSettlementAccountIds() finds them by name
+    $this->receivable = $account('Accounts Receivable', $assetSub->id);
+    $this->payable = $account('Accounts Payable', $assetSub->id);
 
     $this->saleTemplate = TransactionTemplate::create([
         'name' => 'I sold crops',
@@ -60,6 +67,7 @@ beforeEach(function () {
         'debit_account_id' => $this->cash->id,
         'credit_account_id' => $this->sales->id,
         'settlement_side' => 'debit',
+        'allows_credit' => true,
     ]);
 
     $this->feedTemplate = TransactionTemplate::create([
@@ -70,6 +78,49 @@ beforeEach(function () {
         'credit_account_id' => $this->cash->id,
         'settlement_side' => 'credit',
         'requires_farm_unit' => true,
+        'allows_credit' => true,
+    ]);
+
+    // ADJUSTMENT, but never points reverses_transaction_id anywhere - a settlement is not a correction
+    $this->paymentReceivedTemplate = TransactionTemplate::create([
+        'name' => 'Payment received',
+        'slug' => 'payment_received',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->receivable->id,
+        'settlement_side' => 'debit',
+    ]);
+
+    $this->paymentMadeTemplate = TransactionTemplate::create([
+        'name' => 'Payment made',
+        'slug' => 'payment_made',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->payable->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+    ]);
+
+    $this->stockPurchaseTemplate = TransactionTemplate::create([
+        'name' => 'I bought an animal',
+        'slug' => 'animal_purchase',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->livestock->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+        'requires_farm_unit' => true,
+        'is_stock_purchase' => true,
+        'allows_credit' => true,
+    ]);
+
+    // income that is not really earned yet - a deposit held on the buyer's behalf
+    $this->liabilitySaleTemplate = TransactionTemplate::create([
+        'name' => 'I took a deposit',
+        'slug' => 'deposit_taken',
+        'transaction_type' => 'INCOME',
+        'debit_account_id' => $this->cash->id,
+        'credit_account_id' => $this->sales->id,
+        'settlement_side' => 'debit',
+        'is_liability' => true,
     ]);
 
     // an animal dying moves no money at all
@@ -124,14 +175,38 @@ beforeEach(function () {
         ));
     };
 
-    $this->spend = function (string $amount, ?string $date = null, ?FarmUnit $unit = null) use ($posting) {
+    $this->spend = function (string $amount, ?string $date = null, ?FarmUnit $unit = null, ?LedgerAccount $into = null) use ($posting) {
         return $posting->post(new PostingRequest(
             farmerProfileId: $this->profile->id,
             transactionTemplateId: $this->feedTemplate->id,
             amount: $amount,
-            settlementAccountId: $this->cash->id,
+            settlementAccountId: ($into ?? $this->cash)->id,
             transactionDate: $date ?? now()->toDateString(),
             farmUnitId: ($unit ?? $this->approvedUnit)->id,
+            recordedBy: $this->staff->id,
+        ));
+    };
+
+    $this->buyStock = function (string $amount, ?LedgerAccount $into = null, ?FarmUnit $unit = null) use ($posting) {
+        return $posting->post(new PostingRequest(
+            farmerProfileId: $this->profile->id,
+            transactionTemplateId: $this->stockPurchaseTemplate->id,
+            amount: $amount,
+            settlementAccountId: ($into ?? $this->cash)->id,
+            transactionDate: now()->toDateString(),
+            farmUnitId: ($unit ?? $this->approvedUnit)->id,
+            recordedBy: $this->staff->id,
+            quantityPurchased: '1',
+        ));
+    };
+
+    $this->sellLiability = function (string $amount) use ($posting) {
+        return $posting->post(new PostingRequest(
+            farmerProfileId: $this->profile->id,
+            transactionTemplateId: $this->liabilitySaleTemplate->id,
+            amount: $amount,
+            settlementAccountId: $this->cash->id,
+            transactionDate: now()->toDateString(),
             recordedBy: $this->staff->id,
         ));
     };
@@ -147,6 +222,16 @@ beforeEach(function () {
             recordedBy: $this->staff->id,
             quantityLost: '1',
         ));
+    };
+
+    $this->settle = function (Transaction $original, string $amount, ?LedgerAccount $into = null) {
+        return app(CreditSettlementService::class)->settle(
+            original: $original,
+            amountMinor: Money::toMinor($amount),
+            settlementAccountId: ($into ?? $this->cash)->id,
+            transactionDate: now()->toDateString(),
+            recordedBy: $this->staff->id,
+        );
     };
 
     $this->approver = User::factory()->create();
@@ -502,6 +587,148 @@ it('counts nothing cancelled when nothing was', function () {
     ($this->sell)('250');
 
     expect(($this->run)()->cancelledMinor)->toBe(0);
+});
+
+// a settlement is real cash moving, not a mistake being put right
+it('does not treat a cash settlement as a correction', function () {
+    $sale = ($this->sell)('250', null, $this->receivable);
+
+    ($this->settle)($sale, '250');
+
+    $statement = ($this->run)();
+    $settlementRow = collect($statement->rows)->firstWhere('templateName', 'Payment received');
+
+    expect($settlementRow->cancelState)->not->toBe('correction');
+    expect($statement->totalInMinor)->toBe(25000);
+    expect($statement->cancelledMinor)->toBe(0);
+});
+
+// mirrors the receivable-side test above, on the payable/expense side
+it('counts a cash settlement on a credit purchase in money out, not as a correction', function () {
+    $purchase = ($this->spend)('100', null, null, $this->payable);
+
+    ($this->settle)($purchase, '100');
+
+    $statement = ($this->run)();
+
+    expect($statement->totalOutMinor)->toBe(10000);
+    expect($statement->cancelledMinor)->toBe(0);
+});
+
+// --- Money In / Money Out split ---
+
+it('classifies a cash expense as expenditure', function () {
+    ($this->spend)('100');
+
+    $statement = ($this->run)();
+
+    expect($statement->rows[0]->moneyClass)->toBe(MoneyClass::Expenditure);
+    expect($statement->totalExpenditureMinor)->toBe(10000);
+});
+
+it('classifies a cash stock purchase as an asset', function () {
+    ($this->buyStock)('100');
+
+    $statement = ($this->run)();
+
+    expect($statement->rows[0]->moneyClass)->toBe(MoneyClass::Asset);
+    expect($statement->totalAssetsMinor)->toBe(10000);
+});
+
+it('does not classify a credit purchase that moved no cash', function () {
+    ($this->buyStock)('100', $this->payable);
+
+    $statement = ($this->run)();
+
+    expect($statement->rows[0]->moneyClass)->toBeNull();
+    expect($statement->totalAssetsMinor)->toBe(0);
+    expect($statement->totalExpenditureMinor)->toBe(0);
+});
+
+it('classifies a payment made on a credit feed purchase as expenditure', function () {
+    $purchase = ($this->spend)('100', null, null, $this->payable);
+
+    ($this->settle)($purchase, '100');
+
+    $settlementRow = collect(($this->run)()->rows)->firstWhere('templateName', 'Payment made');
+
+    expect($settlementRow->moneyClass)->toBe(MoneyClass::Expenditure);
+});
+
+it('classifies a payment made on a credit animal purchase as an asset', function () {
+    $purchase = ($this->buyStock)('100', $this->payable);
+
+    ($this->settle)($purchase, '100');
+
+    $settlementRow = collect(($this->run)()->rows)->firstWhere('templateName', 'Payment made');
+
+    expect($settlementRow->moneyClass)->toBe(MoneyClass::Asset);
+});
+
+it('classifies a payment received on a credit sale as income', function () {
+    $sale = ($this->sell)('250', null, $this->receivable);
+
+    ($this->settle)($sale, '250');
+
+    $settlementRow = collect(($this->run)()->rows)->firstWhere('templateName', 'Payment received');
+
+    expect($settlementRow->moneyClass)->toBe(MoneyClass::Income);
+});
+
+it('classifies a cash sale as income', function () {
+    ($this->sell)('250');
+
+    expect(($this->run)()->rows[0]->moneyClass)->toBe(MoneyClass::Income);
+});
+
+it('classifies a cash sale on a liability template as liability', function () {
+    ($this->sellLiability)('250');
+
+    expect(($this->run)()->rows[0]->moneyClass)->toBe(MoneyClass::Liability);
+});
+
+it('does not classify a loss', function () {
+    ($this->lose)('80');
+
+    expect(($this->run)()->rows[0]->moneyClass)->toBeNull();
+});
+
+it('classifies a correction by what it corrects, and keeps it out of the sub-totals', function () {
+    $purchase = ($this->buyStock)('2000');
+
+    cancel($purchase, $this->staff, $this->approver);
+
+    $statement = ($this->run)();
+    $correctionRow = collect($statement->rows)->firstWhere('cancelState', 'correction');
+
+    expect($correctionRow->moneyClass)->toBe(MoneyClass::Asset);
+    expect($statement->totalAssetsMinor)->toBe(200000);
+    expect($statement->cancelledMinor)->toBe(200000);
+});
+
+it('keeps assets plus expenditure equal to money out, and income plus liability equal to money in', function () {
+    ($this->sell)('250');
+    ($this->sellLiability)('100');
+    ($this->spend)('50');
+    ($this->buyStock)('75');
+
+    $statement = ($this->run)();
+
+    expect($statement->totalAssetsMinor + $statement->totalExpenditureMinor)->toBe($statement->totalOutMinor);
+    expect($statement->totalIncomeMinor + $statement->totalLiabilityMinor)->toBe($statement->totalInMinor);
+});
+
+it('changes the verification code when a transaction is reclassified', function () {
+    ($this->spend)('100');
+
+    $first = ($this->run)()->header->verificationCode;
+
+    $this->feedTemplate->is_stock_purchase = true;
+    $this->feedTemplate->save();
+
+    $second = ($this->run)()->header->verificationCode;
+
+    expect($second)->not->toBe($first);
 });
 
 function cancel(App\Models\Transaction $record, App\Models\User $asker, App\Models\User $approver): void
