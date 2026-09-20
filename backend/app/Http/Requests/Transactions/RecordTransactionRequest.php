@@ -25,11 +25,15 @@ class RecordTransactionRequest extends FormRequest
                 Rule::in($this->allowedTemplateIds($farmer)),
             ],
             'amount' => ['required', 'string'],
+            // Receivable/Payable are is_settlement too (CreditSettlementService needs that),
+            // but a farmer never hand-picks them - only is_credit may use them, server-side
             'settlement_account_id' => [
                 'nullable',
                 Rule::exists('ledger_accounts', 'id')
                     ->where('is_settlement', true)
-                    ->where('is_active', true),
+                    ->where('is_active', true)
+                    ->where(fn($query) => $query
+                        ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])),
             ],
             // "Credit (not paid yet)" - Receivable/Payable is resolved server-side,
             // never chosen directly, so this is the only thing the farmer submits
@@ -161,7 +165,7 @@ class RecordTransactionRequest extends FormRequest
         return [
             'transaction_template_id.required' => 'Please choose what happened.',
             'transaction_template_id.in' => 'That kind of record does not match your farm.',
-            'settlement_account_id.exists' => 'Please choose where the money went.',
+            'settlement_account_id.exists' => 'Please pick where the money went.',
             'transaction_date.before_or_equal' => 'That date has not happened yet.',
             'farm_unit_id.exists' => 'We could not find that part of the farm.',
         ];
