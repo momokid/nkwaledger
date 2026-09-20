@@ -56,9 +56,11 @@ beforeEach(function () {
     $this->feed = $account('Feed Expense', $expenseSub->id);
     $this->livestock = $account('Livestock', $assetSub->id);
     $this->lossOnStock = $account('Loss on Livestock', $incomeSub->id);
-    // named exactly this way because LedgerAccount::creditSettlementAccountIds() finds them by name
-    $this->receivable = $account('Accounts Receivable', $assetSub->id);
-    $this->payable = $account('Accounts Payable', $assetSub->id);
+    // named exactly this way because LedgerAccount::creditSettlementAccountIds() finds them by
+    // name; is_settlement is true here too, matching LedgerAccountSeeder exactly - CreditSettlementService
+    // needs that flag, even though neither account is real cash
+    $this->receivable = $account('Accounts Receivable', $assetSub->id, true);
+    $this->payable = $account('Accounts Payable', $assetSub->id, true);
 
     $this->saleTemplate = TransactionTemplate::create([
         'name' => 'I sold crops',
@@ -729,6 +731,41 @@ it('changes the verification code when a transaction is reclassified', function 
     $second = ($this->run)()->header->verificationCode;
 
     expect($second)->not->toBe($first);
+});
+
+// --- Receivable/Payable are is_settlement too, but they are not cash ---
+
+it('shows no money in on a credit sale, and counts it once after settling', function () {
+    $sale = ($this->sell)('250', null, $this->receivable);
+
+    $statement = ($this->run)();
+
+    expect($statement->totalInMinor)->toBe(0);
+    expect(collect($statement->rows)->contains(fn($row) => $row->moneyInMinor > 0))->toBeFalse();
+
+    ($this->settle)($sale, '250');
+
+    expect(($this->run)()->totalInMinor)->toBe(25000);
+});
+
+it('shows no money out on a credit purchase, and counts it once after settling', function () {
+    $purchase = ($this->spend)('100', null, null, $this->payable);
+
+    expect(($this->run)()->totalOutMinor)->toBe(0);
+
+    ($this->settle)($purchase, '100');
+
+    expect(($this->run)()->totalOutMinor)->toBe(10000);
+});
+
+it('filtering to a real cash account excludes the credit row', function () {
+    ($this->sell)('250', null, $this->receivable);
+    ($this->sell)('100', null, $this->cash);
+
+    $statement = ($this->run)(['accountId' => $this->cash->id]);
+
+    expect($statement->rows)->toHaveCount(1);
+    expect($statement->rows[0]->moneyInMinor)->toBe(10000);
 });
 
 function cancel(App\Models\Transaction $record, App\Models\User $asker, App\Models\User $approver): void
