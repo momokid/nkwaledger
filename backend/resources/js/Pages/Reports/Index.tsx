@@ -305,6 +305,52 @@ function IndexContent({
                     >
                         Print
                     </Button>
+
+                    {kind === "statement" && (
+                        <>
+                            <Button
+                                look="secondary"
+                                onClick={() => {
+                                    const query = new URLSearchParams({
+                                        from,
+                                        to,
+                                        ...(canChooseProvisional &&
+                                        provisional
+                                            ? { provisional: "1" }
+                                            : {}),
+                                    });
+
+                                    window.open(
+                                        `${url}/pdf?${query.toString()}`,
+                                        "_blank",
+                                    );
+                                }}
+                            >
+                                Download PDF
+                            </Button>
+
+                            <Button
+                                look="secondary"
+                                onClick={() => {
+                                    const query = new URLSearchParams({
+                                        from,
+                                        to,
+                                        ...(canChooseProvisional &&
+                                        provisional
+                                            ? { provisional: "1" }
+                                            : {}),
+                                    });
+
+                                    window.open(
+                                        `${url}/csv?${query.toString()}`,
+                                        "_blank",
+                                    );
+                                }}
+                            >
+                                Download CSV
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
