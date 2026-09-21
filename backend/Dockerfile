@@ -1,9 +1,10 @@
 FROM php:8.5-fpm
 
 RUN apt-get update && apt-get install -y \
-    git unzip libpq-dev libzip-dev libpng-dev libonig-dev curl \
+    git unzip libpq-dev libzip-dev libpng-dev libjpeg-dev libwebp-dev libfreetype6-dev libonig-dev curl \
     nginx supervisor gettext-base \
-    && docker-php-ext-install pdo pdo_pgsql zip bcmath pcntl \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install pdo pdo_pgsql zip bcmath pcntl gd exif \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
