@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Contracts\View\View as ViewResponse;
+use App\Enums\MoneyClass;
 
 class ReportController extends Controller
 {
@@ -109,11 +110,16 @@ class ReportController extends Controller
                 'is_provisional' => $row->isProvisional,
                 'cancel_state' => $row->cancelState,
                 'value_lost' => $row->valueLostMinor,
+                'money_class' => $row->moneyClass?->value,
             ]),
             'opening_balance' => $report->openingBalanceMinor,
             'closing_balance' => $report->closingBalanceMinor,
             'total_in' => $report->totalInMinor,
             'total_out' => $report->totalOutMinor,
+            'total_assets' => $report->totalAssetsMinor,
+            'total_expenditure' => $report->totalExpenditureMinor,
+            'total_income' => $report->totalIncomeMinor,
+            'total_liability' => $report->totalLiabilityMinor,
             'cancelled' => $report->cancelledMinor,
             'provisional_held_back' => $report->provisionalHeldBackMinor,
         ];
@@ -225,8 +231,8 @@ class ReportController extends Controller
 
         $handle = fopen('php://temp', 'w+');
 
-        fputcsv($handle, ['Date', 'Reference', 'Description', 'Money In (GHS)', 'Money Out (GHS)', 'Balance (GHS)']);
-        fputcsv($handle, ['', '', 'Brought forward', '', '', Money::toDecimal($report['opening_balance'])]);
+        fputcsv($handle, ['Date', 'Reference', 'Description', 'Money In (GHS)', 'Money Out (GHS)', 'Balance (GHS)', 'Type']);
+        fputcsv($handle, ['', '', 'Brought forward', '', '', Money::toDecimal($report['opening_balance']), '']);
 
         foreach ($report['rows'] as $row) {
             fputcsv($handle, [
@@ -236,15 +242,28 @@ class ReportController extends Controller
                 $row['money_in'] > 0 ? Money::toDecimal($row['money_in']) : '',
                 $row['money_out'] > 0 ? Money::toDecimal($row['money_out']) : '',
                 Money::toDecimal($row['balance']),
+                $row['money_class'] ? MoneyClass::from($row['money_class'])->name : '',
             ]);
         }
 
         fputcsv($handle, [
-            '', '', 'Totals',
+            '',
+            '',
+            'Totals',
             Money::toDecimal($report['total_in']),
             Money::toDecimal($report['total_out']),
             Money::toDecimal($report['closing_balance']),
+            '',
         ]);
+
+        fputcsv($handle, ['', '', 'Of which: Income', Money::toDecimal($report['total_income']), '', '', '']);
+
+        if ($report['total_liability'] > 0) {
+            fputcsv($handle, ['', '', 'Of which: Liability', Money::toDecimal($report['total_liability']), '', '', '']);
+        }
+
+        fputcsv($handle, ['', '', 'Of which: Assets', '', Money::toDecimal($report['total_assets']), '', '']);
+        fputcsv($handle, ['', '', 'Of which: Expenditure', '', Money::toDecimal($report['total_expenditure']), '', '']);
 
         rewind($handle);
         $csv = stream_get_contents($handle);

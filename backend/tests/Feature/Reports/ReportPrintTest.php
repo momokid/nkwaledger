@@ -187,6 +187,21 @@ it('hides a farmer the agent does not hold', function () {
         ->assertNotFound();
 });
 
+// the sale has no template flags set, so it lands in Income, not Liability
+it('tags a row with its money class', function () {
+    $this->actingAs($this->farmerUser)
+        ->get('/my-reports/print')
+        ->assertSee('Income');
+});
+
+it('shows the assets, expenditure and income sub-totals, but hides liability when it is zero', function () {
+    $this->actingAs($this->farmerUser)
+        ->get('/my-reports/print')
+        ->assertSee('Assets')
+        ->assertSee('Expenditure')
+        ->assertDontSee('Liability');
+});
+
 it('says nothing was recorded when the period is empty', function () {
     $this->actingAs($this->farmerUser)
         ->get('/my-reports/print?from=' . now()->addYear()->startOfYear()->toDateString()

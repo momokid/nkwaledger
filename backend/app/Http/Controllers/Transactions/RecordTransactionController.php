@@ -71,11 +71,16 @@ class RecordTransactionController extends Controller
                     'cancel_state' => $row->cancelState,
                     'account' => $row->accountName,
                     'value_lost' => $row->valueLostMinor,
+                    'money_class' => $row->moneyClass?->value,
                 ]),
                 'opening_balance' => $statement->openingBalanceMinor,
                 'closing_balance' => $statement->closingBalanceMinor,
                 'total_in' => $statement->totalInMinor,
                 'total_out' => $statement->totalOutMinor,
+                'total_assets' => $statement->totalAssetsMinor,
+                'total_expenditure' => $statement->totalExpenditureMinor,
+                'total_income' => $statement->totalIncomeMinor,
+                'total_liability' => $statement->totalLiabilityMinor,
                 'cancelled' => $statement->cancelledMinor,
                 'provisional_held_back' => $statement->provisionalHeldBackMinor,
                 'total' => $statement->total,
@@ -83,7 +88,10 @@ class RecordTransactionController extends Controller
                 'last_page' => $statement->lastPage,
             ],
             'filters' => ['from' => $from, 'to' => $to, 'account' => $accountId],
-            'accounts' => LedgerAccount::settlement()->orderBy('name')->get(['id', 'name']),
+            'accounts' => LedgerAccount::settlement()
+                ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
+                ->orderBy('name')
+                ->get(['id', 'name']),
             // unfiltered by date range - a credit sale from three months ago is still
             // owed today, so scoping it to "this month" would just hide it
             'creditRows' => $this->creditRows($farmer),

@@ -543,6 +543,32 @@ it('still records a cash sale as not credit when is_credit is left off', functio
     expect(Transaction::first()->is_credit)->toBeFalse();
 });
 
+// Receivable/Payable are is_settlement too (CreditSettlementService needs that), but a
+// farmer never hand-picks them - only the server, through is_credit, may use them
+it('refuses Accounts Receivable as a hand-picked settlement account', function () {
+    $response = $this->actingAs($this->farmerUser)
+        ->post('/my-records', ['settlement_account_id' => $this->receivable->id] + $this->payload);
+
+    $response->assertSessionHasErrors('settlement_account_id');
+    expect(Transaction::count())->toBe(0);
+});
+
+it('refuses Accounts Payable as a hand-picked settlement account', function () {
+    $response = $this->actingAs($this->farmerUser)
+        ->post('/my-records', ['settlement_account_id' => $this->payable->id] + $this->payload);
+
+    $response->assertSessionHasErrors('settlement_account_id');
+    expect(Transaction::count())->toBe(0);
+});
+
+it('still accepts a real cash account as the settlement account', function () {
+    $this->actingAs($this->farmerUser)
+        ->post('/my-records', $this->payload)
+        ->assertSessionDoesntHaveErrors('settlement_account_id');
+
+    expect(Transaction::count())->toBe(1);
+});
+
 it('refuses to force credit on a template that does not allow it, even by hand', function () {
     $response = $this->actingAs($this->farmerUser)->post('/my-records', [
         'transaction_template_id' => $this->lossTemplate->id,

@@ -196,6 +196,20 @@ it('shows the statement by default', function () {
             ->has('report.rows', 1));
 });
 
+it('carries the money class split on the statement', function () {
+    ($this->sell)('250');
+    ($this->spend)('100');
+
+    $this->actingAs($this->farmerUser)
+        ->get('/my-reports')
+        ->assertInertia(fn($page) => $page
+            ->where('report.rows.0.money_class', 'income')
+            ->where('report.total_income', 25000)
+            ->where('report.total_expenditure', 10000)
+            ->where('report.total_assets', 0)
+            ->where('report.total_liability', 0));
+});
+
 it('shows income and expenditure when asked', function () {
     ($this->sell)('250');
     ($this->spend)('100');

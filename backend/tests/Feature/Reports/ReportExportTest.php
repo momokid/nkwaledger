@@ -216,3 +216,20 @@ it('an admin can download the csv for any farmer', function () {
 it('refuses a csv download for a guest', function () {
     $this->get('/my-reports/csv')->assertRedirect('/login');
 });
+
+it('the csv tags each row with its money class and lists the sub-totals', function () {
+    $content = $this->actingAs($this->farmerUser)->get('/my-reports/csv')->getContent();
+    $lines = explode("\n", trim($content));
+
+    expect($lines[0])->toContain('Type');
+
+    $saleLine = collect($lines)->first(fn($line) => str_contains($line, $this->record->reference));
+    expect($saleLine)->toContain('Income');
+
+    $incomeLine = collect($lines)->first(fn($line) => str_contains($line, 'Of which: Income'));
+    expect($incomeLine)->toContain('250.00');
+
+    expect($content)->toContain('Of which: Assets');
+    expect($content)->toContain('Of which: Expenditure');
+    expect($content)->not->toContain('Liability');
+});
