@@ -34,6 +34,7 @@ RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache \
 EXPOSE 8080
 
 CMD envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf \
+    && php artisan storage:link --force \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
