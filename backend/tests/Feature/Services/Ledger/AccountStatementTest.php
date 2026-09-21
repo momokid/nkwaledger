@@ -774,3 +774,65 @@ function cancel(App\Models\Transaction $record, App\Models\User $asker, App\Mode
 
     $service->approve($service->request($record, $asker, 'Wrong amount typed.'), $approver);
 }
+
+it('does not count an unpaid credit purchase as money out', function () {
+    $payable = $this->payable;
+
+    $creditTemplate = TransactionTemplate::create([
+        'name' => 'Bought on credit',
+        'slug' => 'credit_purchase_statement_test',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->sales->id,
+        'credit_account_id' => $payable->id,
+        'settlement_side' => 'credit',
+        'allows_credit' => true,
+    ]);
+
+    app(App\Services\Ledger\PostingService::class)->post(new App\Services\Ledger\PostingRequest(
+        farmerProfileId: $this->profile->id,
+        transactionTemplateId: $creditTemplate->id,
+        amount: '150',
+        settlementAccountId: $payable->id,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->staff->id,
+    ));
+
+    $statement = ($this->run)();
+
+    expect($statement->totalOutMinor)->toBe(0);
+});
+
+it('counts a credit purchase\'s later settlement as real money out, once actually paid', function () {
+    $payable = $this->payable;
+
+    $creditTemplate = TransactionTemplate::create([
+        'name' => 'Bought on credit',
+        'slug' => 'credit_purchase_statement_test_2',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->sales->id,
+        'credit_account_id' => $payable->id,
+        'settlement_side' => 'credit',
+        'allows_credit' => true,
+    ]);
+
+    $purchase = app(App\Services\Ledger\PostingService::class)->post(new App\Services\Ledger\PostingRequest(
+        farmerProfileId: $this->profile->id,
+        transactionTemplateId: $creditTemplate->id,
+        amount: '150',
+        settlementAccountId: $payable->id,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->staff->id,
+    ));
+
+    app(App\Services\Ledger\CreditSettlementService::class)->settle(
+        original: $purchase,
+        amountMinor: 15000,
+        settlementAccountId: $this->cash->id,
+        transactionDate: now()->toDateString(),
+        recordedBy: $this->staff->id,
+    );
+
+    $statement = ($this->run)();
+
+    expect($statement->totalOutMinor)->toBe(15000);
+});

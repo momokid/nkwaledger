@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StockSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -30,6 +31,7 @@ class TransactionTemplate extends Model
         'is_produce_sale',
         'is_stock_purchase',
         'is_liability',
+        'stock_source',
         'allows_credit',
     ];
 
@@ -53,6 +55,7 @@ class TransactionTemplate extends Model
             'is_produce_sale' => 'boolean',
             'is_stock_purchase' => 'boolean',
             'is_liability' => 'boolean',
+            'stock_source' => StockSource::class,
             'allows_credit' => 'boolean',
         ];
     }

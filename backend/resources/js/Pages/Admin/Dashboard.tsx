@@ -2,9 +2,52 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import GreetingHeader from "@/Components/GreetingHeader";
 import Button from "@/Components/Button";
+import Drawer from "@/Components/Drawer";
 import { cedis as formatMoney } from "@/lib/format";
 import { router } from "@inertiajs/react";
 import { useState } from "react";
+
+interface AgentDetail {
+    summary: {
+        total_income: number;
+        total_expense: number;
+        net: number;
+        cash_collected: number;
+        cash_paid_out: number;
+    };
+    farmer_count: number;
+    roster: Array<{
+        id: string;
+        name: string;
+        community: string | null;
+        income: number;
+        expense: number;
+        status: string;
+    }>;
+}
+
+interface RegionDetail {
+    region_name: string;
+    farmers: Array<{
+        id: string;
+        name: string;
+        community: string | null;
+        income: number;
+        expense: number;
+    }>;
+}
+
+interface HealthDetail {
+    region_name: string;
+    reports: Array<{
+        uuid: string;
+        farmer_name: string;
+        category: string;
+        status: string;
+        description: string;
+        created_at: string;
+    }>;
+}
 
 type Sort = "net" | "activity";
 
@@ -30,6 +73,24 @@ interface LeaderboardRow {
     rank: number;
 }
 
+interface RegionalRow {
+    region_id: number;
+    region_name: string;
+    farmer_count: number;
+    farm_unit_count: number;
+    income: number;
+    expense: number;
+    net: number;
+}
+
+interface HealthRow {
+    region_id: number;
+    region_name: string;
+    total: number;
+    by_category: Record<string, number>;
+    by_status: Record<string, number>;
+}
+
 interface Filters {
     from: string;
     to: string;
@@ -38,6 +99,8 @@ interface Filters {
 interface Props {
     snapshot: Snapshot;
     leaderboard: LeaderboardRow[];
+    regionalTrends: RegionalRow[];
+    healthTrends: HealthRow[];
     sort: Sort;
     filters: Filters;
 }
@@ -50,11 +113,56 @@ export default function Dashboard(props: Props) {
     );
 }
 
-function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
+function DashboardContent({
+    snapshot,
+    leaderboard,
+    regionalTrends,
+    healthTrends,
+    sort,
+    filters,
+}: Props) {
     const { dark } = useTheme();
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
     const [loading, setLoading] = useState(false);
+    const [drawerAgent, setDrawerAgent] = useState<LeaderboardRow | null>(null);
+    const [agentDetail, setAgentDetail] = useState<AgentDetail | null>(null);
+    const [drawerRegion, setDrawerRegion] = useState<RegionalRow | null>(null);
+    const [regionDetail, setRegionDetail] = useState<RegionDetail | null>(null);
+    const [drawerHealth, setDrawerHealth] = useState<HealthRow | null>(null);
+    const [healthDetail, setHealthDetail] = useState<HealthDetail | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+
+    const openAgentDetail = (row: LeaderboardRow) => {
+        setDrawerAgent(row);
+        setDetailLoading(true);
+        fetch(
+            `/admin/agents/${row.agent_id}/detail?from=${filters.from}&to=${filters.to}`,
+        )
+            .then((response) => response.json())
+            .then((data: AgentDetail) => setAgentDetail(data))
+            .finally(() => setDetailLoading(false));
+    };
+
+    const openRegionDetail = (row: RegionalRow) => {
+        setDrawerRegion(row);
+        setDetailLoading(true);
+        fetch(
+            `/admin/regions/${row.region_id}/detail?from=${filters.from}&to=${filters.to}`,
+        )
+            .then((response) => response.json())
+            .then((data: RegionDetail) => setRegionDetail(data))
+            .finally(() => setDetailLoading(false));
+    };
+
+    const openHealthDetail = (row: HealthRow) => {
+        setDrawerHealth(row);
+        setDetailLoading(true);
+        fetch(`/admin/regions/${row.region_id}/health-detail`)
+            .then((response) => response.json())
+            .then((data: HealthDetail) => setHealthDetail(data))
+            .finally(() => setDetailLoading(false));
+    };
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -78,7 +186,11 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
         router.get(
             route("admin.dashboard"),
             { from, to, sort, ...params },
-            { preserveState: true, preserveScroll: true, onFinish: () => setLoading(false) },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => setLoading(false),
+            },
         );
     };
 
@@ -86,14 +198,9 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
 
     const snapshotCards = [
         {
-            label: "Active farmers (30 days)",
-            value: snapshot.active_farmers.toLocaleString(),
-            secondary: `of ${snapshot.total_farmers.toLocaleString()} total`,
-        },
-        {
-            label: "Active agents (30 days)",
-            value: snapshot.active_agents.toLocaleString(),
-            secondary: `of ${snapshot.total_agents.toLocaleString()} total`,
+            label: "Active (30 days)",
+            value: `${snapshot.active_farmers.toLocaleString()} farmers · ${snapshot.active_agents.toLocaleString()} agents`,
+            secondary: `of ${snapshot.total_farmers.toLocaleString()} farmers / ${snapshot.total_agents.toLocaleString()} agents total`,
         },
         {
             label: "Income",
@@ -111,7 +218,7 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
 
     return (
         <div className="p-6 space-y-6">
-            <GreetingHeader subtitle="Here is what's happening across the platform." />
+            <GreetingHeader subtitle="" />
 
             <div
                 className="flex flex-wrap items-end gap-3"
@@ -158,7 +265,11 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
                     />
                 </div>
 
-                <Button onClick={() => visit({})} busy={loading} busyLabel="Loading...">
+                <Button
+                    onClick={() => visit({})}
+                    busy={loading}
+                    busyLabel="Loading..."
+                >
                     Show
                 </Button>
             </div>
@@ -200,7 +311,12 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
                             {card.value}
                         </p>
                         {card.secondary && (
-                            <p style={{ fontSize: "0.8125rem", color: textSecondary }}>
+                            <p
+                                style={{
+                                    fontSize: "0.8125rem",
+                                    color: textSecondary,
+                                }}
+                            >
                                 {card.secondary}
                             </p>
                         )}
@@ -238,7 +354,8 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
                                 onClick={() => setSort(value)}
                                 style={{
                                     border: `1px solid ${sort === value ? brand : border}`,
-                                    background: sort === value ? brand : surface,
+                                    background:
+                                        sort === value ? brand : surface,
                                     color: sort === value ? "#FFFFFF" : text,
                                     padding: "8px 16px",
                                     fontSize: "1rem",
@@ -298,30 +415,77 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
                                 {leaderboard.map((row) => (
                                     <tr
                                         key={row.agent_id}
-                                        style={{ borderBottom: `1px solid ${border}` }}
+                                        onClick={() => openAgentDetail(row)}
+                                        style={{
+                                            borderBottom: `1px solid ${border}`,
+                                            cursor: "pointer",
+                                        }}
                                     >
-                                        <td style={{ padding: "12px 8px", color: text, fontWeight: 700 }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: text,
+                                                fontWeight: 700,
+                                            }}
+                                        >
                                             {row.rank}
                                         </td>
-                                        <td style={{ padding: "12px 8px", color: text, fontWeight: 600 }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: text,
+                                                fontWeight: 600,
+                                            }}
+                                        >
                                             {row.name}
                                         </td>
-                                        <td style={{ padding: "12px 8px", color: text }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: text,
+                                            }}
+                                        >
                                             {row.farmer_count}
                                         </td>
-                                        <td style={{ padding: "12px 8px", color: text }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: text,
+                                            }}
+                                        >
                                             {row.new_farmers}
                                         </td>
-                                        <td style={{ padding: "12px 8px", color: text }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: text,
+                                            }}
+                                        >
                                             {row.records_logged}
                                         </td>
-                                        <td style={{ padding: "12px 8px", color: text }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: text,
+                                            }}
+                                        >
                                             GHS {formatMoney(row.income)}
                                         </td>
-                                        <td style={{ padding: "12px 8px", color: text }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: text,
+                                            }}
+                                        >
                                             GHS {formatMoney(row.expense)}
                                         </td>
-                                        <td style={{ padding: "12px 8px", color: brand, fontWeight: 600 }}>
+                                        <td
+                                            style={{
+                                                padding: "12px 8px",
+                                                color: brand,
+                                                fontWeight: 600,
+                                            }}
+                                        >
                                             GHS {formatMoney(row.net)}
                                         </td>
                                     </tr>
@@ -331,6 +495,522 @@ function DashboardContent({ snapshot, leaderboard, sort, filters }: Props) {
                     </div>
                 )}
             </div>
+
+            <div
+                style={{
+                    background: surface,
+                    border: `1px solid ${border}`,
+                    padding: "20px",
+                }}
+            >
+                <p
+                    style={{
+                        fontSize: "1.25rem",
+                        fontWeight: 700,
+                        color: text,
+                        marginBottom: "14px",
+                    }}
+                >
+                    Regional trends
+                </p>
+
+                {regionalTrends.length === 0 ? (
+                    <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
+                        No regional data yet.
+                    </p>
+                ) : (
+                    <div style={{ overflowX: "auto" }}>
+                        <table
+                            style={{
+                                width: "100%",
+                                borderCollapse: "collapse",
+                                fontSize: "1rem",
+                            }}
+                        >
+                            <thead>
+                                <tr
+                                    style={{
+                                        borderBottom: `1px solid ${border}`,
+                                        textAlign: "left",
+                                    }}
+                                >
+                                    {[
+                                        "Region",
+                                        "Farmers",
+                                        "Farm units",
+                                        "Income",
+                                        "Expense",
+                                        "Net",
+                                    ].map((label) => (
+                                        <th
+                                            key={label}
+                                            style={{
+                                                padding: "10px 8px",
+                                                color: textSecondary,
+                                            }}
+                                        >
+                                            {label}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[...regionalTrends]
+                                    .sort((a, b) => b.net - a.net)
+                                    .map((row) => (
+                                        <tr
+                                            key={row.region_id}
+                                            onClick={() =>
+                                                openRegionDetail(row)
+                                            }
+                                            style={{
+                                                borderBottom: `1px solid ${border}`,
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: text,
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                {row.region_name}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: text,
+                                                }}
+                                            >
+                                                {row.farmer_count}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: text,
+                                                }}
+                                            >
+                                                {row.farm_unit_count}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: text,
+                                                }}
+                                            >
+                                                GHS {formatMoney(row.income)}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: text,
+                                                }}
+                                            >
+                                                GHS {formatMoney(row.expense)}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: brand,
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                GHS {formatMoney(row.net)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <div
+                style={{
+                    background: surface,
+                    border: `1px solid ${border}`,
+                    padding: "20px",
+                }}
+            >
+                <p
+                    style={{
+                        fontSize: "1.25rem",
+                        fontWeight: 700,
+                        color: text,
+                        marginBottom: "14px",
+                    }}
+                >
+                    Health trends
+                </p>
+
+                {healthTrends.length === 0 ? (
+                    <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
+                        No disease reports yet.
+                    </p>
+                ) : (
+                    <div style={{ overflowX: "auto" }}>
+                        <table
+                            style={{
+                                width: "100%",
+                                borderCollapse: "collapse",
+                                fontSize: "1rem",
+                            }}
+                        >
+                            <thead>
+                                <tr
+                                    style={{
+                                        borderBottom: `1px solid ${border}`,
+                                        textAlign: "left",
+                                    }}
+                                >
+                                    {[
+                                        "Region",
+                                        "Total",
+                                        "By category",
+                                        "By status",
+                                    ].map((label) => (
+                                        <th
+                                            key={label}
+                                            style={{
+                                                padding: "10px 8px",
+                                                color: textSecondary,
+                                            }}
+                                        >
+                                            {label}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[...healthTrends]
+                                    .sort((a, b) => b.total - a.total)
+                                    .map((row) => (
+                                        <tr
+                                            key={row.region_id}
+                                            onClick={() =>
+                                                openHealthDetail(row)
+                                            }
+                                            style={{
+                                                borderBottom: `1px solid ${border}`,
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: text,
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                {row.region_name}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: text,
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                {row.total}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                {Object.entries(row.by_category)
+                                                    .map(
+                                                        ([k, v]) =>
+                                                            `${k}: ${v}`,
+                                                    )
+                                                    .join(" · ")}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "12px 8px",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                {Object.entries(row.by_status)
+                                                    .map(
+                                                        ([k, v]) =>
+                                                            `${k}: ${v}`,
+                                                    )
+                                                    .join(" · ")}
+                                            </td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <Drawer
+                open={drawerAgent !== null}
+                title={drawerAgent ? `${drawerAgent.name}'s farmers` : ""}
+                onClose={() => {
+                    setDrawerAgent(null);
+                    setAgentDetail(null);
+                }}
+            >
+                {detailLoading || !agentDetail ? (
+                    <p style={{ color: text }}>Loading…</p>
+                ) : (
+                    <div>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "20px",
+                                marginBottom: "20px",
+                            }}
+                        >
+                            <div>
+                                <p
+                                    style={{
+                                        fontSize: "0.875rem",
+                                        color: text,
+                                    }}
+                                >
+                                    Income
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "1.25rem",
+                                        fontWeight: 700,
+                                        color: text,
+                                    }}
+                                >
+                                    GHS{" "}
+                                    {formatMoney(
+                                        agentDetail.summary.total_income,
+                                    )}
+                                </p>
+                            </div>
+                            <div>
+                                <p
+                                    style={{
+                                        fontSize: "0.875rem",
+                                        color: text,
+                                    }}
+                                >
+                                    Expense
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "1.25rem",
+                                        fontWeight: 700,
+                                        color: text,
+                                    }}
+                                >
+                                    GHS{" "}
+                                    {formatMoney(
+                                        agentDetail.summary.total_expense,
+                                    )}
+                                </p>
+                            </div>
+                            <div>
+                                <p
+                                    style={{
+                                        fontSize: "0.875rem",
+                                        color: text,
+                                    }}
+                                >
+                                    Net
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: "1.25rem",
+                                        fontWeight: 700,
+                                        color: text,
+                                    }}
+                                >
+                                    GHS {formatMoney(agentDetail.summary.net)}
+                                </p>
+                            </div>
+                        </div>
+
+                        <p
+                            style={{
+                                fontSize: "1.0625rem",
+                                fontWeight: 700,
+                                color: text,
+                                marginBottom: "10px",
+                            }}
+                        >
+                            Farmers ({agentDetail.farmer_count} active)
+                        </p>
+
+                        {agentDetail.roster.length === 0 ? (
+                            <p style={{ color: text }}>No farmers assigned.</p>
+                        ) : (
+                            <table
+                                style={{
+                                    width: "100%",
+                                    borderCollapse: "collapse",
+                                }}
+                            >
+                                <tbody>
+                                    {agentDetail.roster.map((farmer) => (
+                                        <tr
+                                            key={farmer.id}
+                                            style={{
+                                                borderBottom: `1px solid ${border}`,
+                                            }}
+                                        >
+                                            <td
+                                                style={{
+                                                    padding: "8px 0",
+                                                    color: text,
+                                                }}
+                                            >
+                                                {farmer.name}
+                                                <div
+                                                    style={{
+                                                        fontSize: "0.8125rem",
+                                                        color: text,
+                                                    }}
+                                                >
+                                                    {farmer.community}
+                                                </div>
+                                            </td>
+                                            <td
+                                                style={{
+                                                    padding: "8px 0",
+                                                    color: text,
+                                                    textAlign: "right",
+                                                }}
+                                            >
+                                                GHS {formatMoney(farmer.income)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                )}
+            </Drawer>
+
+            <Drawer
+                open={drawerRegion !== null}
+                title={
+                    drawerRegion ? `${drawerRegion.region_name} farmers` : ""
+                }
+                onClose={() => {
+                    setDrawerRegion(null);
+                    setRegionDetail(null);
+                }}
+            >
+                {detailLoading || !regionDetail ? (
+                    <p style={{ color: text }}>Loading…</p>
+                ) : regionDetail.farmers.length === 0 ? (
+                    <p style={{ color: text }}>No farmers in this region.</p>
+                ) : (
+                    <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                        <tbody>
+                            {regionDetail.farmers.map((farmer) => (
+                                <tr
+                                    key={farmer.id}
+                                    style={{
+                                        borderBottom: `1px solid ${border}`,
+                                    }}
+                                >
+                                    <td
+                                        style={{
+                                            padding: "8px 0",
+                                            color: text,
+                                        }}
+                                    >
+                                        {farmer.name}
+                                        <div
+                                            style={{
+                                                fontSize: "0.8125rem",
+                                                color: text,
+                                            }}
+                                        >
+                                            {farmer.community}
+                                        </div>
+                                    </td>
+                                    <td
+                                        style={{
+                                            padding: "8px 0",
+                                            color: text,
+                                            textAlign: "right",
+                                        }}
+                                    >
+                                        GHS {formatMoney(farmer.income)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </Drawer>
+
+            <Drawer
+                open={drawerHealth !== null}
+                title={
+                    drawerHealth
+                        ? `${drawerHealth.region_name} disease reports`
+                        : ""
+                }
+                onClose={() => {
+                    setDrawerHealth(null);
+                    setHealthDetail(null);
+                }}
+            >
+                {detailLoading || !healthDetail ? (
+                    <p style={{ color: text }}>Loading…</p>
+                ) : healthDetail.reports.length === 0 ? (
+                    <p style={{ color: text }}>No reports in this region.</p>
+                ) : (
+                    <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                        <tbody>
+                            {healthDetail.reports.map((report) => (
+                                <tr
+                                    key={report.uuid}
+                                    style={{
+                                        borderBottom: `1px solid ${border}`,
+                                    }}
+                                >
+                                    <td
+                                        style={{
+                                            padding: "8px 0",
+                                            color: text,
+                                        }}
+                                    >
+                                        {report.farmer_name}
+                                        <div
+                                            style={{
+                                                fontSize: "0.8125rem",
+                                                color: text,
+                                            }}
+                                        >
+                                            {report.category} · {report.status}{" "}
+                                            · {report.created_at}
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: "0.875rem",
+                                                color: text,
+                                            }}
+                                        >
+                                            {report.description}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </Drawer>
         </div>
     );
 }

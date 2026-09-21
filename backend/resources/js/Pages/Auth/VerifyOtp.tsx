@@ -1,13 +1,25 @@
 import { Head, Link, router, useForm } from "@inertiajs/react";
 import { IconDeviceMobileMessage } from "@tabler/icons-react";
 import { FormEventHandler, useEffect, useRef, useState } from "react";
+import GuestThemeProvider from "@/theme/GuestThemeProvider";
+import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { type } from "@/theme/typography";
 
 interface Props {
     masked: string | null;
     canFallbackToSms?: boolean;
 }
 
-export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
+export default function VerifyOtp(props: Props) {
+    return (
+        <GuestThemeProvider>
+            <VerifyOtpContent {...props} />
+        </GuestThemeProvider>
+    );
+}
+
+function VerifyOtpContent({ masked, canFallbackToSms }: Props) {
+    const { dark } = useTheme();
     const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
     const [countdown, setCountdown] = useState(60);
     const [canResend, setCanResend] = useState(false);
@@ -120,11 +132,21 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
 
     const isFilled = (index: number) => digits[index] !== "";
 
+    const pageBg = dark ? "#111827" : "#F9FAFB";
+    const surface = dark ? "#1F2937" : "#FFFFFF";
+    const border = dark ? "#374151" : "#E5E7EB";
+    const inputBorder = dark ? "#4B5563" : "#9CA3AF";
+    const inputBg = dark ? "#111827" : "#FFFFFF";
+    const text = dark ? "#F9FAFB" : "#111827";
+    const textSecondary = dark ? "#9CA3AF" : "#6B7280";
+    const hoverNeutral = dark ? "#374151" : "#F3F4F6";
+    const filledBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
+
     return (
         <div
             className="min-h-screen flex items-center justify-center p-4"
             style={{
-                background: "#F3F4F6",
+                background: pageBg,
                 fontFamily:
                     "'Inter', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif",
             }}
@@ -132,9 +154,7 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
             <Head title="Verify your phone" />
 
             <div className="w-full" style={{ maxWidth: "420px" }}>
-                <div
-                    style={{ border: "1px solid #D1D5DB", overflow: "hidden" }}
-                >
+                <div style={{ border: `1px solid ${border}`, overflow: "hidden" }}>
                     <div
                         className="text-center"
                         style={{
@@ -155,7 +175,7 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                         <h2
                             style={{
                                 margin: "0 0 6px",
-                                fontSize: "1.9375rem",
+                                fontSize: type.pageTitle,
                                 fontWeight: 700,
                                 color: "#fff",
                                 letterSpacing: "-0.4px",
@@ -166,7 +186,7 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                         <p
                             style={{
                                 margin: 0,
-                                fontSize: "1.3125rem",
+                                fontSize: type.body,
                                 color: "rgba(255,255,255,0.62)",
                             }}
                         >
@@ -176,12 +196,12 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                         </p>
                     </div>
 
-                    <div style={{ background: "#fff", padding: "2rem" }}>
+                    <div style={{ background: surface, padding: "2rem" }}>
                         <p
                             style={{
                                 margin: "0 0 1.75rem",
-                                fontSize: "1.4375rem",
-                                color: "#6B7280",
+                                fontSize: type.body,
+                                color: textSecondary,
                                 lineHeight: 1.6,
                                 textAlign: "center",
                             }}
@@ -193,7 +213,7 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                             <p
                                 style={{
                                     marginBottom: "1rem",
-                                    fontSize: "1.25rem",
+                                    fontSize: type.body,
                                     color: "#DC2626",
                                     textAlign: "center",
                                 }}
@@ -229,11 +249,11 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                                             fontWeight: 700,
                                             border: isFilled(index)
                                                 ? "2px solid #1D9E75"
-                                                : "1px solid #9CA3AF",
+                                                : `1px solid ${inputBorder}`,
                                             background: isFilled(index)
-                                                ? "#EAF5F0"
-                                                : "#fff",
-                                            color: "#111827",
+                                                ? filledBg
+                                                : inputBg,
+                                            color: text,
                                             outline: "none",
                                             fontFamily: "inherit",
                                         }}
@@ -241,14 +261,13 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                                             e.target.style.border =
                                                 "2px solid #1D9E75";
                                             e.target.style.background =
-                                                "#EAF5F0";
+                                                filledBg;
                                         }}
                                         onBlur={(e) => {
                                             if (!isFilled(index)) {
-                                                e.target.style.border =
-                                                    "1px solid #9CA3AF";
+                                                e.target.style.border = `1px solid ${inputBorder}`;
                                                 e.target.style.background =
-                                                    "#fff";
+                                                    inputBg;
                                             }
                                         }}
                                     />
@@ -258,8 +277,8 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                             <p
                                 style={{
                                     textAlign: "center",
-                                    fontSize: "1.25rem",
-                                    color: "#6B7280",
+                                    fontSize: type.body,
+                                    color: textSecondary,
                                     margin: canFallbackToSms
                                         ? "0 0 0.5rem"
                                         : "0 0 1.5rem",
@@ -294,8 +313,8 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                                 <p
                                     style={{
                                         textAlign: "center",
-                                        fontSize: "1.25rem",
-                                        color: "#6B7280",
+                                        fontSize: type.body,
+                                        color: textSecondary,
                                         margin: "0 0 1.5rem",
                                     }}
                                 >
@@ -330,7 +349,7 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                                         color: "#fff",
                                         border: "none",
                                         padding: "13px 20px",
-                                        fontSize: "1.4375rem",
+                                        fontSize: type.button,
                                         fontWeight: 600,
                                         cursor:
                                             processing ||
@@ -366,11 +385,11 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                                     href={route("login")}
                                     style={{
                                         width: "100%",
-                                        background: "#fff",
-                                        color: "#111827",
-                                        border: "1px solid #9CA3AF",
+                                        background: surface,
+                                        color: text,
+                                        border: `1px solid ${inputBorder}`,
                                         padding: "13px 20px",
-                                        fontSize: "1.4375rem",
+                                        fontSize: type.button,
                                         fontWeight: 400,
                                         display: "flex",
                                         alignItems: "center",
@@ -380,11 +399,11 @@ export default function VerifyOtp({ masked, canFallbackToSms }: Props) {
                                     }}
                                     onMouseOver={(e) =>
                                         (e.currentTarget.style.background =
-                                            "#F3F4F6")
+                                            hoverNeutral)
                                     }
                                     onMouseOut={(e) =>
                                         (e.currentTarget.style.background =
-                                            "#fff")
+                                            surface)
                                     }
                                 >
                                     Go back

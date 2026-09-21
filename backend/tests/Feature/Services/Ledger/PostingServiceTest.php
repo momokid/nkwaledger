@@ -695,6 +695,72 @@ it('leaves a new batch from a purchase unconfirmed, pending approval', function 
     expect($stock->confirmed_at)->toBeNull();
 });
 
+it('carries the unit of measure onto a brand new batch, when given', function () {
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityPurchased' => '12',
+        'unitOfMeasure' => 'birds',
+    ]));
+
+    $stock = FarmUnitStock::where('farm_unit_id', $this->approvedUnit->id)->first();
+
+    expect($stock->unit_of_measure)->toBe('birds');
+});
+
+it('carries the expected ready date onto a brand new batch, when given', function () {
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityPurchased' => '12',
+        'expectedReadyOn' => '2026-12-01',
+    ]));
+
+    $stock = FarmUnitStock::where('farm_unit_id', $this->approvedUnit->id)->first();
+
+    expect($stock->expected_ready_on->toDateString())->toBe('2026-12-01');
+});
+
+it('leaves the unit of measure and ready date null when not given', function () {
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $this->purchaseTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'quantityPurchased' => '12',
+    ]));
+
+    $stock = FarmUnitStock::where('farm_unit_id', $this->approvedUnit->id)->first();
+
+    expect($stock->unit_of_measure)->toBeNull();
+    expect($stock->expected_ready_on)->toBeNull();
+});
+
+// a declared opening balance credits Stated Capital instead of Cash, so it needs its own
+// StockSource on the batch it creates - the template says which, not a hardcoded default
+it('stamps the batch with whichever StockSource the template names', function () {
+    $openingBalanceTemplate = TransactionTemplate::create([
+        'name' => 'I already had this stock',
+        'slug' => 'stock_opening_balance_tracked',
+        'transaction_type' => 'ADJUSTMENT',
+        'debit_account_id' => $this->livestock->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'none',
+        'requires_farm_unit' => true,
+        'is_stock_purchase' => true,
+        'stock_source' => 'opening_balance',
+    ]);
+
+    $this->service->post(($this->request)([
+        'transactionTemplateId' => $openingBalanceTemplate->id,
+        'farmUnitId' => $this->approvedUnit->id,
+        'settlementAccountId' => null,
+        'quantityPurchased' => '12',
+    ]));
+
+    $stock = FarmUnitStock::where('farm_unit_id', $this->approvedUnit->id)->first();
+
+    expect($stock->source)->toBe(App\Enums\StockSource::OpeningBalance);
+});
+
 it('refuses a purchase with no quantity given', function () {
     FarmUnitStock::factory()->create(['farm_unit_id' => $this->approvedUnit->id]);
 

@@ -6,6 +6,9 @@ import {
     IconPlant,
     IconStethoscope,
 } from "@tabler/icons-react";
+import GuestThemeProvider from "@/theme/GuestThemeProvider";
+import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { type } from "@/theme/typography";
 
 interface Props {
     canLogin: boolean;
@@ -37,7 +40,26 @@ const features = [
 
 const pills = ["🌱 Crops", "🐄 Livestock", "💳 Credit"];
 
-export default function Welcome({ canLogin, canRegister }: Props) {
+export default function Welcome(props: Props) {
+    return (
+        <GuestThemeProvider>
+            <WelcomeContent {...props} />
+        </GuestThemeProvider>
+    );
+}
+
+function WelcomeContent({ canLogin, canRegister }: Props) {
+    const { dark } = useTheme();
+
+    const surface = dark ? "#1F2937" : "#FFFFFF";
+    const inputBorder = dark ? "#4B5563" : "#9CA3AF";
+    const text = dark ? "#F9FAFB" : "#111827";
+    const textSecondary = dark ? "#9CA3AF" : "#6B7280";
+    const hoverNeutral = dark ? "#374151" : "#F3F4F6";
+    const pillBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
+    const pillBorder = dark ? "#1D9E75" : "#A8D9C8";
+    const pillText = dark ? "#A8D9C8" : "#0F6E56";
+
     return (
         <>
             <Head title="Welcome" />
@@ -174,7 +196,10 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                     </div>
                 </div>
 
-                <div className="w-full lg:w-1/2 flex flex-col justify-center items-center px-8 py-12 sm:px-14 bg-white">
+                <div
+                    className="w-full lg:w-1/2 flex flex-col justify-center items-center px-8 py-12 sm:px-14"
+                    style={{ background: surface }}
+                >
                     <div className="lg:hidden flex items-center gap-3 mb-10">
                         <div
                             className="flex items-center justify-center flex-shrink-0"
@@ -191,7 +216,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 style={{
                                     fontSize: "1.4375rem",
                                     fontWeight: 700,
-                                    color: "#0F6E56",
+                                    color: dark ? "#A8D9C8" : "#0F6E56",
                                     letterSpacing: "-0.2px",
                                 }}
                             >
@@ -201,7 +226,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 style={{
                                     fontSize: "0.9375rem",
                                     fontWeight: 600,
-                                    color: "#0F6E56",
+                                    color: dark ? "#A8D9C8" : "#0F6E56",
                                     opacity: 0.55,
                                     letterSpacing: "0.8px",
                                     textTransform: "uppercase",
@@ -216,9 +241,9 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <h2
                             style={{
                                 margin: "0 0 14px",
-                                fontSize: "2.8125rem",
+                                fontSize: type.pageTitle,
                                 fontWeight: 700,
-                                color: "#111827",
+                                color: text,
                                 lineHeight: 1.25,
                                 letterSpacing: "-0.6px",
                             }}
@@ -229,8 +254,8 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <p
                             style={{
                                 margin: "0 0 1.75rem",
-                                fontSize: "1.4375rem",
-                                color: "#6B7280",
+                                fontSize: type.body,
+                                color: textSecondary,
                                 lineHeight: 1.6,
                             }}
                         >
@@ -244,11 +269,11 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 <span
                                     key={pill}
                                     style={{
-                                        fontSize: "1.25rem",
+                                        fontSize: type.hint,
                                         fontWeight: 600,
-                                        color: "#0F6E56",
-                                        background: "#EAF5F0",
-                                        border: "1px solid #A8D9C8",
+                                        color: pillText,
+                                        background: pillBg,
+                                        border: `1px solid ${pillBorder}`,
                                         padding: "6px 14px",
                                     }}
                                 >
@@ -264,7 +289,7 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                                 background: "#1D9E75",
                                 color: "#fff",
                                 padding: "13px 20px",
-                                fontSize: "1.4375rem",
+                                fontSize: type.button,
                                 fontWeight: 600,
                                 textDecoration: "none",
                             }}
@@ -282,19 +307,20 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                             href="/login"
                             className="flex items-center justify-center w-full"
                             style={{
-                                background: "#fff",
-                                color: "#111827",
+                                background: surface,
+                                color: text,
                                 padding: "13px 20px",
-                                fontSize: "1.4375rem",
+                                fontSize: type.button,
                                 fontWeight: 400,
-                                border: "1px solid #9CA3AF",
+                                border: `1px solid ${inputBorder}`,
                                 textDecoration: "none",
                             }}
                             onMouseOver={(e) =>
-                                (e.currentTarget.style.background = "#F3F4F6")
+                                (e.currentTarget.style.background =
+                                    hoverNeutral)
                             }
                             onMouseOut={(e) =>
-                                (e.currentTarget.style.background = "#fff")
+                                (e.currentTarget.style.background = surface)
                             }
                         >
                             Sign in
@@ -303,8 +329,8 @@ export default function Welcome({ canLogin, canRegister }: Props) {
                         <p
                             style={{
                                 marginTop: "2rem",
-                                fontSize: "1.125rem",
-                                color: "#9CA3AF",
+                                fontSize: type.hint,
+                                color: textSecondary,
                                 textAlign: "center",
                             }}
                         >
