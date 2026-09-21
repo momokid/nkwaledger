@@ -4,6 +4,8 @@ import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { useState } from "react";
 
+type MoneyClass = "asset" | "expenditure" | "income" | "liability";
+
 interface Row {
     uuid: string;
     reference: string;
@@ -17,7 +19,15 @@ interface Row {
     cancel_state: "open" | "waiting" | "cancelled" | "correction";
     account: string | null;
     value_lost: number;
+    money_class: MoneyClass | null;
 }
+
+const MONEY_CLASS_LABELS: Record<MoneyClass, string> = {
+    asset: "Asset",
+    expenditure: "Expenditure",
+    income: "Income",
+    liability: "Liability",
+};
 
 interface AccountOption {
     id: number;
@@ -40,6 +50,10 @@ interface Statement {
     closing_balance: number;
     total_in: number;
     total_out: number;
+    total_assets: number;
+    total_expenditure: number;
+    total_income: number;
+    total_liability: number;
     cancelled: number;
     provisional_held_back: number;
     total: number;
@@ -270,6 +284,68 @@ function IndexContent({
                 ))}
             </div>
 
+            <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
+                <div>
+                    <p
+                        style={{
+                            fontSize: "0.875rem",
+                            fontWeight: 600,
+                            color: textSecondary,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.4px",
+                            margin: "0 0 3px",
+                        }}
+                    >
+                        Money out
+                    </p>
+                    <div className="flex flex-wrap gap-x-5 gap-y-1">
+                        <span
+                            style={{ fontSize: "0.9375rem", color: textSecondary }}
+                        >
+                            Assets GHS {cedis(statement.total_assets)}
+                        </span>
+                        <span
+                            style={{ fontSize: "0.9375rem", color: textSecondary }}
+                        >
+                            Expenditure GHS{" "}
+                            {cedis(statement.total_expenditure)}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <p
+                        style={{
+                            fontSize: "0.875rem",
+                            fontWeight: 600,
+                            color: textSecondary,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.4px",
+                            margin: "0 0 3px",
+                        }}
+                    >
+                        Money in
+                    </p>
+                    <div className="flex flex-wrap gap-x-5 gap-y-1">
+                        <span
+                            style={{ fontSize: "0.9375rem", color: textSecondary }}
+                        >
+                            Income GHS {cedis(statement.total_income)}
+                        </span>
+                        {statement.total_liability > 0 && (
+                            <span
+                                style={{
+                                    fontSize: "0.9375rem",
+                                    color: textSecondary,
+                                }}
+                            >
+                                Liability GHS{" "}
+                                {cedis(statement.total_liability)}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+
             {statement.provisional_held_back > 0 && (
                 <div
                     className="mt-4 p-3"
@@ -322,30 +398,6 @@ function IndexContent({
                         value={to}
                         onChange={(event) => setTo(event.target.value)}
                     />
-                </div>
-                <div>
-                    <label
-                        style={{
-                            display: "block",
-                            fontSize: "1rem",
-                            color: textSecondary,
-                            marginBottom: "4px",
-                        }}
-                    >
-                        Money kept in
-                    </label>
-                    <select
-                        style={field}
-                        value={account}
-                        onChange={(event) => setAccount(event.target.value)}
-                    >
-                        <option value="">All</option>
-                        {accounts.map((option) => (
-                            <option key={option.id} value={option.id}>
-                                {option.name}
-                            </option>
-                        ))}
-                    </select>
                 </div>
                 <div>
                     <label
@@ -576,6 +628,24 @@ function IndexContent({
                                         {row.money_in > 0
                                             ? cedis(row.money_in)
                                             : "—"}
+                                        {row.money_in > 0 &&
+                                            row.money_class && (
+                                                <span
+                                                    style={{
+                                                        display: "block",
+                                                        marginTop: "2px",
+                                                        fontSize: "0.8125rem",
+                                                        fontWeight: 600,
+                                                        color: textSecondary,
+                                                    }}
+                                                >
+                                                    {
+                                                        MONEY_CLASS_LABELS[
+                                                            row.money_class
+                                                        ]
+                                                    }
+                                                </span>
+                                            )}
                                     </td>
                                     <td
                                         className="px-4 py-3"
@@ -593,6 +663,24 @@ function IndexContent({
                                         {row.money_out > 0
                                             ? cedis(row.money_out)
                                             : "—"}
+                                        {row.money_out > 0 &&
+                                            row.money_class && (
+                                                <span
+                                                    style={{
+                                                        display: "block",
+                                                        marginTop: "2px",
+                                                        fontSize: "0.8125rem",
+                                                        fontWeight: 600,
+                                                        color: textSecondary,
+                                                    }}
+                                                >
+                                                    {
+                                                        MONEY_CLASS_LABELS[
+                                                            row.money_class
+                                                        ]
+                                                    }
+                                                </span>
+                                            )}
                                     </td>
                                     <td
                                         className="px-4 py-3"

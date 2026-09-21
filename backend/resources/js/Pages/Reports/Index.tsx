@@ -20,6 +20,15 @@ interface Header {
     notice: string;
 }
 
+type MoneyClass = "asset" | "expenditure" | "income" | "liability";
+
+const MONEY_CLASS_LABELS: Record<MoneyClass, string> = {
+    asset: "Asset",
+    expenditure: "Expenditure",
+    income: "Income",
+    liability: "Liability",
+};
+
 interface StatementRow {
     reference: string;
     date: string;
@@ -31,6 +40,7 @@ interface StatementRow {
     is_provisional: boolean;
     cancel_state: string;
     value_lost: number;
+    money_class: MoneyClass | null;
 }
 
 interface IncomeRow {
@@ -55,6 +65,9 @@ interface Report {
     closing_balance?: number;
     total_in?: number;
     total_out?: number;
+    total_assets?: number;
+    total_expenditure?: number;
+    total_liability?: number;
     cancelled?: number;
     income_rows?: IncomeRow[];
     expense_rows?: IncomeRow[];
@@ -673,12 +686,38 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                 style={{ color: colours.text }}
                             >
                                 {row.money_in > 0 ? cedis(row.money_in) : "—"}
+                                {row.money_in > 0 && row.money_class && (
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            marginTop: "2px",
+                                            fontSize: "0.8125rem",
+                                            fontWeight: 600,
+                                            color: colours.textSecondary,
+                                        }}
+                                    >
+                                        {MONEY_CLASS_LABELS[row.money_class]}
+                                    </span>
+                                )}
                             </td>
                             <td
                                 className="px-4 py-3"
                                 style={{ color: colours.text }}
                             >
                                 {row.money_out > 0 ? cedis(row.money_out) : "—"}
+                                {row.money_out > 0 && row.money_class && (
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            marginTop: "2px",
+                                            fontSize: "0.8125rem",
+                                            fontWeight: 600,
+                                            color: colours.textSecondary,
+                                        }}
+                                    >
+                                        {MONEY_CLASS_LABELS[row.money_class]}
+                                    </span>
+                                )}
                             </td>
                             <td
                                 className="px-4 py-3"
@@ -722,6 +761,100 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                             {cedis(report.closing_balance ?? 0)}
                         </td>
                     </tr>
+                    <tr>
+                        <td
+                            className="px-4 py-2"
+                            colSpan={3}
+                            style={{
+                                color: colours.textSecondary,
+                                fontSize: "0.9375rem",
+                            }}
+                        >
+                            Assets
+                        </td>
+                        <td className="px-4 py-2" />
+                        <td
+                            className="px-4 py-2"
+                            style={{
+                                color: colours.textSecondary,
+                                fontSize: "0.9375rem",
+                            }}
+                        >
+                            {cedis(report.total_assets ?? 0)}
+                        </td>
+                        <td className="px-4 py-2" />
+                    </tr>
+                    <tr>
+                        <td
+                            className="px-4 py-2"
+                            colSpan={3}
+                            style={{
+                                color: colours.textSecondary,
+                                fontSize: "0.9375rem",
+                            }}
+                        >
+                            Expenditure
+                        </td>
+                        <td className="px-4 py-2" />
+                        <td
+                            className="px-4 py-2"
+                            style={{
+                                color: colours.textSecondary,
+                                fontSize: "0.9375rem",
+                            }}
+                        >
+                            {cedis(report.total_expenditure ?? 0)}
+                        </td>
+                        <td className="px-4 py-2" />
+                    </tr>
+                    <tr>
+                        <td
+                            className="px-4 py-2"
+                            colSpan={3}
+                            style={{
+                                color: colours.textSecondary,
+                                fontSize: "0.9375rem",
+                            }}
+                        >
+                            Income
+                        </td>
+                        <td
+                            className="px-4 py-2"
+                            style={{
+                                color: colours.textSecondary,
+                                fontSize: "0.9375rem",
+                            }}
+                        >
+                            {cedis(report.total_income ?? 0)}
+                        </td>
+                        <td className="px-4 py-2" />
+                        <td className="px-4 py-2" />
+                    </tr>
+                    {(report.total_liability ?? 0) > 0 && (
+                        <tr>
+                            <td
+                                className="px-4 py-2"
+                                colSpan={3}
+                                style={{
+                                    color: colours.textSecondary,
+                                    fontSize: "0.9375rem",
+                                }}
+                            >
+                                Liability
+                            </td>
+                            <td
+                                className="px-4 py-2"
+                                style={{
+                                    color: colours.textSecondary,
+                                    fontSize: "0.9375rem",
+                                }}
+                            >
+                                {cedis(report.total_liability ?? 0)}
+                            </td>
+                            <td className="px-4 py-2" />
+                            <td className="px-4 py-2" />
+                        </tr>
+                    )}
                 </tfoot>
             </table>
         </div>
