@@ -55,4 +55,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(FarmerProfile::class);
     }
+
+    // present only for accounts holding the supplier role, once they have completed their marketplace profile
+    public function supplier(): HasOne
+    {
+        return $this->hasOne(Supplier::class);
+    }
 }
