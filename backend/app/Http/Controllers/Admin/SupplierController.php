@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Enums\KioskStatus;
+use App\Enums\SupplierAccountStatus;
+use App\Http\Controllers\Controller;
+use App\Models\Supplier;
+use App\Services\AccessControlService;
+use App\Services\AuditService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class SupplierController extends Controller
+{
+    public function __construct(
+        private readonly AuditService $audit,
+        private readonly AccessControlService $access,
+    ) {}
+
+    public function index(Request $request): Response
+    {
+        $user = $request->user();
+
+        return Inertia::render('Admin/Marketplace/Suppliers/Index', [
+            'suppliers' => Supplier::query()
+                ->with('user:id,surname,first_name,phone,phone_verified_at')
+                ->withCount('kiosks')
+                ->orderByDesc('id')
+                ->paginate(15)
+                ->through(fn(Supplier $supplier) => [
+                    'uuid' => $supplier->uuid,
+                    'business_name' => $supplier->business_name,
+                    'email' => $supplier->email,
+                    'phone' => $supplier->user?->phone,
+                    'verification_status' => $supplier->verificationStatus(),
+                    'account_status' => $supplier->account_status->value,
+                    'kiosks_count' => $supplier->kiosks_count,
+                ]),
+            'permissions' => [
+                'suspend' => $this->access->can($user, 'marketplace-suppliers.suspend'),
+            ],
+        ]);
+    }
+
+    // suspending a supplier suspends every one of their kiosks in one action; restoring is separate
+    public function suspend(Request $request, Supplier $supplier): RedirectResponse
+    {
+        $supplier->update([
+            'account_status' => SupplierAccountStatus::Suspended,
+            'suspended_at' => now(),
+            'suspended_by' => $request->user()->id,
+            'suspension_reason' => $request->input('reason'),
+        ]);
+
+        $supplier->kiosks()->update(['status' => KioskStatus::Suspended]);
+
+        $this->audit->recordOn('marketplace_supplier.suspended', $supplier);
+
+        return back()->with('success', "{$supplier->business_name} and all of its kiosks are suspended.");
+    }
+
+    public function restore(Supplier $supplier): RedirectResponse
+    {
+        $supplier->update([
+            'account_status' => SupplierAccountStatus::Active,
+            'suspended_at' => null,
+            'suspension_reason' => null,
+        ]);
+
+        $this->audit->recordOn('marketplace_supplier.restored', $supplier);
+
+        return back()->with('success', "{$supplier->business_name} is restored. Its kiosks stay suspended until restored individually.");
+    }
+}
