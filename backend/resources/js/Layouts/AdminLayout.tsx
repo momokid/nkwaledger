@@ -28,6 +28,9 @@ import {
     IconUserCheck,
     IconChecklist,
     IconStethoscope,
+    IconShoppingCart,
+    IconBuildingStore,
+    IconSettings,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
@@ -186,6 +189,27 @@ const navItems: NavEntry[] = [
                 label: "Officer Assignments",
                 routeName: "admin.officer-assignments.index",
                 icon: IconUsersGroup,
+            },
+        ],
+    },
+    {
+        label: "Marketplace",
+        icon: IconShoppingCart,
+        children: [
+            {
+                label: "Suppliers",
+                routeName: "admin.marketplace.suppliers.index",
+                icon: IconUserCheck,
+            },
+            {
+                label: "Kiosks",
+                routeName: "admin.marketplace.kiosks.index",
+                icon: IconBuildingStore,
+            },
+            {
+                label: "Settings",
+                routeName: "admin.marketplace.settings.index",
+                icon: IconSettings,
             },
         ],
     },

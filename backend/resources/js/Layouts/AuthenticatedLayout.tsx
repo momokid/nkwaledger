@@ -266,9 +266,9 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             },
             {
                 label: "Marketplace",
-                href: "#",
+                href: "/supplier/kiosks",
                 icon: IconShoppingCart,
-                ready: false,
+                ready: true,
             },
         ],
         tools: [],
