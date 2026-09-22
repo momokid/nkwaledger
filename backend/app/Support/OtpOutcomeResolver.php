@@ -15,6 +15,10 @@ class OtpOutcomeResolver
         'password_reset'     => ['authenticates' => false, 'verifies' => false],
         'phone_verification' => ['authenticates' => false, 'verifies' => true],
         'invitation'         => ['authenticates' => false, 'verifies' => false],
+        // neither ever reaches the shared /verify-otp page - each has its own dedicated
+        // endpoint - but every type still needs a defined, safe-by-default outcome
+        'supplier_email_verification' => ['authenticates' => false, 'verifies' => false],
+        'kiosk_confirmation'          => ['authenticates' => false, 'verifies' => false],
     ];
 
     // types that go somewhere other than a dashboard once the code checks out
