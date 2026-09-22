@@ -140,6 +140,28 @@ return [
                 'delete' => 'Remove',
             ],
         ],
+        'marketplace-settings' => [
+            'label' => 'Marketplace Settings',
+            'actions' => [
+                'view' => 'View',
+                'update' => 'Edit',
+            ],
+        ],
+        'marketplace-suppliers' => [
+            'label' => 'Marketplace Suppliers',
+            'actions' => [
+                'view' => 'View',
+                'suspend' => 'Suspend or restore',
+            ],
+        ],
+        'marketplace-kiosks' => [
+            'label' => 'Marketplace Kiosks',
+            'actions' => [
+                'view' => 'View',
+                'approve' => 'Approve a 2nd kiosk',
+                'suspend' => 'Suspend or restore',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -195,6 +217,13 @@ return [
             'officer-assignments.view',
             'officer-assignments.create',
             'officer-assignments.delete',
+            'marketplace-settings.view',
+            'marketplace-settings.update',
+            'marketplace-suppliers.view',
+            'marketplace-suppliers.suspend',
+            'marketplace-kiosks.view',
+            'marketplace-kiosks.approve',
+            'marketplace-kiosks.suspend',
         ],
         'agent' => [
             'farm-types.view',
