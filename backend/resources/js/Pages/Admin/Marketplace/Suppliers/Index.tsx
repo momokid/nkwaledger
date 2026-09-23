@@ -1,6 +1,6 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 
 interface SupplierRow {
     uuid: string;
@@ -73,6 +73,7 @@ function IndexContent({ suppliers, permissions }: Props) {
                         <th className="text-left px-4 py-3" style={{ color: primary, fontWeight: 700 }}>Verification</th>
                         <th className="text-left px-4 py-3" style={{ color: primary, fontWeight: 700 }}>Status</th>
                         <th className="text-left px-4 py-3" style={{ color: primary, fontWeight: 700 }}>Kiosks</th>
+                        <th className="text-left px-4 py-3" style={{ color: primary, fontWeight: 700 }}>Stock</th>
                         {permissions.suspend && (
                             <th className="text-left px-4 py-3" style={{ color: primary, fontWeight: 700 }}>Action</th>
                         )}
@@ -81,7 +82,7 @@ function IndexContent({ suppliers, permissions }: Props) {
                 <tbody>
                     {suppliers.data.length === 0 && (
                         <tr>
-                            <td colSpan={permissions.suspend ? 6 : 5} className="px-4 py-6 text-center" style={{ color: textSecondary }}>
+                            <td colSpan={permissions.suspend ? 7 : 6} className="px-4 py-6 text-center" style={{ color: textSecondary }}>
                                 No suppliers yet.
                             </td>
                         </tr>
@@ -101,6 +102,14 @@ function IndexContent({ suppliers, permissions }: Props) {
                                 </span>
                             </td>
                             <td className="px-4 py-3" style={{ color: text }}>{supplier.kiosks_count}</td>
+                            <td className="px-4 py-3">
+                                <Link
+                                    href={route("admin.marketplace.suppliers.stock", supplier.uuid)}
+                                    style={{ color: primary, fontWeight: 600 }}
+                                >
+                                    View stock
+                                </Link>
+                            </td>
                             {permissions.suspend && (
                                 <td className="px-4 py-3">
                                     {supplier.account_status === "active" ? (

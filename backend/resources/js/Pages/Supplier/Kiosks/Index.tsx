@@ -1,5 +1,5 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { useForm } from "@inertiajs/react";
+import { Link, useForm } from "@inertiajs/react";
 import { FormEvent, useState } from "react";
 
 interface KioskData {
@@ -271,12 +271,15 @@ function IndexContent({ kiosks, regions, districts }: ContentProps) {
                             <th className="text-left px-4 py-3" style={{ color: primary, fontWeight: 700 }}>
                                 Action
                             </th>
+                            <th className="text-left px-4 py-3" style={{ color: primary, fontWeight: 700 }}>
+                                Products
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {kiosks.length === 0 && (
                             <tr>
-                                <td colSpan={4} className="px-4 py-6 text-center" style={{ color: textSecondary }}>
+                                <td colSpan={5} className="px-4 py-6 text-center" style={{ color: textSecondary }}>
                                     No kiosks registered yet.
                                 </td>
                             </tr>
@@ -348,6 +351,14 @@ function IndexContent({ kiosks, regions, districts }: ContentProps) {
                                             {kiosk.is_visible ? "Live" : "Confirmed"}
                                         </span>
                                     )}
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Link
+                                        href={route("supplier.kiosks.products.index", kiosk.uuid)}
+                                        style={{ color: primary, fontWeight: 600 }}
+                                    >
+                                        Manage products
+                                    </Link>
                                 </td>
                             </tr>
                         ))}

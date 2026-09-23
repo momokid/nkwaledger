@@ -207,6 +207,11 @@ const navItems: NavEntry[] = [
                 icon: IconBuildingStore,
             },
             {
+                label: "Catalog",
+                routeName: "admin.marketplace.catalog.index",
+                icon: IconListDetails,
+            },
+            {
                 label: "Settings",
                 routeName: "admin.marketplace.settings.index",
                 icon: IconSettings,
