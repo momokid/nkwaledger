@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -118,5 +119,12 @@ class Kiosk extends Model
     public function adminApprovedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_approved_by');
+    }
+
+    // named to match the {kioskProduct} route parameter, so Laravel's implicit
+    // route-model binding scopes the child lookup through this kiosk automatically
+    public function kioskProducts(): HasMany
+    {
+        return $this->hasMany(KioskProduct::class);
     }
 }
