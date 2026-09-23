@@ -162,6 +162,14 @@ return [
                 'suspend' => 'Suspend or restore',
             ],
         ],
+        'marketplace-catalog' => [
+            'label' => 'Marketplace Catalog',
+            'actions' => [
+                'view' => 'View catalog and supplier stock',
+                'create' => 'Seed a catalog product',
+                'merge' => 'Merge duplicate records',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -224,6 +232,9 @@ return [
             'marketplace-kiosks.view',
             'marketplace-kiosks.approve',
             'marketplace-kiosks.suspend',
+            'marketplace-catalog.view',
+            'marketplace-catalog.create',
+            'marketplace-catalog.merge',
         ],
         'agent' => [
             'farm-types.view',

@@ -56,9 +56,11 @@ use App\Http\Controllers\Agent\AgentReportsController;
 use App\Http\Controllers\Supplier\SupplierDashboardController;
 use App\Http\Controllers\Supplier\SupplierProfileController;
 use App\Http\Controllers\Supplier\KioskController as SupplierKioskController;
+use App\Http\Controllers\Supplier\KioskProductController;
 use App\Http\Controllers\Admin\SupplierController as AdminSupplierController;
 use App\Http\Controllers\Admin\KioskController as AdminKioskController;
 use App\Http\Controllers\Admin\MarketplaceSettingController;
+use App\Http\Controllers\Admin\CatalogProductController as AdminCatalogProductController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -363,6 +365,13 @@ Route::middleware(['auth', 'role:supplier', 'verified.phone'])->prefix('supplier
     Route::get('/kiosks', [SupplierKioskController::class, 'index'])->name('kiosks.index');
     Route::post('/kiosks', [SupplierKioskController::class, 'store'])->name('kiosks.store');
     Route::post('/kiosks/{kiosk:uuid}/confirm', [SupplierKioskController::class, 'confirm'])->name('kiosks.confirm');
+
+    Route::get('/kiosks/{kiosk:uuid}/products', [KioskProductController::class, 'index'])->name('kiosks.products.index');
+    Route::post('/kiosks/{kiosk:uuid}/products', [KioskProductController::class, 'store'])->name('kiosks.products.store');
+    Route::patch('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/price', [KioskProductController::class, 'updatePrice'])->name('kiosks.products.price');
+    Route::post('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/confirm-price', [KioskProductController::class, 'confirmPrice'])->name('kiosks.products.confirm-price');
+    Route::patch('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/stock', [KioskProductController::class, 'updateStock'])->name('kiosks.products.stock');
+    Route::delete('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/images/{image}', [KioskProductController::class, 'destroyImage'])->name('kiosks.products.images.destroy');
 });
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
@@ -701,6 +710,20 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:marketplace-kiosks.suspend')->group(function () {
         Route::patch('/marketplace/kiosks/{kiosk:uuid}/suspend', [AdminKioskController::class, 'suspend'])->name('marketplace.kiosks.suspend');
         Route::patch('/marketplace/kiosks/{kiosk:uuid}/restore', [AdminKioskController::class, 'restore'])->name('marketplace.kiosks.restore');
+    });
+
+    Route::middleware('access:marketplace-catalog.view')->group(function () {
+        Route::get('/marketplace/catalog', [AdminCatalogProductController::class, 'index'])->name('marketplace.catalog.index');
+        Route::get('/marketplace/suppliers/{supplier:uuid}/stock', [AdminSupplierController::class, 'stock'])->name('marketplace.suppliers.stock');
+    });
+    Route::middleware('access:marketplace-catalog.create')->group(function () {
+        Route::post('/marketplace/catalog', [AdminCatalogProductController::class, 'store'])->name('marketplace.catalog.store');
+    });
+    Route::middleware('access:marketplace-catalog.merge')->group(function () {
+        Route::patch('/marketplace/catalog/{catalogProduct:uuid}/merge', [AdminCatalogProductController::class, 'merge'])->name('marketplace.catalog.merge');
+    });
+    Route::middleware('access:marketplace-catalog.view')->group(function () {
+        Route::delete('/marketplace/kiosk-products/{kioskProduct:uuid}/images/{image}', [AdminCatalogProductController::class, 'destroyImage'])->name('marketplace.kiosk-products.images.destroy');
     });
 
     Route::middleware('access:accounting-periods.view')->group(function () {

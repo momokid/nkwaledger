@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\KioskStatus;
 use App\Enums\SupplierAccountStatus;
 use App\Http\Controllers\Controller;
+use App\Models\KioskProduct;
 use App\Models\Supplier;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -60,6 +62,33 @@ class SupplierController extends Controller
         $this->audit->recordOn('marketplace_supplier.suspended', $supplier);
 
         return back()->with('success', "{$supplier->business_name} and all of its kiosks are suspended.");
+    }
+
+    // admin can inspect what a supplier has listed, across every one of their kiosks
+    public function stock(Supplier $supplier): Response
+    {
+        return Inertia::render('Admin/Marketplace/Suppliers/Stock', [
+            'supplier' => ['uuid' => $supplier->uuid, 'business_name' => $supplier->business_name],
+            'products' => KioskProduct::query()
+                ->whereHas('kiosk', fn($query) => $query->where('supplier_id', $supplier->id))
+                ->with(['catalogProduct', 'kiosk', 'images'])
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn(KioskProduct $product) => [
+                    'uuid' => $product->uuid,
+                    'kiosk' => $product->kiosk->name,
+                    'name' => $product->catalogProduct->name,
+                    'barcode' => $product->catalogProduct->barcode,
+                    'price' => $product->price,
+                    'in_stock' => $product->in_stock,
+                    'expiry_date' => $product->expiry_date?->toDateString(),
+                    'status' => $product->status->value,
+                    'images' => $product->images->map(fn($image) => [
+                        'id' => $image->id,
+                        'url' => Storage::disk('public')->url($image->path),
+                    ]),
+                ]),
+        ]);
     }
 
     public function restore(Supplier $supplier): RedirectResponse
