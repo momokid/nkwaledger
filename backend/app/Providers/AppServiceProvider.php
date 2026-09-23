@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\SmsProvider;
 use App\Models\User;
 use App\Services\Sms\ArkeselSmsProvider;
+use App\Services\Sms\LogSmsProvider;
 use App\Session\RoleAwareDatabaseSessionHandler;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\Route;
@@ -37,10 +38,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->app->bind(SmsProvider::class, fn() => new ArkeselSmsProvider(
-            apiKey: config('services.arkesel.key'),
-            sender: config('services.arkesel.sender'),
-        ));
+        // an explicit flag rather than app()->isLocal(), so arkesel can still be
+        // tested from a local machine on demand
+        $this->app->bind(SmsProvider::class, fn() => env('SMS_DRIVER', 'arkesel') === 'log'
+            ? new LogSmsProvider()
+            : new ArkeselSmsProvider(
+                apiKey: config('services.arkesel.key'),
+                sender: config('services.arkesel.sender'),
+            ));
     }
 
     public function boot(): void
