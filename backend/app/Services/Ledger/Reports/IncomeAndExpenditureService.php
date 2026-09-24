@@ -63,7 +63,23 @@ class IncomeAndExpenditureService
             ),
             cashCollectedMinor: $this->cashFlow($farmerProfileId, $from, $to, $includeProvisional, Transaction::INCOME),
             cashPaidOutMinor: $this->cashFlow($farmerProfileId, $from, $to, $includeProvisional, Transaction::EXPENSE),
+            assetsAcquiredMinor: $this->assetsAcquired($farmerProfileId, $from, $to, $includeProvisional),
         );
+    }
+
+    // real cash left the farmer's hand either way, but buying stock is an asset gained,
+    // not money spent running the farm - tracked here on its own, counted in full
+    // regardless of whether it was settled in cash or still sits on credit
+    private function assetsAcquired(int $farmerProfileId, string $from, string $to, bool $includeProvisional): int
+    {
+        return (int) Transaction::query()
+            ->join('transaction_templates', 'transaction_templates.id', '=', 'transactions.transaction_template_id')
+            ->where('transactions.farmer_profile_id', $farmerProfileId)
+            ->where('transaction_templates.is_stock_purchase', true)
+            ->whereDate('transactions.transaction_date', '>=', $from)
+            ->whereDate('transactions.transaction_date', '<=', $to)
+            ->when(! $includeProvisional, fn($query) => $query->where('transactions.is_provisional', false))
+            ->sum('transactions.amount_minor');
     }
 
     // the cash/MoMo portion actually received or paid: every non-credit transaction
@@ -124,6 +140,7 @@ class IncomeAndExpenditureService
             ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
             ->join('transactions', 'transactions.id', '=', 'journal_entries.transaction_id')
             ->join('ledger_accounts', 'ledger_accounts.id', '=', 'journal_lines.ledger_account_id')
+            ->join('transaction_templates', 'transaction_templates.id', '=', 'transactions.transaction_template_id')
             ->where('journal_lines.farmer_profile_id', $farmerProfileId)
             ->whereDate('journal_lines.transaction_date', '>=', $from)
             ->whereDate('journal_lines.transaction_date', '<=', $to)
@@ -134,6 +151,11 @@ class IncomeAndExpenditureService
             ])
             // the money the farmer holds is not earnings or spending, it is where it sits
             ->where('ledger_accounts.is_settlement', false)
+            // an asset acquired distorts operating profit - pulled out of the expense total
+            // here and surfaced on its own via assetsAcquired() instead
+            ->where(fn($query) => $query
+                ->whereNot('transactions.transaction_type', Transaction::EXPENSE)
+                ->orWhere('transaction_templates.is_stock_purchase', false))
             ->when(! $includeProvisional, fn($query) => $query->where('transactions.is_provisional', false))
             // earning sits on the credit side, paying out and value gone sit on the debit side
             ->where(fn($query) => $query
