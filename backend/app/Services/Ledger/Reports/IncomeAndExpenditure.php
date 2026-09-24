@@ -35,6 +35,10 @@ class IncomeAndExpenditure
         // net profit still uses earned/incurred, since that is correct accrual accounting
         public readonly int $cashCollectedMinor,
         public readonly int $cashPaidOutMinor,
+        // an animal/seedling/fingerling bought is an asset gained, not an operating cost -
+        // excluded from totalExpenseMinor (and so from net profit) but still real cash out,
+        // so it is tracked here on its own rather than folded into either figure above
+        public readonly int $assetsAcquiredMinor,
     ) {
         $this->totalIncomeMinor = $this->sum($incomeRows);
         $this->totalExpenseMinor = $this->sum($expenseRows);
