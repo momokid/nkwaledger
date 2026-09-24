@@ -2,13 +2,15 @@
 
 use App\Services\OtpService;
 
-test('it knows the five valid types', function () {
+test('it knows the seven valid types', function () {
     expect(OtpService::TYPES)->toBe([
         'registration',
         'login',
         'password_reset',
         'phone_verification',
         'invitation',
+        'supplier_email_verification',
+        'kiosk_confirmation',
     ]);
 });
 

@@ -4,6 +4,7 @@ import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
 import { deleteDeviceKey } from "@/lib/offlineStore";
 import {
     IconBell,
+    IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
     IconClipboardList,
@@ -17,7 +18,6 @@ import {
     IconPlant,
     IconReportAnalytics,
     IconSettings,
-    IconShoppingCart,
     IconStethoscope,
     IconSun,
     IconUser,
@@ -35,6 +35,7 @@ import {
     useState,
 } from "react";
 import FlashMessages from "@/Components/FlashMessages";
+import { buildMarketplaceNavGroup, disabledPlaceholder } from "@/lib/navHelpers";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import VerificationGate from "@/Components/VerificationGate";
 import useIsVerified from "@/hooks/useIsVerified";
@@ -77,12 +78,15 @@ const TEXT_SIZE_LABELS: Record<TextSize, string> = {
 interface NavItem {
     label: string;
     href: string;
-    icon: typeof IconLayoutDashboard;
+    // absent for a sub-item nested under a group - never shown once indented anyway
+    icon?: typeof IconLayoutDashboard;
     // false means the page is not built, so the item shows but cannot be opened
     ready: boolean;
     // names which count this item wants beside its label
     badge?: string;
     count?: number;
+    // one level only - a sub-item here never has children of its own
+    children?: NavItem[];
 }
 
 interface NavSet {
@@ -135,10 +139,11 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
         ],
         tools: [
             {
-                label: "Marketplace",
+                ...buildMarketplaceNavGroup<NavItem>([
+                    disabledPlaceholder("Market Center"),
+                ]),
                 href: "#",
-                icon: IconShoppingCart,
-                ready: false,
+                ready: true,
             },
             {
                 label: "Requests",
@@ -200,10 +205,12 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 ready: true,
             },
             {
-                label: "Marketplace",
+                ...buildMarketplaceNavGroup<NavItem>([
+                    disabledPlaceholder("Setup"),
+                    disabledPlaceholder("Market Center"),
+                ]),
                 href: "#",
-                icon: IconShoppingCart,
-                ready: false,
+                ready: true,
             },
         ],
         account: account(),
@@ -265,10 +272,14 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 ready: true,
             },
             {
-                label: "Marketplace",
+                ...buildMarketplaceNavGroup<NavItem>([
+                    { label: "Setup", href: "/supplier/kiosks", ready: true },
+                    disabledPlaceholder("Market Center"),
+                    disabledPlaceholder("Product Analysis"),
+                    disabledPlaceholder("Finance"),
+                ]),
                 href: "#",
-                icon: IconShoppingCart,
-                ready: false,
+                ready: true,
             },
         ],
         tools: [],
@@ -417,7 +428,89 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
     const mobileNav = nav.main.slice(0, 5);
 
-    const renderItem = (item: NavItem) => {
+    // opens whichever group holds the current page by default, same as AdminLayout
+    const [expandedNavGroup, setExpandedNavGroup] = useState<string | null>(
+        () =>
+            [...nav.main, ...nav.tools].find((item) =>
+                (item.children ?? []).some(
+                    (child) => child.href === currentPath,
+                ),
+            )?.label ?? null,
+    );
+
+    const toggleNavGroup = (label: string) => {
+        if (collapsed) {
+            // a collapsed sidebar has no room for a submenu flyout, so open the full sidebar first
+            setCollapsed(false);
+        }
+        setExpandedNavGroup((current) => (current === label ? null : label));
+    };
+
+    const renderNavGroup = (group: NavItem) => {
+        const Icon = group.icon;
+        const isOpen = expandedNavGroup === group.label;
+        const active = (group.children ?? []).some(
+            (child) => currentPath === child.href,
+        );
+
+        return (
+            <div key={group.label}>
+                <button
+                    onClick={() => toggleNavGroup(group.label)}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        width: "100%",
+                        padding: "12px 16px",
+                        fontSize: "1.125rem",
+                        fontWeight: active ? 600 : 400,
+                        color: active ? primary : text,
+                        background: "transparent",
+                        border: "none",
+                        borderLeft: active
+                            ? `3px solid ${primary}`
+                            : "3px solid transparent",
+                        cursor: "pointer",
+                        fontFamily: "'Inter', system-ui, sans-serif",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                    }}
+                >
+                    {Icon && <Icon size={24} stroke={1.6} />}
+                    {!collapsed && (
+                        <>
+                            <span style={{ flex: 1, textAlign: "left" }}>
+                                {group.label}
+                            </span>
+                            <IconChevronDown
+                                size={16}
+                                stroke={2}
+                                style={{
+                                    transform: isOpen
+                                        ? "rotate(180deg)"
+                                        : "rotate(0deg)",
+                                    transition: "transform 0.15s ease",
+                                }}
+                            />
+                        </>
+                    )}
+                </button>
+
+                {!collapsed &&
+                    isOpen &&
+                    (group.children ?? []).map((child) => (
+                        <div key={child.label}>{renderItem(child, true)}</div>
+                    ))}
+            </div>
+        );
+    };
+
+    const renderItem = (item: NavItem, indented = false) => {
+        if (item.children) {
+            return renderNavGroup(item);
+        }
+
         const Icon = item.icon;
         const active = currentPath === item.href;
 
@@ -425,7 +518,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             display: "flex",
             alignItems: "center",
             gap: "12px",
-            padding: "12px 16px",
+            padding: indented
+                ? "11px 16px 11px 44px"
+                : "12px 16px",
             fontSize: "1.125rem",
             fontFamily: "'Inter', system-ui, sans-serif",
             whiteSpace: "nowrap" as const,
@@ -443,7 +538,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                         borderLeft: "3px solid transparent",
                     }}
                 >
-                    <Icon size={24} stroke={1.6} />
+                    {!indented && Icon && <Icon size={24} stroke={1.6} />}
                     {!collapsed && (
                         <>
                             {item.label}
@@ -477,7 +572,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                     textDecoration: "none",
                 }}
             >
-                <Icon size={24} stroke={1.6} />
+                {!indented && Icon && <Icon size={24} stroke={1.6} />}
                 {!collapsed && item.label}
                 {/* a zero means nothing is waiting, so the badge stays away */}
                 {!collapsed && (item.count ?? 0) > 0 && (
@@ -1040,7 +1135,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                             opacity: 0.5,
                                         }}
                                     >
-                                        <Icon size={24} stroke={1.6} />
+                                        {Icon && (
+                                            <Icon size={24} stroke={1.6} />
+                                        )}
                                         {item.label}
                                     </div>
                                 );
@@ -1056,7 +1153,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         fontWeight: active ? 600 : 400,
                                     }}
                                 >
-                                    <Icon size={24} stroke={1.6} />
+                                    {Icon && (
+                                        <Icon size={24} stroke={1.6} />
+                                    )}
                                     {item.label}
                                 </Link>
                             );

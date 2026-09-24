@@ -18,6 +18,8 @@ class OtpService
         'password_reset',
         'phone_verification',
         'invitation',
+        'supplier_email_verification',
+        'kiosk_confirmation',
     ];
 
     private const CHANNELS = ['sms', 'email'];
