@@ -1,4 +1,5 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import BackLink from "@/Components/BackLink";
 import { Link, router, useForm } from "@inertiajs/react";
 import { FormEvent, useState } from "react";
 
@@ -47,6 +48,7 @@ interface Props {
 export default function Index({ kiosk, products, categories, units }: Props) {
     return (
         <AuthenticatedLayout title={`${kiosk.name} - Products`}>
+            <BackLink fallbackHref="/supplier/dashboard" />
             <IndexContent kiosk={kiosk} products={products} categories={categories} units={units} />
         </AuthenticatedLayout>
     );

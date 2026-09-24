@@ -1,4 +1,5 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import BackLink from "@/Components/BackLink";
 import { useForm } from "@inertiajs/react";
 import { FormEvent } from "react";
 
@@ -17,6 +18,7 @@ interface Props {
 export default function Create({ supplier }: Props) {
     return (
         <AuthenticatedLayout title="Marketplace Profile">
+            <BackLink fallbackHref="/supplier/dashboard" />
             <CreateContent supplier={supplier} />
         </AuthenticatedLayout>
     );

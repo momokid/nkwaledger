@@ -29,11 +29,10 @@ import {
     IconChecklist,
     IconStethoscope,
     IconShoppingCart,
-    IconBuildingStore,
-    IconSettings,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
+import { buildMarketplaceNavGroup, disabledPlaceholder } from "@/lib/navHelpers";
 import { PageProps } from "@/types";
 import { deleteDeviceKey } from "@/lib/offlineStore";
 import {
@@ -48,10 +47,14 @@ interface Props extends PropsWithChildren {
 
 interface NavLeaf {
     label: string;
-    routeName: string;
-    icon: typeof IconLayoutDashboard;
+    // absent only for a "coming soon" placeholder, which has nowhere to link to yet
+    routeName?: string;
+    // absent for a placeholder too - never shown once indented under a group anyway
+    icon?: typeof IconLayoutDashboard;
     // names which count this item wants beside its label
     badge?: string;
+    // false means "coming soon"; absent or true means a normal, permission-gated link
+    ready?: boolean;
 }
 
 interface NavGroup {
@@ -192,53 +195,56 @@ const navItems: NavEntry[] = [
             },
         ],
     },
-    {
-        label: "Marketplace",
-        icon: IconShoppingCart,
-        children: [
-            {
-                label: "Suppliers",
-                routeName: "admin.marketplace.suppliers.index",
-                icon: IconUserCheck,
-            },
-            {
-                label: "Kiosks",
-                routeName: "admin.marketplace.kiosks.index",
-                icon: IconBuildingStore,
-            },
-            {
-                label: "Catalog",
-                routeName: "admin.marketplace.catalog.index",
-                icon: IconListDetails,
-            },
-            {
-                label: "Settings",
-                routeName: "admin.marketplace.settings.index",
-                icon: IconSettings,
-            },
-        ],
-    },
+    buildMarketplaceNavGroup<NavLeaf>([
+        {
+            label: "Setup: Suppliers",
+            routeName: "admin.marketplace.suppliers.index",
+            ready: true,
+        },
+        {
+            label: "Setup: Kiosks",
+            routeName: "admin.marketplace.kiosks.index",
+            ready: true,
+        },
+        {
+            label: "Setup: Catalog",
+            routeName: "admin.marketplace.catalog.index",
+            ready: true,
+        },
+        {
+            label: "Setup: Settings",
+            routeName: "admin.marketplace.settings.index",
+            ready: true,
+        },
+        disabledPlaceholder("Market Center"),
+        disabledPlaceholder("Product Analysis"),
+        disabledPlaceholder("Finance"),
+    ]),
 ];
 
 // a group is active if any of its children match the current route
 function groupIsActive(group: NavGroup): boolean {
-    return group.children.some((child) => route().current(child.routeName));
+    return group.children.some(
+        (child) => !!child.routeName && route().current(child.routeName),
+    );
 }
 
-// keeps only what this user may open, and drops a group once all its children are gone
+// keeps only what this user may open, and drops a group once all its children are gone -
+// a "coming soon" placeholder has no route to be permission-gated on, so it always shows
 function visibleNavItems(allowed: string[]): NavEntry[] {
     const result: NavEntry[] = [];
 
     for (const entry of navItems) {
         if (!isGroup(entry)) {
-            if (allowed.includes(entry.routeName)) {
+            if (entry.ready === false || allowed.includes(entry.routeName!)) {
                 result.push(entry);
             }
             continue;
         }
 
-        const children = entry.children.filter((child) =>
-            allowed.includes(child.routeName),
+        const children = entry.children.filter(
+            (child) =>
+                child.ready === false || allowed.includes(child.routeName!),
         );
 
         if (children.length > 0) {
@@ -330,7 +336,50 @@ export default function AdminLayout({ title, children }: Props) {
 
     const renderLeaf = (item: NavLeaf, indented: boolean) => {
         const Icon = item.icon;
-        const active = route().current(item.routeName);
+
+        if (item.ready === false) {
+            return (
+                <div
+                    key={item.label}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding:
+                            indented && !collapsed
+                                ? "11px 16px 11px 48px"
+                                : "13px 16px",
+                        fontSize: indented ? "1.125rem" : "1.1875rem",
+                        color: textSecondary,
+                        opacity: 0.55,
+                        cursor: "default",
+                        borderLeft: "3px solid transparent",
+                        fontFamily: "'Inter', system-ui, sans-serif",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                    }}
+                >
+                    {!indented && Icon && <Icon size={26} stroke={1.6} />}
+                    {!collapsed && (
+                        <>
+                            {item.label}
+                            <span
+                                style={{
+                                    fontSize: "0.8125rem",
+                                    padding: "1px 6px",
+                                    border: `1px solid ${textSecondary}`,
+                                    marginLeft: "auto",
+                                }}
+                            >
+                                soon
+                            </span>
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        const active = route().current(item.routeName!);
         // only what this person can sign off, counted on the server
         const count =
             item.badge === "approvals"
@@ -346,7 +395,7 @@ export default function AdminLayout({ title, children }: Props) {
                 onMouseLeave={() => setHovered(null)}
             >
                 <Link
-                    href={route(item.routeName)}
+                    href={route(item.routeName!)}
                     style={{
                         display: "flex",
                         alignItems: "center",
@@ -368,7 +417,7 @@ export default function AdminLayout({ title, children }: Props) {
                         overflow: "hidden",
                     }}
                 >
-                    {!indented && <Icon size={26} stroke={1.6} />}
+                    {!indented && Icon && <Icon size={26} stroke={1.6} />}
                     {!collapsed && item.label}
                     {/* a zero means nothing is waiting, so the badge stays away */}
                     {!collapsed && count > 0 && (
