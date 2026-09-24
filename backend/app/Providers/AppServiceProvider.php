@@ -14,6 +14,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use App\Observers\AuditableObserver;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -50,6 +51,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // a test bypass code left on in production would let anyone log in as
+        // whatever number is listed - this must fail at boot, not at OTP time
+        if (app()->environment('production') && trim((string) config('otp.test_phones')) !== '') {
+            throw new RuntimeException('OTP_TEST_PHONES must not be set in production.');
+        }
+
         Vite::prefetch(concurrency: 3);
 
         // caps both the number being targeted and the machine doing the asking
