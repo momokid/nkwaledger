@@ -7,8 +7,10 @@ use App\Enums\SupplierAccountStatus;
 use App\Http\Controllers\Controller;
 use App\Models\KioskProduct;
 use App\Models\Supplier;
+use App\Models\KioskReport;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\KioskReportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +22,7 @@ class SupplierController extends Controller
     public function __construct(
         private readonly AuditService $audit,
         private readonly AccessControlService $access,
+        private readonly KioskReportService $reports,
     ) {}
 
     public function index(Request $request): Response
@@ -58,6 +61,12 @@ class SupplierController extends Controller
         ]);
 
         $supplier->kiosks()->update(['status' => KioskStatus::Suspended]);
+
+        KioskReport::query()
+            ->whereIn('kiosk_id', $supplier->kiosks()->pluck('id'))
+            ->whereIn('status', ['open', 'supplier_answered', 'with_admin'])
+            ->get()
+            ->each(fn(KioskReport $report) => $this->reports->markSuspended($report));
 
         $this->audit->recordOn('marketplace_supplier.suspended', $supplier);
 

@@ -216,6 +216,11 @@ const navItems: NavEntry[] = [
             routeName: "admin.marketplace.settings.index",
             ready: true,
         },
+        {
+            label: "Setup: Reports",
+            routeName: "admin.marketplace.kiosk-reports.index",
+            ready: true,
+        },
         disabledPlaceholder("Market Center"),
         disabledPlaceholder("Product Analysis"),
         disabledPlaceholder("Finance"),
