@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\KioskReportStatus;
 use App\Enums\KioskStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -126,5 +127,20 @@ class Kiosk extends Model
     public function kioskProducts(): HasMany
     {
         return $this->hasMany(KioskProduct::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(KioskReport::class);
+    }
+
+    // several different farmers, not just several reports from one - a repeat reporter
+    // does not raise this, since it is the same complaint admin already knows about
+    public function hasUrgentReports(): bool
+    {
+        return $this->reports()
+            ->whereIn('status', [KioskReportStatus::Open, KioskReportStatus::SupplierAnswered, KioskReportStatus::WithAdmin])
+            ->distinct('farmer_profile_id')
+            ->count('farmer_profile_id') > 1;
     }
 }

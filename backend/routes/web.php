@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\KioskReportController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DiseaseReportQueueController;
 use App\Http\Controllers\Admin\FarmTypeCategoryController;
@@ -183,6 +184,12 @@ Route::middleware(['auth', 'role:adviser', 'verified.phone'])->prefix('adviser')
         Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
             ->name('reports.respond');
     });
+});
+
+// a farmer reporting a kiosk - marketplace browsing itself is not built yet, so this
+// has no page of its own, just the action a future kiosk-detail page will call
+Route::middleware(['auth', 'role:farmer', 'verified.phone'])->group(function () {
+    Route::post('/kiosks/{kiosk:uuid}/reports', [KioskReportController::class, 'store'])->name('kiosks.reports.store');
 });
 
 // the farmer's own book, with nobody named in the address
@@ -372,6 +379,8 @@ Route::middleware(['auth', 'role:supplier', 'verified.phone'])->prefix('supplier
     Route::post('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/confirm-price', [KioskProductController::class, 'confirmPrice'])->name('kiosks.products.confirm-price');
     Route::patch('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/stock', [KioskProductController::class, 'updateStock'])->name('kiosks.products.stock');
     Route::delete('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/images/{image}', [KioskProductController::class, 'destroyImage'])->name('kiosks.products.images.destroy');
+
+    Route::post('/kiosk-reports/{kioskReport:uuid}/answer', [\App\Http\Controllers\Supplier\KioskReportController::class, 'answer'])->name('kiosk-reports.answer');
 });
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
@@ -724,6 +733,16 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     });
     Route::middleware('access:marketplace-catalog.view')->group(function () {
         Route::delete('/marketplace/kiosk-products/{kioskProduct:uuid}/images/{image}', [AdminCatalogProductController::class, 'destroyImage'])->name('marketplace.kiosk-products.images.destroy');
+    });
+
+    // reuses the kiosk-suspend permission rather than a new "reports" permission group,
+    // since resolving/extending a report is the same admin responsibility as suspending
+    Route::middleware('access:marketplace-kiosks.view')->group(function () {
+        Route::get('/marketplace/kiosk-reports', [\App\Http\Controllers\Admin\KioskReportController::class, 'index'])->name('marketplace.kiosk-reports.index');
+    });
+    Route::middleware('access:marketplace-kiosks.suspend')->group(function () {
+        Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/resolve', [\App\Http\Controllers\Admin\KioskReportController::class, 'resolve'])->name('marketplace.kiosk-reports.resolve');
+        Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/extend', [\App\Http\Controllers\Admin\KioskReportController::class, 'extend'])->name('marketplace.kiosk-reports.extend');
     });
 
     Route::middleware('access:accounting-periods.view')->group(function () {
