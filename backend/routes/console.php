@@ -19,6 +19,12 @@ Schedule::command('marketplace:alert-stale-prices')->dailyAt('05:00')->withoutOv
 // once per product, the alert-days setting before its expiry date
 Schedule::command('marketplace:alert-expiring-products')->dailyAt('05:15')->withoutOverlapping();
 
+// a silent supplier's report moves to admin, with admin's own fresh deadline
+Schedule::command('marketplace:escalate-silent-reports')->dailyAt('05:30')->withoutOverlapping();
+
+// admin's own window ending unresolved only ever alerts - never auto-suspends
+Schedule::command('marketplace:alert-overdue-reports')->dailyAt('05:45')->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

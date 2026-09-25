@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\KioskStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Kiosk;
+use App\Models\KioskReport;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\KioskReportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,6 +19,7 @@ class KioskController extends Controller
     public function __construct(
         private readonly AccessControlService $access,
         private readonly AuditService $audit,
+        private readonly KioskReportService $reports,
     ) {}
 
     public function index(Request $request): Response
@@ -64,6 +67,12 @@ class KioskController extends Controller
     public function suspend(Kiosk $kiosk): RedirectResponse
     {
         $kiosk->update(['status' => KioskStatus::Suspended]);
+
+        KioskReport::query()
+            ->where('kiosk_id', $kiosk->id)
+            ->whereIn('status', ['open', 'supplier_answered', 'with_admin'])
+            ->get()
+            ->each(fn(KioskReport $report) => $this->reports->markSuspended($report));
 
         $this->audit->recordOn('marketplace_kiosk.suspended', $kiosk);
 
