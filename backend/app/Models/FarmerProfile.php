@@ -104,6 +104,11 @@ class FarmerProfile extends Model
         return $this->hasMany(FarmUnit::class);
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function farmTypes(): BelongsToMany
     {
         return $this->belongsToMany(FarmType::class, 'farmer_farm_types');

@@ -25,6 +25,9 @@ Schedule::command('marketplace:escalate-silent-reports')->dailyAt('05:30')->with
 // admin's own window ending unresolved only ever alerts - never auto-suspends
 Schedule::command('marketplace:alert-overdue-reports')->dailyAt('05:45')->withoutOverlapping();
 
+// an order that never got both taps within the confirmation window closes for good
+Schedule::command('marketplace:close-unconfirmed-orders')->dailyAt('06:00')->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

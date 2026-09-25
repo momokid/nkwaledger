@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\CommissionStatus;
+use App\Models\Commission;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\FarmUnitStock;
@@ -25,6 +27,7 @@ class ApprovalQueueService
             ->concat($this->stocks($user, $farmerIds, $limit))
             ->concat($this->movements($user, $farmerIds, $limit))
             ->concat($this->reversals($user, $farmerIds, $limit))
+            ->concat($this->commissions($user, $farmerIds, $limit))
             // the thing waiting longest needs you most
             ->sortBy('waiting_since')
             ->values();
@@ -178,6 +181,37 @@ class ApprovalQueueService
                     'what_happened' => $request->transaction?->template?->name,
                     'amount' => $request->transaction?->amount_minor,
                     'recorded_on' => $request->transaction?->transaction_date?->toDateString(),
+                ],
+            ]);
+    }
+
+    private function commissions(User $user, array $farmerIds, int $limit): Collection
+    {
+        if (! $this->access->can($user, 'approvals.view')) {
+            return collect();
+        }
+
+        return Commission::query()
+            ->where('status', CommissionStatus::PendingAdmin)
+            ->whereHas('order', fn(Builder $query) => $query->whereIn('farmer_profile_id', $farmerIds))
+            ->with(['order.kiosk:id,name', 'order.farmerProfile.user:id,surname,first_name', 'agent:id,surname,first_name'])
+            ->orderBy('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn(Commission $commission) => [
+                'kind' => 'commission',
+                'id' => $commission->id,
+                'farmer' => $this->farmerName($commission->order?->farmerProfile),
+                'farmer_id' => $commission->order?->farmerProfile?->uuid,
+                'what' => "Commission on {$commission->order?->order_number} ({$commission->order?->kiosk?->name})",
+                'added_by' => $commission->agent?->surname,
+                'waiting_since' => $commission->created_at?->toIso8601String(),
+                // a commission payout is an admin-only call, never the facilitating agent's own
+                'can_approve' => $user->hasRole('admin'),
+                'details' => [
+                    'agent' => trim("{$commission->agent?->surname} {$commission->agent?->first_name}"),
+                    'verifies_farmer' => $commission->verifies_farmer,
+                    'amount_minor' => $commission->order?->amount_minor,
                 ],
             ]);
     }
