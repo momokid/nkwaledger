@@ -170,6 +170,13 @@ return [
                 'merge' => 'Merge duplicate records',
             ],
         ],
+        'marketplace-browse' => [
+            'label' => 'Marketplace Browsing',
+            'actions' => [
+                'view' => 'Browse kiosks',
+                'order' => 'Place, receive, and review orders',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -258,6 +265,10 @@ return [
             // an agent can see a report's progress, and may submit one for a farmer too
             'disease-reports.view',
             'disease-reports.create',
+            // agent already holds every other permission a farmer has, as a superset -
+            // this keeps that invariant, and lets an agent browse and order alongside a farmer too
+            'marketplace-browse.view',
+            'marketplace-browse.order',
         ],
         // a farmer keeps their own books, and can see what is on their own farm
         'farmer' => [
@@ -267,6 +278,8 @@ return [
             'farm-units.view',
             'disease-reports.view',
             'disease-reports.create',
+            'marketplace-browse.view',
+            'marketplace-browse.order',
         ],
         // a vet only ever sees the reports routed to them, never anyone else's
         'vet' => [
