@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -132,6 +133,19 @@ class Kiosk extends Model
     public function reports(): HasMany
     {
         return $this->hasMany(KioskReport::class);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    // every review left on this kiosk, reached through its orders - an order only ever
+    // gets a review once it is fully confirmed (see OrderService::review()), so this
+    // never needs its own status filter
+    public function reviews(): HasManyThrough
+    {
+        return $this->hasManyThrough(Review::class, Order::class, 'kiosk_id', 'order_id');
     }
 
     // several different farmers, not just several reports from one - a repeat reporter

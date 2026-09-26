@@ -53,6 +53,9 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Agent\AgentDashboardController;
 use App\Http\Controllers\Farm\FarmerWeatherController;
+use App\Http\Controllers\Farm\MarketplaceController;
+use App\Http\Controllers\Farm\OrderController as MarketplaceOrderController;
+use App\Http\Controllers\Supplier\OrderController as SupplierOrderController;
 use App\Http\Controllers\Agent\AgentReportsController;
 use App\Http\Controllers\Supplier\SupplierDashboardController;
 use App\Http\Controllers\Supplier\SupplierProfileController;
@@ -237,6 +240,21 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-weather')->name('my-we
     });
 });
 
+// the farmer's own view onto the marketplace, with nobody named in the address
+Route::middleware(['auth', 'verified.phone'])->prefix('my-marketplace')->name('my-marketplace.')->group(function () {
+    Route::middleware('access:marketplace-browse.view')->group(function () {
+        Route::get('/', [MarketplaceController::class, 'index'])->name('index');
+        Route::get('/kiosks/{kiosk:uuid}', [MarketplaceController::class, 'show'])->name('kiosks.show');
+    });
+
+    Route::middleware('access:marketplace-browse.order')->group(function () {
+        Route::get('/orders', [MarketplaceOrderController::class, 'index'])->name('orders.index');
+        Route::post('/kiosks/{kiosk:uuid}/orders', [MarketplaceOrderController::class, 'store'])->name('orders.store');
+        Route::post('/orders/{order:uuid}/receive', [MarketplaceOrderController::class, 'receive'])->name('orders.receive');
+        Route::post('/orders/{order:uuid}/review', [MarketplaceOrderController::class, 'review'])->name('orders.review');
+    });
+});
+
 Route::middleware(['auth', 'verified.phone'])->prefix('my-reports')->name('my-reports.')->group(function () {
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
@@ -381,6 +399,9 @@ Route::middleware(['auth', 'role:supplier', 'verified.phone'])->prefix('supplier
     Route::delete('/kiosks/{kiosk:uuid}/products/{kioskProduct:uuid}/images/{image}', [KioskProductController::class, 'destroyImage'])->name('kiosks.products.images.destroy');
 
     Route::post('/kiosk-reports/{kioskReport:uuid}/answer', [\App\Http\Controllers\Supplier\KioskReportController::class, 'answer'])->name('kiosk-reports.answer');
+
+    Route::get('/orders', [SupplierOrderController::class, 'index'])->name('orders.index');
+    Route::post('/orders/{order:uuid}/confirm', [SupplierOrderController::class, 'confirm'])->name('orders.confirm');
 });
 
 // role-gated: only the admin role may reach these, regardless of any permission grant

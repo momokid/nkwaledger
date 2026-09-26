@@ -56,3 +56,45 @@ test('a rejected movement does not appear as pending', function () {
 
     expect($items->where('kind', 'stock_movement')->where('id', $movement->id))->toHaveCount(0);
 });
+
+test('a pending commission appears for admin, marked approvable only by admin', function () {
+    $kiosk = \App\Models\Kiosk::factory()->confirmed()->create();
+    $order = \App\Models\Order::factory()->create([
+        'kiosk_id' => $kiosk->id,
+        'farmer_profile_id' => $this->farmer->id,
+        'farm_unit_id' => $this->unit->id,
+    ]);
+    $commission = \App\Models\Commission::factory()->create([
+        'order_id' => $order->id,
+        'agent_id' => $this->agent->id,
+        'verifies_farmer' => true,
+    ]);
+
+    $adminItems = $this->queue->pending($this->admin);
+    $agentItems = $this->queue->pending($this->agent);
+
+    $adminRow = $adminItems->firstWhere('id', $commission->id);
+    $agentRow = $agentItems->firstWhere('id', $commission->id);
+
+    expect($adminRow['kind'])->toBe('commission')
+        ->and($adminRow['can_approve'])->toBeTrue()
+        ->and($agentRow['can_approve'])->toBeFalse();
+});
+
+test('an approved commission no longer appears as pending', function () {
+    $kiosk = \App\Models\Kiosk::factory()->confirmed()->create();
+    $order = \App\Models\Order::factory()->create([
+        'kiosk_id' => $kiosk->id,
+        'farmer_profile_id' => $this->farmer->id,
+        'farm_unit_id' => $this->unit->id,
+    ]);
+    $commission = \App\Models\Commission::factory()->create([
+        'order_id' => $order->id,
+        'agent_id' => $this->agent->id,
+        'status' => \App\Enums\CommissionStatus::Approved,
+    ]);
+
+    $items = $this->queue->pending($this->admin);
+
+    expect($items->where('kind', 'commission')->where('id', $commission->id))->toHaveCount(0);
+});
