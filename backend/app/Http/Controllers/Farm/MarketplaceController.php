@@ -21,7 +21,7 @@ class MarketplaceController extends Controller
     // score, a kiosk with 5 products contributing 5 rows
     public function index(Request $request): Response
     {
-        $farmer = $this->resolveFarmer($request);
+        $farmer = $this->resolveFarmerOrNull($request);
 
         $categoryId = $request->query('category') !== null ? (int) $request->query('category') : null;
 
@@ -44,7 +44,10 @@ class MarketplaceController extends Controller
             'products' => $products,
             'categories' => ProductCategory::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'filters' => $request->only(['category']),
-            'farmUnits' => $farmer->farmUnits()->orderBy('name')->get(['id', 'name']),
+            // empty for a buyer with no farm unit to charge (e.g. a supplier browsing
+            // as a buyer) - the page already hides its own Order button when this is
+            // empty, so ordering degrades to invisible, not broken
+            'farmUnits' => $farmer?->farmUnits()->orderBy('name')->get(['id', 'name']) ?? collect(),
         ]);
     }
 
@@ -52,7 +55,7 @@ class MarketplaceController extends Controller
     // the same KioskSearchService rather than a second, parallel query
     public function show(Request $request, Kiosk $kiosk): Response
     {
-        $farmer = $this->resolveFarmer($request);
+        $farmer = $this->resolveFarmerOrNull($request);
 
         $ranked = $this->search->rank($farmer);
         $row = $ranked->firstWhere('uuid', $kiosk->uuid);
@@ -62,16 +65,16 @@ class MarketplaceController extends Controller
         return Inertia::render('MyMarketplace/Kiosk', [
             'kiosk' => Arr::except($row, ['score', 'products']),
             'products' => $row['products'],
-            'farmUnits' => $farmer->farmUnits()->orderBy('name')->get(['id', 'name']),
+            'farmUnits' => $farmer?->farmUnits()->orderBy('name')->get(['id', 'name']) ?? collect(),
         ]);
     }
 
-    private function resolveFarmer(Request $request): FarmerProfile
+    // no longer aborts when absent - a buyer with a real permission grant but no
+    // FarmerProfile (a supplier) still gets to browse, just without farm-type
+    // suggestions or an order form; actually placing an order still goes through
+    // OrderController, which keeps its own hard FarmerProfile requirement
+    private function resolveFarmerOrNull(Request $request): ?FarmerProfile
     {
-        $own = FarmerProfile::query()->where('user_id', $request->user()->id)->first();
-
-        abort_if($own === null, 403);
-
-        return $own;
+        return FarmerProfile::query()->where('user_id', $request->user()->id)->first();
     }
 }

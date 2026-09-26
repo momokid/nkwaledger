@@ -52,11 +52,14 @@ class KioskSearchService
     ];
 
     // every kiosk with at least one available (in-stock, active, unexpired) product,
-    // optionally narrowed to one category, ranked highest score first
-    public function rank(FarmerProfile $farmer, ?int $categoryId = null): Collection
+    // optionally narrowed to one category, ranked highest score first. $farmer is
+    // nullable so a non-farmer buyer (a supplier browsing as a buyer, say) can still
+    // browse - they just get no community-based proximity and no farm-type boost,
+    // never a crash from a relation call on a farmer that does not exist
+    public function rank(?FarmerProfile $farmer, ?int $categoryId = null): Collection
     {
-        $farmer->loadMissing('community.district.region');
-        $community = $farmer->community;
+        $farmer?->loadMissing('community.district.region');
+        $community = $farmer?->community;
 
         $suggestedCategoryIds = $this->suggestedCategoryIdsFor($farmer);
 
@@ -91,7 +94,7 @@ class KioskSearchService
     // the product grid flattens rank()'s kiosk-level rows into one row per product - a
     // kiosk with 5 products contributes 5 rows, each still carrying that kiosk's own
     // blended score, so the grid's order is never rebuilt, only unpacked
-    public function rankProducts(FarmerProfile $farmer, ?int $categoryId = null): Collection
+    public function rankProducts(?FarmerProfile $farmer, ?int $categoryId = null): Collection
     {
         return $this->rank($farmer, $categoryId)
             ->flatMap(fn(array $kiosk) => collect($kiosk['products'])->map(fn(array $product) => [
@@ -239,8 +242,12 @@ class KioskSearchService
     }
 
     /** @return int[] */
-    private function suggestedCategoryIdsFor(FarmerProfile $farmer): array
+    private function suggestedCategoryIdsFor(?FarmerProfile $farmer): array
     {
+        if ($farmer === null) {
+            return [];
+        }
+
         $categoryNames = $farmer->farmTypes()
             ->with('category')
             ->get()

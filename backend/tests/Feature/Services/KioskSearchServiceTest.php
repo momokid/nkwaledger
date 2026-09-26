@@ -245,3 +245,18 @@ test('a product with no photo has a null image_url, never a fabricated one', fun
 
     expect($row['image_url'])->toBeNull();
 });
+
+// a non-farmer buyer (a supplier, most concretely) has no community and no farm
+// types - rank()/rankProducts() must degrade gracefully rather than call a relation
+// method on a null farmer
+test('rank and rankProducts work for a buyer with no farmer profile at all', function () {
+    $kiosk = makeKiosk($this->district);
+    makeAvailableProduct($kiosk);
+
+    $ranked = $this->service->rank(null);
+    $rankedProducts = $this->service->rankProducts(null);
+
+    expect($ranked->pluck('uuid'))->toContain($kiosk->uuid)
+        ->and($ranked->firstWhere('uuid', $kiosk->uuid)['matches_farm_type'])->toBeFalse()
+        ->and($rankedProducts->pluck('kiosk_uuid'))->toContain($kiosk->uuid);
+});

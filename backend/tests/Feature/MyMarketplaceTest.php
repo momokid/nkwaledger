@@ -31,11 +31,18 @@ test('a guest is redirected to login', function () {
     $this->get('/my-marketplace')->assertRedirect('/login');
 });
 
-test('a farmer with no profile is forbidden', function () {
-    $bare = User::factory()->create();
-    $bare->assignRole('farmer');
+// a buyer with the permission but no FarmerProfile - a supplier browsing as a buyer,
+// most concretely - can still browse; only the order form (which needs a farm unit
+// to charge) degrades to hidden, never a hard 403
+test('a user without a farmer profile can still browse, with no farm units to order against', function () {
+    $supplier = User::factory()->create();
+    $supplier->assignRole('supplier');
 
-    $this->actingAs($bare)->get('/my-marketplace')->assertForbidden();
+    $this->actingAs($supplier)->get('/my-marketplace')
+        ->assertOk()
+        ->assertInertia(fn($page) => $page
+            ->component('MyMarketplace/Index')
+            ->where('farmUnits', []));
 });
 
 test('a user without the marketplace-browse permission is forbidden', function () {
