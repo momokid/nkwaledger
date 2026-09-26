@@ -28,6 +28,19 @@ Schedule::command('marketplace:alert-overdue-reports')->dailyAt('05:45')->withou
 // an order that never got both taps within the confirmation window closes for good
 Schedule::command('marketplace:close-unconfirmed-orders')->dailyAt('06:00')->withoutOverlapping();
 
+// a crop listing gets one reminder before its own set expiry date, then expires
+Schedule::command('marketplace:expire-crop-listings')->dailyAt('06:15')->withoutOverlapping();
+
+// a non-expiring listing gets one still-available check, then hides on silence
+Schedule::command('marketplace:prompt-still-available-listings')->dailyAt('06:30')->withoutOverlapping();
+
+// stock can shrink after a listing already claimed some of it - this keeps a
+// listing from ever offering more than its batch actually still has
+Schedule::command('marketplace:reconcile-listing-stock')->dailyAt('06:45')->withoutOverlapping();
+
+// a produce sale that never got both taps within the confirmation window closes for good
+Schedule::command('marketplace:close-unconfirmed-produce-sales')->dailyAt('07:00')->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

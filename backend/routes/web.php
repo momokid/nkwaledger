@@ -255,6 +255,31 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-marketplace')->name('m
     });
 });
 
+// the farmer's own produce for sale, with nobody named in the address
+Route::middleware(['auth', 'verified.phone'])->prefix('my-listings')->name('my-listings.')->group(function () {
+    Route::middleware('access:produce-listings.view')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Farm\ProduceListingController::class, 'index'])->name('index');
+    });
+
+    Route::middleware('access:produce-listings.create')->group(function () {
+        Route::post('/', [\App\Http\Controllers\Farm\ProduceListingController::class, 'store'])->name('store');
+        Route::post('/{listing:uuid}/agree', [\App\Http\Controllers\Farm\ProduceListingController::class, 'agree'])->name('agree');
+        Route::post('/{listing:uuid}/withdraw', [\App\Http\Controllers\Farm\ProduceListingController::class, 'withdraw'])->name('withdraw');
+        Route::post('/{listing:uuid}/mark-sold', [\App\Http\Controllers\Farm\ProduceListingController::class, 'markSold'])->name('mark-sold');
+        Route::post('/sales/{sale:uuid}/confirm', [\App\Http\Controllers\Farm\ProduceSaleController::class, 'confirm'])->name('sales.confirm');
+    });
+});
+
+// browsing and buying a produce listing - any authenticated account, never gated by
+// the produce-listings permission that posting/managing one uses
+Route::middleware(['auth', 'verified.phone'])->prefix('produce-listings')->name('produce-listings.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'index'])->name('index');
+    Route::get('/{listing:uuid}', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'show'])->name('show');
+    Route::post('/{listing:uuid}/interest', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'interest'])->name('interest');
+    Route::post('/{listing:uuid}/sales', [\App\Http\Controllers\Marketplace\ProduceSaleController::class, 'store'])->name('sales.store');
+    Route::post('/sales/{sale:uuid}/receive', [\App\Http\Controllers\Marketplace\ProduceSaleController::class, 'receive'])->name('sales.receive');
+});
+
 Route::middleware(['auth', 'verified.phone'])->prefix('my-reports')->name('my-reports.')->group(function () {
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
@@ -376,6 +401,19 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
 
     Route::middleware('access:transactions.reverse-request')->group(function () {
         Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
+    });
+
+    Route::middleware('access:produce-listings.view')->group(function () {
+        Route::get('/farmers/{farmer}/listings', [\App\Http\Controllers\Farm\ProduceListingController::class, 'index'])->name('listings.index');
+    });
+
+    Route::middleware('access:produce-listings.create')->group(function () {
+        Route::post('/farmers/{farmer}/listings', [\App\Http\Controllers\Farm\ProduceListingController::class, 'store'])->name('listings.store');
+        Route::post('/farmers/{farmer}/listings/{listing:uuid}/withdraw', [\App\Http\Controllers\Farm\ProduceListingController::class, 'withdraw'])->name('listings.withdraw');
+    });
+
+    Route::middleware('access:produce-listings.co-confirm')->group(function () {
+        Route::post('/produce-sales/{sale:uuid}/co-confirm', [\App\Http\Controllers\Agent\ProduceSaleController::class, 'coConfirm'])->name('produce-sales.co-confirm');
     });
 });
 
@@ -764,6 +802,11 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     Route::middleware('access:marketplace-kiosks.suspend')->group(function () {
         Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/resolve', [\App\Http\Controllers\Admin\KioskReportController::class, 'resolve'])->name('marketplace.kiosk-reports.resolve');
         Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/extend', [\App\Http\Controllers\Admin\KioskReportController::class, 'extend'])->name('marketplace.kiosk-reports.extend');
+    });
+
+    // visibility only - admin never approves a produce sale, see the Step 7 audit
+    Route::middleware('access:produce-listings.view')->group(function () {
+        Route::get('/marketplace/produce-sales', [\App\Http\Controllers\Admin\ProduceSaleController::class, 'index'])->name('marketplace.produce-sales.index');
     });
 
     Route::middleware('access:accounting-periods.view')->group(function () {

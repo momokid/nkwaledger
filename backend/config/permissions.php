@@ -177,6 +177,18 @@ return [
                 'order' => 'Place, receive, and review orders',
             ],
         ],
+        // posting/managing a farmer's own produce for sale - buying one is open to
+        // any authenticated account and is never gated by this module
+        'produce-listings' => [
+            'label' => 'Produce Listings',
+            'actions' => [
+                'view' => 'View listings',
+                'create' => 'Post a listing',
+                // an agent vouching for a sale for credit eligibility - admin only ever
+                // needs view above, never an approval action of its own
+                'co-confirm' => 'Co-confirm a sale',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -242,6 +254,7 @@ return [
             'marketplace-catalog.view',
             'marketplace-catalog.create',
             'marketplace-catalog.merge',
+            'produce-listings.view',
         ],
         'agent' => [
             'farm-types.view',
@@ -269,6 +282,9 @@ return [
             // this keeps that invariant, and lets an agent browse and order alongside a farmer too
             'marketplace-browse.view',
             'marketplace-browse.order',
+            'produce-listings.view',
+            'produce-listings.create',
+            'produce-listings.co-confirm',
         ],
         // a farmer keeps their own books, and can see what is on their own farm
         'farmer' => [
@@ -280,6 +296,8 @@ return [
             'disease-reports.create',
             'marketplace-browse.view',
             'marketplace-browse.order',
+            'produce-listings.view',
+            'produce-listings.create',
         ],
         // a vet only ever sees the reports routed to them, never anyone else's
         'vet' => [

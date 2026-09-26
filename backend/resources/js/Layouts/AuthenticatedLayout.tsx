@@ -208,6 +208,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 ...buildMarketplaceNavGroup<NavItem>([
                     disabledPlaceholder("Setup"),
                     { label: "Market Center", href: "/my-marketplace", ready: true },
+                    { label: "My Listings", href: "/my-listings", ready: true },
                 ]),
                 href: "#",
                 ready: true,
