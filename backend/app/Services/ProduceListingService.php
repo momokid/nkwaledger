@@ -158,17 +158,27 @@ class ProduceListingService
     }
 
     // shared with ProduceSaleService once a buyer-order sale settles too, so both
-    // paths close the listing at zero the same way
+    // paths close the listing at zero the same way. Locks the row itself rather than
+    // trusting every caller to have already locked it - markSold() already holds this
+    // same row's lock when it calls in, so this nests via a savepoint (Laravel handles
+    // that transparently) and re-acquires a lock the transaction already owns, which is
+    // a harmless no-op rather than a second, competing lock; a caller that has NOT
+    // already locked the row (ProduceSaleService::maybeSettle(), which only read it
+    // for display fields) is exactly who this protects
     public function reduceRemaining(ProduceListing $listing, float $quantity): void
     {
-        $remaining = round((float) $listing->quantity_remaining - $quantity, 2);
-        $listing->quantity_remaining = max($remaining, 0);
+        DB::transaction(function () use ($listing, $quantity) {
+            $locked = ProduceListing::query()->lockForUpdate()->findOrFail($listing->id);
 
-        if ($listing->quantity_remaining <= 0) {
-            $listing->status = ProduceListingStatus::Sold;
-        }
+            $remaining = round((float) $locked->quantity_remaining - $quantity, 2);
+            $locked->quantity_remaining = max($remaining, 0);
 
-        $listing->save();
+            if ($locked->quantity_remaining <= 0) {
+                $locked->status = ProduceListingStatus::Sold;
+            }
+
+            $locked->save();
+        });
     }
 
     // crop, livestock or fish - which produce-sale template a batch's listing settles

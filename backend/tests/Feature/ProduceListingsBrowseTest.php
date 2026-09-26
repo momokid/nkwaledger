@@ -51,6 +51,7 @@ test('any authenticated account can view a produce listing, not only farmers', f
 
 test('an interest request resolves to whoever posted the listing, without ever exposing a phone number', function () {
     $this->actingAs($this->buyer)->post("/produce-listings/{$this->listing->uuid}/interest", [
+        'sender_phone' => '0244445566',
         'message' => 'Is this still fresh?',
     ])->assertSessionHasNoErrors();
 
@@ -60,7 +61,9 @@ test('an interest request resolves to whoever posted the listing, without ever e
         ->and($request->contactable_type)->toBe((new ProduceListing())->getMorphClass())
         ->and($request->contactable_id)->toBe($this->listing->id)
         ->and($request->requester_user_id)->toBe($this->buyer->id)
-        ->and($request->recipient_user_id)->toBe($this->farmerUser->id);
+        ->and($request->recipient_user_id)->toBe($this->farmerUser->id)
+        ->and($request->revealedSenderPhone())->toBeNull()
+        ->and($request->revealedRecipientPhone())->toBeNull();
 });
 
 test('a buyer offer creates a produce sale, and it settles only once both taps land', function () {
@@ -120,4 +123,32 @@ test('an agent co-confirms a sale for credit eligibility, and admin visibility n
     $this->actingAs($agent)->post("/agent/produce-sales/{$sale->uuid}/co-confirm")->assertSessionHasNoErrors();
 
     expect($sale->fresh()->countsTowardCredit())->toBeTrue();
+});
+
+test('an interest request without a phone number is rejected', function () {
+    $this->actingAs($this->buyer)->post("/produce-listings/{$this->listing->uuid}/interest", [
+        'message' => 'Interested',
+    ])->assertSessionHasErrors('sender_phone');
+
+    expect(ContactRequest::count())->toBe(0);
+});
+
+test('the recipient can reply from the HTTP endpoint, and only the recipient can', function () {
+    $this->actingAs($this->buyer)->post("/produce-listings/{$this->listing->uuid}/interest", [
+        'sender_phone' => '0244445566',
+    ])->assertSessionHasNoErrors();
+
+    $contactRequest = ContactRequest::first();
+
+    $someoneElse = User::factory()->create();
+    $this->actingAs($someoneElse)->post("/contact-requests/{$contactRequest->uuid}/reply", [
+        'reply_message' => 'Not mine to answer',
+    ])->assertForbidden();
+
+    $this->actingAs($this->farmerUser)->post("/contact-requests/{$contactRequest->uuid}/reply", [
+        'reply_message' => 'Yes, available',
+    ])->assertSessionHasNoErrors();
+
+    expect($contactRequest->fresh()->revealedSenderPhone())->toBe('0244445566')
+        ->and($contactRequest->fresh()->revealedRecipientPhone())->toBe($this->farmerUser->fresh()->phone);
 });

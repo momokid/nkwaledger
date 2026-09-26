@@ -72,36 +72,47 @@ class ProduceSaleService
         });
     }
 
-    // the farmer's tap - accepting the buyer's offer as it stands
+    // the farmer's tap - accepting the buyer's offer as it stands. Locked exactly like
+    // ProduceListingService::create()/markSold(), so a double-tap or a retry can never
+    // both pass the "already confirmed?" guard before either commits
     public function confirm(ProduceSale $sale, User $actingUser): ProduceSale
     {
-        if ($sale->closed_at !== null || $sale->confirmed_at !== null) {
-            return $sale;
-        }
+        return DB::transaction(function () use ($sale) {
+            $locked = ProduceSale::query()->lockForUpdate()->findOrFail($sale->id);
 
-        $sale->confirmed_at = now();
-        $sale->recomputeStatus();
-        $sale->save();
+            if ($locked->closed_at !== null || $locked->confirmed_at !== null) {
+                return $locked;
+            }
 
-        $this->maybeSettle($sale->fresh());
+            $locked->confirmed_at = now();
+            $locked->recomputeStatus();
+            $locked->save();
 
-        return $sale->fresh();
+            $this->maybeSettle($locked->fresh());
+
+            return $locked->fresh();
+        });
     }
 
-    // the buyer's tap - confirming they received the produce
+    // the buyer's tap - confirming they received the produce. Same locked-then-check
+    // shape as confirm() above
     public function receive(ProduceSale $sale, User $actingUser): ProduceSale
     {
-        if ($sale->closed_at !== null || $sale->received_at !== null) {
-            return $sale;
-        }
+        return DB::transaction(function () use ($sale) {
+            $locked = ProduceSale::query()->lockForUpdate()->findOrFail($sale->id);
 
-        $sale->received_at = now();
-        $sale->recomputeStatus();
-        $sale->save();
+            if ($locked->closed_at !== null || $locked->received_at !== null) {
+                return $locked;
+            }
 
-        $this->maybeSettle($sale->fresh());
+            $locked->received_at = now();
+            $locked->recomputeStatus();
+            $locked->save();
 
-        return $sale->fresh();
+            $this->maybeSettle($locked->fresh());
+
+            return $locked->fresh();
+        });
     }
 
     // an agent vouching for the sale - only this flips countsTowardCredit(), never

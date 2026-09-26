@@ -41,6 +41,9 @@ Schedule::command('marketplace:reconcile-listing-stock')->dailyAt('06:45')->with
 // a produce sale that never got both taps within the confirmation window closes for good
 Schedule::command('marketplace:close-unconfirmed-produce-sales')->dailyAt('07:00')->withoutOverlapping();
 
+// an unanswered contact request never reveals a number past its own reply window
+Schedule::command('marketplace:expire-contact-requests')->dailyAt('07:15')->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

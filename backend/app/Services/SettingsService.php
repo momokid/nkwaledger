@@ -19,6 +19,7 @@ class SettingsService
         'marketplace.price_stale_days' => '15',
         'marketplace.kiosks_per_email_cap' => '1',
         'marketplace.central_contact_number' => null,
+        'marketplace.contact_request_expiry_days' => '7',
     ];
 
     public function __construct(private readonly AuditService $audit) {}
