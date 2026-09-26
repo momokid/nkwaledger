@@ -141,6 +141,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             {
                 ...buildMarketplaceNavGroup<NavItem>([
                     disabledPlaceholder("Market Center"),
+                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
                 ]),
                 href: "#",
                 ready: true,
@@ -209,6 +210,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                     disabledPlaceholder("Setup"),
                     { label: "Market Center", href: "/my-marketplace", ready: true },
                     { label: "My Listings", href: "/my-listings", ready: true },
+                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
                 ]),
                 href: "#",
                 ready: true,
@@ -275,7 +277,11 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             {
                 ...buildMarketplaceNavGroup<NavItem>([
                     { label: "Setup", href: "/supplier/kiosks", ready: true },
-                    { label: "Market Center", href: "/supplier/orders", ready: true },
+                    // buying, as a buyer - distinct from Orders below, which is this
+                    // supplier's own incoming-orders inbox as a seller
+                    { label: "Market Center", href: "/my-marketplace", ready: true },
+                    { label: "Orders", href: "/supplier/orders", ready: true },
+                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
                     disabledPlaceholder("Product Analysis"),
                     disabledPlaceholder("Finance"),
                 ]),

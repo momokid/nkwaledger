@@ -22,11 +22,14 @@ use App\Models\TransactionTemplate;
 use App\Models\User;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
+use App\Models\ProduceListing;
+use App\Services\ProduceListingService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 
 // every row this creates is tagged with an @demo.nkwaledger.test email, even on models
@@ -74,6 +77,11 @@ class DemoDataSeeder extends Seeder
 
     private int $sequence = 1;
 
+    // one generated placeholder image per catalog product / farm type, reused across
+    // every kiosk/listing selling that same product - a real image on disk, not a
+    // path string pointing at nothing (see placeholderImagePath())
+    private array $placeholderCache = [];
+
     public function run(): void
     {
         $this->wipe();
@@ -85,8 +93,9 @@ class DemoDataSeeder extends Seeder
 
         $usersByRole = $this->seedUsers($communities);
 
-        $farmerProfiles = $this->seedFarms($usersByRole['farmer'], $communities, $period);
+        $this->seedFarms($usersByRole['farmer'], $communities, $period);
         $this->seedMarketplace($usersByRole['supplier'], $usersByRole['admin']);
+        $this->seedProduceListings();
     }
 
     // never soft-deleted: a rerun must be able to reuse the same phone/email straight away,
@@ -116,6 +125,17 @@ class DemoDataSeeder extends Seeder
         })->delete();
         DB::table('journal_entries')->whereIn('transaction_id', $transactionIds)->delete();
         Transaction::whereIn('id', $transactionIds)->delete();
+
+        // produce_sales/produce_listings restrict-delete against farm_unit_stocks and
+        // farmer_profiles, so they go before FarmUnit::forceDelete() below cascades
+        // into farm_unit_stocks - the same reason transactions went first, above
+        $listingIds = ProduceListing::withTrashed()->whereIn('farmer_profile_id', $farmerProfileIds)->pluck('id');
+        DB::table('produce_sales')->whereIn('produce_listing_id', $listingIds)->delete();
+        DB::table('contact_requests')
+            ->where('contactable_type', (new ProduceListing())->getMorphClass())
+            ->whereIn('contactable_id', $listingIds)
+            ->delete();
+        ProduceListing::withTrashed()->whereIn('id', $listingIds)->forceDelete();
 
         // kiosk_products/price-histories/images and farm_unit_stock/movements cascade at the DB level
         Kiosk::withTrashed()->whereIn('id', $kioskIds)->forceDelete();
@@ -522,6 +542,13 @@ class DemoDataSeeder extends Seeder
                         'expiry_date' => $nearExpiry ? now()->addDays(3)->toDateString() : null,
                     ]);
 
+                    // the same catalog product always gets the same generated image,
+                    // the same way a real photo of the same item would look the same
+                    // at every kiosk selling it
+                    $kioskProduct->images()->create([
+                        'path' => $this->placeholderImagePath("kiosk-products/catalog-{$catalogProduct->id}", $catalogProduct->name),
+                    ]);
+
                     KioskProductPriceHistory::create([
                         'kiosk_product_id' => $kioskProduct->id,
                         'old_price' => null,
@@ -532,5 +559,97 @@ class DemoDataSeeder extends Seeder
                 }
             }
         }
+    }
+
+    // real ProduceListing rows through the real service - not a raw insert - so the
+    // stock-cap-under-lock logic this feature depends on is actually exercised, not
+    // bypassed, on the way to populating the browse page with something to look at
+    private function seedProduceListings(): void
+    {
+        $listings = app(ProduceListingService::class);
+
+        $stocks = \App\Models\FarmUnitStock::query()
+            ->whereHas('farmUnit.farmerProfile.user', fn($query) => $query->where('email', 'like', '%@' . self::DEMO_EMAIL_DOMAIN))
+            ->whereNull('ended_on')
+            ->where('current_quantity', '>', 0)
+            ->with('farmUnit.farmerProfile.user', 'farmUnit.farmType.category')
+            ->confirmed()
+            ->inRandomOrder()
+            ->limit(12)
+            ->get();
+
+        foreach ($stocks as $index => $stock) {
+            $farmUnit = $stock->farmUnit;
+            $farmer = $farmUnit->farmerProfile;
+            $farmType = $farmUnit->farmType;
+            $isCrop = $farmType->category?->name === 'Crop';
+
+            // list roughly half of what is confirmed, never more than the batch has -
+            // matches the stock-cap check the service itself enforces
+            $quantity = max(1, round((float) $stock->current_quantity * fake()->randomFloat(2, 0.3, 0.6), 2));
+
+            // a couple demonstrate the agent-posted-draft-awaiting-agreement path
+            $postedByAgent = $index < 2;
+            $postedBy = $postedByAgent
+                ? User::role('agent')->where('email', 'like', '%@' . self::DEMO_EMAIL_DOMAIN)->inRandomOrder()->first() ?? $farmer->user
+                : $farmer->user;
+
+            try {
+                // the agent-posted pair land as drafts automatically (create() checks
+                // postedBy's own role), demonstrating that path waiting on the farmer
+                // rather than the ordinary farmer-posts-their-own-listing path
+                $listings->create(
+                    $stock,
+                    $farmer,
+                    $postedBy,
+                    $quantity,
+                    $isCrop ? fake()->numberBetween(5, 21) : null,
+                    $this->placeholderImagePath("produce-listings/{$stock->id}", $farmType->name),
+                );
+            } catch (\InvalidArgumentException) {
+                // another seeded listing already claimed this batch's remaining room -
+                // a real, expected outcome of the stock-cap check, not an error to hide
+                continue;
+            }
+        }
+    }
+
+    // a stable, generated colour-block image with the label drawn on it - real bytes on
+    // disk behind Storage::disk('public')->url(), not just a path string pointing at
+    // nothing. Cached per key for this run so the same product/farm type always gets
+    // the same image instead of a fresh one every time it is reused
+    private function placeholderImagePath(string $key, string $label): string
+    {
+        if (isset($this->placeholderCache[$key])) {
+            return $this->placeholderCache[$key];
+        }
+
+        $width = 400;
+        $height = 300;
+        $image = imagecreatetruecolor($width, $height);
+
+        // a stable colour per label, not random, so the same product looks the same
+        // on every reseed rather than flickering between runs
+        $hash = crc32($label);
+        $background = imagecolorallocate($image, 40 + ($hash & 0x7F), 40 + (($hash >> 8) & 0x7F), 40 + (($hash >> 16) & 0x7F));
+        imagefill($image, 0, 0, $background);
+
+        $textColor = imagecolorallocate($image, 255, 255, 255);
+        $lines = explode(' ', $label, 2);
+        imagestring($image, 5, 20, (int) ($height / 2) - 20, $lines[0], $textColor);
+
+        if (isset($lines[1])) {
+            imagestring($image, 5, 20, (int) ($height / 2), $lines[1], $textColor);
+        }
+
+        ob_start();
+        imagejpeg($image, null, 80);
+        $contents = ob_get_clean();
+        imagedestroy($image);
+
+        $path = "demo/{$key}.jpg";
+        Storage::disk('public')->put($path, $contents);
+
+        return $this->placeholderCache[$key] = $path;
     }
 }

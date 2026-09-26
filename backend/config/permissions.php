@@ -308,6 +308,14 @@ return [
             'disease-reports.view',
             'disease-reports.respond',
         ],
+        // suppliers are role-gated everywhere else in this app (role:supplier
+        // middleware, never access:), but browsing the kiosk marketplace as a buyer
+        // is a real permission check, so this is the one place a supplier needs an
+        // entry here at all
+        'supplier' => [
+            'marketplace-browse.view',
+            'marketplace-browse.order',
+        ],
     ],
 
 ];
