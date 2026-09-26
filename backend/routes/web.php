@@ -280,6 +280,12 @@ Route::middleware(['auth', 'verified.phone'])->prefix('produce-listings')->name(
     Route::post('/sales/{sale:uuid}/receive', [\App\Http\Controllers\Marketplace\ProduceSaleController::class, 'receive'])->name('sales.receive');
 });
 
+// a reply to a contact request - reachable by whichever side needs it, never gated
+// by role since either a farmer or an agent can be the recipient
+Route::middleware(['auth', 'verified.phone'])->group(function () {
+    Route::post('/contact-requests/{contactRequest:uuid}/reply', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'reply'])->name('contact-requests.reply');
+});
+
 Route::middleware(['auth', 'verified.phone'])->prefix('my-reports')->name('my-reports.')->group(function () {
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');

@@ -29,7 +29,7 @@ test('a user with marketplace-settings.view can view settings and sees every def
 
     $this->actingAs($user)->get('/admin/marketplace/settings')
         ->assertOk()
-        ->assertInertia(fn($page) => $page->has('settings', 9));
+        ->assertInertia(fn($page) => $page->has('settings', 10));
 });
 
 test('a user without marketplace-settings.update cannot change a setting', function () {
