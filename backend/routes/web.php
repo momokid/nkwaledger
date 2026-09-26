@@ -244,6 +244,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-weather')->name('my-we
 Route::middleware(['auth', 'verified.phone'])->prefix('my-marketplace')->name('my-marketplace.')->group(function () {
     Route::middleware('access:marketplace-browse.view')->group(function () {
         Route::get('/', [MarketplaceController::class, 'index'])->name('index');
+        Route::get('/kiosks/{kiosk:uuid}', [MarketplaceController::class, 'show'])->name('kiosks.show');
     });
 
     Route::middleware('access:marketplace-browse.order')->group(function () {

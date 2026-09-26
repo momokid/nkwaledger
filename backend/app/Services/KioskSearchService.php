@@ -8,6 +8,7 @@ use App\Models\Kiosk;
 use App\Models\KioskProduct;
 use App\Models\ProductCategory;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 // ranks kiosks for a farmer's marketplace search: one blended score per kiosk, never
 // distance-first-with-tiebreakers, so a well-rated kiosk slightly farther away can
@@ -72,7 +73,7 @@ class KioskSearchService
                 'supplier:id,business_name',
                 'district:id,name,region_id',
                 'district.region:id,name',
-                'kioskProducts' => fn($query) => $query->available()->with('catalogProduct.category'),
+                'kioskProducts' => fn($query) => $query->available()->with(['catalogProduct.category', 'catalogProduct.unit', 'images']),
             ])
             ->withAvg('reviews', 'rating')
             ->withCount('reviews')
@@ -84,6 +85,27 @@ class KioskSearchService
         return $kiosks
             ->map(fn(Kiosk $kiosk) => $this->present($kiosk, $community, $suggestedCategoryIds))
             ->sortByDesc('score')
+            ->values();
+    }
+
+    // the product grid flattens rank()'s kiosk-level rows into one row per product - a
+    // kiosk with 5 products contributes 5 rows, each still carrying that kiosk's own
+    // blended score, so the grid's order is never rebuilt, only unpacked
+    public function rankProducts(FarmerProfile $farmer, ?int $categoryId = null): Collection
+    {
+        return $this->rank($farmer, $categoryId)
+            ->flatMap(fn(array $kiosk) => collect($kiosk['products'])->map(fn(array $product) => [
+                'kiosk_uuid' => $kiosk['uuid'],
+                'kiosk_name' => $kiosk['name'],
+                'distance_label' => $kiosk['distance_label'],
+                'contact_phone' => $kiosk['contact_phone'],
+                'kiosk_product_id' => $product['kiosk_product_id'],
+                'product_name' => $product['name'],
+                'price_minor' => $product['price_minor'],
+                'unit' => $product['unit'],
+                'image_url' => $product['image_url'],
+                'score' => $kiosk['score'],
+            ]))
             ->values();
     }
 
@@ -128,6 +150,8 @@ class KioskSearchService
                     'kiosk_product_id' => $product->id,
                     'name' => $product->catalogProduct?->name,
                     'price_minor' => $product->price,
+                    'unit' => $product->catalogProduct?->unit?->name,
+                    'image_url' => $this->imageUrlFor($product),
                 ])
                 ->values()
                 ->all(),
@@ -170,6 +194,15 @@ class KioskSearchService
         }
 
         return ['score' => self::TIER_ELSEWHERE, 'label' => $kiosk->district?->name ?? 'Elsewhere'];
+    }
+
+    // the first photo a supplier attached, if any - never fabricated, a product with none
+    // simply has no image_url and the frontend shows its own placeholder
+    private function imageUrlFor(KioskProduct $product): ?string
+    {
+        $image = $product->images->first();
+
+        return $image === null ? null : Storage::disk('public')->url($image->path);
     }
 
     private function haversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float

@@ -180,3 +180,68 @@ test('a kiosk in the same district is ranked closer than one in a different regi
 
     expect($nearPosition)->toBeLessThan($farPosition);
 });
+
+test('rankProducts flattens a kiosk with several products into one row per product', function () {
+    $kiosk = makeKiosk($this->district);
+    $first = makeAvailableProduct($kiosk);
+    $second = makeAvailableProduct($kiosk);
+
+    $rows = $this->service->rankProducts($this->farmer);
+    $kioskProductIds = $rows->where('kiosk_uuid', $kiosk->uuid)->pluck('kiosk_product_id')->values()->all();
+
+    expect($rows->where('kiosk_uuid', $kiosk->uuid))->toHaveCount(2)
+        ->and($kioskProductIds)->toContain($first->id, $second->id);
+});
+
+test('rankProducts orders rows by their own kiosk\'s blended score, not a fresh ranking', function () {
+    $cropCategory = FarmTypeCategory::create(['name' => 'Crop']);
+    $maize = FarmType::create(['name' => 'Maize', 'category_id' => $cropCategory->id]);
+    $this->farmer->farmTypes()->attach($maize->id);
+
+    $fertilizer = ProductCategory::factory()->create(['name' => 'Fertilizer']);
+    $equipment = ProductCategory::factory()->create(['name' => 'Equipment']);
+
+    $boostedKiosk = makeKiosk($this->district);
+    makeAvailableProduct($boostedKiosk, $fertilizer);
+
+    $plainKiosk = makeKiosk($this->district);
+    makeAvailableProduct($plainKiosk, $equipment);
+
+    $kioskRanking = $this->service->rank($this->farmer)->pluck('uuid')->values()->all();
+    $productRows = $this->service->rankProducts($this->farmer)->pluck('kiosk_uuid')->values()->all();
+
+    expect($productRows)->toBe($kioskRanking);
+});
+
+test('rankProducts carries the product\'s real photo, price, and unit', function () {
+    Illuminate\Support\Facades\Storage::fake('public');
+
+    $unit = \App\Models\ProductUnit::factory()->create(['name' => 'Bag']);
+    $catalogProduct = CatalogProduct::factory()->create(['name' => 'NPK Fertilizer', 'unit_id' => $unit->id]);
+
+    $kiosk = makeKiosk($this->district);
+    $product = KioskProduct::factory()->priceConfirmed()->create([
+        'kiosk_id' => $kiosk->id,
+        'catalog_product_id' => $catalogProduct->id,
+        'price' => 4500,
+        'in_stock' => true,
+        'status' => KioskProductStatus::Active,
+    ]);
+    $product->images()->create(['path' => 'kiosk-products/npk.jpg']);
+
+    $row = $this->service->rankProducts($this->farmer)->firstWhere('kiosk_product_id', $product->id);
+
+    expect($row['product_name'])->toBe('NPK Fertilizer')
+        ->and($row['price_minor'])->toBe(4500)
+        ->and($row['unit'])->toBe('Bag')
+        ->and($row['image_url'])->toContain('kiosk-products/npk.jpg');
+});
+
+test('a product with no photo has a null image_url, never a fabricated one', function () {
+    $kiosk = makeKiosk($this->district);
+    $product = makeAvailableProduct($kiosk);
+
+    $row = $this->service->rankProducts($this->farmer)->firstWhere('kiosk_product_id', $product->id);
+
+    expect($row['image_url'])->toBeNull();
+});
