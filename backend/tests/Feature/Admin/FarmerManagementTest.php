@@ -79,7 +79,7 @@ test('an admin sees the list page', function () {
 });
 
 test('an agent sees the list page', function () {
-    $this->actingAs($this->agent)->get('/admin/farmers')->assertOk();
+    $this->actingAs($this->agent)->get('/agent/farmers')->assertOk();
 });
 
 test('registering creates a user with the farmer role', function () {
@@ -132,7 +132,7 @@ test('registering attaches the chosen farm types', function () {
 });
 
 test('registering records who typed the row', function () {
-    $this->actingAs($this->agent)->post('/admin/farmers', farmerPayload());
+    $this->actingAs($this->agent)->post('/agent/farmers', farmerPayload());
 
     expect(User::where('phone', '0244445566')->first()->farmerProfile->registered_by)
         ->toBe($this->agent->id);
@@ -140,7 +140,7 @@ test('registering records who typed the row', function () {
 
 // an agent takes on the farmers they bring in, with no field to fill
 test('an agent registering is assigned the farmer', function () {
-    $this->actingAs($this->agent)->post('/admin/farmers', farmerPayload([
+    $this->actingAs($this->agent)->post('/agent/farmers', farmerPayload([
         'assigned_agent_id' => $this->otherAgent->id,
     ]));
 
@@ -249,7 +249,7 @@ test('an agent sees only farmers assigned to them', function () {
     FarmerProfile::factory()->create(['assigned_agent_id' => $this->agent->id]);
     FarmerProfile::factory()->count(2)->create(['assigned_agent_id' => $this->otherAgent->id]);
 
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->has('farmers.data', 1));
 });
 
@@ -260,20 +260,20 @@ test('an agent does not see a farmer they registered but no longer hold', functi
         'assigned_agent_id' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->has('farmers.data', 0));
 });
 
 test('an agent cannot open a farmer assigned to someone else', function () {
     $profile = FarmerProfile::factory()->create(['assigned_agent_id' => $this->otherAgent->id]);
 
-    $this->actingAs($this->agent)->get("/admin/farmers/{$profile->uuid}")->assertNotFound();
+    $this->actingAs($this->agent)->get("/agent/farmers/{$profile->uuid}")->assertNotFound();
 });
 
 test('an agent cannot open an unassigned farmer', function () {
     $profile = FarmerProfile::factory()->create(['assigned_agent_id' => null]);
 
-    $this->actingAs($this->agent)->get("/admin/farmers/{$profile->uuid}")->assertNotFound();
+    $this->actingAs($this->agent)->get("/agent/farmers/{$profile->uuid}")->assertNotFound();
 });
 
 // the row id is not an address any more
@@ -427,13 +427,13 @@ test('an agent cannot verify by default', function () {
     $this->actingAs($this->agent)->patch("/admin/farmers/{$profile->uuid}/identity/verify")->assertForbidden();
 });
 
-// the agent who serves a farmer may not be the one who vouches for their document
+// an agent submits a farmer's document, an admin approves it - the agent who serves a farmer
+// can never approve, even with farmers.verify granted to them directly
 test('the assigned agent cannot verify their own farmer', function () {
     $this->agent->givePermissionTo('farmers.verify');
     $profile = FarmerProfile::factory()->withIdentity()->create(['assigned_agent_id' => $this->agent->id]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$profile->uuid}/identity/verify")
-        ->assertSessionHasErrors();
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$profile->uuid}/identity/verify")->assertForbidden();
 
     expect($profile->fresh()->identity_verified_at)->toBeNull();
 });
@@ -451,17 +451,17 @@ test('an unassigned farmer cannot be verified by whoever registered them', funct
     expect($profile->fresh()->identity_verified_at)->toBeNull();
 });
 
-test('an agent who only typed the row may still verify once someone else holds the farmer', function () {
+test('an agent who only typed the row cannot verify either, approving is admin-only', function () {
     $this->agent->givePermissionTo('farmers.verify');
     $profile = FarmerProfile::factory()->withIdentity()->create([
         'registered_by' => $this->agent->id,
         'assigned_agent_id' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$profile->uuid}/identity/verify")
-        ->assertSessionDoesntHaveErrors();
+    $this->actingAs($this->agent)->patch("/admin/farmers/{$profile->uuid}/identity/verify")->assertForbidden();
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$profile->uuid}/identity/verify")->assertNotFound();
 
-    expect($profile->fresh()->identity_verified_at)->not->toBeNull();
+    expect($profile->fresh()->identity_verified_at)->toBeNull();
 });
 
 test('a farmer with no document cannot be verified', function () {
@@ -485,12 +485,12 @@ test('the agent list is offered to an admin', function () {
 });
 
 test('an agent is not offered the agent list', function () {
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->has('agents', 0));
 });
 
 test('the page says what this user may do', function () {
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(
             fn($page) => $page
                 ->where('permissions.create', true)

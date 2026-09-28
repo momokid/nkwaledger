@@ -52,7 +52,12 @@ interface Props extends PageProps {
     agents: AgentOption[];
     layout: "admin" | "agent";
     basePath: string;
-    permissions: { update: boolean; verify: boolean; assign: boolean };
+    permissions: {
+        update: boolean;
+        capture_identity: boolean;
+        verify: boolean;
+        assign: boolean;
+    };
 }
 
 // the same page wears whichever frame the current route group belongs to
@@ -594,7 +599,7 @@ function ShowContent({
                     </p>
                 )}
 
-                {permissions.update && (
+                {permissions.capture_identity && (
                     <form onSubmit={saveIdentity} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <div>

@@ -28,6 +28,7 @@ class ApprovalQueueService
             ->concat($this->movements($user, $farmerIds, $limit))
             ->concat($this->reversals($user, $farmerIds, $limit))
             ->concat($this->commissions($user, $farmerIds, $limit))
+            ->concat($this->identities($user, $farmerIds, $limit))
             // the thing waiting longest needs you most
             ->sortBy('waiting_since')
             ->values();
@@ -212,6 +213,37 @@ class ApprovalQueueService
                     'agent' => trim("{$commission->agent?->surname} {$commission->agent?->first_name}"),
                     'verifies_farmer' => $commission->verifies_farmer,
                     'amount_minor' => $commission->order?->amount_minor,
+                ],
+            ]);
+    }
+
+    // a document on file that nobody has approved yet - only someone who may approve sees it
+    private function identities(User $user, array $farmerIds, int $limit): Collection
+    {
+        if (! $user->hasRole('admin') || ! $this->access->can($user, 'farmers.verify')) {
+            return collect();
+        }
+
+        return FarmerProfile::query()
+            ->whereNotNull('identity_number_hash')
+            ->whereNull('identity_verified_at')
+            ->whereIn('id', $farmerIds)
+            ->with(['user:id,surname,first_name', 'identitySubmittedBy:id,surname'])
+            ->orderBy('identity_submitted_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn(FarmerProfile $farmer) => [
+                'kind' => 'farmer_identity',
+                'id' => $farmer->id,
+                'farmer' => $this->farmerName($farmer),
+                'farmer_id' => $farmer->uuid,
+                'what' => "{$farmer->identity_type?->label()} document",
+                'added_by' => $farmer->identitySubmittedBy?->surname,
+                'waiting_since' => ($farmer->identity_submitted_at ?? $farmer->updated_at)?->toIso8601String(),
+                'can_approve' => $farmer->conflictedUserId() !== $user->id
+                    && $farmer->identity_submitted_by !== $user->id,
+                'details' => [
+                    'document' => $farmer->identity_type?->label(),
                 ],
             ]);
     }

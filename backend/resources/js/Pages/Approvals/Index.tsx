@@ -12,7 +12,7 @@ interface Details {
 }
 
 interface Item {
-    kind: "farm_unit" | "stock" | "stock_movement" | "reversal";
+    kind: "farm_unit" | "stock" | "stock_movement" | "reversal" | "farmer_identity";
     id: number;
     uuid?: string;
     farmer: string;
@@ -44,6 +44,7 @@ const KIND_LABELS: Record<Item["kind"], string> = {
     stock: "Count",
     stock_movement: "Change",
     reversal: "Cancellation",
+    farmer_identity: "Identity document",
 };
 
 // only these kinds have a reject endpoint behind them
@@ -62,6 +63,7 @@ const DETAIL_LABELS: Record<string, string> = {
     started_on: "Started",
     unit_approved: "Pen checked",
     reason: "Why",
+    document: "Document",
     quantity: "How many",
     is_increase: "Going up",
     occurred_on: "Happened",
@@ -152,6 +154,9 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
     const approveUrl = (item: Item) => {
         if (item.kind === "reversal")
             return `${basePath}/reversals/${item.uuid}/approve`;
+
+        if (item.kind === "farmer_identity")
+            return `${basePath}/farmers/${item.farmer_id}/identity/verify`;
 
         const base = `${basePath}/farmers/${item.farmer_id}/units`;
 

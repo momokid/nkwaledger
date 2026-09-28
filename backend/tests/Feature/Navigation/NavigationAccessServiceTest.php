@@ -16,13 +16,27 @@ it('returns nothing for a guest', function () {
     expect($this->service->allowedRouteNames(null))->toBe([]);
 });
 
-it('includes a route the user holds the permission for', function () {
+// admin.* routes require role:admin as well as the permission (Sept 2026
+// privilege-escalation fix) - the permission alone is deliberately not enough,
+// since several access:X permissions gating admin pages are also legitimately
+// held by non-admin roles for their own, differently-scoped routes
+it('includes a route the user holds the permission for, once they also hold the admin role', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('ledger-accounts.view');
 
     $names = $this->service->allowedRouteNames($user);
 
     expect($names)->toContain('admin.ledger-accounts.index');
+});
+
+it('excludes an admin route from a user who holds the permission but not the admin role', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('ledger-accounts.view');
+
+    $names = $this->service->allowedRouteNames($user);
+
+    expect($names)->not->toContain('admin.ledger-accounts.index');
 });
 
 it('excludes a route the user has no permission for', function () {
@@ -56,6 +70,7 @@ it('includes role gated routes only for that role', function () {
 
 it('lists only routes that can be opened in a browser', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['ledger-accounts.view', 'ledger-accounts.create']);
 
     $names = $this->service->allowedRouteNames($user);

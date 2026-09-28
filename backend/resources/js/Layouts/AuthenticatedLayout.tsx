@@ -140,8 +140,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
         tools: [
             {
                 ...buildMarketplaceNavGroup<NavItem>([
-                    disabledPlaceholder("Market Center"),
-                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
+                    { label: "Market Center", href: "/market-center", ready: true },
                 ]),
                 href: "#",
                 ready: true,
@@ -207,10 +206,8 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             },
             {
                 ...buildMarketplaceNavGroup<NavItem>([
-                    disabledPlaceholder("Setup"),
-                    { label: "Market Center", href: "/my-marketplace", ready: true },
+                    { label: "Market Center", href: "/market-center", ready: true },
                     { label: "My Listings", href: "/my-listings", ready: true },
-                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
                 ]),
                 href: "#",
                 ready: true,
@@ -240,7 +237,15 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 ready: false,
             },
         ],
-        tools: [],
+        tools: [
+            {
+                ...buildMarketplaceNavGroup<NavItem>([
+                    { label: "Market Center", href: "/market-center", ready: true },
+                ]),
+                href: "#",
+                ready: true,
+            },
+        ],
         account: account(),
     }),
 
@@ -262,6 +267,13 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
         ],
         tools: [
             { label: "Weather", href: "#", icon: IconCloudRain, ready: false },
+            {
+                ...buildMarketplaceNavGroup<NavItem>([
+                    { label: "Market Center", href: "/market-center", ready: true },
+                ]),
+                href: "#",
+                ready: true,
+            },
         ],
         account: account(),
     }),
@@ -279,9 +291,8 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                     { label: "Setup", href: "/supplier/kiosks", ready: true },
                     // buying, as a buyer - distinct from Orders below, which is this
                     // supplier's own incoming-orders inbox as a seller
-                    { label: "Market Center", href: "/my-marketplace", ready: true },
+                    { label: "Market Center", href: "/market-center", ready: true },
                     { label: "Orders", href: "/supplier/orders", ready: true },
-                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
                     disabledPlaceholder("Product Analysis"),
                     disabledPlaceholder("Finance"),
                 ]),

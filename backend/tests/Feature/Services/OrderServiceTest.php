@@ -100,6 +100,23 @@ test('confirm then receive posts to the ledger exactly once', function () {
         ->and($transaction->is_provisional)->toBeFalse();
 });
 
+test('a momo order settles against the Momo A/C ledger account', function () {
+    $order = $this->service->submitCart(
+        farmer: $this->farmer,
+        kiosk: $this->kiosk,
+        items: [['kiosk_product_id' => $this->kioskProduct->id, 'quantity' => 2]],
+        paymentMethod: 'momo',
+        farmUnitId: $this->farmUnit->id,
+    );
+
+    $this->service->confirm($order, $this->supplierUser);
+    $order = $this->service->receive($order, $this->farmerUser);
+
+    $momoAccount = \App\Models\LedgerAccount::where('name', 'Momo A/C')->firstOrFail();
+
+    expect($order->ledgerTransaction->settlement_account_id)->toBe($momoAccount->id);
+});
+
 test('receive then confirm posts to the ledger exactly once too', function () {
     $order = submitOrder();
 

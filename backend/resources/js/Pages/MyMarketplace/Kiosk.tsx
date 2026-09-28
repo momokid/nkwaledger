@@ -236,6 +236,7 @@ function KioskContent({ kiosk, products, farmUnits }: Props) {
                                             style={{ ...inputStyle, width: "100%" }}
                                         >
                                             <option value="bank">Bank payment</option>
+                                            <option value="momo">Mobile Money</option>
                                             <option value="cod">Cash on delivery</option>
                                         </select>
                                     </div>

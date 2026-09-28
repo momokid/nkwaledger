@@ -3,9 +3,12 @@
 use App\Models\District;
 use App\Models\Region;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+
     foreach (['view', 'create', 'update', 'delete'] as $action) {
         Permission::firstOrCreate(['name' => "farmer-groups.{$action}", 'guard_name' => 'web']);
     }
@@ -28,6 +31,7 @@ test('listing districts filters by region_id', function () {
     District::create(['name' => 'Kumasi', 'region_id' => $regionTwo->id]);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farmer-groups.view');
 
     $response = $this->actingAs($user)->get("/admin/districts?region_id={$regionOne->id}");
@@ -51,6 +55,7 @@ test('a user without farmer-groups.create cannot create a district', function ()
 test('a user with farmer-groups.create can create a district', function () {
     $region = Region::create(['name' => 'Northern']);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/districts', [
@@ -63,6 +68,7 @@ test('a user with farmer-groups.create can create a district', function () {
 
 test('creating a district with a non-existent region_id fails validation', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/districts', [
@@ -76,6 +82,7 @@ test('creating a district with a duplicate name in the same region fails validat
     District::create(['name' => 'Central', 'region_id' => $region->id]);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/districts', [
@@ -90,6 +97,7 @@ test('the same district name is allowed in a different region', function () {
     District::create(['name' => 'Central', 'region_id' => $regionOne->id]);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/districts', [
@@ -116,6 +124,7 @@ test('a user with farmer-groups.update can update a district', function () {
     $region = Region::create(['name' => 'Northern']);
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.update']);
 
     $this->actingAs($user)->put("/admin/districts/{$district->id}", [
@@ -139,6 +148,7 @@ test('a user with farmer-groups.delete can soft delete a district', function () 
     $region = Region::create(['name' => 'Northern']);
     $district = District::create(['name' => 'Savelugu', 'region_id' => $region->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.delete']);
 
     $this->actingAs($user)->delete("/admin/districts/{$district->id}")

@@ -240,10 +240,12 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-weather')->name('my-we
     });
 });
 
-// the farmer's own view onto the marketplace, with nobody named in the address
+// Market Center replaced this as the browse destination (Step 8) - index just
+// redirects now, no permission gate needed for a redirect
 Route::middleware(['auth', 'verified.phone'])->prefix('my-marketplace')->name('my-marketplace.')->group(function () {
+    Route::get('/', [MarketplaceController::class, 'index'])->name('index');
+
     Route::middleware('access:marketplace-browse.view')->group(function () {
-        Route::get('/', [MarketplaceController::class, 'index'])->name('index');
         Route::get('/kiosks/{kiosk:uuid}', [MarketplaceController::class, 'show'])->name('kiosks.show');
     });
 
@@ -278,6 +280,13 @@ Route::middleware(['auth', 'verified.phone'])->prefix('produce-listings')->name(
     Route::post('/{listing:uuid}/interest', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'interest'])->name('interest');
     Route::post('/{listing:uuid}/sales', [\App\Http\Controllers\Marketplace\ProduceSaleController::class, 'store'])->name('sales.store');
     Route::post('/sales/{sale:uuid}/receive', [\App\Http\Controllers\Marketplace\ProduceSaleController::class, 'receive'])->name('sales.receive');
+});
+
+// the unified buyer-browsing homepage - every role reaches it here, open to any
+// authenticated account, same as produce-listings browsing already was
+Route::middleware(['auth', 'verified.phone'])->prefix('market-center')->name('market-center.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\MarketCenterController::class, 'index'])->name('index');
+    Route::get('/{marketplaceCategory:slug}', [\App\Http\Controllers\MarketCenterController::class, 'category'])->name('category');
 });
 
 // a reply to a contact request - reachable by whichever side needs it, never gated
@@ -323,7 +332,18 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
 
     Route::middleware('access:farmers.update')->group(function () {
         Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
+    });
+
+    // an agent submits a farmer's document for their own farmers only; there is deliberately no
+    // approve route in this group - approving is admin-only, on the admin.* routes
+    Route::middleware('access:farmers.kyc-submit')->group(function () {
         Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
+    });
+
+    // only groups holding one of this agent's assigned farmers, full details for their own farmers only
+    Route::middleware('access:farmer-groups.view-own')->group(function () {
+        Route::get('/farmer-groups', [\App\Http\Controllers\Agent\FarmerGroupLookupController::class, 'index'])->name('farmer-groups.index');
+        Route::get('/farmer-groups/{farmerGroup}', [\App\Http\Controllers\Agent\FarmerGroupLookupController::class, 'show'])->name('farmer-groups.show');
     });
 
     // every unit across the farmers this person can reach
@@ -480,7 +500,13 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
 });
 
 // permission-gated: any role can reach these if granted the specific permission, independent of role:admin
-Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
+// role:admin is the real boundary here, not just the access: permission on each route
+// below - several of those permissions (approvals.view, farmers.view, farm-units.view,
+// transactions.view, farm-type-categories.view, etc) are also legitimately held by
+// agent/farmer for their OWN differently-scoped routes elsewhere in this file, and
+// nothing about that combination should ever let a non-admin reach the admin-prefixed
+// duplicate of the same controller (Sept 2026 privilege-escalation fix)
+Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('access:farm-type-categories.view')->group(function () {
         Route::get('/farm-type-categories', [FarmTypeCategoryController::class, 'index'])
             ->name('farm-type-categories.index');
@@ -810,9 +836,32 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
         Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/extend', [\App\Http\Controllers\Admin\KioskReportController::class, 'extend'])->name('marketplace.kiosk-reports.extend');
     });
 
-    // visibility only - admin never approves a produce sale, see the Step 7 audit
-    Route::middleware('access:produce-listings.view')->group(function () {
+    // visibility only - admin never approves a produce sale, see the Step 7 audit.
+    // its own dedicated permission - never produce-listings.view, which an agent/farmer
+    // legitimately hold for their own scoped listings and must never double as a key
+    // to this system-wide, unscoped page (Sept 2026 privilege-escalation fix)
+    Route::middleware('access:marketplace-produce-sales.view')->group(function () {
         Route::get('/marketplace/produce-sales', [\App\Http\Controllers\Admin\ProduceSaleController::class, 'index'])->name('marketplace.produce-sales.index');
+    });
+
+    // Market Center's homepage rows
+    Route::middleware('access:marketplace-categories.view')->group(function () {
+        Route::get('/marketplace/categories', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'index'])->name('marketplace.categories.index');
+    });
+    Route::middleware('access:marketplace-categories.create')->group(function () {
+        Route::post('/marketplace/categories', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'store'])->name('marketplace.categories.store');
+        Route::post('/marketplace/categories/reorder', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'reorder'])->name('marketplace.categories.reorder');
+    });
+    Route::middleware('access:marketplace-categories.update')->group(function () {
+        Route::put('/marketplace/categories/{marketplaceCategory}', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'update'])->name('marketplace.categories.update');
+    });
+    Route::middleware('access:marketplace-categories.delete')->group(function () {
+        Route::delete('/marketplace/categories/{marketplaceCategory}', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'destroy'])->name('marketplace.categories.destroy');
+    });
+
+    // admin's own monitoring view - visibility, not the buyer-browsing homepage
+    Route::middleware('access:marketplace-kiosks.view')->group(function () {
+        Route::get('/marketplace/dashboard', [\App\Http\Controllers\Admin\MarketplaceDashboardController::class, 'index'])->name('marketplace.dashboard');
     });
 
     Route::middleware('access:accounting-periods.view')->group(function () {

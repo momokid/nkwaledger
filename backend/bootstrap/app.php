@@ -30,6 +30,18 @@ return Application::configure(basePath: dirname(__DIR__))
             'activation.pending' => \App\Http\Middleware\EnsureActivationPending::class,
         ]);
 
+        // the role and permission gates must run before route-model binding: otherwise a user
+        // who may not open a page still gets 404 for a missing record and 403 for an existing
+        // one, which lets them count records they have no business knowing about
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \Spatie\Permission\Middleware\RoleMiddleware::class,
+        );
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \App\Http\Middleware\CheckPermission::class,
+        );
+
         $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {

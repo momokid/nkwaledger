@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             MarketplaceSettingSeeder::class,
             ProductCategorySeeder::class,
             ProductUnitSeeder::class,
+            MarketplaceCategorySeeder::class,
         ]);
     }
 }

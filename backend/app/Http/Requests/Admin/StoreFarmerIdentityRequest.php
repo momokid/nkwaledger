@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\IdentityType;
 use App\Models\FarmerProfile;
+use App\Services\FarmerKycService;
 use App\Support\IdentityDocument;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,9 +12,11 @@ use Illuminate\Validation\Validator;
 
 class StoreFarmerIdentityRequest extends FormRequest
 {
+    // checked before validation, so an agent probing a farmer who is not theirs learns nothing
+    // from "this document is already on another account"
     public function authorize(): bool
     {
-        return true;
+        return app(FarmerKycService::class)->maySubmitFor($this->route('farmer'), $this->user());
     }
 
     public function rules(): array

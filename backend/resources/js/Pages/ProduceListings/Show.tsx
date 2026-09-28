@@ -8,7 +8,7 @@ interface ListingDetail {
     product_name: string | null;
     quantity_remaining: number;
     unit_of_measure: string | null;
-    photo_url: string | null;
+    photo_urls: string[];
     expires_at: string | null;
 }
 
@@ -81,8 +81,8 @@ function ShowContent({ listing }: Props) {
 
     return (
         <div style={{ background: surface, border: `1px solid ${border}`, overflow: "hidden", maxWidth: "480px" }}>
-            {listing.photo_url ? (
-                <img src={listing.photo_url} alt={listing.product_name ?? ""} style={{ width: "100%", height: "220px", objectFit: "cover" }} />
+            {listing.photo_urls[0] ? (
+                <img src={listing.photo_urls[0]} alt={listing.product_name ?? ""} style={{ width: "100%", height: "220px", objectFit: "cover" }} />
             ) : (
                 <div
                     style={{
@@ -164,6 +164,7 @@ function ShowContent({ listing }: Props) {
                             </label>
                             <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={inputStyle}>
                                 <option value="bank">Bank payment</option>
+                                <option value="momo">Mobile Money</option>
                                 <option value="cod">Cash on delivery</option>
                             </select>
                         </div>

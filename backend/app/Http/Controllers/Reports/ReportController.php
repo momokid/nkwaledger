@@ -331,13 +331,15 @@ class ReportController extends Controller
         return $farmer->load('user');
     }
 
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix)
     private function frame(Request $request): array
     {
-        $name = $request->route()?->getName() ?? '';
+        $user = $request->user();
 
         $group = match (true) {
-            str_starts_with($name, 'agent.') => 'agent',
-            str_starts_with($name, 'admin.') => 'admin',
+            $user?->hasRole('admin') => 'admin',
+            $user?->hasRole('agent') => 'agent',
             default => 'farmer',
         };
 

@@ -27,7 +27,7 @@ class StoreKioskProductRequest extends FormRequest
             'pack_quantity' => ['nullable', 'numeric', 'min:0'],
             'price' => ['required', 'integer', 'min:1'],
             'expiry_date' => ['nullable', 'date'],
-            'images' => ['nullable', 'array', 'max:' . self::MAX_IMAGES],
+            'images' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
             'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:' . self::MAX_IMAGE_KB],
         ];
     }

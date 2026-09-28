@@ -23,6 +23,7 @@ test('a user without marketplace-suppliers.view cannot view the list', function 
 
 test('a user with marketplace-suppliers.view can view the list', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('marketplace-suppliers.view');
 
     $this->actingAs($user)->get('/admin/marketplace/suppliers')->assertOk();
@@ -34,6 +35,7 @@ test('a verified supplier shows as verified on the admin list, not unverified', 
     $supplier = Supplier::factory()->verified()->create();
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('marketplace-suppliers.view');
 
     $this->actingAs($user)->get('/admin/marketplace/suppliers')
@@ -47,6 +49,7 @@ test('suspending a supplier suspends every one of that supplier\'s kiosks in one
     $second = Kiosk::factory()->confirmed()->create(['supplier_id' => $supplier->id]);
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-suppliers.suspend');
 
     $this->actingAs($admin)->patch("/admin/marketplace/suppliers/{$supplier->uuid}/suspend")
@@ -62,6 +65,7 @@ test('restoring a supplier does not automatically restore its kiosks', function 
     $kiosk = Kiosk::factory()->create(['supplier_id' => $supplier->id, 'status' => KioskStatus::Suspended]);
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-suppliers.suspend');
 
     $this->actingAs($admin)->patch("/admin/marketplace/suppliers/{$supplier->uuid}/restore")

@@ -278,10 +278,15 @@ class RecordTransactionController extends Controller
             ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale', 'is_stock_purchase', 'allows_credit']);
     }
 
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix). The frontend only
+    // knows "farmer" | "agent" for this page (an admin viewing via
+    // /admin/farmers/{farmer}/records already fell into the "farmer" bucket before
+    // this fix too - unchanged, since that is a separate, non-security pre-existing
+    // gap in this page, not something this fix should guess a new behaviour for)
     private function frame(Request $request): array
     {
-        $name = $request->route()?->getName() ?? '';
-        $group = str_starts_with($name, 'agent.') ? 'agent' : 'farmer';
+        $group = $request->user()?->hasRole('agent') ? 'agent' : 'farmer';
 
         return [
             'layout' => $group,

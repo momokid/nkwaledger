@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -151,5 +152,10 @@ class KioskProduct extends Model
     public function images(): HasMany
     {
         return $this->hasMany(KioskProductImage::class);
+    }
+
+    public function marketplaceCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(MarketplaceCategory::class, 'marketplace_category_kiosk_product');
     }
 }

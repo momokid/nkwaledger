@@ -44,6 +44,65 @@ class NavigationAccessService
         return array_values(array_unique($names));
     }
 
+    /**
+     * The admin sidebar, already filtered to what this admin may open. Anyone who is not an
+     * admin gets nothing, whatever permissions they hold: the role is the boundary.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function adminMenu(?User $user): array
+    {
+        if ($user === null || ! $user->hasRole('admin')) {
+            return [];
+        }
+
+        $menu = [];
+
+        foreach (config('admin_menu') as $entry) {
+            if (! isset($entry['children'])) {
+                $leaf = $this->menuLeaf($user, $entry);
+
+                if ($leaf !== null) {
+                    $menu[] = $leaf;
+                }
+
+                continue;
+            }
+
+            $children = array_values(array_filter(
+                array_map(fn(array $child) => $this->menuLeaf($user, $child), $entry['children'])
+            ));
+
+            // a group with nothing left to open is not worth showing
+            if ($children !== []) {
+                $menu[] = ['label' => $entry['label'], 'icon' => $entry['icon'] ?? null, 'children' => $children];
+            }
+        }
+
+        return $menu;
+    }
+
+    private function menuLeaf(User $user, array $leaf): ?array
+    {
+        // a coming-soon placeholder has no route to be permission-gated on, so it always shows
+        if (($leaf['ready'] ?? true) === false) {
+            return ['label' => $leaf['label'], 'ready' => false];
+        }
+
+        $route = RouteFacade::getRoutes()->getByName($leaf['route']);
+
+        if ($route === null || ! $this->passes($user, $route)) {
+            return null;
+        }
+
+        return [
+            'label' => $leaf['label'],
+            'icon' => $leaf['icon'] ?? null,
+            'routeName' => $leaf['route'],
+            'badge' => $leaf['badge'] ?? null,
+        ];
+    }
+
     private function isNavigable(string $name): bool
     {
         foreach (self::PREFIXES as $prefix) {

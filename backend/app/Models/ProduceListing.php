@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -19,7 +20,6 @@ use Illuminate\Support\Str;
     'status',
     'quantity_listed',
     'quantity_remaining',
-    'photo',
     'crop_expiry_days',
     'expires_at',
     'expiry_reminder_sent_at',
@@ -102,5 +102,15 @@ class ProduceListing extends Model
     public function sales(): HasMany
     {
         return $this->hasMany(ProduceSale::class);
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProduceListingImage::class);
+    }
+
+    public function marketplaceCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(MarketplaceCategory::class, 'marketplace_category_produce_listing');
     }
 }

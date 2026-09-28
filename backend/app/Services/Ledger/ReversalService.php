@@ -39,7 +39,10 @@ class ReversalService
             permission: 'transactions.reverse-approve',
             kind: 'reversal.requested',
             message: "Somebody wants to cancel record {$transaction->reference}. {$reason}",
-            link: '/admin/approvals',
+            // resolved per recipient, not hardcoded - transactions.reverse-approve is
+            // admin-only today, but a flat link here would silently become the same
+            // wrong-URL bug the moment any other role ever gets that permission
+            linkFor: fn(User $recipient) => $recipient->hasRole('admin') ? '/admin/approvals' : '/agent/approvals',
             except: $requestedBy,
         );
 

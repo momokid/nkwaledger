@@ -26,6 +26,8 @@ use Illuminate\Support\Str;
     'identity_number_hash',
     'identity_verified_at',
     'identity_verified_by',
+    'identity_submitted_by',
+    'identity_submitted_at',
     'registered_by',
     'assigned_agent_id',
     'onboarded_at',
@@ -46,6 +48,7 @@ class FarmerProfile extends Model
             'identity_type' => IdentityType::class,
             'date_of_birth' => 'date',
             'identity_verified_at' => 'datetime',
+            'identity_submitted_at' => 'datetime',
             'onboarded_at' => 'datetime',
             'opening_balance_posted_at' => 'datetime',
             'is_active' => 'boolean',
@@ -122,6 +125,11 @@ class FarmerProfile extends Model
     public function identityVerifiedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'identity_verified_by');
+    }
+
+    public function identitySubmittedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'identity_submitted_by');
     }
 
     public function registeredBy(): BelongsTo

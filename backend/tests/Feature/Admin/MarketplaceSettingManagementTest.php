@@ -25,11 +25,12 @@ test('a user without marketplace-settings.view cannot view settings', function (
 
 test('a user with marketplace-settings.view can view settings and sees every default key', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('marketplace-settings.view');
 
     $this->actingAs($user)->get('/admin/marketplace/settings')
         ->assertOk()
-        ->assertInertia(fn($page) => $page->has('settings', 10));
+        ->assertInertia(fn($page) => $page->has('settings', 13));
 });
 
 test('a user without marketplace-settings.update cannot change a setting', function () {
@@ -45,6 +46,7 @@ test('a user without marketplace-settings.update cannot change a setting', funct
 // through the real HTTP endpoint lets a supplier's second kiosk register without needing approval
 test('raising the kiosk cap through the settings page lets a second kiosk skip admin approval', function () {
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo(['marketplace-settings.view', 'marketplace-settings.update']);
 
     $this->actingAs($admin)->put('/admin/marketplace/settings/marketplace.kiosks_per_email_cap', [

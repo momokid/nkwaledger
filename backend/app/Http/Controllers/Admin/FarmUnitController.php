@@ -100,7 +100,7 @@ class FarmUnitController extends Controller
             permission: 'farm-units.approve',
             kind: 'farm_unit.created',
             message: "A new farm unit \"{$unit->name}\" needs approval.",
-            link: '/admin/approvals',
+            linkFor: fn(User $recipient) => $recipient->hasRole('admin') ? '/admin/approvals' : '/agent/approvals',
             except: $addedBy,
         );
     }
@@ -208,11 +208,11 @@ class FarmUnitController extends Controller
         return back()->with('success', 'The unit is approved.');
     }
 
-    // the frame and the address the current route group belongs to
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix)
     private function frame(Request $request, string $section): array
     {
-        $name = $request->route()?->getName() ?? '';
-        $group = str_starts_with($name, 'agent.') ? 'agent' : 'admin';
+        $group = $request->user()?->hasRole('admin') ? 'admin' : 'agent';
 
         return [
             'layout' => $group,

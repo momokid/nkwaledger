@@ -20,6 +20,11 @@ class SettingsService
         'marketplace.kiosks_per_email_cap' => '1',
         'marketplace.central_contact_number' => null,
         'marketplace.contact_request_expiry_days' => '7',
+        // Market Center's own announcement banner - blank message hides it entirely,
+        // the simplest storage that already exists for a single admin-editable value
+        'marketplace.announcement_title' => null,
+        'marketplace.announcement_message' => null,
+        'marketplace.announcement_link' => null,
     ];
 
     public function __construct(private readonly AuditService $audit) {}

@@ -27,6 +27,7 @@ test('a user without farmer-groups.view cannot view the list', function () {
 
 test('a user with farmer-groups.view granted directly can view the list', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farmer-groups.view');
 
     $this->actingAs($user)->get('/admin/farmer-groups')->assertOk();
@@ -58,6 +59,7 @@ test('a user without farmer-groups.create cannot create a farmer group', functio
 
 test('a user with farmer-groups.create can create a farmer group with only a name', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/farmer-groups', [
@@ -73,6 +75,7 @@ test('a user with farmer-groups.create can create a farmer group with only a nam
 test('created_by is set automatically from the authenticated user, not the request', function () {
     $user = User::factory()->create();
     $impersonated = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/farmer-groups', [
@@ -92,6 +95,7 @@ test('a user with farmer-groups.create can create a farmer group with all fields
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $community = Community::create(['name' => 'Kalpohin', 'district_id' => $district->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/farmer-groups', [
@@ -116,6 +120,7 @@ test('a user with farmer-groups.create can create a farmer group with all fields
 
 test('creating a farmer group with a non-existent group_type_id fails validation', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/farmer-groups', [
@@ -140,6 +145,7 @@ test('a user with farmer-groups.update can update a farmer group, including togg
     $creator = User::factory()->create();
     $group = FarmerGroup::factory()->create(['created_by' => $creator->id, 'is_active' => true]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.update']);
 
     $this->actingAs($user)->put("/admin/farmer-groups/{$group->id}", [
@@ -167,6 +173,7 @@ test('a user with farmer-groups.delete can soft delete a farmer group', function
     $creator = User::factory()->create();
     $group = FarmerGroup::factory()->create(['created_by' => $creator->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.delete']);
 
     $this->actingAs($user)->delete("/admin/farmer-groups/{$group->id}")
@@ -183,6 +190,7 @@ test('a soft-deleted farmer group is excluded from the default index', function 
     $deleted->delete();
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farmer-groups.view');
 
     $response = $this->actingAs($user)->get('/admin/farmer-groups');
@@ -198,6 +206,7 @@ test('a soft-deleted farmer group is excluded from the default index', function 
 test('creating a farmer group with a duplicate name fails validation', function () {
     FarmerGroup::factory()->create(['name' => 'Kumbungu Cooperative']);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/farmer-groups', [

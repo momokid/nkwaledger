@@ -7,9 +7,13 @@ use App\Models\ProductCategory;
 use App\Models\ProductUnit;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\UserPermissionDenial;
 use Database\Seeders\PermissionsSeeder;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
 });
 
@@ -25,6 +29,7 @@ test('a user without marketplace-catalog.view cannot view the catalog', function
 
 test('a user with marketplace-catalog.view can view the catalog', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('marketplace-catalog.view');
 
     $this->actingAs($user)->get('/admin/marketplace/catalog')->assertOk();
@@ -32,6 +37,7 @@ test('a user with marketplace-catalog.view can view the catalog', function () {
 
 test('an admin can seed a catalog product', function () {
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo(['marketplace-catalog.view', 'marketplace-catalog.create']);
     $category = ProductCategory::factory()->create();
     $unit = ProductUnit::factory()->create();
@@ -50,8 +56,19 @@ test('an admin can seed a catalog product', function () {
 });
 
 test('seeding a catalog product needs the create permission', function () {
+    $denier = User::factory()->create();
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-catalog.view');
+
+    // the admin role carries marketplace-catalog.create by default (PermissionsSeeder),
+    // so an explicit denial is what actually isolates "has view but not create" now
+    // that role:admin is required just to reach this route
+    UserPermissionDenial::create([
+        'user_id' => $admin->id,
+        'permission_id' => Permission::where('name', 'marketplace-catalog.create')->value('id'),
+        'denied_by' => $denier->id,
+    ]);
 
     $this->actingAs($admin)->post('/admin/marketplace/catalog', ['name' => 'Whatever'])->assertForbidden();
 });
@@ -61,6 +78,7 @@ test('an admin can merge a duplicate catalog product into another', function () 
     $duplicate = CatalogProduct::factory()->create();
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo(['marketplace-catalog.view', 'marketplace-catalog.merge']);
 
     $this->actingAs($admin)->patch("/admin/marketplace/catalog/{$duplicate->uuid}/merge", [
@@ -88,6 +106,7 @@ test('an admin can inspect a supplier\'s stock', function () {
     KioskProduct::factory()->create(['kiosk_id' => $kiosk->id]);
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-catalog.view');
 
     $this->actingAs($admin)->get("/admin/marketplace/suppliers/{$supplier->uuid}/stock")
