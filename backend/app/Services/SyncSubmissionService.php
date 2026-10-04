@@ -185,19 +185,17 @@ class SyncSubmissionService
     private function assertMayUse(SyncSubmission $submission): void
     {
         $record = $submission->payload;
-        $template = TransactionTemplate::find($record['template']);
+        $refusal = TransactionTemplate::refusalFor($record['template'], $submission->farmerProfile);
 
-        if ($template !== null && (
-            $template->transaction_type === Transaction::ADJUSTMENT
-            || ($template->farm_type_category_id !== null
-                && ! $submission->farmerProfile->farmTypes()->where('category_id', $template->farm_type_category_id)->exists())
-        )) {
-            throw PostingFailed::because('That kind of record does not match your farm.');
+        if ($refusal !== null) {
+            throw PostingFailed::because($refusal);
         }
 
         if ($record['is_credit'] ?? false) {
-            if ($template !== null && ! $template->allows_credit) {
-                throw PostingFailed::because('That kind of record cannot be put on credit.');
+            $refusal = TransactionTemplate::find($record['template'])->creditRefusal();
+
+            if ($refusal !== null) {
+                throw PostingFailed::because($refusal);
             }
 
             return;
@@ -205,8 +203,8 @@ class SyncSubmissionService
 
         $account = $record['settlement_account_id'] ?? null;
 
-        if ($account !== null && ! LedgerAccount::settlement()->whereKey($account)->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])->exists()) {
-            throw PostingFailed::because('Please pick where the money went.');
+        if ($account !== null && ! LedgerAccount::isPickableForSettlement($account)) {
+            throw PostingFailed::because(LedgerAccount::NOT_PICKABLE);
         }
     }
 
