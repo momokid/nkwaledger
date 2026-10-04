@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class SyncSubmission extends Model
 {
@@ -36,6 +37,23 @@ class SyncSubmission extends Model
             'received_at' => 'datetime',
             'reviewed_at' => 'datetime',
         ];
+    }
+
+    // the public address of a row, made here; client_uuid comes from the device and is never routed on
+    protected static function booted(): void
+    {
+        static::creating(fn(self $submission) => $submission->uuid ??= (string) Str::uuid7());
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
+    // a value that is not a uuid never reaches the query, which PostgreSQL would reject
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return Str::isUuid($value) ? parent::resolveRouteBinding($value, $field) : null;
     }
 
     public function user(): BelongsTo

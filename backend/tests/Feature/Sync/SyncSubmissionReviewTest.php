@@ -49,7 +49,7 @@ beforeEach(function () {
         'uuid' => $this->uuid, 'template' => $this->template->id, 'farmer' => $this->profile->uuid, 'amount' => '100',
         'settlement_account_id' => $this->cash->id, 'event_date' => now()->toDateString(), 'device_created_at' => now()->toIso8601String(),
     ]]])->assertOk();
-    $this->rowId = SyncSubmission::first()->id;
+    $this->rowId = SyncSubmission::first()->uuid;
 });
 
 test('an admin approving posts it through the ledger exactly once, even when called twice', function () {

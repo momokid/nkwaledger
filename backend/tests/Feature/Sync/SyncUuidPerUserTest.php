@@ -111,21 +111,23 @@ test('admin approve and reject act only on the row id given when two held rows s
     $a = rowFor($this->userA, $uuid);
     $b = rowFor($this->userB, $uuid);
 
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$a->id}/approve")->assertOk();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$a->uuid}/approve")->assertOk();
 
     expect($a->fresh()->status)->toBe('accepted')->and($b->fresh()->status)->toBe('held_for_review')->and(Transaction::count())->toBe(1);
 
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$b->id}/reject", ['reason' => 'No.'])->assertOk();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$b->uuid}/reject", ['reason' => 'No.'])->assertOk();
 
     expect($b->fresh()->status)->toBe('rejected')->and($a->fresh()->status)->toBe('accepted');
 });
 
 test('approve and reject on an id that does not exist are a 404, and non-admins get 403', function () {
-    $this->actingAs($this->admin)->postJson('/admin/sync-submissions/999999/approve')->assertNotFound();
-    $this->actingAs($this->admin)->postJson('/admin/sync-submissions/999999/reject', ['reason' => 'x'])->assertNotFound();
+    $missing = (string) Str::uuid();
 
-    $this->actingAs($this->userA)->postJson('/admin/sync-submissions/999999/approve')->assertForbidden();
-    $this->actingAs($this->userA)->postJson('/admin/sync-submissions/999999/reject', ['reason' => 'x'])->assertForbidden();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$missing}/approve")->assertNotFound();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$missing}/reject", ['reason' => 'x'])->assertNotFound();
+
+    $this->actingAs($this->userA)->postJson("/admin/sync-submissions/{$missing}/approve")->assertForbidden();
+    $this->actingAs($this->userA)->postJson("/admin/sync-submissions/{$missing}/reject", ['reason' => 'x'])->assertForbidden();
 });
 
 test('the migration swaps the global unique index for a per user one, and back', function () {

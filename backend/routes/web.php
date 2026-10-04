@@ -884,10 +884,10 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
 
     // records an offline device sent that need an admin's decision
     Route::middleware('access:sync-submissions.approve')->group(function () {
-        Route::post('/sync-submissions/{submission}/approve', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'approve'])->name('sync-submissions.approve');
+        Route::post('/sync-submissions/{submission}/approve', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'approve'])->name('sync-submissions.approve')->where('submission', '[0-9a-fA-F-]{36}');
     });
     Route::middleware('access:sync-submissions.reject')->group(function () {
-        Route::post('/sync-submissions/{submission}/reject', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'reject'])->name('sync-submissions.reject');
+        Route::post('/sync-submissions/{submission}/reject', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'reject'])->name('sync-submissions.reject')->where('submission', '[0-9a-fA-F-]{36}');
     });
 
     Route::middleware('access:accounting-periods.view')->group(function () {

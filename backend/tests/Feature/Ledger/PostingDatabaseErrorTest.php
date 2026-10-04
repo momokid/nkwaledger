@@ -162,7 +162,7 @@ test('an admin approve that hits a database error leaves the row held and a late
     $this->farmerUser->update(['is_active' => false]);
     $record = syncRecord();
     $this->actingAs($this->farmerUser)->postJson('/sync/submissions', ['records' => [$record]])->assertOk();
-    $id = SyncSubmission::first()->id;
+    $id = SyncSubmission::first()->uuid;
 
     failingInserts(function () use ($admin, $id) {
         $response = $this->actingAs($admin)->postJson("/admin/sync-submissions/{$id}/approve")
