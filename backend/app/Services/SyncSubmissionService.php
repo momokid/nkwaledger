@@ -35,7 +35,7 @@ class SyncSubmissionService
         $seen = $this->stored($user, $record);
 
         if ($seen !== null) {
-            return $this->result($seen);
+            return $this->replay($seen, $record);
         }
 
         try {
@@ -47,13 +47,23 @@ class SyncSubmissionService
                 : null;
 
             if ($twin !== null) {
-                return $this->result($twin);
+                return $this->replay($twin, $record);
             }
 
             report($e);
 
             return ['uuid' => $record['uuid'], 'status' => 'error', 'error' => 'Something went wrong. Please try again.'];
         }
+    }
+
+    // the stored answer for a uuid already seen, unless this send carries other details
+    private function replay(SyncSubmission $stored, array $record): array
+    {
+        $before = $stored->payload;
+
+        return Transaction::sameDetails($before['template'], $before['amount'], $record['template'], $record['amount'])
+            ? $this->result($stored)
+            : ['uuid' => $record['uuid'], 'status' => 'error', 'error' => Transaction::KEY_REUSED];
     }
 
     // only ever this user's own row

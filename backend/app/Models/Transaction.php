@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Support\Money;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
@@ -89,6 +90,19 @@ class Transaction extends Model
         static::deleting(function () {
             throw new RuntimeException('A transaction cannot be deleted.');
         });
+    }
+
+    public const KEY_REUSED = 'This record was already saved with different details.';
+
+    // a reused key only means "the same record again" when template and amount match;
+    // amounts compare by value, so 100 and 100.00 are one amount, and the date is left out
+    public static function sameDetails(int|string $templateA, string|int|float $amountA, int|string $templateB, string|int|float $amountB): bool
+    {
+        try {
+            return (int) $templateA === (int) $templateB && Money::toMinor($amountA) === Money::toMinor($amountB);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
     }
 
     public function getRouteKeyName(): string

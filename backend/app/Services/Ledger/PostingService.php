@@ -185,6 +185,10 @@ class PostingService
             throw PostingFailed::because('Something went wrong. Please try again.');
         }
 
+        if ($existing !== null && ! Transaction::sameDetails($existing->transaction_template_id, Money::toDecimal($existing->amount_minor), $request->transactionTemplateId, $request->amount)) {
+            throw PostingFailed::because(Transaction::KEY_REUSED);
+        }
+
         return $existing;
     }
 
