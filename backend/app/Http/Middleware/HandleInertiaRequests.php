@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                     : 0,
                 'unreadNotifications' => fn() => $this->notifications->unreadCountFor($request->user()),
             ],
+            'features' => ['marketplace' => (bool) config('features.marketplace')],
             // one-shot messages any controller can set with ->with(), read once by the layout
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),

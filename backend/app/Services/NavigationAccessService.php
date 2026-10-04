@@ -59,6 +59,10 @@ class NavigationAccessService
         $menu = [];
 
         foreach (config('admin_menu') as $entry) {
+            if (isset($entry['feature']) && ! config('features.' . $entry['feature'])) {
+                continue;
+            }
+
             if (! isset($entry['children'])) {
                 $leaf = $this->menuLeaf($user, $entry);
 
@@ -121,6 +125,10 @@ class NavigationAccessService
         foreach ($middleware as $entry) {
             if (! is_string($entry)) {
                 continue;
+            }
+
+            if ($entry === 'marketplace' && ! config('features.marketplace')) {
+                return false;
             }
 
             if (str_starts_with($entry, 'access:')) {

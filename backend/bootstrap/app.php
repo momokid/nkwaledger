@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'access' => \App\Http\Middleware\CheckPermission::class,
+            'marketplace' => \App\Http\Middleware\EnsureMarketplaceEnabled::class,
             'otp.pending' => \App\Http\Middleware\EnsureOtpPending::class,
             'verified.phone' => \App\Http\Middleware\EnsurePhoneIsVerified::class,
             'activation.pending' => \App\Http\Middleware\EnsureActivationPending::class,
@@ -36,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
             prepend: \Spatie\Permission\Middleware\RoleMiddleware::class,
+        );
+        $middleware->prependToPriorityList(
+            before: \Spatie\Permission\Middleware\RoleMiddleware::class,
+            prepend: \App\Http\Middleware\EnsureMarketplaceEnabled::class,
         );
         $middleware->prependToPriorityList(
             before: \Illuminate\Routing\Middleware\SubstituteBindings::class,

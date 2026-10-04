@@ -30,6 +30,9 @@ class FarmUnitRequest extends FormRequest
             ],
             'capacity' => ['nullable', 'numeric', 'min:0'],
             'capacity_unit' => ['nullable', 'string', 'max:30'],
+            // photos are given when a unit is created, an edit leaves them alone
+            'images' => $this->isMethod('post') ? ['required', 'array', 'min:1', 'max:3'] : ['exclude'],
+            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }
@@ -42,6 +45,9 @@ class FarmUnitRequest extends FormRequest
             'farm_type_id.required' => 'Please choose what is farmed here.',
             'community_id.required' => 'Please choose where this unit is.',
             'capacity.min' => 'The capacity cannot be less than zero.',
+            'images.required' => 'Please add at least one photo.',
+            'images.min' => 'Please add at least one photo.',
+            'images.max' => 'You can add up to 3 photos.',
         ];
     }
 }

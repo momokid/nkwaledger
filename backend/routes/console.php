@@ -44,6 +44,13 @@ Schedule::command('marketplace:close-unconfirmed-produce-sales')->dailyAt('07:00
 // an unanswered contact request never reveals a number past its own reply window
 Schedule::command('marketplace:expire-contact-requests')->dailyAt('07:15')->withoutOverlapping();
 
+// one guard for every marketplace:* job, checked each time the scheduler runs
+foreach (Schedule::events() as $event) {
+    if (str_contains($event->command, 'marketplace:')) {
+        $event->when(fn() => config('features.marketplace'));
+    }
+}
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

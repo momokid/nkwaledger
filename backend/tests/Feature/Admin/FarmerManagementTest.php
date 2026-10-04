@@ -12,6 +12,8 @@ use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
+    \Illuminate\Support\Facades\Storage::fake('local');
+
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
 
@@ -358,6 +360,7 @@ test('an identity document can be captured', function () {
     $this->actingAs($this->admin)->post("/admin/farmers/{$profile->uuid}/identity", [
         'identity_type' => 'ghana_card',
         'identity_number' => 'GHA-123456789-0',
+        'photo' => \Illuminate\Http\UploadedFile::fake()->image('f.jpg'),
     ])->assertSessionDoesntHaveErrors();
 
     expect($profile->fresh()->identity_number_hash)->toBe(IdentityDocument::hash('GHA-123456789-0'));
@@ -369,6 +372,7 @@ test('the raw identity number is never stored', function () {
     $this->actingAs($this->admin)->post("/admin/farmers/{$profile->uuid}/identity", [
         'identity_type' => 'ghana_card',
         'identity_number' => 'GHA-123456789-0',
+        'photo' => \Illuminate\Http\UploadedFile::fake()->image('f.jpg'),
     ]);
 
     $this->assertDatabaseMissing('farmer_profiles', ['identity_number_hash' => 'GHA-123456789-0']);
@@ -380,6 +384,7 @@ test('an unknown identity type is refused', function () {
     $this->actingAs($this->admin)->post("/admin/farmers/{$profile->uuid}/identity", [
         'identity_type' => 'drivers_licence',
         'identity_number' => 'ABC123',
+        'photo' => \Illuminate\Http\UploadedFile::fake()->image('f.jpg'),
     ])->assertSessionHasErrors('identity_type');
 });
 
@@ -390,6 +395,7 @@ test('a document already used by another farmer is refused', function () {
     $this->actingAs($this->admin)->post("/admin/farmers/{$profile->uuid}/identity", [
         'identity_type' => 'ghana_card',
         'identity_number' => 'GHA-123456789-0',
+        'photo' => \Illuminate\Http\UploadedFile::fake()->image('f.jpg'),
     ])->assertSessionHasErrors('identity_number');
 });
 
@@ -399,6 +405,7 @@ test('capturing a document does not verify it', function () {
     $this->actingAs($this->admin)->post("/admin/farmers/{$profile->uuid}/identity", [
         'identity_type' => 'ghana_card',
         'identity_number' => 'GHA-123456789-0',
+        'photo' => \Illuminate\Http\UploadedFile::fake()->image('f.jpg'),
     ]);
 
     expect($profile->fresh()->identity_verified_at)->toBeNull();

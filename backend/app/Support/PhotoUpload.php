@@ -20,7 +20,7 @@ class PhotoUpload
 
     // corrected for orientation and shrunk to fit, then re-encoded as webp —
     // so a farmer's data plan never pays for the original file's full size
-    public static function store(UploadedFile $file, string $directory): string
+    public static function store(UploadedFile $file, string $directory, string $disk = 'public'): string
     {
         $manager = new ImageManager(new Driver());
 
@@ -30,7 +30,7 @@ class PhotoUpload
 
         $path = trim($directory, '/') . '/' . (string) Str::uuid7() . '.webp';
 
-        Storage::disk('public')->put(
+        Storage::disk($disk)->put(
             $path,
             (string) $image->encode(new WebpEncoder(quality: self::QUALITY)),
         );

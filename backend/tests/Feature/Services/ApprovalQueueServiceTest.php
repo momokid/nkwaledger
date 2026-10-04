@@ -98,3 +98,18 @@ test('an approved commission no longer appears as pending', function () {
 
     expect($items->where('kind', 'commission')->where('id', $commission->id))->toHaveCount(0);
 });
+
+test('with the marketplace off a pending commission is hidden from the queue', function () {
+    $order = \App\Models\Order::factory()->create([
+        'kiosk_id' => \App\Models\Kiosk::factory()->confirmed()->create()->id,
+        'farmer_profile_id' => $this->farmer->id,
+        'farm_unit_id' => $this->unit->id,
+    ]);
+    \App\Models\Commission::factory()->create(['order_id' => $order->id, 'agent_id' => $this->agent->id, 'verifies_farmer' => true]);
+
+    expect($this->queue->pending($this->admin)->where('kind', 'commission'))->toHaveCount(1);
+
+    config(['features.marketplace' => false]);
+
+    expect($this->queue->pending($this->admin)->where('kind', 'commission'))->toHaveCount(0);
+});

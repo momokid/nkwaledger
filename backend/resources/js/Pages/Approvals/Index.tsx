@@ -19,6 +19,7 @@ interface Item {
     farmer_id: string;
     what: string;
     added_by: string | null;
+    photo_urls?: string[];
     waiting_since: string;
     can_approve: boolean;
     unit_id?: number;
@@ -44,11 +45,19 @@ const KIND_LABELS: Record<Item["kind"], string> = {
     stock: "Count",
     stock_movement: "Change",
     reversal: "Cancellation",
-    farmer_identity: "Identity document",
+    farmer_identity: "ID Verification",
 };
 
 // only these kinds have a reject endpoint behind them
-const REFUSABLE_KINDS: Item["kind"][] = ["stock", "stock_movement", "reversal"];
+const REFUSABLE_KINDS: Item["kind"][] = [
+    "stock",
+    "stock_movement",
+    "reversal",
+    "farmer_identity",
+];
+
+// after a sign-off only the list, the message and the badge count need fresh data
+const REFRESH = ["items", "flash", "auth.pendingApprovals"];
 
 const DETAIL_LABELS: Record<string, string> = {
     farm_type: "Farms",
@@ -171,6 +180,9 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
         if (item.kind === "reversal")
             return `${basePath}/reversals/${item.uuid}/reject`;
 
+        if (item.kind === "farmer_identity")
+            return `${basePath}/farmers/${item.farmer_id}/identity/reject`;
+
         const base = `${basePath}/farmers/${item.farmer_id}/units`;
 
         if (item.kind === "stock")
@@ -190,6 +202,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
             {},
             {
                 preserveScroll: true,
+                only: REFRESH,
                 onFinish: () => setBusy(null),
             },
         );
@@ -203,6 +216,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
 
         form.patch(url, {
             preserveScroll: true,
+            only: REFRESH,
             onSuccess: () => {
                 form.reset();
                 setRefusing(null);
@@ -329,6 +343,35 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                 className="px-4 py-3"
                                                 style={{ color: text }}
                                             >
+                                                {item.photo_urls?.map((url, index) => (
+                                                    <a
+                                                        key={url}
+                                                        href={url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        onClick={(event) =>
+                                                            event.stopPropagation()
+                                                        }
+                                                    >
+                                                        <img
+                                                            src={url}
+                                                            alt={
+                                                                item.kind === "farm_unit"
+                                                                    ? `${item.what} - ${item.farmer}, photo ${index + 1}`
+                                                                    : `Farmer ${item.farmer}`
+                                                            }
+                                                            loading="lazy"
+                                                            style={{
+                                                                width: "64px",
+                                                                height: "64px",
+                                                                objectFit: "cover",
+                                                                display: "inline-block",
+                                                                marginRight: "10px",
+                                                                verticalAlign: "middle",
+                                                            }}
+                                                        />
+                                                    </a>
+                                                ))}
                                                 {item.what}
                                             </td>
                                             <td
@@ -380,7 +423,7 @@ function IndexContent({ items, basePath, permissions }: ContentProps) {
                                                                     );
                                                                 }}
                                                             >
-                                                                Refuse
+                                                                Reject
                                                             </Button>
                                                         )}
                                                     </div>

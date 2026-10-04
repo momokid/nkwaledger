@@ -85,6 +85,8 @@ interface NavItem {
     // names which count this item wants beside its label
     badge?: string;
     count?: number;
+    // hidden when the marketplace switch is off
+    marketplace?: boolean;
     // one level only - a sub-item here never has children of its own
     children?: NavItem[];
 }
@@ -306,6 +308,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
 };
 
 interface PageProps {
+    features?: { marketplace?: boolean };
     auth: {
         user: {
             first_name?: string;
@@ -320,7 +323,7 @@ interface Props extends PropsWithChildren {
 }
 
 export default function AuthenticatedLayout({ children, title }: Props) {
-    const { auth } = usePage().props as unknown as PageProps;
+    const { auth, features } = usePage().props as unknown as PageProps;
     const user = auth?.user ?? null;
     const userRoles = user?.roles ?? ["farmer"];
     const firstName = user?.first_name ?? "Farmer";
@@ -432,7 +435,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const built = (navSets[primaryRole] ?? navSets.farmer)(dashboardHref);
 
     const withCount = (items: NavItem[]) =>
-        items.map((item) =>
+        items
+            .filter((item) => features?.marketplace || !item.marketplace)
+            .map((item) =>
             item.badge === "approvals"
                 ? { ...item, count: pendingApprovals }
                 : item,

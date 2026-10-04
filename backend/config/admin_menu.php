@@ -51,6 +51,7 @@ return [
     ],
     [
         'label' => 'Marketplace',
+        'feature' => 'marketplace',
         'icon' => 'shopping-cart',
         'children' => [
             ['label' => 'Setup: Suppliers', 'route' => 'admin.marketplace.suppliers.index'],

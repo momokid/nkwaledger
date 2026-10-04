@@ -11,6 +11,7 @@ export function disabledPlaceholder(label: string) {
 export function buildMarketplaceNavGroup<T>(subItems: T[]) {
     return {
         label: "Marketplace",
+        marketplace: true,
         icon: IconShoppingCart,
         children: subItems,
     };

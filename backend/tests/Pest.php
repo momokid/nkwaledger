@@ -15,6 +15,8 @@ pest()->extend(TestCase::class)
         // spurious 403s that don't reproduce when the failing test is run alone
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        config(['features.marketplace' => true]);
+
         Role::firstOrCreate(['name' => 'farmer', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'agent', 'guard_name' => 'web']);

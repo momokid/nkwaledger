@@ -2,7 +2,8 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent, ReactNode, useMemo } from "react";
+import { compressImage } from "@/lib/compressImage";
+import { FormEvent, ReactNode, useMemo, useState } from "react";
 
 interface Option {
     id: number;
@@ -40,6 +41,8 @@ interface FarmerData {
     has_identity: boolean;
     identity_verified_at: string | null;
     identity_verified_by: string | null;
+    identity_photo_url: string | null;
+    identity_rejected_reason: string | null;
     registered_by: string | null;
     is_active: boolean;
 }
@@ -138,7 +141,10 @@ function ShowContent({
     const identity = useForm({
         identity_type: farmer.identity_type ?? "",
         identity_number: "",
+        photo: null as File | null,
     });
+    // a file input cannot be cleared through state, so a new key gives a fresh one
+    const [photoKey, setPhotoKey] = useState(0);
 
     // a group belongs to one community, so changing the community empties the group choice
     const groupOptions = useMemo(
@@ -167,7 +173,11 @@ function ShowContent({
         event.preventDefault();
         identity.post(`${basePath}/${farmer.id}/identity`, {
             preserveScroll: true,
-            onSuccess: () => identity.setData("identity_number", ""),
+            forceFormData: true,
+            onSuccess: () => {
+                identity.setData({ ...identity.data, identity_number: "", photo: null });
+                setPhotoKey((key) => key + 1);
+            },
         });
     };
 
@@ -221,6 +231,8 @@ function ShowContent({
     const canVerifyNow =
         permissions.verify &&
         farmer.has_identity &&
+        farmer.identity_photo_url !== null &&
+        farmer.identity_rejected_reason === null &&
         !farmer.identity_verified_at;
 
     return (
@@ -599,6 +611,22 @@ function ShowContent({
                     </p>
                 )}
 
+                {farmer.identity_rejected_reason !== null &&
+                    !farmer.identity_verified_at && (
+                        <p style={{ color: "#B91C1C", fontSize: "1rem" }}>
+                            Turned down: {farmer.identity_rejected_reason}.
+                            Please fix this and save the document again.
+                        </p>
+                    )}
+
+                {farmer.identity_photo_url && (
+                    <img
+                        src={farmer.identity_photo_url}
+                        alt={`Farmer ${farmer.name}`}
+                        style={{ maxWidth: "200px", maxHeight: "200px" }}
+                    />
+                )}
+
                 {permissions.capture_identity && (
                     <form onSubmit={saveIdentity} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
@@ -650,6 +678,28 @@ function ShowContent({
                                     </p>
                                 )}
                             </div>
+                        </div>
+
+                        <div>
+                            <label style={labelStyle}>Photo of the farmer</label>
+                            <input
+                                key={photoKey}
+                                type="file"
+                                accept="image/*"
+                                onChange={async (event) => {
+                                    const file = event.target.files?.[0];
+                                    identity.setData(
+                                        "photo",
+                                        file ? await compressImage(file) : null,
+                                    );
+                                }}
+                                style={fieldStyle}
+                            />
+                            {(identity.errors.photo || errors.photo) && (
+                                <p style={errorStyle}>
+                                    {identity.errors.photo || errors.photo}
+                                </p>
+                            )}
                         </div>
 
                         <p style={{ color: textSecondary, fontSize: "0.9375rem" }}>

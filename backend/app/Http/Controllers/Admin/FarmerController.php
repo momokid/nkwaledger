@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CompleteFarmerProfileRequest;
+use App\Http\Requests\Admin\RejectionRequest;
 use App\Http\Requests\Admin\StoreFarmerIdentityRequest;
 use App\Http\Requests\Admin\StoreFarmerRequest;
 use App\Http\Requests\Admin\UpdateFarmerRequest;
@@ -18,6 +19,7 @@ use App\Services\FarmerKycService;
 use App\Services\OtpService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Http\Request;
@@ -114,6 +116,10 @@ class FarmerController extends Controller
                 'has_identity' => $farmer->identity_number_hash !== null,
                 'identity_verified_at' => $farmer->identity_verified_at,
                 'identity_verified_by' => $farmer->identityVerifiedBy?->surname,
+                'identity_photo_url' => $farmer->identity_photo_path
+                    ? route('farmers.identity.photo', $farmer, false)
+                    : null,
+                'identity_rejected_reason' => $farmer->identity_rejected_reason,
                 'registered_by' => $farmer->registeredBy?->surname,
                 'is_active' => $farmer->is_active,
             ],
@@ -276,7 +282,7 @@ class FarmerController extends Controller
     {
         $data = $request->validated();
 
-        $this->kyc->submit($farmer, $request->user(), $data['identity_type'], $data['identity_number']);
+        $this->kyc->submit($farmer, $request->user(), $data['identity_type'], $data['identity_number'], $request->file('photo'));
 
         return back()->with('success', 'The document is saved. It still needs to be verified.');
     }
@@ -287,6 +293,22 @@ class FarmerController extends Controller
         $this->kyc->approve($farmer, $request->user());
 
         return back()->with('success', 'The document is verified.');
+    }
+
+    // an admin sends a submission back with a reason, the same people rules as approving
+    public function rejectIdentity(RejectionRequest $request, FarmerProfile $farmer): RedirectResponse
+    {
+        $this->kyc->reject($farmer, $request->user(), $request->validated('reason'));
+
+        return back()->with('success', 'ID verification rejected.');
+    }
+
+    // private disk, so this is the only way to the file: the agent who holds the farmer, or an admin
+    public function identityPhoto(Request $request, FarmerProfile $farmer): \Illuminate\Http\Response
+    {
+        abort_unless($farmer->identity_photo_path !== null && $this->kyc->mayViewPhotoOf($farmer, $request->user()), 404);
+
+        return response(Storage::disk(config('filesystems.photo_disk'))->get($farmer->identity_photo_path), 200, ['Content-Type' => 'image/webp']);
     }
 
     // a farmer account with no profile, which is what signing up on its own leaves behind

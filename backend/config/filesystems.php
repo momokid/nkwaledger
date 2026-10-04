@@ -15,6 +15,9 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
+    // where farmer ID and farm unit photos live; point at a mounted volume or cloud disk in production
+    'photo_disk' => env('PHOTO_DISK', 'local'),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

@@ -37,5 +37,7 @@ CMD envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
+    && mkdir -p /app/storage/app/private \
+    && chown www-data:www-data /app/storage/app/private \
     && php artisan db:seed --class=RolesAndPermissionsSeeder --force \
     && supervisord -c /etc/supervisor/conf.d/supervisord.conf

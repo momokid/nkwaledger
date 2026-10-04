@@ -22,6 +22,8 @@ class StoreFarmUnitFromListRequest extends FormRequest
             'name' => ['required', 'string', 'max:100'],
             'capacity' => ['nullable', 'numeric', 'min:0'],
             'capacity_unit' => ['nullable', 'string', 'max:30'],
+            'images' => ['required', 'array', 'min:1', 'max:3'],
+            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
         ];
     }
 
@@ -60,6 +62,9 @@ class StoreFarmUnitFromListRequest extends FormRequest
             'farm_type_id.required' => 'Please choose what is farmed here.',
             'community_id.required' => 'Please choose where this unit is.',
             'capacity.min' => 'The capacity cannot be less than zero.',
+            'images.required' => 'Please add at least one photo.',
+            'images.min' => 'Please add at least one photo.',
+            'images.max' => 'You can add up to 3 photos.',
         ];
     }
 }

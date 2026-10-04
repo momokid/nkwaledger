@@ -77,6 +77,11 @@ class FarmUnit extends Model
         return $this->hasMany(FarmUnitStock::class);
     }
 
+    public function images(): HasMany
+    {
+        return $this->hasMany(FarmUnitImage::class);
+    }
+
     public function farmerProfile(): BelongsTo
     {
         return $this->belongsTo(FarmerProfile::class);
