@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StockSource;
+use App\Exceptions\Ledger\PostingFailed;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -118,6 +119,25 @@ class TransactionTemplate extends Model
         if (! in_array($this->transaction_type, self::TYPES, true)) {
             throw new InvalidArgumentException('Unknown transaction type.');
         }
+    }
+
+    // the farmer never sees or chooses "Receivable"/"Payable" - which one applies
+    // follows straight from whether money is coming in or going out
+    public function creditSettlementAccountId(): int
+    {
+        $name = match ($this->transaction_type) {
+            Transaction::INCOME => 'Accounts Receivable',
+            Transaction::EXPENSE => 'Accounts Payable',
+            default => throw PostingFailed::because('That kind of record cannot be put on credit.'),
+        };
+
+        $accountId = LedgerAccount::where('name', $name)->value('id');
+
+        if ($accountId === null) {
+            throw PostingFailed::because('Credit is not set up yet.');
+        }
+
+        return $accountId;
     }
 
     protected function guardAgainstUnknownSettlementSide(): void

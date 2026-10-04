@@ -123,6 +123,14 @@ return [
                 'reverse-approve' => 'Agree to a cancellation',
             ],
         ],
+        // offline records held back for an admin's decision
+        'sync-submissions' => [
+            'label' => 'Offline Records',
+            'actions' => [
+                'approve' => 'Approve a held record',
+                'reject' => 'Reject a held record',
+            ],
+        ],
         // a health/disease issue on a farm unit, routed to a vet or adviser
         'disease-reports' => [
             'label' => 'Disease & Health Reports',
@@ -268,6 +276,8 @@ return [
             'transactions.create',
             'transactions.reverse-request',
             'transactions.reverse-approve',
+            'sync-submissions.approve',
+            'sync-submissions.reject',
             'approvals.view',
             'disease-reports.manage',
             'officer-assignments.view',

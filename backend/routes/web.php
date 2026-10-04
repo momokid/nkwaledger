@@ -240,6 +240,15 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-weather')->name('my-we
     });
 });
 
+// offline records arriving as JSON, and the sender's own list of them
+Route::middleware(['auth', 'verified.phone'])->prefix('sync/submissions')->name('sync.submissions.')->group(function () {
+    Route::post('/', [\App\Http\Controllers\Sync\SyncSubmissionController::class, 'store'])->name('store');
+
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Sync\SyncSubmissionController::class, 'index'])->name('index');
+    });
+});
+
 // Market Center replaced this as the browse destination (Step 8) - index just
 // redirects now, no permission gate needed for a redirect
 Route::middleware(['marketplace', 'auth', 'verified.phone'])->prefix('my-marketplace')->name('my-marketplace.')->group(function () {
@@ -871,6 +880,14 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
         Route::middleware('access:marketplace-kiosks.view')->group(function () {
             Route::get('/marketplace/dashboard', [\App\Http\Controllers\Admin\MarketplaceDashboardController::class, 'index'])->name('marketplace.dashboard');
         });
+    });
+
+    // records an offline device sent that need an admin's decision
+    Route::middleware('access:sync-submissions.approve')->group(function () {
+        Route::post('/sync-submissions/{submission:client_uuid}/approve', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'approve'])->name('sync-submissions.approve');
+    });
+    Route::middleware('access:sync-submissions.reject')->group(function () {
+        Route::post('/sync-submissions/{submission:client_uuid}/reject', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'reject'])->name('sync-submissions.reject');
     });
 
     Route::middleware('access:accounting-periods.view')->group(function () {

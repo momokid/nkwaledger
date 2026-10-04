@@ -18,6 +18,7 @@ use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Throwable;
 
@@ -175,9 +176,16 @@ class PostingService
             return null;
         }
 
-        return Transaction::query()
+        $existing = Transaction::query()
             ->where('idempotency_key', $request->idempotencyKey)
             ->first();
+
+        // a key from someone else's farmer is never ours to return
+        if ($existing !== null && (int) $existing->farmer_profile_id !== $request->farmerProfileId) {
+            throw PostingFailed::because('Something went wrong. Please try again.');
+        }
+
+        return $existing;
     }
 
     private function resolveTemplate(PostingRequest $request): TransactionTemplate
@@ -461,7 +469,14 @@ class PostingService
                     throw $collision;
                 }
             } catch (Throwable $failure) {
-                throw PostingFailed::because($failure->getMessage());
+                // the raw message holds SQL and values, so it is logged, never shown
+                Log::error('Posting failed on a database error.', [
+                    'template_id' => $template->id,
+                    'farmer_id' => $request->farmerProfileId,
+                    'exception' => $failure,
+                ]);
+
+                throw PostingFailed::system('Something went wrong. Please try again.');
             }
         }
 

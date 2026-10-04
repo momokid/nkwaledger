@@ -164,7 +164,7 @@ class RecordTransactionController extends Controller
             $template = TransactionTemplate::findOrFail((int) $data['transaction_template_id']);
 
             $settlementAccountId = ($data['is_credit'] ?? false)
-                ? $this->creditSettlementAccountFor($template)
+                ? $template->creditSettlementAccountId()
                 : (isset($data['settlement_account_id']) ? (int) $data['settlement_account_id'] : null);
 
             $transaction = $this->posting->post(new PostingRequest(
@@ -185,7 +185,7 @@ class RecordTransactionController extends Controller
         } catch (PostingFailed $failure) {
             // the offline sync engine has no page to redirect back to, so it needs a real HTTP error
             if ($request->wantsJson()) {
-                return response()->json(['message' => $failure->getMessage()], 422);
+                return response()->json(['message' => $failure->getMessage()], $failure->isSystem() ? 503 : 422);
             }
 
             return back()->withInput()->with('error', $failure->getMessage());
@@ -224,25 +224,6 @@ class RecordTransactionController extends Controller
         }
 
         return back()->with('success', 'Payment recorded.');
-    }
-
-    // the farmer never sees or chooses "Receivable"/"Payable" - which one applies
-    // follows straight from whether money is coming in or going out
-    private function creditSettlementAccountFor(TransactionTemplate $template): int
-    {
-        $name = match ($template->transaction_type) {
-            Transaction::INCOME => 'Accounts Receivable',
-            Transaction::EXPENSE => 'Accounts Payable',
-            default => throw PostingFailed::because('That kind of record cannot be put on credit.'),
-        };
-
-        $accountId = LedgerAccount::where('name', $name)->value('id');
-
-        if ($accountId === null) {
-            throw PostingFailed::because('Credit is not set up yet.');
-        }
-
-        return $accountId;
     }
 
     // the farmer's own page names nobody, the agent's page names the farmer
