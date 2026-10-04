@@ -14,6 +14,7 @@ use App\Services\Ledger\PostingService;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -31,7 +32,7 @@ class SyncSubmissionService
 
     public function submit(User $user, array $record): array
     {
-        $seen = SyncSubmission::where('client_uuid', $record['uuid'])->where('user_id', $user->id)->first();
+        $seen = $this->stored($user, $record);
 
         if ($seen !== null) {
             return $this->result($seen);
@@ -40,10 +41,25 @@ class SyncSubmissionService
         try {
             return $this->result(DB::transaction(fn() => $this->store($user, $record)));
         } catch (Throwable $e) {
+            // an identical submission won the race to the unique uuid: answer with what it stored
+            $twin = $e instanceof UniqueConstraintViolationException && str_contains($e->getMessage(), 'client_uuid')
+                ? $this->stored($user, $record)
+                : null;
+
+            if ($twin !== null) {
+                return $this->result($twin);
+            }
+
             report($e);
 
             return ['uuid' => $record['uuid'], 'status' => 'error', 'error' => 'Something went wrong. Please try again.'];
         }
+    }
+
+    // only ever this user's own row
+    private function stored(User $user, array $record): ?SyncSubmission
+    {
+        return SyncSubmission::where('client_uuid', $record['uuid'])->where('user_id', $user->id)->first();
     }
 
     public function approve(SyncSubmission $submission, User $admin): SyncSubmission
