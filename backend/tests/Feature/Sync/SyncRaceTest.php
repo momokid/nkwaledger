@@ -106,7 +106,7 @@ test('a competing identical submission returns the stored result, not an error',
         ->and(SyncSubmission::count())->toBe(1);
 });
 
-test('a competing row from another user with the same uuid gives the generic error and nothing of theirs', function () {
+test('a competing row from another user with the same uuid does not collide and leaves their row untouched', function () {
     $record = raceRecord($this->profileA);
     $theirs = ['farmer' => $this->profileB->uuid] + $record;
     $competitor = fn() => app(SyncSubmissionService::class)->submit($this->userB, $theirs);
@@ -114,12 +114,17 @@ test('a competing row from another user with the same uuid gives the generic err
     racingOn($record['uuid'], $competitor, function () use ($record) {
         $result = raceSync($this->userA, $record)[0];
 
-        expect($result)->toBe(['uuid' => $record['uuid'], 'status' => 'error', 'error' => 'Something went wrong. Please try again.']);
+        expect($result['status'])->toBe('accepted')->and($result)->not->toHaveKey('error');
     });
 
-    $row = SyncSubmission::first();
+    $mine = SyncSubmission::where('user_id', $this->userA->id)->first();
+    $theirsRow = SyncSubmission::where('user_id', $this->userB->id)->first();
 
-    expect(SyncSubmission::count())->toBe(1)->and($row->user_id)->toBe($this->userB->id)->and(Transaction::count())->toBe(1);
+    expect(SyncSubmission::count())->toBe(2)
+        ->and($mine->transaction_id)->not->toBe($theirsRow->transaction_id)
+        ->and($theirsRow->farmer_profile_id)->toBe($this->profileB->id)
+        ->and($theirsRow->status)->toBe('accepted')
+        ->and(Transaction::count())->toBe(2);
 });
 
 test('a different database error on the insert still returns the error result', function () {

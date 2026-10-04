@@ -162,9 +162,10 @@ test('an admin approve that hits a database error leaves the row held and a late
     $this->farmerUser->update(['is_active' => false]);
     $record = syncRecord();
     $this->actingAs($this->farmerUser)->postJson('/sync/submissions', ['records' => [$record]])->assertOk();
+    $id = SyncSubmission::first()->id;
 
-    failingInserts(function () use ($admin, $record) {
-        $response = $this->actingAs($admin)->postJson("/admin/sync-submissions/{$record['uuid']}/approve")
+    failingInserts(function () use ($admin, $id) {
+        $response = $this->actingAs($admin)->postJson("/admin/sync-submissions/{$id}/approve")
             ->assertStatus(503)
             ->assertExactJson(['message' => GENERIC]);
 
@@ -175,7 +176,7 @@ test('an admin approve that hits a database error leaves the row held and a late
 
     expect($row->status)->toBe('held_for_review')->and($row->reviewed_by)->toBeNull()->and(Transaction::count())->toBe(0);
 
-    $this->actingAs($admin)->postJson("/admin/sync-submissions/{$record['uuid']}/approve")->assertOk();
+    $this->actingAs($admin)->postJson("/admin/sync-submissions/{$id}/approve")->assertOk();
 
     expect(SyncSubmission::first()->status)->toBe('accepted')->and(Transaction::count())->toBe(1);
 });

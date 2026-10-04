@@ -49,11 +49,12 @@ beforeEach(function () {
         'uuid' => $this->uuid, 'template' => $this->template->id, 'farmer' => $this->profile->uuid, 'amount' => '100',
         'settlement_account_id' => $this->cash->id, 'event_date' => now()->toDateString(), 'device_created_at' => now()->toIso8601String(),
     ]]])->assertOk();
+    $this->rowId = SyncSubmission::first()->id;
 });
 
 test('an admin approving posts it through the ledger exactly once, even when called twice', function () {
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->uuid}/approve")->assertOk();
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->uuid}/approve")->assertStatus(422);
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->rowId}/approve")->assertOk();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->rowId}/approve")->assertStatus(422);
 
     $row = SyncSubmission::first();
 
@@ -69,13 +70,13 @@ test('an admin approving posts it through the ledger exactly once, even when cal
 test('approving still runs the posting checks', function () {
     $this->template->update(['is_active' => false]);
 
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->uuid}/approve")->assertOk();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->rowId}/approve")->assertOk();
 
     expect(SyncSubmission::first()->status)->toBe('needs_fixing')->and(Transaction::count())->toBe(0);
 });
 
 test('an admin can reject with a reason', function () {
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->uuid}/reject", ['reason' => 'Not a real sale.'])->assertOk();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->rowId}/reject", ['reason' => 'Not a real sale.'])->assertOk();
 
     $row = SyncSubmission::first();
 
@@ -87,10 +88,10 @@ test('an admin can reject with a reason', function () {
 });
 
 test('rejecting needs a reason and a held submission', function () {
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->uuid}/reject", ['reason' => ''])->assertStatus(422);
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->rowId}/reject", ['reason' => ''])->assertStatus(422);
 
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->uuid}/reject", ['reason' => 'No.'])->assertOk();
-    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->uuid}/reject", ['reason' => 'No.'])->assertStatus(422);
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->rowId}/reject", ['reason' => 'No.'])->assertOk();
+    $this->actingAs($this->admin)->postJson("/admin/sync-submissions/{$this->rowId}/reject", ['reason' => 'No.'])->assertStatus(422);
 });
 
 test('a hold is written to the audit log', function () {
@@ -102,8 +103,8 @@ test('non-admins get 403 on the review routes', function () {
     $agent->assignRole('agent');
 
     foreach ([$agent, $this->farmerUser] as $user) {
-        $this->actingAs($user)->postJson("/admin/sync-submissions/{$this->uuid}/approve")->assertForbidden();
-        $this->actingAs($user)->postJson("/admin/sync-submissions/{$this->uuid}/reject", ['reason' => 'x'])->assertForbidden();
+        $this->actingAs($user)->postJson("/admin/sync-submissions/{$this->rowId}/approve")->assertForbidden();
+        $this->actingAs($user)->postJson("/admin/sync-submissions/{$this->rowId}/reject", ['reason' => 'x'])->assertForbidden();
     }
 
     expect(Transaction::count())->toBe(0);

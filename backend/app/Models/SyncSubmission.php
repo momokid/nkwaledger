@@ -38,11 +38,6 @@ class SyncSubmission extends Model
         ];
     }
 
-    public function getRouteKeyName(): string
-    {
-        return 'client_uuid';
-    }
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
