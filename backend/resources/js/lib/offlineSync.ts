@@ -3,8 +3,8 @@
 // a retry after a partial success (response lost, tab closed mid-request) can
 // never record the same thing twice — see PostingService::alreadyPosted.
 
-import { listPending, markNeedsAttention, markSynced, remove } from "./offlineStore";
-import { QueuedSubmission } from "@/types/offlineQueue";
+import { listPending, markNeedsAttention, QueueItem, markSynced, recordFailedAttempt, remove } from "./offlineStore";
+import { QueuedBatchRecord, QueuedSubmission } from "@/types/offlineQueue";
 
 export interface SyncOutcome {
     synced: string[];
@@ -79,9 +79,101 @@ export async function syncOnce(currentUser: string | null): Promise<SyncOutcome 
     }
 }
 
+const BATCH_SIZE = 20;
+const STORED_BY_SERVER = ["accepted", "needs_fixing", "held", "rejected", "superseded"];
+
+interface BatchItem {
+    id: string;
+    payload: QueuedBatchRecord;
+}
+
+function isBatchItem(item: QueueItem<QueuedSubmission | QueuedBatchRecord>): item is QueueItem<QueuedBatchRecord> {
+    return "shape" in item.payload && item.payload.shape === 2;
+}
+
+async function postBatch(records: QueuedBatchRecord[]): Promise<Response> {
+    return fetch("/sync/submissions", {
+        method: "POST",
+        redirect: "manual",
+        headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": csrfToken(),
+        },
+        body: JSON.stringify({ records: records.map(({ shape: _shape, ...record }) => record) }),
+    });
+}
+
+// a fetch that throws (offline, timeout) and a session problem leave the counters alone
+async function sendBatch(items: BatchItem[], outcome: SyncOutcome): Promise<void> {
+    let response: Response;
+
+    try {
+        response = await postBatch(items.map((item) => item.payload));
+    } catch {
+        return;
+    }
+
+    if (isSessionEnded(response)) {
+        outcome.authExpired = true;
+
+        return;
+    }
+
+    if (response.status === 422) {
+        if (items.length === 1) {
+            await recordFailedAttempt(items[0].id);
+
+            return;
+        }
+
+        for (const item of items) {
+            await sendBatch([item], outcome);
+
+            if (outcome.authExpired) {
+                return;
+            }
+        }
+
+        return;
+    }
+
+    if (response.status >= 500) {
+        for (const item of items) {
+            await recordFailedAttempt(item.id);
+        }
+
+        return;
+    }
+
+    if (!response.ok) {
+        return;
+    }
+
+    const body = await response.json().catch(() => null);
+    const results: Array<{ uuid: string; status: string }> = Array.isArray(body?.results) ? body.results : [];
+
+    for (const item of items) {
+        const result = results.find((entry) => entry.uuid === item.payload.uuid);
+
+        if (!result) {
+            continue;
+        }
+
+        if (result.status === "error") {
+            await recordFailedAttempt(item.id);
+        } else if (STORED_BY_SERVER.includes(result.status)) {
+            await remove(item.id);
+            outcome.synced.push(item.id);
+        }
+    }
+}
+
 export async function runSync(currentUser: string | null): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { synced: [], needsAttention: [], authExpired: false };
-    const pending = await listPending<QueuedSubmission>(currentUser);
+    const everything = await listPending<QueuedSubmission | QueuedBatchRecord>(currentUser);
+    const batchItems = everything.filter(isBatchItem);
+    const pending = everything.filter((item) => !isBatchItem(item)) as Array<{ id: string; payload: QueuedSubmission }>;
 
     for (const item of pending) {
         let response: Response;
@@ -118,6 +210,10 @@ export async function runSync(currentUser: string | null): Promise<SyncOutcome> 
         }
 
         // any other failure (server error, etc.): leave it queued, retry next time
+    }
+
+    for (let start = 0; start < batchItems.length && !outcome.authExpired; start += BATCH_SIZE) {
+        await sendBatch(batchItems.slice(start, start + BATCH_SIZE), outcome);
     }
 
     return outcome;

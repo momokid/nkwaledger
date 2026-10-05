@@ -9,6 +9,7 @@ import {
     NeedsAttentionItem,
     remove,
 } from "@/lib/offlineStore";
+import { buildBatchRecord } from "@/lib/batchRecord";
 import { QueuedSubmission } from "@/types/offlineQueue";
 import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
@@ -172,9 +173,15 @@ function CreateContent({
         );
 
     const queueOffline = async (data: Record<string, string>) => {
-        const submission: QueuedSubmission = { url: postUrl, data };
+        const quantity = needsQuantityLost
+            ? data.quantity_lost
+            : needsQuantitySold
+              ? data.quantity_sold
+              : needsQuantityPurchased
+                ? data.quantity_purchased
+                : "";
 
-        await enqueue(submission, currentUser);
+        await enqueue(buildBatchRecord(farmer.id, data, quantity), currentUser);
 
         setSavedOffline(true);
         resetEnteredFields();

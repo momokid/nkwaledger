@@ -36,6 +36,8 @@ interface QueueRow {
     synced: boolean;
     owner?: string;
     needsAttention?: string;
+    attempts?: number;
+    stuck?: boolean;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -169,7 +171,7 @@ export async function listPending<T = unknown>(currentUser: string | null): Prom
     db.close();
 
     const pending = ownedBy(rows, currentUser)
-        .filter((row) => !row.synced && !row.needsAttention)
+        .filter((row) => !row.synced && !row.needsAttention && !row.stuck)
         .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || a.createdAt.localeCompare(b.createdAt));
 
     return Promise.all(
@@ -191,6 +193,24 @@ export async function markNeedsAttention(id: string, message: string): Promise<v
 
     if (row) {
         store.put({ ...row, needsAttention: message });
+    }
+
+    await whenDone(tx);
+    db.close();
+}
+
+export const MAX_FAILED_ATTEMPTS = 5;
+
+// the fifth failure parks the item as stuck: kept on the device, never retried automatically
+export async function recordFailedAttempt(id: string): Promise<void> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(QUEUE_STORE);
+    const row = (await requestResult(store.get(id))) as QueueRow | undefined;
+
+    if (row) {
+        const attempts = (row.attempts ?? 0) + 1;
+        store.put({ ...row, attempts, ...(attempts >= MAX_FAILED_ATTEMPTS ? { stuck: true } : {}) });
     }
 
     await whenDone(tx);
