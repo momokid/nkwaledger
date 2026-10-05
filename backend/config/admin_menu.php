@@ -7,7 +7,7 @@
 return [
     ['label' => 'Dashboard', 'icon' => 'layout-dashboard', 'route' => 'admin.dashboard'],
     ['label' => 'Approvals', 'icon' => 'checklist', 'route' => 'admin.approvals.index', 'badge' => 'approvals'],
-    ['label' => 'Held records', 'icon' => 'checklist', 'route' => 'admin.sync-submissions.index'],
+    ['label' => 'Records to review', 'icon' => 'checklist', 'route' => 'admin.sync-submissions.index'],
     [
         'label' => 'Farm Setup',
         'icon' => 'plant',

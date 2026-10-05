@@ -44,7 +44,7 @@ const IDLE: RowState = { mode: null, reason: "", busy: false, error: null };
 
 export default function Index(props: Props) {
     return (
-        <AdminLayout title="Held records">
+        <AdminLayout title="Records to review">
             <IndexContent {...props} />
         </AdminLayout>
     );
