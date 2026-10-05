@@ -127,6 +127,7 @@ return [
         'sync-submissions' => [
             'label' => 'Offline Records',
             'actions' => [
+                'view' => 'View held records',
                 'approve' => 'Approve a held record',
                 'reject' => 'Reject a held record',
             ],
@@ -276,6 +277,7 @@ return [
             'transactions.create',
             'transactions.reverse-request',
             'transactions.reverse-approve',
+            'sync-submissions.view',
             'sync-submissions.approve',
             'sync-submissions.reject',
             'approvals.view',
