@@ -159,7 +159,7 @@ export async function enqueue(payload: unknown, owner: string | null = null): Pr
     return row.id;
 }
 
-// oldest first (seq breaks same-millisecond ties), so a partial sync retries in the order the farmer actually recorded things
+// saved order (seq), not phone-clock order, so a partial sync retries in the order the farmer actually recorded things
 export async function listPending<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
     const key = await getOrCreateDeviceKey();
 
@@ -170,7 +170,7 @@ export async function listPending<T = unknown>(currentUser: string | null): Prom
 
     const pending = ownedBy(rows, currentUser)
         .filter((row) => !row.synced && !row.needsAttention)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || (a.seq ?? 0) - (b.seq ?? 0));
+        .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || a.createdAt.localeCompare(b.createdAt));
 
     return Promise.all(
         pending.map(async (row) => ({

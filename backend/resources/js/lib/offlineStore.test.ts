@@ -233,3 +233,63 @@ describe("enqueue order within the same millisecond", () => {
         expect(items.map((item) => item.payload.amount)).toEqual(["old", "new1", "new2"]);
     });
 });
+
+describe("queue order follows the order saved, not the phone clock", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    function clockReads(...times: string[]) {
+        const spy = vi.spyOn(Date.prototype, "toISOString");
+        times.forEach((time) => spy.mockReturnValueOnce(time));
+    }
+
+    async function amounts() {
+        return (await listPending<{ amount: string }>(USER)).map((item) => item.payload.amount);
+    }
+
+    it("keeps A before B when the clock went backward between them", async () => {
+        clockReads("2026-01-01T10:00:00.000Z", "2026-01-01T09:00:00.000Z");
+
+        await enqueue({ amount: "A" }, USER);
+        await enqueue({ amount: "B" }, USER);
+
+        expect(await amounts()).toEqual(["A", "B"]);
+    });
+
+    it("keeps three items in saved order when the clock goes backward in the middle", async () => {
+        clockReads("2026-01-01T10:00:00.000Z", "2026-01-01T08:00:00.000Z", "2026-01-01T12:00:00.000Z");
+
+        for (const amount of ["first", "second", "third"]) {
+            await enqueue({ amount }, USER);
+        }
+
+        expect(await amounts()).toEqual(["first", "second", "third"]);
+    });
+
+    it("sorts old items without a seq by createdAt, and before new items", async () => {
+        await remove(await enqueue({ amount: "warm-up" }, USER));
+        const key = await getOrCreateDeviceKey();
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open("nkwa-offline-store");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        const olds = [
+            ["a-later", "old-later", "2026-01-01T11:00:00.000Z"],
+            ["z-earlier", "old-earlier", "2026-01-01T09:00:00.000Z"],
+        ];
+        const envelopes = await Promise.all(olds.map(([, amount]) => encrypt(key, { amount })));
+        const tx = db.transaction("queue", "readwrite");
+
+        olds.forEach(([id, , createdAt], i) => {
+            tx.objectStore("queue").put({ id, envelope: envelopes[i], createdAt, synced: false, owner: USER });
+        });
+
+        await new Promise((resolve) => (tx.oncomplete = resolve));
+        db.close();
+
+        clockReads("2026-01-01T01:00:00.000Z");
+        await enqueue({ amount: "new" }, USER);
+
+        expect(await amounts()).toEqual(["old-earlier", "old-later", "new"]);
+    });
+});
