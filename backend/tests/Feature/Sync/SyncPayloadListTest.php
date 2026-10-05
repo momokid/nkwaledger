@@ -151,7 +151,7 @@ test('every existing key on every row is unchanged', function () {
     $row = listed($this->farmerUser, $fixing['uuid']);
     $plain = listed($this->farmerUser, $accepted['uuid']);
 
-    expect(array_keys($plain))->toBe(['uuid', 'status', 'reason', 'reference', 'device_date', 'received_at'])
+    expect(array_keys($plain))->toBe(['uuid', 'status', 'reason', 'reference', 'transaction_uuid', 'device_date', 'received_at'])
         ->and(array_keys($row))->toBe(['uuid', 'status', 'reason', 'reference', 'device_date', 'received_at', 'payload'])
         ->and($row['status'])->toBe('needs_fixing')
         ->and($row['reason'])->not->toBeNull()

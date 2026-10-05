@@ -39,7 +39,7 @@ class SyncSubmissionService
         }
 
         try {
-            return $this->result(DB::transaction(fn() => $this->store($user, $record)));
+            return $this->outcome(DB::transaction(fn() => $this->store($user, $record)));
         } catch (Throwable $e) {
             // an identical submission won the race to the unique uuid: answer with what it stored
             $twin = $e instanceof UniqueConstraintViolationException && str_contains($e->getMessage(), 'client_uuid')
@@ -62,7 +62,7 @@ class SyncSubmissionService
         $before = $stored->payload;
 
         return Transaction::sameDetails($before['template'], $before['amount'], $record['template'], $record['amount'])
-            ? $this->result($stored)
+            ? $this->outcome($stored)
             : ['uuid' => $record['uuid'], 'status' => 'error', 'error' => Transaction::KEY_REUSED];
     }
 
@@ -122,6 +122,12 @@ class SyncSubmissionService
             'reason' => $submission->reason,
             'reference' => $submission->transaction?->reference,
         ];
+    }
+
+    // what the sync endpoints answer: the result, plus the transaction's public uuid once there is one
+    public function outcome(SyncSubmission $submission): array
+    {
+        return $this->result($submission) + ($submission->transaction !== null ? ['transaction_uuid' => $submission->transaction->uuid] : []);
     }
 
     private function store(User $user, array $record): SyncSubmission

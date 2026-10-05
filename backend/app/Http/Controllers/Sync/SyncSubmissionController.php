@@ -40,8 +40,8 @@ class SyncSubmissionController extends Controller
             $query->where('farmer_profile_id', $farmer->id);
         }
 
-        $rows = $query->with('transaction:id,reference')->latest('received_at')->latest('id')->paginate(50)
-            ->through(fn(SyncSubmission $submission) => $this->sync->result($submission) + [
+        $rows = $query->with('transaction:id,reference,uuid')->latest('received_at')->latest('id')->paginate(50)
+            ->through(fn(SyncSubmission $submission) => $this->sync->outcome($submission) + [
                 'device_date' => $submission->device_date->toDateString(),
                 'received_at' => $submission->received_at->toIso8601String(),
             ] + ($submission->status === SyncSubmission::NEEDS_FIXING ? ['payload' => $submission->payload] : []));
