@@ -26,11 +26,13 @@ NkwaLedger is an agricultural fintech platform for Ghanaian smallholder farmers 
 
 **Future scope (architecture only, rules decided later):** autonomous in-app AI agent; cosmetic reward/credit system (points live outside the double-entry ledger, domain events + reward listener pattern, earning trigger is logging transactions).
 
+**MVP plan (Oct 2026) overrides the order above for now:** offline sync (PWA first), loans and repayments, USSD, crop and vet AI review with officer confirmation, fertilizer calculator, weather alerts, WhatsApp, then the legal close. The native mobile app comes later.
+
 ---
 
 ## Current State
 
-Active branch: `feature/phase-5-dashboard-reports`
+Active branch: named in each task prompt.
 
 ### Completed in Phase 5 so far
 
@@ -39,7 +41,7 @@ Active branch: `feature/phase-5-dashboard-reports`
 - **Loss recording**: `quantity_lost` on `transactions`, `MovementReason::Loss`, split **proportionally** across all active stock batches by their share of the current count (not FIFO — no assumption is made about which batch actually lost the animal). The last batch in the split absorbs any rounding remainder so the total always adds up exactly. No cost-per-batch or valuation figure is ever computed or shown — the farmer's typed cedi amount is the only money figure anywhere.
 - **Produce-sold tracking**: `is_produce_sale` on `transaction_templates`, `quantity_sold` on `transactions`. Same proportional-split logic as loss (shared via `PostingService::splitProportionally()`). Seeder marks `produce_sale`, `animal_sale`, `produce_of_animal_sale`, `fish_sale` as produce sales; `produce_sale` now **requires a farm unit** (previously didn't — this was the root cause of "Produce Sold" always showing 0 for crop farms). **Not yet re-seeded on Railway staging/production.**
 - Correction narration replaced with a purple "Corrected" tag (not green — green means income/positive elsewhere in the UI). Only done on the farmer's own records page (`Transactions/Index.tsx`); not yet added to the agent/admin `Reports/Index.tsx`.
-- Suite: 1568 tests passing, 9 skipped.
+- Suite: run the full suite for the current count.
 
 ### Immediate next target
 
@@ -154,6 +156,8 @@ Short and plain, simple enough for an 8-year-old. Answer, then stop.
 - **Known gotcha:** a Laravel `cast` without a matching `$fillable` entry silently drops the value on `create()` — check both together when adding a column.
 
 ## Working rules (apply to every task)
+
+These rules override Workflow items 3, 4, 5 and 6 above. In Claude Code sessions, edit files and run commands directly, and read the real local files. Those four items apply only to chat sessions.
 
 ### Task
 - One issue per task. If you find other problems, report them; do not fix them.
