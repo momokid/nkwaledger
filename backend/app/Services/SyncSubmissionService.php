@@ -85,6 +85,7 @@ class SyncSubmissionService
         return $this->review($submission, $admin, function (SyncSubmission $held) use ($reason) {
             $held->update(['status' => SyncSubmission::REJECTED, 'reason' => $reason]);
             $this->audit->recordOn('sync.submission_rejected', $held, null, ['reason' => $reason]);
+            $this->notifySubmitter($held, 'sync.rejected', "A record was not accepted. {$reason}");
         });
     }
 
@@ -146,6 +147,7 @@ class SyncSubmissionService
 
         if ($hold !== null) {
             $this->audit->recordOn('sync.submission_held', $submission, null, ['reason' => $hold]);
+            $this->notifySubmitter($submission, 'sync.held', 'A record is waiting for review.');
         } else {
             $this->post($submission);
         }
@@ -179,7 +181,7 @@ class SyncSubmissionService
             }
 
             $submission->update(['status' => SyncSubmission::NEEDS_FIXING, 'reason' => $failure->getMessage()]);
-            $this->notifyNeedsFixing($submission);
+            $this->notifySubmitter($submission, 'sync.needs_fixing', "A record could not be saved. {$submission->reason}");
 
             return;
         }
@@ -243,7 +245,7 @@ class SyncSubmissionService
     }
 
     // the person who sent it, and the farmer's agent when the farmer sent it themselves
-    private function notifyNeedsFixing(SyncSubmission $submission): void
+    private function notifySubmitter(SyncSubmission $submission, string $kind, string $message): void
     {
         $farmer = $submission->farmerProfile;
         $recipients = collect([$submission->user]);
@@ -252,7 +254,7 @@ class SyncSubmissionService
             $recipients->push($farmer->assignedAgent);
         }
 
-        $recipients->each(fn(User $user) => $this->notifications->send($user, 'sync.needs_fixing', "A record could not be saved. {$submission->reason}"));
+        $recipients->unique('id')->each(fn(User $user) => $this->notifications->send($user, $kind, $message));
     }
 
     // locked and re-read, so two admins acting at once cannot both decide
