@@ -241,6 +241,7 @@ class SyncSubmissionService
                 : (isset($record['settlement_account_id']) ? (int) $record['settlement_account_id'] : null),
             transactionDate: $record['event_date'],
             farmUnitId: isset($record['farm_unit_id']) ? (int) $record['farm_unit_id'] : null,
+            narration: $record['narration'] ?? null,
             recordedBy: $submission->user_id,
             // per user, so one person's key can never match another's
             idempotencyKey: "sync.{$submission->user_id}.{$submission->client_uuid}",
