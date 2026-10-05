@@ -41,6 +41,33 @@ export function isSessionEnded(response: Pick<Response, "type" | "status">): boo
     return response.type === "opaqueredirect" || response.status === 419 || response.status === 401;
 }
 
+const SYNC_LOCK = "nkwa-offline-sync";
+let running = false;
+
+// the one door every trigger uses: returns null at once if a run is already active
+// (this tab via the flag, another tab via the Web Lock) instead of waiting or queueing
+export async function syncOnce(currentUser: string | null): Promise<SyncOutcome | null> {
+    if (running) {
+        return null;
+    }
+
+    running = true;
+
+    try {
+        if (!navigator.locks) {
+            return await runSync(currentUser);
+        }
+
+        return await navigator.locks.request(
+            SYNC_LOCK,
+            { ifAvailable: true },
+            async (lock) => (lock ? runSync(currentUser) : null),
+        );
+    } finally {
+        running = false;
+    }
+}
+
 export async function runSync(currentUser: string | null): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { synced: [], needsAttention: [], authExpired: false };
     const pending = await listPending<QueuedSubmission>(currentUser);
