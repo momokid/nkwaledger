@@ -152,3 +152,31 @@ Short and plain, simple enough for an 8-year-old. Answer, then stop.
 - **Known gotcha:** Stale `public/hot` Vite file causes intermittent full-suite test failures on Windows.
 - **Known gotcha:** `php artisan db:table` fails without the `intl` PHP extension; use `Schema::getColumnListing('table_name')` in tinker instead.
 - **Known gotcha:** a Laravel `cast` without a matching `$fillable` entry silently drops the value on `create()` — check both together when adding a column.
+
+## Working rules (apply to every task)
+
+### Task
+- One issue per task. If you find other problems, report them; do not fix them.
+- Ask before adding anything not in the prompt (packages, columns, routes, permissions, UI, wording).
+- Never invent user-facing text. Use only wording given in the prompt.
+- Minimal code. Very short comments, only where the logic is not obvious.
+
+### Tests
+- Write failing tests first and confirm red, then implement.
+- Run affected tests with paratest while working; run the full parallel suite once at the end.
+- For frontend changes also run the TypeScript check and the production build.
+
+### Git
+- At the start run git branch --show-current; it must match the branch named in the prompt, otherwise stop. Run git status --short; ignore the untracked ../Features.md; if anything else is uncommitted, stop.
+- After the full suite passes, commit locally. Stage only this task's files, by explicit path. Never git add . or -A.
+- Author and committer must be the owner. git config user.email must be anwar.rhsl@gmail.com. If it differs or is empty, stop. Never edit git config or override the identity on the command line.
+- Commit message: one short conventional line. No body. No Co-Authored-By line. No "Generated with" line. No mention of Claude, AI or Anthropic.
+- Never push, amend, tag, switch branch or skip hooks.
+- After committing, run and report: git log -1 --format="%h %an <%ae> | %cn <%ce>", git log -1 --format=%B, and git show --stat --format=%s HEAD.
+
+### UI
+- Admin approve, reject and save actions use AJAX and update the page in place, with no full page reload.
+- No numeric database id may reach a page prop, response, link or notification. Use public uuids.
+
+### Report
+- Max 15 lines, plain English, no code in the summary: what changed; files changed (count and list, from the commit output); tests passed/failed/skipped and time; decisions made on your own; what is not done; what to check by hand. Then the full production diff in the reply. No patch files.
