@@ -73,7 +73,8 @@ function CreateContent({
     layout,
     basePath,
 }: ContentProps) {
-    const { errors, flash, old } = usePage<Props>().props as ContentProps & {
+    const { auth, errors, flash, old } = usePage<Props>().props as ContentProps & {
+        auth: { user: { id: number } };
         errors: Record<string, string>;
         flash: { success?: string; reference?: string };
         old: Record<string, string>;
@@ -136,8 +137,10 @@ function CreateContent({
         NeedsAttentionItem<QueuedSubmission>[]
     >([]);
 
+    const currentUser = String(auth.user.id);
+
     const refreshAttentionItems = () => {
-        void listNeedsAttention<QueuedSubmission>().then(setAttentionItems);
+        void listNeedsAttention<QueuedSubmission>(currentUser).then(setAttentionItems);
     };
 
     useEffect(() => {
@@ -171,7 +174,7 @@ function CreateContent({
     const queueOffline = async (data: Record<string, string>) => {
         const submission: QueuedSubmission = { url: postUrl, data };
 
-        await enqueue(submission);
+        await enqueue(submission, currentUser);
 
         setSavedOffline(true);
         resetEnteredFields();

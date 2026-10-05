@@ -41,9 +41,9 @@ export function isSessionEnded(response: Pick<Response, "type" | "status">): boo
     return response.type === "opaqueredirect" || response.status === 419 || response.status === 401;
 }
 
-export async function runSync(): Promise<SyncOutcome> {
+export async function runSync(currentUser: string | null): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { synced: [], needsAttention: [], authExpired: false };
-    const pending = await listPending<QueuedSubmission>();
+    const pending = await listPending<QueuedSubmission>(currentUser);
 
     for (const item of pending) {
         let response: Response;

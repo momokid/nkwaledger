@@ -1,5 +1,7 @@
+import { usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { runSync } from "@/lib/offlineSync";
+import { PageProps } from "@/types";
 
 const BACKGROUND_SYNC_TAG = "nkwa-offline-sync";
 
@@ -28,11 +30,13 @@ async function registerBackgroundSync(): Promise<void> {
 
 export default function useOfflineSync() {
     const [authExpired, setAuthExpired] = useState(false);
+    const { auth } = usePage<PageProps>().props;
+    const currentUser = auth?.user ? String(auth.user.id) : null;
 
     useEffect(() => {
         const attemptSync = () => {
             if (navigator.onLine) {
-                void runSync()
+                void runSync(currentUser)
                     .then((outcome) => setAuthExpired(outcome.authExpired))
                     .finally(() =>
                         window.dispatchEvent(new Event(OFFLINE_SYNC_RAN_EVENT)),
@@ -67,7 +71,7 @@ export default function useOfflineSync() {
                 onWorkerMessage,
             );
         };
-    }, []);
+    }, [currentUser]);
 
     return authExpired;
 }

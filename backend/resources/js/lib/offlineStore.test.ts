@@ -13,6 +13,8 @@ import {
     remove,
 } from "./offlineStore";
 
+const USER = "7";
+
 beforeEach(async () => {
     indexedDB = new IDBFactory();
 });
@@ -76,7 +78,7 @@ describe("queue", () => {
         const first = await enqueue({ narration: "first" });
         const second = await enqueue({ narration: "second" });
 
-        const pending = await listPending();
+        const pending = await listPending(USER);
 
         expect(pending.map((item) => item.id)).toEqual([first, second]);
         expect(pending.map((item) => item.payload)).toEqual([
@@ -90,7 +92,7 @@ describe("queue", () => {
 
         await markSynced(id);
 
-        expect(await listPending()).toEqual([]);
+        expect(await listPending(USER)).toEqual([]);
     });
 
     it("removes an item from the queue entirely", async () => {
@@ -98,7 +100,7 @@ describe("queue", () => {
 
         await remove(id);
 
-        expect(await listPending()).toEqual([]);
+        expect(await listPending(USER)).toEqual([]);
     });
 });
 
@@ -108,9 +110,9 @@ describe("needs-attention items", () => {
 
         await markNeedsAttention(id, "That is more than the farm has on record.");
 
-        expect(await listPending()).toEqual([]);
+        expect(await listPending(USER)).toEqual([]);
 
-        const attention = await listNeedsAttention();
+        const attention = await listNeedsAttention(USER);
         expect(attention).toEqual([
             {
                 id,
@@ -126,6 +128,28 @@ describe("needs-attention items", () => {
 
         await remove(id);
 
-        expect(await listNeedsAttention()).toEqual([]);
+        expect(await listNeedsAttention(USER)).toEqual([]);
+    });
+});
+
+describe("owners", () => {
+    it("lists only the current user's items and ownerless ones, and leaves the rest stored", async () => {
+        await enqueue({ n: "mine" }, USER);
+        await enqueue({ n: "theirs" }, "8");
+        await enqueue({ n: "old" });
+
+        const mine = await listPending<{ n: string }>(USER);
+
+        expect(mine.map((item) => item.payload.n)).toEqual(["mine", "old"]);
+        expect(await listPending("8")).toHaveLength(2);
+        expect(await listPending(null)).toEqual([]);
+    });
+
+    it("shows another user's needs-attention items to nobody but them", async () => {
+        const theirs = await enqueue({ n: "theirs" }, "8");
+        await markNeedsAttention(theirs, "Check this");
+
+        expect(await listNeedsAttention(USER)).toEqual([]);
+        expect(await listNeedsAttention("8")).toHaveLength(1);
     });
 });

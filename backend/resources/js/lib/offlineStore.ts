@@ -3,6 +3,8 @@
 // exportable — losing the key (see deleteDeviceKey, called on logout) is what
 // makes previously queued data permanently unreadable.
 
+import { buildQueueRow, ownedBy } from "./queueOwner";
+
 const DB_NAME = "nkwa-offline-store";
 const DB_VERSION = 1;
 const KEY_STORE = "device-key";
@@ -31,6 +33,7 @@ interface QueueRow {
     envelope: EncryptedEnvelope;
     createdAt: string;
     synced: boolean;
+    owner?: string;
     needsAttention?: string;
 }
 
@@ -135,15 +138,13 @@ export async function decrypt<T = unknown>(key: CryptoKey, envelope: EncryptedEn
     return JSON.parse(new TextDecoder().decode(plaintext)) as T;
 }
 
-export async function enqueue(payload: unknown): Promise<string> {
+export async function enqueue(payload: unknown, owner: string | null = null): Promise<string> {
     const key = await getOrCreateDeviceKey();
     const envelope = await encrypt(key, payload);
-    const row: QueueRow = {
-        id: crypto.randomUUID(),
-        envelope,
-        createdAt: new Date().toISOString(),
-        synced: false,
-    };
+    const row: QueueRow = buildQueueRow(
+        { id: crypto.randomUUID(), envelope, createdAt: new Date().toISOString() },
+        owner,
+    );
 
     const db = await openDatabase();
     const tx = db.transaction(QUEUE_STORE, "readwrite");
@@ -155,7 +156,7 @@ export async function enqueue(payload: unknown): Promise<string> {
 }
 
 // oldest first, so a partial sync retries in the order the farmer actually recorded things
-export async function listPending<T = unknown>(): Promise<QueueItem<T>[]> {
+export async function listPending<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
     const key = await getOrCreateDeviceKey();
 
     const db = await openDatabase();
@@ -163,7 +164,7 @@ export async function listPending<T = unknown>(): Promise<QueueItem<T>[]> {
     const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
     db.close();
 
-    const pending = rows
+    const pending = ownedBy(rows, currentUser)
         .filter((row) => !row.synced && !row.needsAttention)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
@@ -192,7 +193,7 @@ export async function markNeedsAttention(id: string, message: string): Promise<v
     db.close();
 }
 
-export async function listNeedsAttention<T = unknown>(): Promise<NeedsAttentionItem<T>[]> {
+export async function listNeedsAttention<T = unknown>(currentUser: string | null): Promise<NeedsAttentionItem<T>[]> {
     const key = await getOrCreateDeviceKey();
 
     const db = await openDatabase();
@@ -200,7 +201,7 @@ export async function listNeedsAttention<T = unknown>(): Promise<NeedsAttentionI
     const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
     db.close();
 
-    const flagged = rows.filter((row) => !!row.needsAttention);
+    const flagged = ownedBy(rows, currentUser).filter((row) => !!row.needsAttention);
 
     return Promise.all(
         flagged.map(async (row) => ({
