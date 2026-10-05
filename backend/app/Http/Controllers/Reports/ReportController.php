@@ -8,6 +8,7 @@ use App\Services\Ledger\Reports\AccountStatementService;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use App\Services\Ledger\Reports\ReportHeader;
 use App\Services\Ledger\Reports\TrialBalanceService;
+use App\Support\CsvCell;
 use App\Support\Money;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -238,7 +239,7 @@ class ReportController extends Controller
             fputcsv($handle, [
                 $row['date'],
                 $row['reference'],
-                $row['description'],
+                CsvCell::text($row['description']),
                 $row['money_in'] > 0 ? Money::toDecimal($row['money_in']) : '',
                 $row['money_out'] > 0 ? Money::toDecimal($row['money_out']) : '',
                 Money::toDecimal($row['balance']),
