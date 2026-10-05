@@ -44,7 +44,7 @@ class SyncSubmissionController extends Controller
             ->through(fn(SyncSubmission $submission) => $this->sync->result($submission) + [
                 'device_date' => $submission->device_date->toDateString(),
                 'received_at' => $submission->received_at->toIso8601String(),
-            ]);
+            ] + ($submission->status === SyncSubmission::NEEDS_FIXING ? ['payload' => $submission->payload] : []));
 
         return response()->json($rows);
     }
