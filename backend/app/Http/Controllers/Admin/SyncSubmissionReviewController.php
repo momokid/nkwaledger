@@ -46,7 +46,9 @@ class SyncSubmissionReviewController extends Controller
             ],
             'submissions' => $held->through(fn(SyncSubmission $row) => [
                 'uuid' => $row->uuid,
-                'farmer' => trim("{$row->farmerProfile?->user?->surname} {$row->farmerProfile?->user?->first_name}"),
+                'farmer' => $row->farmerProfile === null
+                    ? 'Unknown'
+                    : trim("{$row->farmerProfile->user?->surname} {$row->farmerProfile->user?->first_name}"),
                 'submitted_by' => trim("{$row->user?->surname} {$row->user?->first_name}"),
                 'record' => $templates[(int) ($row->payload['template'] ?? 0)] ?? 'Unknown',
                 'amount' => $this->amount($row->payload['amount'] ?? null),

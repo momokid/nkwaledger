@@ -18,7 +18,7 @@ class SyncBatchRequest extends FormRequest
             'records' => ['required', 'array', 'min:1', 'max:50'],
             'records.*.uuid' => ['required', 'uuid'],
             'records.*.template' => ['required', 'integer'],
-            'records.*.farmer' => ['required', 'uuid', 'exists:farmer_profiles,uuid'],
+            'records.*.farmer' => ['required', 'uuid'],
             'records.*.farm_unit_id' => ['nullable', 'integer'],
             'records.*.amount' => ['required', 'string'],
             'records.*.settlement_account_id' => ['nullable', 'integer'],

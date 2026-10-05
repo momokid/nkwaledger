@@ -75,6 +75,11 @@ class SyncSubmissionService
     public function approve(SyncSubmission $submission, User $admin): SyncSubmission
     {
         return $this->review($submission, $admin, function (SyncSubmission $held) {
+            // no farmer to post for: refuse with the reason the row already carries, leaving it held
+            if ($held->farmer_profile_id === null) {
+                throw ValidationException::withMessages(['submission' => $held->reason]);
+            }
+
             $this->post($held);
             $this->audit->recordOn('sync.submission_approved', $held, null, ['status' => $held->status]);
         });
@@ -121,14 +126,15 @@ class SyncSubmissionService
 
     private function store(User $user, array $record): SyncSubmission
     {
-        $farmer = FarmerProfile::where('uuid', $record['farmer'])->firstOrFail();
+        // an unknown farmer is held exactly like one this user may not act for, so the two cannot be told apart
+        $farmer = FarmerProfile::where('uuid', $record['farmer'])->first();
         $hold = $this->holdReason($user, $farmer);
 
         // only a refused submission of the same person, for the same farmer, can be fixed
         $old = isset($record['supersedes'])
             ? SyncSubmission::where('client_uuid', $record['supersedes'])
                 ->where('user_id', $user->id)
-                ->where('farmer_profile_id', $farmer->id)
+                ->where('farmer_profile_id', $farmer?->id)
                 ->whereIn('status', [SyncSubmission::NEEDS_FIXING, SyncSubmission::REJECTED])
                 ->first()
             : null;
@@ -136,7 +142,7 @@ class SyncSubmissionService
         $submission = SyncSubmission::create([
             'client_uuid' => $record['uuid'],
             'user_id' => $user->id,
-            'farmer_profile_id' => $farmer->id,
+            'farmer_profile_id' => $farmer?->id,
             'payload' => $record,
             'device_date' => $record['event_date'],
             'received_at' => now(),
@@ -155,13 +161,13 @@ class SyncSubmissionService
         return $submission;
     }
 
-    private function holdReason(User $user, FarmerProfile $farmer): ?string
+    private function holdReason(User $user, ?FarmerProfile $farmer): ?string
     {
         if (! $user->is_active || ! $this->access->can($user, 'transactions.create')) {
             return 'This account cannot record right now, so an admin will look at it.';
         }
 
-        if (! $user->hasRole('admin') && $farmer->user_id !== $user->id && $farmer->assigned_agent_id !== $user->id) {
+        if ($farmer === null || (! $user->hasRole('admin') && $farmer->user_id !== $user->id && $farmer->assigned_agent_id !== $user->id)) {
             return 'This farmer is not one you record for, so an admin will look at it.';
         }
 
@@ -250,7 +256,7 @@ class SyncSubmissionService
         $farmer = $submission->farmerProfile;
         $recipients = collect([$submission->user]);
 
-        if ($submission->user_id === $farmer->user_id && $farmer->assignedAgent !== null) {
+        if ($farmer !== null && $submission->user_id === $farmer->user_id && $farmer->assignedAgent !== null) {
             $recipients->push($farmer->assignedAgent);
         }
 
