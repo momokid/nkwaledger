@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RejectionRequest;
 use App\Models\SyncSubmission;
 use App\Models\TransactionTemplate;
+use App\Services\AccessControlService;
 use App\Services\SyncSubmissionService;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
@@ -17,10 +18,13 @@ use InvalidArgumentException;
 
 class SyncSubmissionReviewController extends Controller
 {
-    public function __construct(private readonly SyncSubmissionService $sync) {}
+    public function __construct(
+        private readonly SyncSubmissionService $sync,
+        private readonly AccessControlService $access,
+    ) {}
 
     // read-only: what is waiting for an admin, with only the public uuid of each row
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $held = SyncSubmission::query()
             ->where('status', SyncSubmission::HELD)
@@ -35,6 +39,11 @@ class SyncSubmissionReviewController extends Controller
             ->pluck('name', 'id');
 
         return Inertia::render('Admin/SyncSubmissions/Index', [
+            // which buttons to show; the routes still check the permission themselves
+            'permissions' => [
+                'approve' => $this->access->can($request->user(), 'sync-submissions.approve'),
+                'reject' => $this->access->can($request->user(), 'sync-submissions.reject'),
+            ],
             'submissions' => $held->through(fn(SyncSubmission $row) => [
                 'uuid' => $row->uuid,
                 'farmer' => trim("{$row->farmerProfile?->user?->surname} {$row->farmerProfile?->user?->first_name}"),
