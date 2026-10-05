@@ -44,6 +44,17 @@ export function isSessionEnded(response: Pick<Response, "type" | "status">): boo
 const SYNC_LOCK = "nkwa-offline-sync";
 let running = false;
 
+// any page that shows queued/needs-attention entries listens for this
+export const OFFLINE_SYNC_RAN_EVENT = "nkwa:offline-sync-ran";
+
+async function runAndAnnounce(currentUser: string | null): Promise<SyncOutcome> {
+    try {
+        return await runSync(currentUser);
+    } finally {
+        window.dispatchEvent(new Event(OFFLINE_SYNC_RAN_EVENT));
+    }
+}
+
 // the one door every trigger uses: returns null at once if a run is already active
 // (this tab via the flag, another tab via the Web Lock) instead of waiting or queueing
 export async function syncOnce(currentUser: string | null): Promise<SyncOutcome | null> {
@@ -55,13 +66,13 @@ export async function syncOnce(currentUser: string | null): Promise<SyncOutcome 
 
     try {
         if (!navigator.locks) {
-            return await runSync(currentUser);
+            return await runAndAnnounce(currentUser);
         }
 
         return await navigator.locks.request(
             SYNC_LOCK,
             { ifAvailable: true },
-            async (lock) => (lock ? runSync(currentUser) : null),
+            async (lock) => (lock ? runAndAnnounce(currentUser) : null),
         );
     } finally {
         running = false;

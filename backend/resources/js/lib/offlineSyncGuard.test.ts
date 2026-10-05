@@ -106,6 +106,50 @@ describe("syncOnce lock held by another tab", () => {
     });
 });
 
+describe("sync ran event", () => {
+    const EVENT = "nkwa:offline-sync-ran";
+    let fired: number;
+    const count = () => {
+        fired += 1;
+    };
+
+    beforeEach(() => {
+        fired = 0;
+        window.addEventListener(EVENT, count);
+    });
+
+    afterEach(() => window.removeEventListener(EVENT, count));
+
+    it("fires once for the run that did the work", async () => {
+        okFetch();
+        await syncOnce(USER);
+
+        expect(fired).toBe(1);
+    });
+
+    it("still fires once when the run fails", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+        await syncOnce(USER);
+
+        expect(fired).toBe(1);
+    });
+
+    it("fires nothing for a trigger skipped because another tab holds the lock", async () => {
+        stubLocks(true);
+        okFetch();
+        await syncOnce(USER);
+
+        expect(fired).toBe(0);
+    });
+
+    it("fires exactly one event for two simultaneous triggers", async () => {
+        okFetch();
+        await Promise.all([syncOnce(USER), syncOnce(USER)]);
+
+        expect(fired).toBe(1);
+    });
+});
+
 describe("single entry point", () => {
     const read = (p: string) => readFileSync(`resources/js/${p}`, "utf8");
 

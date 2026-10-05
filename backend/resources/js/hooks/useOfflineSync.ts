@@ -1,13 +1,11 @@
 import { usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
-import { syncOnce } from "@/lib/offlineSync";
+import { OFFLINE_SYNC_RAN_EVENT, syncOnce } from "@/lib/offlineSync";
 import { PageProps } from "@/types";
 
 const BACKGROUND_SYNC_TAG = "nkwa-offline-sync";
 
-// any page that shows queued/needs-attention entries listens for this,
-// regardless of what actually triggered the sync attempt
-export const OFFLINE_SYNC_RAN_EVENT = "nkwa:offline-sync-ran";
+export { OFFLINE_SYNC_RAN_EVENT };
 
 // registering here is a progressive enhancement only — it lets the browser wake
 // this tab to flush the queue, but Safari/iOS has no Background Sync API at all,
@@ -36,15 +34,11 @@ export default function useOfflineSync() {
     useEffect(() => {
         const attemptSync = () => {
             if (navigator.onLine) {
-                void syncOnce(currentUser)
-                    .then((outcome) => {
-                        if (outcome) {
-                            setAuthExpired(outcome.authExpired);
-                        }
-                    })
-                    .finally(() =>
-                        window.dispatchEvent(new Event(OFFLINE_SYNC_RAN_EVENT)),
-                    );
+                void syncOnce(currentUser).then((outcome) => {
+                    if (outcome) {
+                        setAuthExpired(outcome.authExpired);
+                    }
+                });
             }
         };
 
