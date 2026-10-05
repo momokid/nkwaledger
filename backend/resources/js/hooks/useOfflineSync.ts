@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { runSync } from "@/lib/offlineSync";
 
 const BACKGROUND_SYNC_TAG = "nkwa-offline-sync";
@@ -27,12 +27,16 @@ async function registerBackgroundSync(): Promise<void> {
 }
 
 export default function useOfflineSync() {
+    const [authExpired, setAuthExpired] = useState(false);
+
     useEffect(() => {
         const attemptSync = () => {
             if (navigator.onLine) {
-                void runSync().finally(() =>
-                    window.dispatchEvent(new Event(OFFLINE_SYNC_RAN_EVENT)),
-                );
+                void runSync()
+                    .then((outcome) => setAuthExpired(outcome.authExpired))
+                    .finally(() =>
+                        window.dispatchEvent(new Event(OFFLINE_SYNC_RAN_EVENT)),
+                    );
             }
         };
 
@@ -64,4 +68,6 @@ export default function useOfflineSync() {
             );
         };
     }, []);
+
+    return authExpired;
 }

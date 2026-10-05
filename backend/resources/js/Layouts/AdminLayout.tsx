@@ -4,6 +4,7 @@ import NotificationBell from "@/Components/NotificationBell";
 import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
 import useIsVerified from "@/hooks/useIsVerified";
 import useOfflineSync from "@/hooks/useOfflineSync";
+import SessionEndedBanner from "@/Components/SessionEndedBanner";
 import { PropsWithChildren, useEffect, useState } from "react";
 import {
     IconBook,
@@ -85,7 +86,7 @@ export default function AdminLayout({ title, children }: Props) {
     const [dark, setDark] = useState(false);
     const [textSize, setTextSizeState] = useState<TextSize>("normal");
     const verified = useIsVerified();
-    useOfflineSync();
+    const authExpired = useOfflineSync();
 
     useEffect(() => {
         const saved = localStorage.getItem("nkwa_theme");
@@ -641,6 +642,7 @@ export default function AdminLayout({ title, children }: Props) {
                         </header>
 
                         <main style={{ padding: "24px" }}>
+                            <SessionEndedBanner show={authExpired} />
                             <VerificationGate>{children}</VerificationGate>
                         </main>
                     </div>
@@ -665,6 +667,7 @@ export default function AdminLayout({ title, children }: Props) {
                             </h1>
                         </header>
                         <main style={{ padding: "24px" }}>
+                            <SessionEndedBanner show={authExpired} />
                             <VerificationGate>{children}</VerificationGate>
                         </main>
                     </div>

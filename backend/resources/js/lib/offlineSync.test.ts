@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { enqueue } from "./offlineStore";
-import { runSync } from "./offlineSync";
+import { isSessionEnded, runSync } from "./offlineSync";
 
 beforeEach(() => {
     indexedDB = new IDBFactory();
@@ -187,6 +187,38 @@ describe("runSync", () => {
 
         const { listPending } = await import("./offlineStore");
         expect(await listPending()).toHaveLength(1);
+
+        vi.unstubAllGlobals();
+    });
+});
+
+describe("isSessionEnded", () => {
+    it.each([
+        ["a 401", { type: "basic", status: 401 }, true],
+        ["a 419", { type: "basic", status: 419 }, true],
+        ["a redirect", { type: "opaqueredirect", status: 0 }, true],
+        ["a 200", { type: "basic", status: 200 }, false],
+        ["a 422", { type: "basic", status: 422 }, false],
+        ["a 500", { type: "basic", status: 500 }, false],
+    ])("%s", (_name, response, expected) => {
+        expect(isSessionEnded(response as Pick<Response, "type" | "status">)).toBe(expected);
+    });
+});
+
+describe("authExpired after a session ends", () => {
+    it("goes back to false on the next run that gets past the auth check, with the queue untouched until then", async () => {
+        await enqueue({ url: "/my-records", data: { amount: "10" } });
+        const { listPending } = await import("./offlineStore");
+
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(401, {})));
+        expect((await runSync()).authExpired).toBe(true);
+        expect(await listPending()).toHaveLength(1);
+
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { reference: "TXN" })));
+        const outcome = await runSync();
+
+        expect(outcome.authExpired).toBe(false);
+        expect(outcome.synced).toHaveLength(1);
 
         vi.unstubAllGlobals();
     });

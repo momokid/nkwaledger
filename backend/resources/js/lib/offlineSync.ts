@@ -36,6 +36,11 @@ async function postQueuedItem(item: QueuedSubmission): Promise<Response> {
     });
 }
 
+// a redirect, 401 or 419 all mean the same thing: sign in again
+export function isSessionEnded(response: Pick<Response, "type" | "status">): boolean {
+    return response.type === "opaqueredirect" || response.status === 419 || response.status === 401;
+}
+
 export async function runSync(): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { synced: [], needsAttention: [], authExpired: false };
     const pending = await listPending<QueuedSubmission>();
@@ -50,7 +55,7 @@ export async function runSync(): Promise<SyncOutcome> {
             continue;
         }
 
-        if (response.type === "opaqueredirect" || response.status === 419 || response.status === 401) {
+        if (isSessionEnded(response)) {
             outcome.authExpired = true;
             break;
         }

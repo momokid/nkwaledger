@@ -35,6 +35,7 @@ import {
     useState,
 } from "react";
 import FlashMessages from "@/Components/FlashMessages";
+import SessionEndedBanner from "@/Components/SessionEndedBanner";
 import { buildMarketplaceNavGroup, disabledPlaceholder } from "@/lib/navHelpers";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import VerificationGate from "@/Components/VerificationGate";
@@ -333,7 +334,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const pendingApprovals =
         (auth as { pendingApprovals?: number })?.pendingApprovals ?? 0;
     const verified = useIsVerified();
-    useOfflineSync();
+    const authExpired = useOfflineSync();
 
     const [dark, setDark] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
@@ -1115,6 +1116,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                     </header>
 
                     <main style={{ padding: "24px" }}>
+                        <SessionEndedBanner show={authExpired} />
                         <VerificationGate>{children}</VerificationGate>
                     </main>
                 </div>
