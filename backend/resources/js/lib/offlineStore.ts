@@ -32,6 +32,7 @@ interface QueueRow {
     id: string;
     envelope: EncryptedEnvelope;
     createdAt: string;
+    seq?: number;
     synced: boolean;
     owner?: string;
     needsAttention?: string;
@@ -148,14 +149,17 @@ export async function enqueue(payload: unknown, owner: string | null = null): Pr
 
     const db = await openDatabase();
     const tx = db.transaction(QUEUE_STORE, "readwrite");
-    tx.objectStore(QUEUE_STORE).put(row);
+    const store = tx.objectStore(QUEUE_STORE);
+    const existing = (await requestResult(store.getAll())) as QueueRow[];
+    const seq = Math.max(0, ...existing.map((item) => item.seq ?? 0)) + 1;
+    store.put({ ...row, seq });
     await whenDone(tx);
     db.close();
 
     return row.id;
 }
 
-// oldest first, so a partial sync retries in the order the farmer actually recorded things
+// oldest first (seq breaks same-millisecond ties), so a partial sync retries in the order the farmer actually recorded things
 export async function listPending<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
     const key = await getOrCreateDeviceKey();
 
@@ -166,7 +170,7 @@ export async function listPending<T = unknown>(currentUser: string | null): Prom
 
     const pending = ownedBy(rows, currentUser)
         .filter((row) => !row.synced && !row.needsAttention)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || (a.seq ?? 0) - (b.seq ?? 0));
 
     return Promise.all(
         pending.map(async (row) => ({
