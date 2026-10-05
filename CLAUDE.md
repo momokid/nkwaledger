@@ -184,3 +184,9 @@ These rules override Workflow items 3, 4, 5 and 6 above. In Claude Code sessions
 
 ### Report
 - Max 15 lines, plain English, no code in the summary: what changed; files changed (count and list, from the commit output); tests passed/failed/skipped and time; decisions made on your own; what is not done; what to check by hand. Then the full production diff in the reply. No patch files.
+
+### Style
+- Keep every reply and report short and plain, like for an 8th grader.
+- Summarise. No long explanations.
+- Only go into detail when something is risky for money, security or user data. Say it clearly and early.
+- Reports still must include the three git outputs.
