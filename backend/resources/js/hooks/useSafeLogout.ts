@@ -1,6 +1,7 @@
 import { router } from "@inertiajs/react";
 import { useState } from "react";
 import { deleteDeviceKey, queueCounts } from "@/lib/offlineStore";
+import { clearUnlocked } from "@/lib/pin";
 import { withQueueLock } from "@/lib/queueLock";
 
 // signing out never destroys unsent records: the user's own sendable items block it, and the
@@ -42,7 +43,10 @@ export default function useSafeLogout(currentUser: string | null) {
             route("logout"),
             {},
             {
-                onSuccess: () => window.history.replaceState({ loggedOut: true }, ""),
+                onSuccess: () => {
+                    clearUnlocked();
+                    window.history.replaceState({ loggedOut: true }, "");
+                },
             },
         );
     };

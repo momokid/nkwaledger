@@ -4,6 +4,7 @@ import "./bootstrap";
 import { createInertiaApp, router } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 import { createRoot, hydrateRoot } from "react-dom/client";
+import PinGate from "@/Components/PinGate";
 
 const appName = import.meta.env.VITE_APP_NAME || "NkwaLedger";
 
@@ -39,7 +40,15 @@ createInertiaApp({
             hydrateRoot(el, <App {...props} />);
             return;
         }
-        createRoot(el).render(<App {...props} />);
+        createRoot(el).render(
+            <App {...props}>
+                {({ Component, props: page, key }) => (
+                    <PinGate user={(page as { auth?: { user?: { id: number } | null } }).auth?.user}>
+                        <Component key={key} {...page} />
+                    </PinGate>
+                )}
+            </App>,
+        );
     },
     progress: {
         color: "#1D9E75",

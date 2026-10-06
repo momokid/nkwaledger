@@ -185,6 +185,25 @@ describe.each(layouts)("signing out of %s", (_name, Layout) => {
         await vi.waitFor(async () => expect(await keyIsStored()).toBe(false));
     });
 
+    it("clears the PIN unlock flag when it signs out", async () => {
+        sessionStorage.setItem("nkwa_pin_unlocked", "7");
+
+        await signOutFrom(Layout);
+
+        await vi.waitFor(() => expect(h.post).toHaveBeenCalled());
+        expect(sessionStorage.getItem("nkwa_pin_unlocked")).toBeNull();
+    });
+
+    it("keeps the PIN unlock flag when sign-out is blocked", async () => {
+        sessionStorage.setItem("nkwa_pin_unlocked", "7");
+        await enqueue(record(), "7");
+
+        await signOutFrom(Layout);
+
+        await blocked();
+        expect(sessionStorage.getItem("nkwa_pin_unlocked")).toBe("7");
+    });
+
     it("never deletes the key when the session ends by itself", async () => {
         h.authExpired = true;
         await enqueue(record(), "7");
