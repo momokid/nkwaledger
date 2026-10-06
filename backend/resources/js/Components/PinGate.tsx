@@ -2,10 +2,11 @@ import { IconArrowRight, IconLogout } from "@tabler/icons-react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import LogoutBlockedBanner from "@/Components/LogoutBlockedBanner";
 import useSafeLogout from "@/hooks/useSafeLogout";
-import { getPinRecord, isPinAllowed, isUnlocked, markUnlocked, savePin, verifyPin } from "@/lib/pin";
+import { clearPin, getPinRecord, isPinAllowed, isUnlocked, markUnlocked, savePin, verifyPin } from "@/lib/pin";
+import { confirmResetCode, requestResetCode } from "@/lib/pinReset";
 import { PIN_TEXT } from "@/lib/pinText";
 
-type Status = "loading" | "setup" | "enter" | "locked";
+type Status = "loading" | "setup" | "enter" | "locked" | "reset";
 
 const card = {
     maxWidth: "360px",
@@ -15,6 +16,18 @@ const card = {
     border: "1px solid #E5E7EB",
     color: "#111827",
     fontFamily: "'Inter', system-ui, sans-serif",
+} as const;
+
+const linkButton = {
+    display: "block",
+    background: "transparent",
+    border: "none",
+    color: "#0F6E56",
+    textDecoration: "underline",
+    cursor: "pointer",
+    fontSize: "1rem",
+    padding: 0,
+    marginTop: "12px",
 } as const;
 
 const iconButton = {
@@ -64,8 +77,12 @@ export default function PinGate({ user, children }: { user: { id: number } | nul
         return null;
     }
 
+    if (status === "reset") {
+        return <ResetScreen userId={userId} onDone={() => setStatus("setup")} />;
+    }
+
     if (status === "locked") {
-        return <LockedScreen userId={userId} />;
+        return <LockedScreen userId={userId} onForgot={() => setStatus("reset")} />;
     }
 
     return (
@@ -78,6 +95,7 @@ export default function PinGate({ user, children }: { user: { id: number } | nul
             }}
             onLocked={() => setStatus("locked")}
             onMissing={() => setStatus("setup")}
+            onForgot={() => setStatus("reset")}
         />
     );
 }
@@ -88,12 +106,14 @@ function PinScreen({
     onUnlocked,
     onLocked,
     onMissing,
+    onForgot,
 }: {
     userId: string;
     setup: boolean;
     onUnlocked: () => void;
     onLocked: () => void;
     onMissing: () => void;
+    onForgot: () => void;
 }) {
     const [value, setValue] = useState("");
     const [first, setFirst] = useState<string | null>(null);
@@ -173,11 +193,20 @@ function PinScreen({
                     {message}
                 </p>
             )}
+            {!setup && <ForgotButton onClick={onForgot} />}
         </form>
     );
 }
 
-function LockedScreen({ userId }: { userId: string }) {
+function ForgotButton({ onClick }: { onClick: () => void }) {
+    return (
+        <button type="button" onClick={onClick} style={linkButton}>
+            {PIN_TEXT.forgot}
+        </button>
+    );
+}
+
+function LockedScreen({ userId, onForgot }: { userId: string; onForgot: () => void }) {
     const { logout, blocked } = useSafeLogout(userId);
 
     return (
@@ -187,9 +216,94 @@ function LockedScreen({ userId }: { userId: string }) {
                 {PIN_TEXT.locked}
             </p>
             <p style={{ marginTop: "8px" }}>{PIN_TEXT.safe}</p>
+            <ForgotButton onClick={onForgot} />
             <button type="button" onClick={logout} style={{ ...iconButton, marginTop: "16px" }}>
                 <IconLogout size={22} />
             </button>
         </div>
+    );
+}
+
+// the code goes to the number on record; a right code forgets the old PIN, nothing else
+function ResetScreen({ userId, onDone }: { userId: string; onDone: () => void }) {
+    const [codeSent, setCodeSent] = useState(false);
+    const [value, setValue] = useState("");
+    const [message, setMessage] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    const send = async () => {
+        setBusy(true);
+        const sent = await requestResetCode();
+        setBusy(false);
+
+        if (sent === "sent") {
+            setCodeSent(true);
+            setMessage(null);
+        } else {
+            setMessage(PIN_TEXT.couldNotSend);
+        }
+    };
+
+    const confirm = async (event: FormEvent) => {
+        event.preventDefault();
+
+        const entered = value;
+        setValue("");
+        setBusy(true);
+        const result = await confirmResetCode(entered);
+        setBusy(false);
+
+        if (result === "ok") {
+            await clearPin(userId);
+            onDone();
+
+            return;
+        }
+
+        setMessage(
+            result === "wrong"
+                ? PIN_TEXT.wrongCode
+                : result === "expired"
+                  ? PIN_TEXT.expiredCode
+                  : result === "too_many"
+                    ? PIN_TEXT.tooManyCodes
+                    : PIN_TEXT.couldNotSend,
+        );
+    };
+
+    return (
+        <form onSubmit={confirm} style={card}>
+            {codeSent && (
+                <>
+                    <label htmlFor="nkwa-pin-code" style={{ display: "block", fontSize: "1.125rem", fontWeight: 600, marginBottom: "8px" }}>
+                        {PIN_TEXT.enterCode}
+                    </label>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                        <input
+                            id="nkwa-pin-code"
+                            type="password"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            maxLength={6}
+                            autoFocus
+                            value={value}
+                            onChange={(event) => setValue(event.target.value)}
+                            style={{ flex: 1, padding: "10px 12px", border: "1px solid #9CA3AF", fontSize: "1.25rem", letterSpacing: "0.3em" }}
+                        />
+                        <button type="submit" disabled={busy} style={iconButton}>
+                            <IconArrowRight size={22} />
+                        </button>
+                    </div>
+                </>
+            )}
+            {message && (
+                <p role="alert" style={{ color: "#B91C1C", marginTop: "10px" }}>
+                    {message}
+                </p>
+            )}
+            <button type="button" onClick={send} disabled={busy} style={{ ...linkButton, marginTop: "12px" }}>
+                {PIN_TEXT.sendCode}
+            </button>
+        </form>
     );
 }

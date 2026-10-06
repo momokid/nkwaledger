@@ -3,9 +3,14 @@ import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
+import { enqueue, listPending } from "@/lib/offlineStore";
+import { runSync } from "@/lib/offlineSync";
 import { getPinRecord, savePin, verifyPin } from "@/lib/pin";
 import { PIN_TEXT } from "@/lib/pinText";
 import PinGate from "./PinGate";
+
+// the PIN hash is deliberately slow, so outcomes get longer than the default one second
+const until = (check: () => unknown) => vi.waitFor(check, { timeout: 8000 });
 
 const h = vi.hoisted(() => ({ syncMounts: 0 }));
 
@@ -32,7 +37,7 @@ async function show(user: { id: number } | null) {
 const settle = () => act(async () => new Promise((resolve) => setTimeout(resolve, 30)));
 
 async function enter(pin: string) {
-    await vi.waitFor(() => expect(container.querySelector("input")).not.toBeNull());
+    await until(() => expect(container.querySelector("input")).not.toBeNull());
     const input = container.querySelector("input")!;
     await act(async () => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, pin);
@@ -44,7 +49,7 @@ async function enter(pin: string) {
     await settle();
 }
 
-const showsApp = () => vi.waitFor(() => expect(text()).toContain("the app"));
+const showsApp = () => until(() => expect(text()).toContain("the app"));
 
 async function setUp(pin: string) {
     await enter(pin);
@@ -56,7 +61,7 @@ async function setUp(pin: string) {
 async function wrongTries(count: number) {
     for (let tried = 1; tried <= count; tried++) {
         await enter("1357");
-        await vi.waitFor(async () => expect((await getPinRecord("7"))!.attempts).toBe(tried));
+        await until(async () => expect((await getPinRecord("7"))!.attempts).toBe(tried));
     }
 }
 
@@ -75,6 +80,7 @@ afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
 });
 
 describe("setting up a PIN", () => {
@@ -161,7 +167,7 @@ describe("unlocking", () => {
         await show({ id: 7 });
         await enter("1357");
 
-        await vi.waitFor(() => expect(text()).toContain(PIN_TEXT.wrong));
+        await until(() => expect(text()).toContain(PIN_TEXT.wrong));
         expect(text()).not.toContain("the app");
         expect(flag()).toBeNull();
     });
@@ -176,7 +182,7 @@ describe("unlocking", () => {
 
         await enter("2580");
 
-        await vi.waitFor(() => expect(text()).toContain(PIN_TEXT.wrong));
+        await until(() => expect(text()).toContain(PIN_TEXT.wrong));
         expect(text()).not.toContain("the app");
     });
 
@@ -199,7 +205,7 @@ describe("too many wrong tries", () => {
         await show({ id: 7 });
         await wrongTries(5);
 
-        await vi.waitFor(() => expect(text()).toContain(PIN_TEXT.locked));
+        await until(() => expect(text()).toContain(PIN_TEXT.locked));
         expect(text()).toContain(PIN_TEXT.safe);
         expect(container.querySelector("input")).toBeNull();
 
@@ -224,7 +230,7 @@ describe("too many wrong tries", () => {
         await show({ id: 7 });
         await wrongTries(5);
 
-        await vi.waitFor(() => expect(text()).toContain(PIN_TEXT.locked));
+        await until(() => expect(text()).toContain(PIN_TEXT.locked));
         expect(container.querySelectorAll("button").length).toBeGreaterThan(0);
     });
 });
@@ -237,5 +243,158 @@ describe("guest pages", () => {
 
         expect(text()).toContain("the app");
         expect(open).not.toHaveBeenCalled();
+    });
+});
+
+describe("resetting a locked PIN by SMS", () => {
+    const answer = (status: number, body: object = {}) => new Response(JSON.stringify(body), { status });
+
+    const click = (label: string) =>
+        act(async () => {
+            Array.from(container.querySelectorAll("button")).find((button) => button.textContent === label)!.click();
+        });
+
+    const stubFetch = (handler: (url: string) => Response | Promise<Response>) => {
+        const fetchMock = vi.fn(async (url: string) => handler(url));
+        vi.stubGlobal("fetch", fetchMock);
+
+        return fetchMock;
+    };
+
+    beforeEach(async () => {
+        document.head.innerHTML = '<meta name="csrf-token" content="t">';
+        await savePin("7", "4826");
+    });
+
+    async function lockIt() {
+        await show({ id: 7 });
+        await wrongTries(5);
+        await until(() => expect(text()).toContain(PIN_TEXT.locked));
+    }
+
+    async function askForCode() {
+        await click(PIN_TEXT.forgot);
+        await click(PIN_TEXT.sendCode);
+        await until(() => expect(text()).toContain(PIN_TEXT.enterCode));
+    }
+
+    it("is offered on the locked screen and on the enter screen", async () => {
+        await show({ id: 7 });
+
+        expect(text()).toContain(PIN_TEXT.forgot);
+
+        await wrongTries(5);
+        await until(() => expect(text()).toContain(PIN_TEXT.locked));
+
+        expect(text()).toContain(PIN_TEXT.forgot);
+    });
+
+    it("sends the code, and a right code leads to setup, with the old PIN no longer working", async () => {
+        const fetchMock = stubFetch((url) => (url === "/pin-reset/send" ? answer(200, { status: "sent" }) : answer(200, { status: "ok" })));
+        await lockIt();
+
+        await askForCode();
+        await enter("123456");
+
+        await until(() => expect(text()).toContain(PIN_TEXT.create));
+        expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/pin-reset/send", "/pin-reset/confirm"]);
+        expect(await getPinRecord("7")).toBeUndefined();
+        expect(await verifyPin("7", "4826")).toBe("none");
+        expect(text()).not.toContain("the app");
+    });
+
+    it("applies the same easy-PIN rules to the new PIN", async () => {
+        stubFetch((url) => (url === "/pin-reset/send" ? answer(200, { status: "sent" }) : answer(200, { status: "ok" })));
+        await lockIt();
+        await askForCode();
+        await enter("123456");
+        await until(() => expect(text()).toContain(PIN_TEXT.create));
+
+        await enter("1234");
+
+        expect(text()).toContain(PIN_TEXT.weak);
+    });
+
+    it("shows the wrong-code text for a wrong code", async () => {
+        stubFetch((url) => (url === "/pin-reset/send" ? answer(200, { status: "sent" }) : answer(422, { status: "wrong" })));
+        await lockIt();
+        await askForCode();
+
+        await enter("123456");
+
+        await until(() => expect(text()).toContain(PIN_TEXT.wrongCode));
+        expect(await getPinRecord("7")).toMatchObject({ locked: true });
+    });
+
+    it("shows the expired text for an expired or used code", async () => {
+        stubFetch((url) => (url === "/pin-reset/send" ? answer(200, { status: "sent" }) : answer(422, { status: "expired" })));
+        await lockIt();
+        await askForCode();
+
+        await enter("123456");
+
+        await until(() => expect(text()).toContain(PIN_TEXT.expiredCode));
+    });
+
+    it("shows the too-many-codes text once the server says so", async () => {
+        stubFetch((url) => (url === "/pin-reset/send" ? answer(200, { status: "sent" }) : answer(422, { status: "too_many" })));
+        await lockIt();
+        await askForCode();
+
+        await enter("123456");
+
+        await until(() => expect(text()).toContain(PIN_TEXT.tooManyCodes));
+    });
+
+    it("says the code could not be sent when offline, and stays locked", async () => {
+        stubFetch(() => {
+            throw new TypeError("offline");
+        });
+        await lockIt();
+
+        await click(PIN_TEXT.forgot);
+        await click(PIN_TEXT.sendCode);
+
+        await until(() => expect(text()).toContain(PIN_TEXT.couldNotSend));
+        expect(await getPinRecord("7")).toMatchObject({ locked: true });
+        expect(text()).not.toContain("the app");
+    });
+
+    it("leaves the queue intact, syncs nothing until the new PIN is set, then syncs", async () => {
+        const record = {
+            shape: 2 as const,
+            uuid: crypto.randomUUID(),
+            template: 1,
+            farmer: "5b0f9f4e-0c3e-4a67-9a52-1e0f3f2a1111",
+            amount: "100",
+            event_date: "2026-03-01",
+            device_created_at: "2026-03-01T08:00:00.000Z",
+        };
+        await enqueue(record, "7");
+
+        const fetchMock = stubFetch((url) => {
+            if (url === "/pin-reset/send") return answer(200, { status: "sent" });
+            if (url === "/pin-reset/confirm") return answer(200, { status: "ok" });
+
+            return answer(200, { results: [{ uuid: record.uuid, status: "accepted" }] });
+        });
+
+        await lockIt();
+        await askForCode();
+        await enter("123456");
+        await until(() => expect(text()).toContain(PIN_TEXT.create));
+
+        expect(await listPending("7")).toHaveLength(1);
+        expect(h.syncMounts).toBe(0);
+        expect(fetchMock.mock.calls.some(([url]) => url === "/sync/submissions")).toBe(false);
+
+        await setUp("2580");
+
+        expect(h.syncMounts).toBeGreaterThan(0);
+
+        await runSync("7");
+
+        expect(fetchMock.mock.calls.some(([url]) => url === "/sync/submissions")).toBe(true);
+        expect(await listPending("7")).toHaveLength(0);
     });
 });

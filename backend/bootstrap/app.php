@@ -52,6 +52,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn(Request $request) => $request->is('api/*')
-                || ($request->expectsJson() && $request->is('sync/*', 'admin/sync-submissions/*')),
+                || ($request->expectsJson() && $request->is('sync/*', 'admin/sync-submissions/*', 'pin-reset/*')),
         );
     })->create();

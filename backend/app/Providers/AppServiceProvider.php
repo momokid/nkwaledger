@@ -84,6 +84,15 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('pin-reset', fn(Request $request) => [
+            Limit::perHour(config('otp.pin_reset.per_user'))->by('pin-reset-user:' . $request->user()?->id),
+            Limit::perHour(config('otp.pin_reset.per_ip'))->by('pin-reset-ip:' . $request->ip()),
+        ]);
+
+        RateLimiter::for('pin-reset-confirm', fn(Request $request) => [
+            Limit::perHour(config('otp.pin_reset.confirm_per_user'))->by('pin-reset-confirm-user:' . $request->user()?->id),
+        ]);
+
         Route::model('farmer', \App\Models\FarmerProfile::class);
         // anything that is not a uuid is not an address, so it never reaches the database
         Route::pattern('farmer', '[0-9a-fA-F-]{36}');

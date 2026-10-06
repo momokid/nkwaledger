@@ -86,6 +86,15 @@ export async function getPinRecord(userId: string): Promise<PinRecord | undefine
     return record;
 }
 
+// forgetting the PIN also forgets the lock and the tries, so a new one starts clean
+export async function clearPin(userId: string): Promise<void> {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(userId);
+    await done(tx);
+    db.close();
+}
+
 export async function savePin(userId: string, pin: string): Promise<void> {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const record: PinRecord = {

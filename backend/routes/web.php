@@ -163,6 +163,14 @@ Route::middleware('auth')->group(function () {
         ->name('otp.phone.send');
     Route::post('verify-phone/confirm', [PhoneVerificationController::class, 'confirm'])
         ->name('otp.phone.confirm');
+
+    // a signed-in user who lost the PIN on this phone proves they hold their own number
+    Route::post('pin-reset/send', [\App\Http\Controllers\Auth\PinResetController::class, 'send'])
+        ->middleware('throttle:pin-reset')
+        ->name('pin-reset.send');
+    Route::post('pin-reset/confirm', [\App\Http\Controllers\Auth\PinResetController::class, 'confirm'])
+        ->middleware('throttle:pin-reset-confirm')
+        ->name('pin-reset.confirm');
 });
 
 // a vet's queue and the reports assigned to them
