@@ -10,6 +10,7 @@ import {
     remove,
 } from "@/lib/offlineStore";
 import { buildBatchRecord } from "@/lib/batchRecord";
+import { createRecordKey } from "@/lib/recordKey";
 import { QueuedSubmission } from "@/types/offlineQueue";
 import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
@@ -133,6 +134,7 @@ function CreateContent({
             ? `/agent/farmers/${farmer.id}/records`
             : "/my-records";
 
+    const [recordKey] = useState(createRecordKey);
     const [savedOffline, setSavedOffline] = useState(false);
     const [attentionItems, setAttentionItems] = useState<
         NeedsAttentionItem<QueuedSubmission>[]
@@ -163,7 +165,8 @@ function CreateContent({
         refreshAttentionItems();
     };
 
-    const resetEnteredFields = () =>
+    const resetEnteredFields = () => {
+        recordKey.renew();
         form.reset(
             "amount",
             "quantity_lost",
@@ -171,6 +174,7 @@ function CreateContent({
             "quantity_purchased",
             "narration",
         );
+    };
 
     const queueOffline = async (data: Record<string, string>) => {
         const quantity = needsQuantityLost
@@ -181,7 +185,7 @@ function CreateContent({
                 ? data.quantity_purchased
                 : "";
 
-        await enqueue(buildBatchRecord(farmer.id, data, quantity), currentUser);
+        await enqueue(buildBatchRecord(farmer.id, data, quantity, data.idempotency_key), currentUser);
 
         setSavedOffline(true);
         resetEnteredFields();
@@ -200,7 +204,7 @@ function CreateContent({
             // never sent as a real account id
             settlement_account_id: isCredit ? "" : form.data.settlement_account_id,
             is_credit: isCredit ? "1" : "0",
-            idempotency_key: crypto.randomUUID(),
+            idempotency_key: recordKey.current(),
         };
 
         if (!navigator.onLine) {
@@ -220,6 +224,8 @@ function CreateContent({
                 // server with a proper response, not that validation failed
                 if (Object.keys(errors).length === 0) {
                     void queueOffline(dataWithIdempotencyKey);
+                } else {
+                    recordKey.renew();
                 }
             },
         });

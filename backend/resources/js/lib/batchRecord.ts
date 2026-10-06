@@ -1,14 +1,15 @@
 import { QueuedBatchRecord } from "@/types/offlineQueue";
 
-// the uuid is made here, once, and is the retry key for the life of the item
+// the uuid is the retry key for the life of the item; the form passes the one it already sent online
 export function buildBatchRecord(
     farmer: string,
     data: Record<string, string>,
     quantity: string,
+    uuid: string = crypto.randomUUID(),
 ): QueuedBatchRecord {
     return {
         shape: 2,
-        uuid: crypto.randomUUID(),
+        uuid,
         template: Number(data.transaction_template_id),
         farmer,
         amount: data.amount,
