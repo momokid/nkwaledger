@@ -4,6 +4,7 @@
 // makes previously queued data permanently unreadable.
 
 import { buildQueueRow, ownedBy } from "./queueOwner";
+import { withQueueLock } from "./queueLock";
 
 const DB_NAME = "nkwa-offline-store";
 const DB_VERSION = 1;
@@ -100,17 +101,23 @@ async function loadOrGenerateDeviceKey(): Promise<CryptoKey> {
         return existing as CryptoKey;
     }
 
-    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+    const generated = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
         "encrypt",
         "decrypt",
     ]);
 
+    // first writer wins: a key someone else stored meanwhile is the one everybody uses
     const writeTx = db.transaction(KEY_STORE, "readwrite");
-    writeTx.objectStore(KEY_STORE).put(key, DEVICE_KEY_ID);
+    const winner = (await requestResult(writeTx.objectStore(KEY_STORE).get(DEVICE_KEY_ID))) as CryptoKey | undefined;
+
+    if (!winner) {
+        writeTx.objectStore(KEY_STORE).put(generated, DEVICE_KEY_ID);
+    }
+
     await whenDone(writeTx);
     db.close();
 
-    return key;
+    return winner ?? generated;
 }
 
 export async function deleteDeviceKey(): Promise<void> {
@@ -141,24 +148,29 @@ export async function decrypt<T = unknown>(key: CryptoKey, envelope: EncryptedEn
     return JSON.parse(new TextDecoder().decode(plaintext)) as T;
 }
 
-export async function enqueue(payload: unknown, owner: string | null = null): Promise<string> {
-    const key = await getOrCreateDeviceKey();
-    const envelope = await encrypt(key, payload);
-    const row: QueueRow = buildQueueRow(
-        { id: crypto.randomUUID(), envelope, createdAt: new Date().toISOString() },
-        owner,
-    );
+export function enqueue(payload: unknown, owner: string | null = null): Promise<string> {
+    return withQueueLock(async () => {
+        // another tab may have deleted the key since this one cached it
+        deviceKeyPromise = null;
 
-    const db = await openDatabase();
-    const tx = db.transaction(QUEUE_STORE, "readwrite");
-    const store = tx.objectStore(QUEUE_STORE);
-    const existing = (await requestResult(store.getAll())) as QueueRow[];
-    const seq = Math.max(0, ...existing.map((item) => item.seq ?? 0)) + 1;
-    store.put({ ...row, seq });
-    await whenDone(tx);
-    db.close();
+        const key = await getOrCreateDeviceKey();
+        const envelope = await encrypt(key, payload);
+        const row: QueueRow = buildQueueRow(
+            { id: crypto.randomUUID(), envelope, createdAt: new Date().toISOString() },
+            owner,
+        );
 
-    return row.id;
+        const db = await openDatabase();
+        const tx = db.transaction(QUEUE_STORE, "readwrite");
+        const store = tx.objectStore(QUEUE_STORE);
+        const existing = (await requestResult(store.getAll())) as QueueRow[];
+        const seq = Math.max(0, ...existing.map((item) => item.seq ?? 0)) + 1;
+        store.put({ ...row, seq });
+        await whenDone(tx);
+        db.close();
+
+        return row.id;
+    });
 }
 
 const bySavedOrder = (a: QueueRow, b: QueueRow) => (a.seq ?? 0) - (b.seq ?? 0) || a.createdAt.localeCompare(b.createdAt);
@@ -219,14 +231,15 @@ export async function recordFailedAttempt(id: string): Promise<void> {
     db.close();
 }
 
-// everything still on the device, whoever it belongs to: `own` is the signed-in user's share
+// everything still on the device, whoever it belongs to: `own` is the signed-in user's items that
+// can still be sent or need attention (stuck ones are kept but never block anything)
 export async function queueCounts(currentUser: string | null): Promise<{ own: number; total: number }> {
     const db = await openDatabase();
     const tx = db.transaction(QUEUE_STORE, "readonly");
     const rows = ((await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[]).filter((row) => !row.synced);
     db.close();
 
-    return { own: ownedBy(rows, currentUser).length, total: rows.length };
+    return { own: ownedBy(rows, currentUser).filter((row) => !row.stuck).length, total: rows.length };
 }
 
 // items that failed five times: kept on the device, shown to their owner, never sent again by themselves

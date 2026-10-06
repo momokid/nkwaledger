@@ -9,6 +9,7 @@ import {
     getOrCreateDeviceKey,
     listPending,
     markNeedsAttention,
+    queueCounts,
     recordFailedAttempt,
 } from "@/lib/offlineStore";
 import AdminLayout from "./AdminLayout";
@@ -131,11 +132,27 @@ describe.each(layouts)("signing out of %s", (_name, Layout) => {
         await blocked();
     });
 
-    it("is blocked by the user's own stuck item", async () => {
-        const id = await enqueue(record(), "7");
+    const stick = async (owner: string) => {
+        const id = await enqueue(record(), owner);
         for (let i = 0; i < 5; i++) {
             await recordFailedAttempt(id);
         }
+    };
+
+    it("signs out when the user's only items are stuck, keeping the key and the item", async () => {
+        await stick("7");
+
+        await signOutFrom(Layout);
+
+        await vi.waitFor(() => expect(h.post).toHaveBeenCalled());
+        expect(await keyIsStored()).toBe(true);
+        expect(await queueCounts("7")).toEqual({ own: 0, total: 1 });
+        expect(container.textContent).not.toContain(MESSAGE);
+    });
+
+    it("is blocked when the user has a stuck item and a pending one", async () => {
+        await stick("7");
+        await enqueue(record(), "7");
 
         await signOutFrom(Layout);
 

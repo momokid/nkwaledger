@@ -4,6 +4,7 @@ import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { shortDate } from "@/lib/format";
+import { withQueueLock } from "@/lib/queueLock";
 import { enqueue, listPending, recordFailedAttempt } from "@/lib/offlineStore";
 import { QueuedBatchRecord } from "@/types/offlineQueue";
 import Create from "./Create";
@@ -103,6 +104,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+    // let any save still in flight finish before the next test swaps the database
+    await withQueueLock(async () => {});
     await act(async () => root.unmount());
     container.remove();
     vi.restoreAllMocks();
