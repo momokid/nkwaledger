@@ -104,50 +104,49 @@ async function postBatch(records: QueuedBatchRecord[]): Promise<Response> {
     });
 }
 
-// a fetch that throws (offline, timeout) and a session problem leave the counters alone
-async function sendBatch(items: BatchItem[], outcome: SyncOutcome): Promise<void> {
+// a fetch that throws (offline, timeout), a session problem and a 429 leave the counters alone;
+// the first two also stop the run (returns false)
+async function sendBatch(items: BatchItem[], outcome: SyncOutcome): Promise<boolean> {
     let response: Response;
 
     try {
         response = await postBatch(items.map((item) => item.payload));
     } catch {
-        return;
+        return false;
     }
 
     if (isSessionEnded(response)) {
         outcome.authExpired = true;
 
-        return;
+        return false;
     }
 
     if (response.status === 422) {
         if (items.length === 1) {
             await recordFailedAttempt(items[0].id);
 
-            return;
+            return true;
         }
 
         for (const item of items) {
-            await sendBatch([item], outcome);
-
-            if (outcome.authExpired) {
-                return;
+            if (!(await sendBatch([item], outcome))) {
+                return false;
             }
         }
 
-        return;
+        return true;
     }
 
-    if (response.status >= 500) {
+    if (response.status >= 400 && response.status !== 429) {
         for (const item of items) {
             await recordFailedAttempt(item.id);
         }
 
-        return;
+        return true;
     }
 
     if (!response.ok) {
-        return;
+        return true;
     }
 
     const body = await response.json().catch(() => null);
@@ -167,6 +166,8 @@ async function sendBatch(items: BatchItem[], outcome: SyncOutcome): Promise<void
             outcome.synced.push(item.id);
         }
     }
+
+    return true;
 }
 
 export async function runSync(currentUser: string | null): Promise<SyncOutcome> {
@@ -213,7 +214,9 @@ export async function runSync(currentUser: string | null): Promise<SyncOutcome> 
     }
 
     for (let start = 0; start < batchItems.length && !outcome.authExpired; start += BATCH_SIZE) {
-        await sendBatch(batchItems.slice(start, start + BATCH_SIZE), outcome);
+        if (!(await sendBatch(batchItems.slice(start, start + BATCH_SIZE), outcome))) {
+            break;
+        }
     }
 
     return outcome;

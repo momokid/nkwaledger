@@ -296,3 +296,64 @@ describe("old-shape items", () => {
         expect(bodies[0]).toEqual({ amount: "10" });
     });
 });
+
+describe("other refusals and a lost connection", () => {
+    const counters = async () => (await rows()).map((r) => r.attempts ?? 0);
+
+    it("a 429 leaves the records queued and the counter alone", async () => {
+        await queue(2);
+        serve(() => new Response("{}", { status: 429 }));
+
+        await runSync(USER);
+
+        expect(await remaining()).toHaveLength(2);
+        expect(await counters()).toEqual([0, 0]);
+    });
+
+    it.each([403, 404])("a %i raises the counter, and the fifth failure sets stuck", async (status) => {
+        await queue(1);
+        const calls = serve(() => new Response("{}", { status }));
+
+        await runSync(USER);
+
+        expect(await counters()).toEqual([1]);
+
+        for (let i = 0; i < 4; i++) {
+            await runSync(USER);
+        }
+
+        expect((await rows())[0]).toMatchObject({ attempts: 5, stuck: true });
+
+        await runSync(USER);
+
+        expect(calls).toHaveLength(5);
+        expect(await rows()).toHaveLength(1);
+    });
+
+    it("a lost connection on batch 1 of 3 stops the run: nothing else is sent, nothing changes", async () => {
+        await queue(45);
+        const calls = serve(offline);
+
+        await runSync(USER);
+
+        expect(calls).toHaveLength(1);
+        expect(await remaining()).toHaveLength(45);
+        expect((await counters()).every((count) => count === 0)).toBe(true);
+    });
+
+    it("a lost connection while resending singly after a 422 stops the run", async () => {
+        await queue(3);
+        const calls = serve((call) => {
+            if (call.records.length > 1) {
+                return new Response("{}", { status: 422 });
+            }
+
+            return offline();
+        });
+
+        await runSync(USER);
+
+        expect(calls.map((c) => c.records.length)).toEqual([3, 1]);
+        expect(await remaining()).toHaveLength(3);
+    });
+});
