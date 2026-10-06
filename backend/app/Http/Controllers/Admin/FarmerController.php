@@ -295,7 +295,6 @@ class FarmerController extends Controller
         return back()->with('success', 'The document is saved. It still needs to be verified.');
     }
 
-    // only the admin route reaches this; the service refuses anyone else and the submitter
     // ends every session and remember-me token this farmer has, on every device
     public function forceLogout(Request $request, FarmerProfile $farmer, ForcedLogoutService $logout): JsonResponse
     {
@@ -322,6 +321,7 @@ class FarmerController extends Controller
         return response()->json(['status' => 'signed_out']);
     }
 
+    // only the admin route reaches this; the service refuses anyone else and the submitter
     public function verifyIdentity(Request $request, FarmerProfile $farmer): RedirectResponse
     {
         $this->kyc->approve($farmer, $request->user());
