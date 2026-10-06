@@ -3,6 +3,7 @@ import { useState } from "react";
 import { deleteDeviceKey, queueCounts } from "@/lib/offlineStore";
 import { clearUnlocked } from "@/lib/pin";
 import { withQueueLock } from "@/lib/queueLock";
+import { clearWorkerCaches } from "@/lib/workerCaches";
 
 // signing out never destroys unsent records: the user's own sendable items block it, and the
 // shared device key is only deleted when nobody's items are left on the phone
@@ -45,6 +46,7 @@ export default function useSafeLogout(currentUser: string | null) {
             {
                 onSuccess: () => {
                     clearUnlocked();
+                    void clearWorkerCaches();
                     window.history.replaceState({ loggedOut: true }, "");
                 },
             },

@@ -12,6 +12,13 @@ const appName = import.meta.env.VITE_APP_NAME || "NkwaLedger";
 // every successful answer from our own server counts as contact, for the offline lock
 installContactTracking();
 
+// the worker keeps the static shell and the offline page; page loads and data always go to the network
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    });
+}
+
 window.addEventListener("pageshow", (e: PageTransitionEvent) => {
     if (e.persisted) {
         const state = window.history.state;

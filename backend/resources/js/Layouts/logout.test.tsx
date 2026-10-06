@@ -185,6 +185,41 @@ describe.each(layouts)("signing out of %s", (_name, Layout) => {
         await vi.waitFor(async () => expect(await keyIsStored()).toBe(false));
     });
 
+    it("clears the worker caches once the sign-out has gone through, and not before", async () => {
+        const deleted: string[] = [];
+        vi.stubGlobal("caches", {
+            keys: async () => ["nkwa-shell-v1"],
+            delete: async (name: string) => {
+                deleted.push(name);
+
+                return true;
+            },
+            open: async () => ({ add: async () => {} }),
+        });
+        h.post.mockImplementation(() => {});
+
+        await signOutFrom(Layout);
+        await vi.waitFor(() => expect(h.post).toHaveBeenCalled());
+
+        expect(deleted).toEqual([]);
+
+        h.post.mock.calls[0][2].onSuccess();
+
+        await vi.waitFor(() => expect(deleted).toEqual(["nkwa-shell-v1"]));
+        expect(await listPending("8")).toEqual([]);
+    });
+
+    it("leaves the worker caches alone when sign-out is blocked", async () => {
+        const deleted: string[] = [];
+        vi.stubGlobal("caches", { keys: async () => ["nkwa-shell-v1"], delete: async (name: string) => deleted.push(name), open: async () => ({ add: async () => {} }) });
+        await enqueue(record(), "7");
+
+        await signOutFrom(Layout);
+
+        await blocked();
+        expect(deleted).toEqual([]);
+    });
+
     it("clears the PIN unlock flag when it signs out", async () => {
         sessionStorage.setItem("nkwa_pin_unlocked", "7");
 

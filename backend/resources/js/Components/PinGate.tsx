@@ -7,6 +7,7 @@ import { markHidden, readClocks, shouldLock, takeHiddenStamp } from "@/lib/idleL
 import { clearPin, clearUnlocked, getPinRecord, isPinAllowed, isUnlocked, markUnlocked, savePin, verifyPin } from "@/lib/pin";
 import { confirmResetCode, requestResetCode } from "@/lib/pinReset";
 import { checkGuards, GuardState, peekGuard, retryContact, setContactUser } from "@/lib/serverContact";
+import { noteSignedInUser } from "@/lib/workerCaches";
 import { PIN_TEXT } from "@/lib/pinText";
 
 type Status = "loading" | "setup" | "enter" | "locked" | "reset";
@@ -95,6 +96,7 @@ export default function PinGate({ user, children }: { user: { id: number } | nul
         }
 
         setContactUser(userId);
+        void noteSignedInUser(userId);
         void checkAgain();
 
         // first in line on a wake-up: if what was last read already says "locked", no other

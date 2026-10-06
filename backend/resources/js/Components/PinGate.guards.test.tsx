@@ -274,3 +274,53 @@ describe("first use", () => {
         expect(await checkGuards("7", T0)).toBe("ok");
     });
 });
+
+describe("the worker's caches and a change of user", () => {
+    const stubCaches = () => {
+        const deleted: string[] = [];
+        vi.stubGlobal("caches", {
+            keys: async () => ["nkwa-shell-v1"],
+            delete: async (name: string) => {
+                deleted.push(name);
+
+                return true;
+            },
+            open: async () => ({ add: async () => {} }),
+        });
+
+        return deleted;
+    };
+
+    beforeEach(() => localStorage.clear());
+
+    it("are cleared when a different user is signed in on the same phone", async () => {
+        const deleted = stubCaches();
+        localStorage.setItem("nkwa_last_user", "8");
+
+        await render();
+
+        await until(() => expect(deleted).toEqual(["nkwa-shell-v1"]));
+        expect(localStorage.getItem("nkwa_last_user")).toBe("7");
+        expect(text()).toContain("inside-the-gate");
+    });
+
+    it("are kept when the same user comes back", async () => {
+        const deleted = stubCaches();
+        localStorage.setItem("nkwa_last_user", "7");
+
+        await render();
+        await act(async () => new Promise((resolve) => setTimeout(resolve, 60)));
+
+        expect(deleted).toEqual([]);
+    });
+
+    it("are kept the first time any user is seen on the phone", async () => {
+        const deleted = stubCaches();
+
+        await render();
+        await act(async () => new Promise((resolve) => setTimeout(resolve, 60)));
+
+        expect(deleted).toEqual([]);
+        expect(localStorage.getItem("nkwa_last_user")).toBe("7");
+    });
+});
