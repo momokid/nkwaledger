@@ -5,8 +5,12 @@ import { createInertiaApp, router } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import PinGate from "@/Components/PinGate";
+import { installContactTracking } from "@/lib/serverContact";
 
 const appName = import.meta.env.VITE_APP_NAME || "NkwaLedger";
+
+// every successful answer from our own server counts as contact, for the offline lock
+installContactTracking();
 
 window.addEventListener("pageshow", (e: PageTransitionEvent) => {
     if (e.persisted) {

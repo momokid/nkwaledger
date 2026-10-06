@@ -1,6 +1,13 @@
 import axios from "axios";
+import { noteContact } from "@/lib/serverContact";
 
 window.axios = axios;
+
+window.axios.interceptors.response.use((response) => {
+    noteContact(response.headers?.date as string | undefined);
+
+    return response;
+});
 
 window.axios.defaults.headers.common["X-Requested-With"] = "XMLHttpRequest";
 

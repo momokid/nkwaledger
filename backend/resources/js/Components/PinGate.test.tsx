@@ -40,6 +40,8 @@ const flag = () => sessionStorage.getItem("nkwa_pin_unlocked");
 
 async function show(user: { id: number } | null) {
     await act(async () => root.render(<PinGate user={user}><Child /></PinGate>));
+    // every state the gate can be in puts something on the screen once its checks are done
+    await until(() => expect(text()).not.toBe(""));
     await settle();
 }
 
@@ -409,6 +411,9 @@ describe("resetting a locked PIN by SMS", () => {
 });
 
 describe("locking after time in the background", () => {
+    // fake clocks start from the real time, so the offline and clock locks see a believable phone
+    const BASE = Date.now();
+
     function SyncChild() {
         useOfflineSync();
 
@@ -442,9 +447,9 @@ describe("locking after time in the background", () => {
     it("stays unlocked after 59 seconds in the background", async () => {
         await unlockedApp();
 
-        setClocks(1_000_000, 5_000);
+        setClocks(BASE, 5_000);
         await setVisibility("hidden");
-        setClocks(1_059_000, 64_000);
+        setClocks(BASE + 59_000, 64_000);
         await setVisibility("visible");
 
         expect(text()).toContain("the app");
@@ -454,9 +459,9 @@ describe("locking after time in the background", () => {
     it("locks after 60 seconds in the background and asks for the PIN", async () => {
         await unlockedApp();
 
-        setClocks(1_000_000, 5_000);
+        setClocks(BASE, 5_000);
         await setVisibility("hidden");
-        setClocks(1_060_000, 65_000);
+        setClocks(BASE + 60_000, 65_000);
         await setVisibility("visible");
 
         await until(() => expect(text()).toContain(PIN_TEXT.enter));
@@ -467,9 +472,9 @@ describe("locking after time in the background", () => {
     it("locks when the phone clock was moved backward", async () => {
         await unlockedApp();
 
-        setClocks(1_000_000, 5_000);
+        setClocks(BASE, 5_000);
         await setVisibility("hidden");
-        setClocks(900_000, 15_000);
+        setClocks(BASE - 100_000, 15_000);
         await setVisibility("visible");
 
         await until(() => expect(text()).toContain(PIN_TEXT.enter));
@@ -479,9 +484,9 @@ describe("locking after time in the background", () => {
     it("locks when the wall clock was frozen but the monotonic clock ran on", async () => {
         await unlockedApp();
 
-        setClocks(1_000_000, 5_000);
+        setClocks(BASE, 5_000);
         await setVisibility("hidden");
-        setClocks(1_000_000, 66_000);
+        setClocks(BASE, 66_000);
         await setVisibility("visible");
 
         await until(() => expect(text()).toContain(PIN_TEXT.enter));
@@ -490,11 +495,11 @@ describe("locking after time in the background", () => {
     it("still locks when the page was closed in the background and opened again later", async () => {
         await unlockedApp();
 
-        setClocks(1_000_000, 5_000);
+        setClocks(BASE, 5_000);
         await setVisibility("hidden");
         await act(async () => root.unmount());
         root = createRoot(container);
-        setClocks(1_090_000, 3_000);
+        setClocks(BASE + 90_000, 3_000);
         await setVisibility("visible");
         await act(async () => root.render(<PinGate user={{ id: 7 }}><SyncChild /></PinGate>));
         await settle();
@@ -507,9 +512,9 @@ describe("locking after time in the background", () => {
         await unlockedApp();
         expect(h.syncOnce).not.toHaveBeenCalled();
 
-        setClocks(1_000_000, 5_000);
+        setClocks(BASE, 5_000);
         await setVisibility("hidden");
-        setClocks(1_120_000, 125_000);
+        setClocks(BASE + 120_000, 125_000);
         await setVisibility("visible");
         await until(() => expect(text()).toContain(PIN_TEXT.enter));
 

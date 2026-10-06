@@ -15,4 +15,6 @@ export const PIN_TEXT = {
     expiredCode: "That code has expired. Ask for a new one.",
     couldNotSend: "We could not send the code. Check your connection and try again.",
     tooManyCodes: "Too many wrong codes. Try again later.",
+    offlineTooLong: "You have been offline for too long. Connect to the internet to unlock the app.",
+    clockWrong: "The date on this phone looks wrong. Set the correct date and connect to the internet.",
 } as const;

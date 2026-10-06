@@ -1,10 +1,12 @@
-import { IconArrowRight, IconLogout } from "@tabler/icons-react";
+import { IconArrowRight, IconLogout, IconRefresh } from "@tabler/icons-react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import LogoutBlockedBanner from "@/Components/LogoutBlockedBanner";
+import SessionEndedBanner from "@/Components/SessionEndedBanner";
 import useSafeLogout from "@/hooks/useSafeLogout";
 import { markHidden, readClocks, shouldLock, takeHiddenStamp } from "@/lib/idleLock";
 import { clearPin, clearUnlocked, getPinRecord, isPinAllowed, isUnlocked, markUnlocked, savePin, verifyPin } from "@/lib/pin";
 import { confirmResetCode, requestResetCode } from "@/lib/pinReset";
+import { checkGuards, GuardState, peekGuard, retryContact, setContactUser } from "@/lib/serverContact";
 import { PIN_TEXT } from "@/lib/pinText";
 
 type Status = "loading" | "setup" | "enter" | "locked" | "reset";
@@ -62,11 +64,57 @@ export default function PinGate({ user, children }: { user: { id: number } | nul
     const userId = user ? String(user.id) : null;
     const [unlocked, setUnlocked] = useState(() => userId !== null && stillUnlocked(userId));
     const [status, setStatus] = useState<Status>("loading");
+    const [guard, setGuard] = useState<GuardState | "checking">("checking");
 
     useEffect(() => {
         if (userId !== null) {
             setUnlocked(stillUnlocked(userId));
         }
+    }, [userId]);
+
+    // the offline and clock locks: checked when the app opens and every time the page shows or hides.
+    // They sit above the PIN, so while one is up nothing below it (layouts, sync, the queue) is mounted.
+    const checkAgain = async () => {
+        if (userId === null) {
+            return;
+        }
+
+        const state = await checkGuards(userId);
+
+        if (state !== "ok") {
+            clearUnlocked();
+            setUnlocked(false);
+        }
+
+        setGuard(state);
+    };
+
+    useEffect(() => {
+        if (userId === null) {
+            return;
+        }
+
+        setContactUser(userId);
+        void checkAgain();
+
+        // first in line on a wake-up: if what was last read already says "locked", no other
+        // listener, such as a sync trigger, gets to act on the same event
+        const onChange = (event: Event) => {
+            if (peekGuard() !== "ok") {
+                event.stopImmediatePropagation();
+                clearUnlocked();
+                setUnlocked(false);
+            }
+
+            void checkAgain();
+        };
+
+        document.addEventListener("visibilitychange", onChange, true);
+
+        return () => {
+            document.removeEventListener("visibilitychange", onChange, true);
+            setContactUser(null);
+        };
     }, [userId]);
 
     // hidden for too long: the next time the page shows, the PIN is asked for again. This listener
@@ -117,7 +165,19 @@ export default function PinGate({ user, children }: { user: { id: number } | nul
         };
     }, [userId, unlocked]);
 
-    if (userId === null || unlocked) {
+    if (userId === null) {
+        return <>{children}</>;
+    }
+
+    if (guard === "checking") {
+        return null;
+    }
+
+    if (guard !== "ok") {
+        return <GuardScreen userId={userId} state={guard} onRetried={() => void checkAgain()} />;
+    }
+
+    if (unlocked) {
         return <>{children}</>;
     }
 
@@ -251,6 +311,45 @@ function ForgotButton({ onClick }: { onClick: () => void }) {
         <button type="button" onClick={onClick} style={linkButton}>
             {PIN_TEXT.forgot}
         </button>
+    );
+}
+
+// the phone has been out of touch too long, or its date looks wrong: one check with the server frees it
+function GuardScreen({ userId, state, onRetried }: { userId: string; state: GuardState; onRetried: () => void }) {
+    const { logout, blocked } = useSafeLogout(userId);
+    const [busy, setBusy] = useState(false);
+    const [sessionEnded, setSessionEnded] = useState(false);
+
+    const retry = async () => {
+        setBusy(true);
+        const outcome = await retryContact(userId);
+        setBusy(false);
+
+        if (outcome === "session_ended") {
+            setSessionEnded(true);
+        } else if (outcome === "ok") {
+            setSessionEnded(false);
+            onRetried();
+        }
+    };
+
+    return (
+        <div style={card}>
+            <SessionEndedBanner show={sessionEnded} />
+            <LogoutBlockedBanner show={blocked} />
+            <p role="alert" style={{ color: "#B91C1C", fontSize: "1.125rem", fontWeight: 600 }}>
+                {state === "clock_wrong" ? PIN_TEXT.clockWrong : PIN_TEXT.offlineTooLong}
+            </p>
+            <p style={{ marginTop: "8px" }}>{PIN_TEXT.safe}</p>
+            <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
+                <button type="button" data-testid="retry" onClick={retry} disabled={busy} style={iconButton}>
+                    <IconRefresh size={22} />
+                </button>
+                <button type="button" data-testid="sign-out" onClick={logout} style={iconButton}>
+                    <IconLogout size={22} />
+                </button>
+            </div>
+        </div>
     );
 }
 
