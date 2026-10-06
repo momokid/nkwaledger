@@ -10,9 +10,11 @@ use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\LedgerAccount;
 use App\Models\TransactionTemplate;
+use App\Models\User;
 use App\Services\Ledger\CreditSettlementService;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
+use App\Services\RecordLock;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +33,7 @@ class RecordTransactionController extends Controller
         private readonly PostingService $posting,
         private readonly AccountStatementService $statements,
         private readonly CreditSettlementService $creditSettlements,
+        private readonly RecordLock $lock,
     ) {}
 
     public function index(Request $request, ?FarmerProfile $farmer = null): Response
@@ -167,7 +170,7 @@ class RecordTransactionController extends Controller
                 ? $template->creditSettlementAccountId()
                 : (isset($data['settlement_account_id']) ? (int) $data['settlement_account_id'] : null);
 
-            $transaction = $this->posting->post(new PostingRequest(
+            $posting = new PostingRequest(
                 farmerProfileId: $request->farmer()->id,
                 transactionTemplateId: $template->id,
                 amount: $data['amount'],
@@ -181,7 +184,13 @@ class RecordTransactionController extends Controller
                 quantitySold: $data['quantity_sold'] ?? null,
                 quantityPurchased: $data['quantity_purchased'] ?? null,
                 idempotencyKey: $data['idempotency_key'] ?? null,
-            ));
+            );
+
+            $transaction = $this->lock->around(
+                $request->user()->id,
+                $posting->idempotencyKey,
+                fn() => $this->syncTwin($request->user(), $posting) ?? $this->posting->post($posting),
+            );
         } catch (PostingFailed $failure) {
             // the offline sync engine has no page to redirect back to, so it needs a real HTTP error
             if ($request->wantsJson()) {
@@ -198,6 +207,27 @@ class RecordTransactionController extends Controller
         return back()
             ->with('success', 'Saved. Your record is in your book.')
             ->with('reference', $transaction->reference);
+    }
+
+    // the same record may already have arrived through sync, which keys it differently
+    private function syncTwin(User $user, PostingRequest $posting): ?Transaction
+    {
+        if ($posting->idempotencyKey === null) {
+            return null;
+        }
+
+        $twin = Transaction::where('idempotency_key', "sync.{$user->id}.{$posting->idempotencyKey}")->first();
+
+        if ($twin === null) {
+            return null;
+        }
+
+        if ((int) $twin->farmer_profile_id !== $posting->farmerProfileId
+            || ! Transaction::sameDetails($twin->transaction_template_id, Money::toDecimal($twin->amount_minor), $posting->transactionTemplateId, $posting->amount)) {
+            throw PostingFailed::because(Transaction::KEY_REUSED);
+        }
+
+        return $twin;
     }
 
     public function settle(

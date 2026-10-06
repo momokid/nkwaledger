@@ -30,9 +30,15 @@ class SyncSubmissionService
         private readonly AccessControlService $access,
         private readonly NotificationService $notifications,
         private readonly AuditService $audit,
+        private readonly RecordLock $lock,
     ) {}
 
     public function submit(User $user, array $record): array
+    {
+        return $this->lock->around($user->id, $record['uuid'], fn() => $this->submitLocked($user, $record));
+    }
+
+    private function submitLocked(User $user, array $record): array
     {
         $seen = $this->stored($user, $record);
 
