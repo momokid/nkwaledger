@@ -962,6 +962,10 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
         Route::get('/farmers/{farmer}', [FarmerController::class, 'show'])->name('farmers.show');
     });
 
+    Route::middleware(['access:farmers.force-logout', 'throttle:force-logout'])->group(function () {
+        Route::post('/farmers/{farmer}/force-logout', [FarmerController::class, 'forceLogout'])->name('farmers.force-logout');
+    });
+
     Route::middleware('access:farmers.update')->group(function () {
         Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
         Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');

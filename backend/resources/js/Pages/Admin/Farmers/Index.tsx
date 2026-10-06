@@ -21,10 +21,11 @@ interface AgentOption {
 }
 
 interface FarmerRow {
-    id: number;
+    id: string;
     name: string;
     phone: string | null;
     phone_verified: boolean;
+    has_login: boolean;
     community: string | null;
     agent: string | null;
     identity_verified: boolean;
@@ -58,6 +59,7 @@ interface Props extends PageProps {
         update: boolean;
         verify: boolean;
         assign: boolean;
+        force_logout: boolean;
     };
 }
 
@@ -125,6 +127,10 @@ function IndexContent({
 
     const [showForm, setShowForm] = useState(false);
     const [navLoading, setNavLoading] = useState(false);
+    const [forcing, setForcing] = useState<string | null>(null);
+    const [signedOut, setSignedOut] = useState<string[]>([]);
+    const [confirming, setConfirming] = useState<FarmerRow | null>(null);
+    const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         const start = router.on("start", () => setNavLoading(true));
@@ -205,7 +211,32 @@ function IndexContent({
         cursor: "pointer",
     };
 
-    const columnCount = permissions.update ? 7 : 6;
+    const showActions = permissions.update || permissions.force_logout;
+    const columnCount = showActions ? 7 : 6;
+
+    // a background request: the row turns into placeholders while it runs, then says what happened
+    const forceLogout = async (farmer: FarmerRow) => {
+        setConfirming(null);
+        setForcing(farmer.id);
+        setRowErrors(({ [farmer.id]: _cleared, ...rest }) => rest);
+
+        try {
+            await window.axios.post(
+                route("admin.farmers.force-logout", farmer.id),
+            );
+            setSignedOut((done) => [...done, farmer.id]);
+        } catch (error) {
+            const message = (
+                error as { response?: { data?: { message?: string } } }
+            ).response?.data?.message;
+
+            if (message) {
+                setRowErrors((all) => ({ ...all, [farmer.id]: message }));
+            }
+        } finally {
+            setForcing(null);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -628,7 +659,7 @@ function IndexContent({
                             <th className="text-left px-4 py-3" style={thStyle}>
                                 Status
                             </th>
-                            {permissions.update && (
+                            {showActions && (
                                 <th
                                     className="text-left px-4 py-3"
                                     style={thStyle}
@@ -657,7 +688,14 @@ function IndexContent({
                         )}
 
                         {!navLoading &&
-                            farmers.data.map((farmer) => (
+                            farmers.data.map((farmer) =>
+                                forcing === farmer.id ? (
+                                    <TableSkeletonRows
+                                        key={farmer.id}
+                                        rows={1}
+                                        columns={columnCount}
+                                    />
+                                ) : (
                                 <tr
                                     key={farmer.id}
                                     style={{ borderTop: `1px solid ${border}` }}
@@ -725,30 +763,93 @@ function IndexContent({
                                             ? "Active"
                                             : "On hold"}
                                     </td>
-                                    {permissions.update && (
+                                    {showActions && (
                                         <td className="px-4 py-3">
-                                            <button
-                                                onClick={() =>
-                                                    router.visit(
-                                                        `${basePath}/${farmer.id}`,
-                                                    )
-                                                }
+                                            <div
                                                 style={{
-                                                    background: "none",
-                                                    border: "none",
-                                                    color: headerText,
-                                                    fontSize: "1.0625rem",
-                                                    fontWeight: 600,
-                                                    cursor: "pointer",
-                                                    padding: 0,
+                                                    display: "flex",
+                                                    gap: "14px",
+                                                    flexWrap: "wrap",
                                                 }}
                                             >
-                                                Open
-                                            </button>
+                                                {permissions.update && (
+                                                    <button
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                `${basePath}/${farmer.id}`,
+                                                            )
+                                                        }
+                                                        style={{
+                                                            background: "none",
+                                                            border: "none",
+                                                            color: headerText,
+                                                            fontSize:
+                                                                "1.0625rem",
+                                                            fontWeight: 600,
+                                                            cursor: "pointer",
+                                                            padding: 0,
+                                                        }}
+                                                    >
+                                                        Open
+                                                    </button>
+                                                )}
+
+                                                {permissions.force_logout &&
+                                                    farmer.has_login &&
+                                                    (signedOut.includes(
+                                                        farmer.id,
+                                                    ) ? (
+                                                        <span
+                                                            style={{
+                                                                color: headerText,
+                                                                fontSize:
+                                                                    "1.0625rem",
+                                                                fontWeight: 600,
+                                                            }}
+                                                        >
+                                                            User signed out.
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() =>
+                                                                setConfirming(
+                                                                    farmer,
+                                                                )
+                                                            }
+                                                            style={{
+                                                                background:
+                                                                    "none",
+                                                                border: "none",
+                                                                color: "#DC2626",
+                                                                fontSize:
+                                                                    "1.0625rem",
+                                                                fontWeight: 600,
+                                                                cursor: "pointer",
+                                                                padding: 0,
+                                                            }}
+                                                        >
+                                                            Force logout
+                                                        </button>
+                                                    ))}
+
+                                                {rowErrors[farmer.id] && (
+                                                    <span
+                                                        role="alert"
+                                                        style={{
+                                                            color: "#DC2626",
+                                                            fontSize:
+                                                                "1.0625rem",
+                                                        }}
+                                                    >
+                                                        {rowErrors[farmer.id]}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
-                            ))}
+                                ),
+                            )}
                     </tbody>
                 </table>
             </div>
@@ -772,6 +873,76 @@ function IndexContent({
                     />
                 ))}
             </div>
+
+            {confirming && (
+                <div
+                    onClick={() => setConfirming(null)}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(17,24,39,0.55)",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "center",
+                        padding: "40px 20px",
+                        zIndex: 70,
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        onClick={(event) => event.stopPropagation()}
+                        style={{
+                            background: surface,
+                            border: `1px solid ${border}`,
+                            width: "100%",
+                            maxWidth: "420px",
+                            padding: "28px",
+                        }}
+                    >
+                        <p
+                            style={{
+                                margin: "0 0 20px",
+                                fontSize: "1.0625rem",
+                                color: text,
+                            }}
+                        >
+                            Sign this user out of all devices now?
+                        </p>
+                        <div style={{ display: "flex", gap: "12px" }}>
+                            <button
+                                onClick={() => forceLogout(confirming)}
+                                style={{
+                                    background: "#DC2626",
+                                    color: "#FFFFFF",
+                                    border: "none",
+                                    padding: "12px 20px",
+                                    fontWeight: 600,
+                                    fontSize: "1.0625rem",
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                }}
+                            >
+                                Sign out
+                            </button>
+                            <button
+                                onClick={() => setConfirming(null)}
+                                style={{
+                                    background: "transparent",
+                                    color: text,
+                                    border: `1px solid ${inputBorder}`,
+                                    padding: "12px 20px",
+                                    fontWeight: 600,
+                                    fontSize: "1.0625rem",
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

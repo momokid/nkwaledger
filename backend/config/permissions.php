@@ -45,6 +45,8 @@ return [
                 // capture and approval are separate: an agent submits a farmer's document for
                 // their assigned farmers, only an admin (farmers.verify) ever approves it
                 'kyc-submit' => 'Submit identity documents',
+                // ends every session a farmer has, so it stands apart from the staff one
+                'force-logout' => 'Force logout',
             ],
         ],
         // pens, plots and ponds, plus what is in them
@@ -256,6 +258,7 @@ return [
             'farmers.create',
             'farmers.update',
             'farmers.verify',
+            'farmers.force-logout',
             'farm-units.view',
             'farm-units.create',
             'farm-units.update',

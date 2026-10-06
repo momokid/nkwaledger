@@ -15,9 +15,11 @@ use App\Models\FarmType;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\ForcedLogoutService;
 use App\Services\FarmerKycService;
 use App\Services\OtpService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
@@ -25,6 +27,8 @@ use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -53,6 +57,8 @@ class FarmerController extends Controller
                     'name' => "{$profile->user?->surname} {$profile->user?->first_name}",
                     'phone' => $profile->user?->phone,
                     'phone_verified' => $profile->user?->phone_verified_at !== null,
+                    // an account that is gone has no sessions left to end
+                    'has_login' => $profile->user !== null,
                     'community' => $profile->community?->name,
                     'agent' => $profile->assignedAgent
                         ? "{$profile->assignedAgent->surname} {$profile->assignedAgent->first_name}"
@@ -67,6 +73,8 @@ class FarmerController extends Controller
                 'update' => $this->access->can($user, 'farmers.update'),
                 'verify' => $this->access->can($user, 'farmers.verify'),
                 'assign' => $user->hasRole('admin'),
+                // the route is an admin's, so the button is only ever offered to one
+                'force_logout' => $user->hasRole('admin') && $this->access->can($user, 'farmers.force-logout'),
             ],
             'agents' => $this->agentOptions($user),
             'communities' => Community::orderBy('name')->get(['id', 'name']),
@@ -288,6 +296,32 @@ class FarmerController extends Controller
     }
 
     // only the admin route reaches this; the service refuses anyone else and the submitter
+    // ends every session and remember-me token this farmer has, on every device
+    public function forceLogout(Request $request, FarmerProfile $farmer, ForcedLogoutService $logout): JsonResponse
+    {
+        $this->guardVisibility($request->user(), $farmer);
+
+        $account = $farmer->user;
+
+        if ($account === null) {
+            return response()->json(['message' => HttpResponse::$statusTexts[HttpResponse::HTTP_CONFLICT]], HttpResponse::HTTP_CONFLICT);
+        }
+
+        // locking yourself out is never the intent, and with one admin it cannot be undone
+        if ($request->user()->is($account)) {
+            throw new AccessDeniedHttpException('You cannot change your own account here.');
+        }
+
+        // only an account that is a farmer is this route's to act on
+        abort_unless($account->hasRole('farmer'), 403);
+
+        $logout->signOutEverywhere($account);
+
+        $this->audit->recordOn('farmer.forced_logout', $farmer);
+
+        return response()->json(['status' => 'signed_out']);
+    }
+
     public function verifyIdentity(Request $request, FarmerProfile $farmer): RedirectResponse
     {
         $this->kyc->approve($farmer, $request->user());
