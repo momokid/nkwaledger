@@ -11,12 +11,14 @@ use App\Models\TransactionTemplate;
 use App\Models\User;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
+use App\Support\Money;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 use Throwable;
 
 // records made offline arrive here. Every ledger write still goes through PostingService;
@@ -38,6 +40,12 @@ class SyncSubmissionService
             return $this->replay($seen, $record);
         }
 
+        $web = $this->webPost($user, $record);
+
+        if ($web !== null) {
+            return $this->adopt($user, $record, $web);
+        }
+
         try {
             return $this->outcome(DB::transaction(fn() => $this->store($user, $record)));
         } catch (Throwable $e) {
@@ -48,6 +56,13 @@ class SyncSubmissionService
 
             if ($twin !== null) {
                 return $this->replay($twin, $record);
+            }
+
+            // a web post of this record landed while this one was posting: ours was rolled back
+            $web = $this->webPost($user, $record);
+
+            if ($web !== null) {
+                return $this->adopt($user, $record, $web);
             }
 
             report($e);
@@ -64,6 +79,46 @@ class SyncSubmissionService
         return Transaction::sameDetails($before['template'], $before['amount'], $record['template'], $record['amount'])
             ? $this->outcome($stored)
             : ['uuid' => $record['uuid'], 'status' => 'error', 'error' => Transaction::KEY_REUSED];
+    }
+
+    // the web form keys a post by the record's raw uuid; only this user's own post counts
+    private function webPost(User $user, array $record): ?Transaction
+    {
+        return Transaction::where('idempotency_key', $record['uuid'])->where('recorded_by', $user->id)->first();
+    }
+
+    // the record already reached the books through the web form: link it, post nothing
+    private function adopt(User $user, array $record, Transaction $web): array
+    {
+        $farmer = FarmerProfile::where('uuid', $record['farmer'])->first();
+
+        if ($farmer?->id !== $web->farmer_profile_id
+            || ! Transaction::sameDetails($web->transaction_template_id, Money::toDecimal($web->amount_minor), $record['template'], $record['amount'])) {
+            return ['uuid' => $record['uuid'], 'status' => 'error', 'error' => Transaction::KEY_REUSED];
+        }
+
+        try {
+            $submission = SyncSubmission::create([
+                'client_uuid' => $record['uuid'],
+                'user_id' => $user->id,
+                'farmer_profile_id' => $farmer->id,
+                'payload' => $record,
+                'device_date' => $record['event_date'],
+                'received_at' => now(),
+                'status' => SyncSubmission::ACCEPTED,
+                'transaction_id' => $web->id,
+            ]);
+        } catch (UniqueConstraintViolationException $e) {
+            $twin = $this->stored($user, $record);
+
+            if ($twin === null) {
+                throw $e;
+            }
+
+            return $this->replay($twin, $record);
+        }
+
+        return $this->outcome($submission);
     }
 
     // only ever this user's own row
@@ -162,6 +217,11 @@ class SyncSubmissionService
             $this->notifySubmitter($submission, 'sync.held', 'A record is waiting for review.');
         } else {
             $this->post($submission);
+
+            // a web post of the same record may have committed meanwhile: undo ours
+            if ($this->webPost($user, $record) !== null) {
+                throw new LogicException('This record was posted through the web form meanwhile.');
+            }
         }
 
         return $submission;
