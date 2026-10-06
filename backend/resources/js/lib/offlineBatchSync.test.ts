@@ -399,3 +399,33 @@ describe("after an admin signs the user out everywhere", () => {
         expect(await remaining()).toEqual([]);
     });
 });
+
+describe("after an admin locks the account", () => {
+    it("sends no more batches once the lock turns the first one away, and keeps every record, stuck ones included", async () => {
+        await queue(45);
+        const stuck = await enqueue(record(99), USER);
+        for (let i = 0; i < 5; i++) {
+            await recordFailedAttempt(stuck);
+        }
+        const calls = serve(() => new Response("{}", { status: 401 }));
+
+        const outcome = await runSync(USER);
+
+        expect(outcome.authExpired).toBe(true);
+        expect(calls).toHaveLength(1);
+        expect(await remaining()).toHaveLength(45);
+        expect((await rows()).find((row) => row.id === stuck)).toMatchObject({ stuck: true, attempts: 5 });
+    });
+
+    it("sends everything it kept once the account is unlocked and the person has signed in", async () => {
+        await queue(3);
+        serve(() => new Response("{}", { status: 401 }));
+        await runSync(USER);
+
+        const calls = serve(results("accepted"));
+        await runSync(USER);
+
+        expect(calls).toHaveLength(1);
+        expect(await remaining()).toEqual([]);
+    });
+});

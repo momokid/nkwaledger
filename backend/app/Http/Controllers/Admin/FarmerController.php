@@ -14,11 +14,13 @@ use App\Models\FarmerProfile;
 use App\Models\FarmType;
 use App\Models\User;
 use App\Services\AccessControlService;
+use App\Services\AccountLockService;
 use App\Services\AuditService;
 use App\Services\ForcedLogoutService;
 use App\Services\FarmerKycService;
 use App\Services\OtpService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -47,7 +49,7 @@ class FarmerController extends Controller
 
         return Inertia::render('Admin/Farmers/Index', [
             'farmers' => $this->visibleTo($user)
-                ->with(['user:id,surname,first_name,phone,phone_verified_at', 'community:id,name', 'assignedAgent:id,surname,first_name'])
+                ->with(['user:id,surname,first_name,phone,phone_verified_at,locked_at', 'community:id,name', 'assignedAgent:id,surname,first_name'])
                 ->orderByDesc('id')
                 ->paginate(15)
                 ->withQueryString()
@@ -59,6 +61,7 @@ class FarmerController extends Controller
                     'phone_verified' => $profile->user?->phone_verified_at !== null,
                     // an account that is gone has no sessions left to end
                     'has_login' => $profile->user !== null,
+                    'locked' => $profile->user?->isLocked() ?? false,
                     'community' => $profile->community?->name,
                     'agent' => $profile->assignedAgent
                         ? "{$profile->assignedAgent->surname} {$profile->assignedAgent->first_name}"
@@ -75,6 +78,8 @@ class FarmerController extends Controller
                 'assign' => $user->hasRole('admin'),
                 // the route is an admin's, so the button is only ever offered to one
                 'force_logout' => $user->hasRole('admin') && $this->access->can($user, 'farmers.force-logout'),
+                'lock' => $user->hasRole('admin') && $this->access->can($user, 'farmers.lock'),
+                'unlock' => $user->hasRole('admin') && $this->access->can($user, 'farmers.unlock'),
             ],
             'agents' => $this->agentOptions($user),
             'communities' => Community::orderBy('name')->get(['id', 'name']),
@@ -319,6 +324,59 @@ class FarmerController extends Controller
         $this->audit->recordOn('farmer.forced_logout', $farmer);
 
         return response()->json(['status' => 'signed_out']);
+    }
+
+    public function lock(Request $request, FarmerProfile $farmer, AccountLockService $locks): JsonResponse
+    {
+        $account = $this->lockableAccount($request, $farmer);
+
+        if ($account->isLocked()) {
+            return $this->conflict();
+        }
+
+        $locks->lock($farmer, $account, $request->user());
+        $this->audit->recordOn('farmer.locked', $farmer);
+
+        return response()->json(['status' => 'locked']);
+    }
+
+    public function unlock(Request $request, FarmerProfile $farmer, AccountLockService $locks): JsonResponse
+    {
+        $account = $this->lockableAccount($request, $farmer);
+
+        if (! $account->isLocked()) {
+            return $this->conflict();
+        }
+
+        $locks->unlock($farmer, $account, $request->user());
+        $this->audit->recordOn('farmer.unlocked', $farmer);
+
+        return response()->json(['status' => 'unlocked']);
+    }
+
+    // the farmer's account if this admin may lock it; every other case ends the request here
+    private function lockableAccount(Request $request, FarmerProfile $farmer): User
+    {
+        $this->guardVisibility($request->user(), $farmer);
+
+        $account = $farmer->user;
+
+        if ($account === null) {
+            throw new HttpResponseException($this->conflict());
+        }
+
+        if ($request->user()->is($account)) {
+            throw new AccessDeniedHttpException('You cannot change your own account here.');
+        }
+
+        abort_unless($account->hasRole('farmer'), 403);
+
+        return $account;
+    }
+
+    private function conflict(): JsonResponse
+    {
+        return response()->json(['message' => HttpResponse::$statusTexts[HttpResponse::HTTP_CONFLICT]], HttpResponse::HTTP_CONFLICT);
     }
 
     // only the admin route reaches this; the service refuses anyone else and the submitter

@@ -26,6 +26,7 @@ interface FarmerRow {
     phone: string | null;
     phone_verified: boolean;
     has_login: boolean;
+    locked: boolean;
     community: string | null;
     agent: string | null;
     identity_verified: boolean;
@@ -60,6 +61,8 @@ interface Props extends PageProps {
         verify: boolean;
         assign: boolean;
         force_logout: boolean;
+        lock: boolean;
+        unlock: boolean;
     };
 }
 
@@ -131,6 +134,12 @@ function IndexContent({
     const [signedOut, setSignedOut] = useState<string[]>([]);
     const [confirming, setConfirming] = useState<FarmerRow | null>(null);
     const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+    const [lockState, setLockState] = useState<Record<string, boolean>>({});
+    const [lockNotes, setLockNotes] = useState<Record<string, string>>({});
+    const [lockConfirm, setLockConfirm] = useState<{
+        farmer: FarmerRow;
+        lock: boolean;
+    } | null>(null);
 
     useEffect(() => {
         const start = router.on("start", () => setNavLoading(true));
@@ -211,7 +220,13 @@ function IndexContent({
         cursor: "pointer",
     };
 
-    const showActions = permissions.update || permissions.force_logout;
+    const showActions =
+        permissions.update ||
+        permissions.force_logout ||
+        permissions.lock ||
+        permissions.unlock;
+    const isLocked = (farmer: FarmerRow) =>
+        lockState[farmer.id] ?? farmer.locked;
     const columnCount = showActions ? 7 : 6;
 
     // a background request: the row turns into placeholders while it runs, then says what happened
@@ -225,6 +240,38 @@ function IndexContent({
                 route("admin.farmers.force-logout", farmer.id),
             );
             setSignedOut((done) => [...done, farmer.id]);
+        } catch (error) {
+            const message = (
+                error as { response?: { data?: { message?: string } } }
+            ).response?.data?.message;
+
+            if (message) {
+                setRowErrors((all) => ({ ...all, [farmer.id]: message }));
+            }
+        } finally {
+            setForcing(null);
+        }
+    };
+
+    // same pattern as force logout: the row is a placeholder while it runs, then shows the new state
+    const changeLock = async (farmer: FarmerRow, lock: boolean) => {
+        setLockConfirm(null);
+        setForcing(farmer.id);
+        setRowErrors(({ [farmer.id]: _cleared, ...rest }) => rest);
+        setLockNotes(({ [farmer.id]: _cleared, ...rest }) => rest);
+
+        try {
+            await window.axios.post(
+                route(
+                    lock ? "admin.farmers.lock" : "admin.farmers.unlock",
+                    farmer.id,
+                ),
+            );
+            setLockState((all) => ({ ...all, [farmer.id]: lock }));
+            setLockNotes((all) => ({
+                ...all,
+                [farmer.id]: lock ? "Account locked." : "Account unlocked.",
+            }));
         } catch (error) {
             const message = (
                 error as { response?: { data?: { message?: string } } }
@@ -762,6 +809,17 @@ function IndexContent({
                                         {farmer.is_active
                                             ? "Active"
                                             : "On hold"}
+                                        {isLocked(farmer) && (
+                                            <span
+                                                style={{
+                                                    color: "#B91C1C",
+                                                    fontWeight: 600,
+                                                    marginLeft: "8px",
+                                                }}
+                                            >
+                                                Locked
+                                            </span>
+                                        )}
                                     </td>
                                     {showActions && (
                                         <td className="px-4 py-3">
@@ -796,6 +854,7 @@ function IndexContent({
 
                                                 {permissions.force_logout &&
                                                     farmer.has_login &&
+                                                    !isLocked(farmer) &&
                                                     (signedOut.includes(
                                                         farmer.id,
                                                     ) ? (
@@ -831,6 +890,54 @@ function IndexContent({
                                                             Force logout
                                                         </button>
                                                     ))}
+
+                                                {farmer.has_login &&
+                                                    (isLocked(farmer)
+                                                        ? permissions.unlock
+                                                        : permissions.lock) && (
+                                                        <button
+                                                            onClick={() =>
+                                                                setLockConfirm({
+                                                                    farmer,
+                                                                    lock: !isLocked(
+                                                                        farmer,
+                                                                    ),
+                                                                })
+                                                            }
+                                                            style={{
+                                                                background:
+                                                                    "none",
+                                                                border: "none",
+                                                                color: isLocked(
+                                                                    farmer,
+                                                                )
+                                                                    ? headerText
+                                                                    : "#DC2626",
+                                                                fontSize:
+                                                                    "1.0625rem",
+                                                                fontWeight: 600,
+                                                                cursor: "pointer",
+                                                                padding: 0,
+                                                            }}
+                                                        >
+                                                            {isLocked(farmer)
+                                                                ? "Unlock account"
+                                                                : "Lock account"}
+                                                        </button>
+                                                    )}
+
+                                                {lockNotes[farmer.id] && (
+                                                    <span
+                                                        style={{
+                                                            color: headerText,
+                                                            fontSize:
+                                                                "1.0625rem",
+                                                            fontWeight: 600,
+                                                        }}
+                                                    >
+                                                        {lockNotes[farmer.id]}
+                                                    </span>
+                                                )}
 
                                                 {rowErrors[farmer.id] && (
                                                     <span
@@ -926,6 +1033,85 @@ function IndexContent({
                             </button>
                             <button
                                 onClick={() => setConfirming(null)}
+                                style={{
+                                    background: "transparent",
+                                    color: text,
+                                    border: `1px solid ${inputBorder}`,
+                                    padding: "12px 20px",
+                                    fontWeight: 600,
+                                    fontSize: "1.0625rem",
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {lockConfirm && (
+                <div
+                    onClick={() => setLockConfirm(null)}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(17,24,39,0.55)",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "center",
+                        padding: "40px 20px",
+                        zIndex: 70,
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        onClick={(event) => event.stopPropagation()}
+                        style={{
+                            background: surface,
+                            border: `1px solid ${border}`,
+                            width: "100%",
+                            maxWidth: "420px",
+                            padding: "28px",
+                        }}
+                    >
+                        <p
+                            style={{
+                                margin: "0 0 20px",
+                                fontSize: "1.0625rem",
+                                color: text,
+                            }}
+                        >
+                            {lockConfirm.lock
+                                ? "Lock this account? The farmer will be signed out and cannot sign in until you unlock it."
+                                : "Unlock this account?"}
+                        </p>
+                        <div style={{ display: "flex", gap: "12px" }}>
+                            <button
+                                onClick={() =>
+                                    changeLock(
+                                        lockConfirm.farmer,
+                                        lockConfirm.lock,
+                                    )
+                                }
+                                style={{
+                                    background: lockConfirm.lock
+                                        ? "#DC2626"
+                                        : "#1D9E75",
+                                    color: "#FFFFFF",
+                                    border: "none",
+                                    padding: "12px 20px",
+                                    fontWeight: 600,
+                                    fontSize: "1.0625rem",
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                }}
+                            >
+                                {lockConfirm.lock ? "Lock" : "Unlock"}
+                            </button>
+                            <button
+                                onClick={() => setLockConfirm(null)}
                                 style={{
                                     background: "transparent",
                                     color: text,

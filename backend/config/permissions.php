@@ -47,6 +47,9 @@ return [
                 'kyc-submit' => 'Submit identity documents',
                 // ends every session a farmer has, so it stands apart from the staff one
                 'force-logout' => 'Force logout',
+                // a lock also blocks the next sign-in; each way round has its own permission
+                'lock' => 'Lock account',
+                'unlock' => 'Unlock account',
             ],
         ],
         // pens, plots and ponds, plus what is in them
@@ -259,6 +262,8 @@ return [
             'farmers.update',
             'farmers.verify',
             'farmers.force-logout',
+            'farmers.lock',
+            'farmers.unlock',
             'farm-units.view',
             'farm-units.create',
             'farm-units.update',

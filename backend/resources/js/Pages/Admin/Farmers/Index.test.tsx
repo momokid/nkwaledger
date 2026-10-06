@@ -36,6 +36,7 @@ const farmer = (uuid: string, name: string, over: Record<string, unknown> = {}) 
     phone: "0244000701",
     phone_verified: true,
     has_login: true,
+    locked: false,
     community: "Kuapa",
     agent: null,
     identity_verified: false,
@@ -52,7 +53,7 @@ const props = (permissions: Record<string, boolean>, rows = [farmer("uuid-kofi",
     agents: [],
     layout: "admin" as const,
     basePath: "/admin/farmers",
-    permissions: { create: false, update: true, verify: false, assign: true, force_logout: true, ...permissions },
+    permissions: { create: false, update: true, verify: false, assign: true, force_logout: true, lock: true, unlock: true, ...permissions },
 });
 
 let root: Root;
@@ -164,5 +165,105 @@ describe("Force logout on the farmer list", () => {
         expect(rowOf("Kofi")!.textContent).toContain("Conflict");
         expect(rowOf("Kofi")!.textContent).toContain("Force logout");
         expect(text()).not.toContain("User signed out.");
+    });
+});
+
+const LOCK_CONFIRM = "Lock this account? The farmer will be signed out and cannot sign in until you unlock it.";
+const lockedRows = () => [farmer("uuid-kofi", "Mensah Kofi", { locked: true }), farmer("uuid-ama", "Owusu Ama")];
+
+describe("Lock and unlock on the farmer list", () => {
+    it("shows a Locked badge to anyone who sees the list, and the buttons only with the permissions", async () => {
+        await render(props({ lock: false, unlock: false, force_logout: false, update: false }, lockedRows()));
+
+        expect(rowOf("Kofi")!.textContent).toContain("Locked");
+        expect(rowOf("Ama")!.textContent).not.toContain("Locked");
+        expect(buttons("Lock account")).toHaveLength(0);
+        expect(buttons("Unlock account")).toHaveLength(0);
+    });
+
+    it("offers Lock to an unlocked farmer and Unlock to a locked one, and no Force logout for a locked one", async () => {
+        await render(props({}, lockedRows()));
+
+        expect(rowOf("Ama")!.textContent).toContain("Lock account");
+        expect(rowOf("Kofi")!.textContent).toContain("Unlock account");
+        expect(rowOf("Kofi")!.textContent).not.toContain("Force logout");
+    });
+
+    it("hides each button when only the other permission is held, and for a farmer with no login", async () => {
+        await render(props({ lock: false }, lockedRows()));
+        expect(buttons("Lock account")).toHaveLength(0);
+        expect(buttons("Unlock account")).toHaveLength(1);
+
+        await render(props({ unlock: false }, lockedRows()));
+        expect(buttons("Lock account")).toHaveLength(1);
+        expect(buttons("Unlock account")).toHaveLength(0);
+
+        await render(props({}, [farmer("uuid-kofi", "Mensah Kofi", { has_login: false })]));
+        expect(buttons("Lock account")).toHaveLength(0);
+    });
+
+    it("asks first in the approved words, and Cancel does nothing", async () => {
+        await render(props({}));
+
+        await act(async () => buttons("Lock account")[0].click());
+        expect(text()).toContain(LOCK_CONFIRM);
+        expect(buttons("Lock")).toHaveLength(1);
+
+        await act(async () => buttons("Cancel")[0].click());
+        expect(text()).not.toContain(LOCK_CONFIRM);
+        expect(h.post).not.toHaveBeenCalled();
+    });
+
+    it("locks with one background request, shows the row as loading, then updates the same row in place", async () => {
+        let finish!: () => void;
+        h.post.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+        await render(props({}));
+
+        await act(async () => buttons("Lock account")[0].click());
+        await act(async () => buttons("Lock")[0].click());
+
+        expect(h.post).toHaveBeenCalledTimes(1);
+        expect(h.post.mock.calls[0][0]).toContain("admin.farmers.lock");
+        expect(h.post.mock.calls[0][0]).toContain("uuid-kofi");
+        expect(container.querySelectorAll("tbody tr")[0].textContent).toBe("");
+        expect(text()).toContain("Owusu Ama");
+
+        await act(async () => finish());
+
+        const row = rowOf("Kofi")!.textContent!;
+        expect(row).toContain("Account locked.");
+        expect(row).toContain("Locked");
+        expect(row).toContain("Unlock account");
+        expect(row).not.toContain("Lock account");
+        expect(rowOf("Ama")!.textContent).not.toContain("Locked");
+        ["visit", "post", "patch", "delete", "reload"].forEach((method) => expect(h.router[method as keyof typeof h.router]).not.toHaveBeenCalled());
+    });
+
+    it("unlocks in the approved words and updates the row in place", async () => {
+        h.post.mockResolvedValue({});
+        await render(props({}, lockedRows()));
+
+        await act(async () => buttons("Unlock account")[0].click());
+        expect(text()).toContain("Unlock this account?");
+        await act(async () => buttons("Unlock")[0].click());
+
+        expect(h.post.mock.calls[0][0]).toContain("admin.farmers.unlock");
+        const row = rowOf("Kofi")!.textContent!;
+        expect(row).toContain("Account unlocked.");
+        expect(row).not.toContain("Locked");
+        expect(row).toContain("Lock account");
+    });
+
+    it("puts the row back and shows what the server said when it is refused", async () => {
+        h.post.mockRejectedValue({ response: { data: { message: "Conflict" } } });
+        await render(props({}));
+
+        await act(async () => buttons("Lock account")[0].click());
+        await act(async () => buttons("Lock")[0].click());
+
+        const row = rowOf("Kofi")!.textContent!;
+        expect(row).toContain("Conflict");
+        expect(row).toContain("Lock account");
+        expect(row).not.toContain("Account locked.");
     });
 });

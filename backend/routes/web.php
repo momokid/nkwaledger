@@ -966,6 +966,14 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
         Route::post('/farmers/{farmer}/force-logout', [FarmerController::class, 'forceLogout'])->name('farmers.force-logout');
     });
 
+    Route::middleware(['access:farmers.lock', 'throttle:account-lock'])->group(function () {
+        Route::post('/farmers/{farmer}/lock', [FarmerController::class, 'lock'])->name('farmers.lock');
+    });
+
+    Route::middleware(['access:farmers.unlock', 'throttle:account-lock'])->group(function () {
+        Route::post('/farmers/{farmer}/unlock', [FarmerController::class, 'unlock'])->name('farmers.unlock');
+    });
+
     Route::middleware('access:farmers.update')->group(function () {
         Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
         Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
