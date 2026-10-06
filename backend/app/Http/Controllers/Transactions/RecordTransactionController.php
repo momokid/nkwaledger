@@ -13,6 +13,7 @@ use App\Models\TransactionTemplate;
 use App\Models\User;
 use App\Services\Ledger\CreditSettlementService;
 use App\Services\Ledger\PostingRequest;
+use App\Services\AccessControlService;
 use App\Services\Ledger\PostingService;
 use App\Services\RecordLock;
 use App\Support\Money;
@@ -34,6 +35,7 @@ class RecordTransactionController extends Controller
         private readonly AccountStatementService $statements,
         private readonly CreditSettlementService $creditSettlements,
         private readonly RecordLock $lock,
+        private readonly AccessControlService $access,
     ) {}
 
     public function index(Request $request, ?FarmerProfile $farmer = null): Response
@@ -98,6 +100,8 @@ class RecordTransactionController extends Controller
             // unfiltered by date range - a credit sale from three months ago is still
             // owed today, so scoping it to "this month" would just hide it
             'creditRows' => $this->creditRows($farmer),
+            // the same permission the settle routes ask for, so the button never promises a 403
+            'canSettle' => $this->access->can($request->user(), 'transactions.create'),
             'creditSettlementAccounts' => LedgerAccount::settlement()
                 ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
                 ->orderBy('name')

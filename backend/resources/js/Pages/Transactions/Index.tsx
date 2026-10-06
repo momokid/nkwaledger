@@ -68,6 +68,7 @@ interface Props extends PageProps {
     accounts: AccountOption[];
     creditRows: CreditRow[];
     creditSettlementAccounts: AccountOption[];
+    canSettle: boolean;
     layout: "farmer" | "agent";
     basePath: string;
 }
@@ -90,6 +91,7 @@ type ContentProps = Pick<
     | "accounts"
     | "creditRows"
     | "creditSettlementAccounts"
+    | "canSettle"
     | "layout"
     | "basePath"
 >;
@@ -101,6 +103,7 @@ function IndexContent({
     accounts,
     creditRows,
     creditSettlementAccounts,
+    canSettle,
     layout,
     basePath,
 }: ContentProps) {
@@ -833,7 +836,7 @@ function IndexContent({
                                             : "Paid"}
                                     </td>
                                     <td className="px-4 py-3">
-                                        {row.outstanding > 0 && (
+                                        {row.outstanding > 0 && canSettle && (
                                             <Button
                                                 look="secondary"
                                                 size="small"
