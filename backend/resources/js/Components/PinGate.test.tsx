@@ -7,14 +7,23 @@ import { enqueue, listPending } from "@/lib/offlineStore";
 import { runSync } from "@/lib/offlineSync";
 import { getPinRecord, savePin, verifyPin } from "@/lib/pin";
 import { PIN_TEXT } from "@/lib/pinText";
+import useOfflineSync from "@/hooks/useOfflineSync";
 import PinGate from "./PinGate";
 
 // the PIN hash is deliberately slow, so outcomes get longer than the default one second
 const until = (check: () => unknown) => vi.waitFor(check, { timeout: 8000 });
 
-const h = vi.hoisted(() => ({ syncMounts: 0 }));
+const h = vi.hoisted(() => ({ syncMounts: 0, syncOnce: vi.fn(async () => null) }));
 
-vi.mock("@inertiajs/react", () => ({ router: { post: vi.fn() } }));
+vi.mock("@inertiajs/react", () => ({
+    router: { post: vi.fn() },
+    usePage: () => ({ props: { auth: { user: { id: 7 } } } }),
+}));
+
+vi.mock("@/lib/offlineSync", async (original) => ({
+    ...(await original<typeof import("@/lib/offlineSync")>()),
+    syncOnce: h.syncOnce,
+}));
 
 function Child() {
     // stands in for a layout: a layout is what mounts useOfflineSync
@@ -396,5 +405,118 @@ describe("resetting a locked PIN by SMS", () => {
 
         expect(fetchMock.mock.calls.some(([url]) => url === "/sync/submissions")).toBe(true);
         expect(await listPending("7")).toHaveLength(0);
+    });
+});
+
+describe("locking after time in the background", () => {
+    function SyncChild() {
+        useOfflineSync();
+
+        return <p>the app</p>;
+    }
+
+    const setClocks = (wall: number, mono: number) => {
+        vi.spyOn(Date, "now").mockReturnValue(wall);
+        vi.spyOn(performance, "now").mockReturnValue(mono);
+    };
+
+    const setVisibility = (state: "hidden" | "visible") =>
+        act(async () => {
+            Object.defineProperty(document, "visibilityState", { value: state, configurable: true });
+            document.dispatchEvent(new Event("visibilitychange"));
+        });
+
+    async function unlockedApp(child = <SyncChild />) {
+        await savePin("7", "4826");
+        await act(async () => root.render(<PinGate user={{ id: 7 }}>{child}</PinGate>));
+        await settle();
+        await enter("4826");
+        await showsApp();
+        h.syncOnce.mockClear();
+    }
+
+    afterEach(() => {
+        Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    });
+
+    it("stays unlocked after 59 seconds in the background", async () => {
+        await unlockedApp();
+
+        setClocks(1_000_000, 5_000);
+        await setVisibility("hidden");
+        setClocks(1_059_000, 64_000);
+        await setVisibility("visible");
+
+        expect(text()).toContain("the app");
+        expect(flag()).toBe("7");
+    });
+
+    it("locks after 60 seconds in the background and asks for the PIN", async () => {
+        await unlockedApp();
+
+        setClocks(1_000_000, 5_000);
+        await setVisibility("hidden");
+        setClocks(1_060_000, 65_000);
+        await setVisibility("visible");
+
+        await until(() => expect(text()).toContain(PIN_TEXT.enter));
+        expect(text()).not.toContain("the app");
+        expect(flag()).toBeNull();
+    });
+
+    it("locks when the phone clock was moved backward", async () => {
+        await unlockedApp();
+
+        setClocks(1_000_000, 5_000);
+        await setVisibility("hidden");
+        setClocks(900_000, 15_000);
+        await setVisibility("visible");
+
+        await until(() => expect(text()).toContain(PIN_TEXT.enter));
+        expect(text()).not.toContain("the app");
+    });
+
+    it("locks when the wall clock was frozen but the monotonic clock ran on", async () => {
+        await unlockedApp();
+
+        setClocks(1_000_000, 5_000);
+        await setVisibility("hidden");
+        setClocks(1_000_000, 66_000);
+        await setVisibility("visible");
+
+        await until(() => expect(text()).toContain(PIN_TEXT.enter));
+    });
+
+    it("still locks when the page was closed in the background and opened again later", async () => {
+        await unlockedApp();
+
+        setClocks(1_000_000, 5_000);
+        await setVisibility("hidden");
+        await act(async () => root.unmount());
+        root = createRoot(container);
+        setClocks(1_090_000, 3_000);
+        await setVisibility("visible");
+        await act(async () => root.render(<PinGate user={{ id: 7 }}><SyncChild /></PinGate>));
+        await settle();
+
+        await until(() => expect(text()).toContain(PIN_TEXT.enter));
+        expect(text()).not.toContain("the app");
+    });
+
+    it("runs no sync once the screen is locked, not even from the same wake-up", async () => {
+        await unlockedApp();
+        expect(h.syncOnce).not.toHaveBeenCalled();
+
+        setClocks(1_000_000, 5_000);
+        await setVisibility("hidden");
+        setClocks(1_120_000, 125_000);
+        await setVisibility("visible");
+        await until(() => expect(text()).toContain(PIN_TEXT.enter));
+
+        await act(async () => {
+            window.dispatchEvent(new Event("online"));
+        });
+
+        expect(h.syncOnce).not.toHaveBeenCalled();
     });
 });

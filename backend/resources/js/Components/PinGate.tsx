@@ -2,7 +2,8 @@ import { IconArrowRight, IconLogout } from "@tabler/icons-react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import LogoutBlockedBanner from "@/Components/LogoutBlockedBanner";
 import useSafeLogout from "@/hooks/useSafeLogout";
-import { clearPin, getPinRecord, isPinAllowed, isUnlocked, markUnlocked, savePin, verifyPin } from "@/lib/pin";
+import { markHidden, readClocks, shouldLock, takeHiddenStamp } from "@/lib/idleLock";
+import { clearPin, clearUnlocked, getPinRecord, isPinAllowed, isUnlocked, markUnlocked, savePin, verifyPin } from "@/lib/pin";
 import { confirmResetCode, requestResetCode } from "@/lib/pinReset";
 import { PIN_TEXT } from "@/lib/pinText";
 
@@ -38,18 +39,65 @@ const iconButton = {
     cursor: "pointer",
 } as const;
 
+// unlocked for this session, unless the page was left hidden too long before it was closed
+function stillUnlocked(userId: string): boolean {
+    if (!isUnlocked(userId)) {
+        return false;
+    }
+
+    const hiddenAt = takeHiddenStamp();
+
+    if (hiddenAt && shouldLock(hiddenAt, readClocks())) {
+        clearUnlocked();
+
+        return false;
+    }
+
+    return true;
+}
+
 // everything a signed-in page shows waits behind this: while locked its children are not rendered,
 // so nothing under them (layouts, sync, the queue) runs
 export default function PinGate({ user, children }: { user: { id: number } | null | undefined; children: ReactNode }) {
     const userId = user ? String(user.id) : null;
-    const [unlocked, setUnlocked] = useState(() => userId !== null && isUnlocked(userId));
+    const [unlocked, setUnlocked] = useState(() => userId !== null && stillUnlocked(userId));
     const [status, setStatus] = useState<Status>("loading");
 
     useEffect(() => {
         if (userId !== null) {
-            setUnlocked(isUnlocked(userId));
+            setUnlocked(stillUnlocked(userId));
         }
     }, [userId]);
+
+    // hidden for too long: the next time the page shows, the PIN is asked for again. This listener
+    // goes first (capture) and stops the event there, so no other listener, such as a sync trigger,
+    // acts on the same wake-up before the app has been taken off the screen.
+    useEffect(() => {
+        if (userId === null || !unlocked) {
+            return;
+        }
+
+        const onChange = (event: Event) => {
+            if (document.visibilityState === "hidden") {
+                markHidden();
+
+                return;
+            }
+
+            const hiddenAt = takeHiddenStamp();
+
+            if (hiddenAt && shouldLock(hiddenAt, readClocks())) {
+                event.stopImmediatePropagation();
+                clearUnlocked();
+                setStatus("loading");
+                setUnlocked(false);
+            }
+        };
+
+        document.addEventListener("visibilitychange", onChange, true);
+
+        return () => document.removeEventListener("visibilitychange", onChange, true);
+    }, [userId, unlocked]);
 
     useEffect(() => {
         if (userId === null || unlocked) {
