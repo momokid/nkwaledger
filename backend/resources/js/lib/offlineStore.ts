@@ -161,6 +161,8 @@ export async function enqueue(payload: unknown, owner: string | null = null): Pr
     return row.id;
 }
 
+const bySavedOrder = (a: QueueRow, b: QueueRow) => (a.seq ?? 0) - (b.seq ?? 0) || a.createdAt.localeCompare(b.createdAt);
+
 // saved order (seq), not phone-clock order, so a partial sync retries in the order the farmer actually recorded things
 export async function listPending<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
     const key = await getOrCreateDeviceKey();
@@ -172,7 +174,7 @@ export async function listPending<T = unknown>(currentUser: string | null): Prom
 
     const pending = ownedBy(rows, currentUser)
         .filter((row) => !row.synced && !row.needsAttention && !row.stuck)
-        .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || a.createdAt.localeCompare(b.createdAt));
+        .sort(bySavedOrder);
 
     return Promise.all(
         pending.map(async (row) => ({
@@ -215,6 +217,28 @@ export async function recordFailedAttempt(id: string): Promise<void> {
 
     await whenDone(tx);
     db.close();
+}
+
+// items that failed five times: kept on the device, shown to their owner, never sent again by themselves
+export async function listStuck<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
+    const key = await getOrCreateDeviceKey();
+
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    const stuck = ownedBy(rows, currentUser)
+        .filter((row) => row.stuck && !row.synced)
+        .sort(bySavedOrder);
+
+    return Promise.all(
+        stuck.map(async (row) => ({
+            id: row.id,
+            payload: await decrypt<T>(key, row.envelope),
+            createdAt: row.createdAt,
+        })),
+    );
 }
 
 export async function listNeedsAttention<T = unknown>(currentUser: string | null): Promise<NeedsAttentionItem<T>[]> {

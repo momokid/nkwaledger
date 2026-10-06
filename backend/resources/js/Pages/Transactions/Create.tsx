@@ -6,12 +6,15 @@ import Button from "@/Components/Button";
 import {
     enqueue,
     listNeedsAttention,
+    listStuck,
     NeedsAttentionItem,
+    QueueItem,
     remove,
 } from "@/lib/offlineStore";
 import { buildBatchRecord } from "@/lib/batchRecord";
+import { shortDate } from "@/lib/format";
 import { createRecordKey } from "@/lib/recordKey";
-import { QueuedSubmission } from "@/types/offlineQueue";
+import { QueuedBatchRecord, QueuedSubmission } from "@/types/offlineQueue";
 import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
 interface Template {
@@ -140,10 +143,13 @@ function CreateContent({
         NeedsAttentionItem<QueuedSubmission>[]
     >([]);
 
+    const [stuckItems, setStuckItems] = useState<QueueItem<QueuedBatchRecord>[]>([]);
+
     const currentUser = String(auth.user.id);
 
     const refreshAttentionItems = () => {
         void listNeedsAttention<QueuedSubmission>(currentUser).then(setAttentionItems);
+        void listStuck<QueuedBatchRecord>(currentUser).then(setStuckItems);
     };
 
     useEffect(() => {
@@ -360,6 +366,36 @@ function CreateContent({
                             </button>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {stuckItems.length > 0 && (
+                <div className="mt-4">
+                    {stuckItems.map((item) => {
+                        const templateName = templates.find((template) => template.id === item.payload.template)?.name;
+
+                        return (
+                            <div
+                                key={item.id}
+                                className="p-3 mb-2"
+                                style={{ background: warnBg, fontSize: "1.0625rem" }}
+                            >
+                                <p style={{ color: "#B45309", margin: 0 }}>
+                                    Not sent yet. Your record is saved on this phone.
+                                </p>
+                                <p
+                                    style={{
+                                        color: textSecondary,
+                                        fontSize: "0.9375rem",
+                                        marginTop: "4px",
+                                    }}
+                                >
+                                    {templateName ? `${templateName} · ` : ""}
+                                    Amount: {item.payload.amount} · {shortDate(item.payload.event_date)}
+                                </p>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 
