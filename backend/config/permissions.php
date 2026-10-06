@@ -77,6 +77,7 @@ return [
                 'create' => 'Invite',
                 'update' => 'Enable or disable',
                 'delete' => 'Cancel invitation',
+                'force-logout' => 'Force logout',
             ],
         ],
         // reading the trail is its own privilege, separate from managing anything
@@ -264,6 +265,7 @@ return [
             'staff.create',
             'staff.update',
             'staff.delete',
+            'staff.force-logout',
             'audit.view',
             'accounting-periods.view',
             'accounting-periods.create',

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
-import { enqueue, listPending } from "./offlineStore";
+import { enqueue, listPending, recordFailedAttempt } from "./offlineStore";
 import { runSync } from "./offlineSync";
 import { QueuedBatchRecord } from "@/types/offlineQueue";
 
@@ -355,5 +355,47 @@ describe("other refusals and a lost connection", () => {
 
         expect(calls.map((c) => c.records.length)).toEqual([3, 1]);
         expect(await remaining()).toHaveLength(3);
+    });
+});
+
+describe("after an admin signs the user out everywhere", () => {
+    it("stops at the first refused batch, sends no more, and keeps every record, stuck ones included", async () => {
+        await queue(45);
+        const stuck = await enqueue(record(99), USER);
+        for (let i = 0; i < 5; i++) {
+            await recordFailedAttempt(stuck);
+        }
+        const calls = serve(() => new Response("{}", { status: 401 }));
+
+        const outcome = await runSync(USER);
+
+        expect(outcome.authExpired).toBe(true);
+        expect(calls).toHaveLength(1);
+        expect(await remaining()).toHaveLength(45);
+        expect((await rows()).length).toBe(46);
+        expect((await rows()).find((row) => row.id === stuck)).toMatchObject({ stuck: true, attempts: 5 });
+    });
+
+    it("counts a redirect to the sign-in page as the same session problem", async () => {
+        await queue(3);
+        const calls = serve(() => ({ type: "opaqueredirect", ok: false, status: 0 }) as unknown as Response);
+
+        const outcome = await runSync(USER);
+
+        expect(outcome.authExpired).toBe(true);
+        expect(calls).toHaveLength(1);
+        expect((await rows()).map((row) => row.attempts ?? 0)).toEqual([0, 0, 0]);
+    });
+
+    it("sends again as soon as the person has signed in", async () => {
+        await queue(3);
+        serve(() => new Response("{}", { status: 401 }));
+        await runSync(USER);
+
+        const calls = serve(results("accepted"));
+        await runSync(USER);
+
+        expect(calls).toHaveLength(1);
+        expect(await remaining()).toEqual([]);
     });
 });

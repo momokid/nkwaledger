@@ -806,6 +806,10 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
         Route::delete('/staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
     });
 
+    Route::middleware(['access:staff.force-logout', 'throttle:force-logout'])->group(function () {
+        Route::post('/staff/{user:uuid}/force-logout', [StaffController::class, 'forceLogout'])->name('staff.force-logout');
+    });
+
     Route::middleware('access:audit.view')->group(function () {
         Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
     });

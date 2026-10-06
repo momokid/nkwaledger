@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -27,6 +28,15 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles;
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if ($user->uuid === null) {
+                $user->uuid = (string) Str::uuid7();
+            }
+        });
+    }
 
     // the last gate before storage, so a number reaching the column from any direction has one spelling
     protected function phone(): Attribute

@@ -84,6 +84,9 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // signing someone out of every device is rare and decisive, so each admin gets a short leash
+        RateLimiter::for('force-logout', fn(Request $request) => Limit::perMinute(10)->by('force-logout:' . $request->user()?->id));
+
         RateLimiter::for('pin-reset', fn(Request $request) => [
             Limit::perHour(config('otp.pin_reset.per_user'))->by('pin-reset-user:' . $request->user()?->id),
             Limit::perHour(config('otp.pin_reset.per_ip'))->by('pin-reset-ip:' . $request->ip()),
