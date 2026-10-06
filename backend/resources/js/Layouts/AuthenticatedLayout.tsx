@@ -1,7 +1,8 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import NotificationBell from "@/Components/NotificationBell";
 import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
-import { deleteDeviceKey } from "@/lib/offlineStore";
+import useSafeLogout from "@/hooks/useSafeLogout";
+import LogoutBlockedBanner from "@/Components/LogoutBlockedBanner";
 import {
     IconBell,
     IconChevronDown,
@@ -405,18 +406,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
         });
     };
 
-    const logout = () => {
-        router.post(
-            route("logout"),
-            {},
-            {
-                onSuccess: () => {
-                    deleteDeviceKey();
-                    window.history.replaceState({ loggedOut: true }, "");
-                },
-            },
-        );
-    };
+    const { logout, blocked: logoutBlocked } = useSafeLogout(
+        (auth as { user?: { id?: number } | null })?.user?.id?.toString() ?? null,
+    );
 
     const pageBg = dark ? "#111827" : "#F9FAFB";
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -1117,6 +1109,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
 
                     <main style={{ padding: "24px" }}>
                         <SessionEndedBanner show={authExpired} />
+                        <LogoutBlockedBanner show={logoutBlocked} />
                         <VerificationGate>{children}</VerificationGate>
                     </main>
                 </div>

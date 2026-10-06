@@ -24,7 +24,8 @@ import {
 import FlashMessages from "@/Components/FlashMessages";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import { PageProps } from "@/types";
-import { deleteDeviceKey } from "@/lib/offlineStore";
+import useSafeLogout from "@/hooks/useSafeLogout";
+import LogoutBlockedBanner from "@/Components/LogoutBlockedBanner";
 import {
     ROOT_FONT_SIZE,
     TextSize,
@@ -135,18 +136,7 @@ export default function AdminLayout({ title, children }: Props) {
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
     const hoverBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
 
-    const logout = () => {
-        router.post(
-            route("logout"),
-            {},
-            {
-                onSuccess: () => {
-                    deleteDeviceKey();
-                    window.history.replaceState({ loggedOut: true }, "");
-                },
-            },
-        );
-    };
+    const { logout, blocked: logoutBlocked } = useSafeLogout(auth?.user ? String(auth.user.id) : null);
 
     const toggleGroup = (label: string) => {
         if (collapsed) {
@@ -643,6 +633,7 @@ export default function AdminLayout({ title, children }: Props) {
 
                         <main style={{ padding: "24px" }}>
                             <SessionEndedBanner show={authExpired} />
+                            <LogoutBlockedBanner show={logoutBlocked} />
                             <VerificationGate>{children}</VerificationGate>
                         </main>
                     </div>
@@ -668,6 +659,7 @@ export default function AdminLayout({ title, children }: Props) {
                         </header>
                         <main style={{ padding: "24px" }}>
                             <SessionEndedBanner show={authExpired} />
+                            <LogoutBlockedBanner show={logoutBlocked} />
                             <VerificationGate>{children}</VerificationGate>
                         </main>
                     </div>

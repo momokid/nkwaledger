@@ -219,6 +219,16 @@ export async function recordFailedAttempt(id: string): Promise<void> {
     db.close();
 }
 
+// everything still on the device, whoever it belongs to: `own` is the signed-in user's share
+export async function queueCounts(currentUser: string | null): Promise<{ own: number; total: number }> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = ((await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[]).filter((row) => !row.synced);
+    db.close();
+
+    return { own: ownedBy(rows, currentUser).length, total: rows.length };
+}
+
 // items that failed five times: kept on the device, shown to their owner, never sent again by themselves
 export async function listStuck<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
     const key = await getOrCreateDeviceKey();
