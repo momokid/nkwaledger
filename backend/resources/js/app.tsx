@@ -4,6 +4,7 @@ import "./bootstrap";
 import { createInertiaApp, router } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 import { createRoot, hydrateRoot } from "react-dom/client";
+import DataCostDialog from "@/Components/DataCostDialog";
 import PinGate from "@/Components/PinGate";
 import { installContactTracking } from "@/lib/serverContact";
 
@@ -55,6 +56,7 @@ createInertiaApp({
             <App {...props}>
                 {({ Component, props: page, key }) => (
                     <PinGate user={(page as { auth?: { user?: { id: number } | null } }).auth?.user}>
+                        <DataCostDialog />
                         <Component key={key} {...page} />
                     </PinGate>
                 )}

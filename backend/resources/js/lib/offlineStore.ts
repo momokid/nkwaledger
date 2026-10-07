@@ -41,6 +41,8 @@ interface QueueRow {
     stuck?: boolean;
     // the report's text reached the server; its media is still on this row until every file is confirmed
     textSent?: boolean;
+    // the farmer said "Send now" for this report's files; never asked again for it
+    dataApproved?: boolean;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -219,6 +221,10 @@ export async function markTextSent(id: string): Promise<void> {
     await patchRow(id, { textSent: true });
 }
 
+export async function markDataApproved(id: string): Promise<void> {
+    await patchRow(id, { dataApproved: true });
+}
+
 // kept on the device with everything it holds, never retried by itself
 export async function markStuck(id: string): Promise<void> {
     await patchRow(id, { stuck: true });
@@ -239,7 +245,7 @@ async function patchRow(id: string, change: Partial<QueueRow>): Promise<void> {
 }
 
 // rows whose text is on the server and whose files are still being sent: ids only, nothing is opened here
-export async function listMediaIds(currentUser: string | null): Promise<string[]> {
+export async function listMediaIds(currentUser: string | null): Promise<Array<{ id: string; approved: boolean }>> {
     const db = await openDatabase();
     const tx = db.transaction(QUEUE_STORE, "readonly");
     const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
@@ -248,7 +254,7 @@ export async function listMediaIds(currentUser: string | null): Promise<string[]
     return ownedBy(rows, currentUser)
         .filter((row) => row.textSent && !row.synced && !row.stuck)
         .sort(bySavedOrder)
-        .map((row) => row.id);
+        .map((row) => ({ id: row.id, approved: row.dataApproved === true }));
 }
 
 // one item, opened on its own

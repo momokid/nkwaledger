@@ -2,7 +2,7 @@
 // The server is the authority on how much of a file it holds: this asks, then sends from there. A row is
 // deleted only when the server has confirmed every file; every other outcome keeps the row and its media.
 
-import { listMediaIds, markStuck, readItem, recordFailedAttempt, remove } from "./offlineStore";
+import { listMediaIds, markDataApproved, markStuck, readItem, recordFailedAttempt, remove } from "./offlineStore";
 import { dataCostGateAllows } from "./dataCostGate";
 import { csrfToken, isSessionEnded } from "./syncHttp";
 import { isHealthReport, QueuedHealthReport, QueuedMedia } from "@/types/offlineQueue";
@@ -113,23 +113,47 @@ async function sendFile(uuid: string, kind: "photo" | "audio", media: QueuedMedi
 }
 
 async function sendReport(report: QueuedHealthReport): Promise<Step> {
-    const photo = await sendFile(report.uuid, "photo", report.media.photo);
+    const photo = report.media.photo ? await sendFile(report.uuid, "photo", report.media.photo) : "done";
 
     if (photo !== "done" || !report.media.audio) return photo;
 
     return sendFile(report.uuid, "audio", report.media.audio);
 }
 
+const hasMedia = (report: QueuedHealthReport) => Boolean(report.media?.photo || report.media?.audio);
+
+// an upload begun before the farmer was ever asked is not interrupted by a question
+async function alreadyStarted(report: QueuedHealthReport): Promise<boolean> {
+    const response = await call(`${BASE}/${report.uuid}/${report.media.photo ? "photo" : "audio"}`, "GET");
+
+    if (response === null || !response.ok) return false;
+
+    const state = await response.json().catch(() => null);
+
+    return state?.state === "complete" || (state?.state === "open" && state.offset > 0);
+}
+
 // one queue item is opened at a time, and let go before the next
 export async function sendMedia(currentUser: string | null, outcome: SyncOutcome): Promise<void> {
-    const ids = await listMediaIds(currentUser);
-
-    if (ids.length === 0 || !(await dataCostGateAllows())) return;
-
-    for (const id of ids) {
+    for (const { id, approved } of await listMediaIds(currentUser)) {
         const item = await readItem<unknown>(id);
 
         if (!isHealthReport(item)) continue;
+
+        // nothing to send, so nothing to warn about
+        if (!hasMedia(item)) {
+            await remove(id);
+            outcome.synced.push(id);
+
+            continue;
+        }
+
+        if (!approved) {
+            // "Wait" (or no way to ask) sends nothing: the row and its media stay as they are, and it is no failure
+            if (!(await alreadyStarted(item)) && !(await dataCostGateAllows())) return;
+
+            await markDataApproved(id);
+        }
 
         const step = await sendReport(item);
 

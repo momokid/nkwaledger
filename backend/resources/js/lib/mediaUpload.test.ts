@@ -1,16 +1,23 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
-import { enqueue, listPending, listStuck, queueCounts, recordFailedAttempt } from "./offlineStore";
+import { enqueue, listMediaIds, listPending, listStuck, queueCounts, readItem, recordFailedAttempt } from "./offlineStore";
 import { runSync } from "./offlineSync";
 import { buildHealthReport } from "./healthReport";
-import { dataCostGateAllows } from "./dataCostGate";
+import { setDataCostAsker } from "./dataCostGate";
+import { DATA_COST_TEXT } from "./dataCostText";
+import { QueuedHealthReport } from "@/types/offlineQueue";
 
 const USER = "7";
 const FARMER = "5b0f9f4e-0c3e-4a67-9a52-1e0f3f2a1111";
 const CHUNK = 4;
 
+const asked: string[] = [];
+const answer = (reply: "send" | "wait" | "dismissed") => setDataCostAsker(async (text) => (asked.push(text), reply));
+
 beforeEach(() => {
+    asked.length = 0;
+    answer("send");
     indexedDB = new IDBFactory();
     document.head.innerHTML = '<meta name="csrf-token" content="t">';
 });
@@ -36,13 +43,18 @@ interface Sent {
 }
 
 // a stand-in for the server: it alone knows how much of each file it holds
-function server(opts: { dropAfterChunks?: number; textStatus?: string; failWith?: number; gone?: boolean; sessionEnded?: boolean; wrongOffsetOnce?: boolean } = {}) {
+function server(opts: { preheld?: { key: string; bytes: number[]; size: number }; dropAfterChunks?: number; textStatus?: string; failWith?: number; gone?: boolean; sessionEnded?: boolean; wrongOffsetOnce?: boolean } = {}) {
     const held: Record<string, number[]> = {};
     const sessions: Record<string, { size: number }> = {};
     const log: Sent[] = [];
     let chunks = 0;
     let wrongSent = false;
     const state: { dropAfterChunks?: number } = { dropAfterChunks: opts.dropAfterChunks };
+
+    if (opts.preheld) {
+        held[opts.preheld.key] = opts.preheld.bytes;
+        sessions[opts.preheld.key] = { size: opts.preheld.size };
+    }
 
     const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
@@ -116,6 +128,8 @@ function server(opts: { dropAfterChunks?: number; textStatus?: string; failWith?
 
     return { held, log, state, mediaRequests: () => log.filter((l) => l.url.startsWith("/sync/health-reports/")) };
 }
+
+const readIds = () => listMediaIds(USER).then((rows) => rows.map((row) => row.id));
 
 const stored = (s: ReturnType<typeof server>, uuid: string, kind: string) => s.held[`${uuid}/${kind}`];
 
@@ -205,7 +219,8 @@ describe("a health report's photo and voice note", () => {
         expect(outcome.authExpired).toBe(true);
         expect(await queueCounts(USER)).toEqual({ own: 1, total: 1 });
         expect(await listStuck(USER)).toEqual([]);
-        expect(s.mediaRequests()).toHaveLength(1);
+        // one look at where the upload stands, one try to begin; both end at the 401
+        expect(s.mediaRequests()).toHaveLength(2);
     });
 
     it("marks the row stuck, never deletes it, when the server says the report is gone", async () => {
@@ -303,8 +318,149 @@ describe("a health report's photo and voice note", () => {
     });
 });
 
-describe("the data-cost gate", () => {
-    it("is off until its wording is approved, so it lets every upload through", async () => {
-        expect(await dataCostGateAllows()).toBe(true);
+describe("the data-cost warning", () => {
+    const putsOf = (s: ReturnType<typeof server>) => s.mediaRequests().filter((l) => l.method === "PUT" || l.method === "POST");
+
+    it("asks, with the approved words, before the first upload of a report with media", async () => {
+        await enqueue(await report("h-1"), USER);
+        const s = server();
+
+        await runSync(USER);
+
+        expect(asked).toEqual([DATA_COST_TEXT.warning]);
+        expect(stored(s, "h-1", "photo")).toEqual(PHOTO);
+    });
+
+    it("asks before any file moves", async () => {
+        await enqueue(await report("h-1"), USER);
+        const s = server();
+        const order: string[] = [];
+        setDataCostAsker(async () => (order.push("asked"), "send"));
+        const real = fetch;
+        vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+            if (url.startsWith("/sync/health-reports/") && (init.method === "POST" || init.method === "PUT")) order.push("sent");
+
+            return real(url, init);
+        });
+
+        await runSync(USER);
+
+        expect(order[0]).toBe("asked");
+        expect(stored(s, "h-1", "photo")).toEqual(PHOTO);
+    });
+
+    it("does not ask again for that report after Send now, even after a dropped connection and a resume", async () => {
+        await enqueue(await report("h-1"), USER);
+        const s = server({ dropAfterChunks: 2 });
+
+        await runSync(USER);
+        s.state.dropAfterChunks = undefined;
+        await runSync(USER);
+        await runSync(USER);
+
+        expect(asked).toHaveLength(1);
+        expect(stored(s, "h-1", "photo")).toEqual(PHOTO);
+        expect(await queueCounts(USER)).toEqual({ own: 0, total: 0 });
+    });
+
+    it("asks once for each report", async () => {
+        await enqueue(await report("h-1"), USER);
+        await enqueue(await report("h-2"), USER);
+        server();
+
+        await runSync(USER);
+
+        expect(asked).toHaveLength(2);
+    });
+
+    it("sends nothing on Wait, keeps the row and its media untouched, and counts no failure", async () => {
+        await enqueue(await report("h-1"), USER);
+        answer("wait");
+        const s = server();
+
+        for (let run = 0; run < 7; run++) {
+            await runSync(USER);
+            // the farmer coming back to the app is what asks again
+            document.dispatchEvent(new Event("visibilitychange"));
+        }
+
+        expect(putsOf(s)).toEqual([]);
+        expect(await listStuck(USER)).toEqual([]);
+        expect(await queueCounts(USER)).toEqual({ own: 1, total: 1 });
+        const [item] = await Promise.all((await readIds()).map((id) => readItem<QueuedHealthReport>(id)));
+        expect(item?.media.photo.data).not.toBe("");
+    });
+
+    it("does not ask again until the farmer returns to the app", async () => {
+        await enqueue(await report("h-1"), USER);
+        answer("wait");
+        server();
+
+        await runSync(USER);
+        await runSync(USER);
+        expect(asked).toHaveLength(1);
+
+        Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+        document.dispatchEvent(new Event("visibilitychange"));
+        await runSync(USER);
+
+        expect(asked).toHaveLength(2);
+    });
+
+    it("keeps asking on the next run when the dialog was closed without an answer", async () => {
+        await enqueue(await report("h-1"), USER);
+        answer("dismissed");
+        server();
+
+        await runSync(USER);
+        await runSync(USER);
+
+        expect(asked).toHaveLength(2);
+    });
+
+    it("sends the files once Send now is chosen after an earlier Wait", async () => {
+        await enqueue(await report("h-1"), USER);
+        answer("wait");
+        const s = server();
+        await runSync(USER);
+
+        answer("send");
+        await runSync(USER);
+
+        expect(stored(s, "h-1", "photo")).toEqual(PHOTO);
+        expect(await queueCounts(USER)).toEqual({ own: 0, total: 0 });
+    });
+
+    it("never asks about a report with no photo or voice note", async () => {
+        const text = { ...(await report("h-1")), media: {} } as unknown as QueuedHealthReport;
+        await enqueue(text, USER);
+        const s = server();
+
+        await runSync(USER);
+
+        expect(asked).toEqual([]);
+        expect(putsOf(s)).toEqual([]);
+        expect(await queueCounts(USER)).toEqual({ own: 0, total: 0 });
+    });
+
+    it("does not ask about an upload that had already started", async () => {
+        await enqueue(await report("h-1"), USER);
+        const s = server({ preheld: { key: "h-1/photo", bytes: PHOTO.slice(0, 4), size: PHOTO.length } });
+
+        await runSync(USER);
+
+        expect(asked).toEqual([]);
+        expect(stored(s, "h-1", "photo")).toEqual(PHOTO);
+    });
+
+    it("sends nothing, and keeps everything, when nothing is there to ask with", async () => {
+        await enqueue(await report("h-1"), USER);
+        setDataCostAsker(null);
+        const s = server();
+
+        await runSync(USER);
+
+        expect(putsOf(s)).toEqual([]);
+        expect(await queueCounts(USER)).toEqual({ own: 1, total: 1 });
     });
 });

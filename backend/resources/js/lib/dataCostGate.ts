@@ -1,22 +1,35 @@
-import warningText from "@/config/dataCostWarning.txt?raw";
+import { DATA_COST_TEXT } from "./dataCostText";
 
-// the wording is not approved yet, so the gate stays off and the text file stays empty;
-// switch it on only together with the approved text and the screen that asks
-export const DATA_COST_GATE_ENABLED = false;
+// what the farmer did with the dialog; "dismissed" is the page going away under it, not a choice
+export type DataCostAnswer = "send" | "wait" | "dismissed";
 
-let ask: ((text: string) => Promise<boolean>) | null = null;
+let ask: ((text: string) => Promise<DataCostAnswer>) | null = null;
+let waiting = false;
 
-export function setDataCostAsker(asker: ((text: string) => Promise<boolean>) | null): void {
-    ask = asker;
+// "Wait" holds until the farmer comes back to the app; opening the app starts clear
+if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            waiting = false;
+        }
+    });
 }
 
-// asked once before media starts to upload; a "no", or a gate with nothing to ask with, sends nothing and deletes nothing
+export function setDataCostAsker(asker: ((text: string) => Promise<DataCostAnswer>) | null): void {
+    ask = asker;
+    waiting = false;
+}
+
+// asked once per report, before its first file is sent; anything but "Send now", or nothing to ask with,
+// sends nothing and deletes nothing
 export async function dataCostGateAllows(): Promise<boolean> {
-    if (!DATA_COST_GATE_ENABLED) {
-        return true;
+    if (waiting || ask === null) {
+        return false;
     }
 
-    const text = warningText.trim();
+    const answer = await ask(DATA_COST_TEXT.warning);
 
-    return text !== "" && ask !== null ? ask(text) : false;
+    waiting = answer === "wait";
+
+    return answer === "send";
 }
