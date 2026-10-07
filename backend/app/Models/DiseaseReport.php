@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -23,6 +24,7 @@ use Illuminate\Support\Str;
     'status',
     'photo_path',
     'audio_path',
+    'media_disk',
     'description',
     'contact_method',
     'response_note',
@@ -62,6 +64,25 @@ class DiseaseReport extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
+    }
+
+    public static function waitingCount(): int
+    {
+        return static::withoutGlobalScopes()->where('status', DiseaseReportStatus::WaitingForPhoto->value)->count();
+    }
+
+    // older reports sit on the public disk; uploaded ones are private and go through the media route
+    public function mediaUrl(string $kind, Request $request): ?string
+    {
+        $path = $kind === 'photo' ? $this->photo_path : $this->audio_path;
+
+        if ($path === null) {
+            return null;
+        }
+
+        return $this->media_disk === 'public'
+            ? $request->getSchemeAndHttpHost() . '/storage/' . $path
+            : route('disease-reports.media', [$this, $kind], false);
     }
 
     public function isAssigned(): bool

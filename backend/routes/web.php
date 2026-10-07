@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\KioskReportController;
+use App\Http\Controllers\DiseaseReportMediaController;
+use App\Http\Controllers\Sync\HealthReportUploadController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DiseaseReportQueueController;
 use App\Http\Controllers\Admin\FarmTypeCategoryController;
@@ -306,8 +308,16 @@ Route::middleware(['marketplace', 'auth', 'verified.phone'])->prefix('market-cen
     Route::get('/{marketplaceCategory:slug}', [\App\Http\Controllers\MarketCenterController::class, 'category'])->name('category');
 });
 
+// a report's photo and voice note sent from the phone in chunks; the controller answers 404 to anyone but the report's own farmer
+Route::middleware(['auth', 'verified.phone', 'throttle:health-uploads'])->prefix('sync/health-reports')->name('sync.health-reports.')->group(function () {
+    Route::get('/{uuid}/{kind}', [HealthReportUploadController::class, 'show'])->name('show');
+    Route::post('/{uuid}/{kind}', [HealthReportUploadController::class, 'open'])->name('open');
+    Route::put('/{uuid}/{kind}', [HealthReportUploadController::class, 'chunk'])->name('chunk');
+});
+
 // private photos: the controller decides who may see each one and answers 404 to everyone else
 Route::middleware(['auth', 'verified.phone'])->group(function () {
+    Route::get('/disease-reports/{report:uuid}/media/{kind}', [DiseaseReportMediaController::class, 'show'])->whereIn('kind', ['photo', 'audio'])->name('disease-reports.media');
     Route::get('/farmers/{farmer}/identity-photo', [FarmerController::class, 'identityPhoto'])->name('farmers.identity.photo');
     Route::get('/farm-unit-photos/{image}', [FarmUnitController::class, 'photo'])->name('farm-units.photos.show');
 });

@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Schedule;
 // clears verification once the window has passed
 Schedule::command('verification:expire')->dailyAt('02:00')->withoutOverlapping();
 
+// removes health reports whose photo never arrived, and stale upload sessions
+Schedule::command('health-reports:purge-waiting')->dailyAt('03:30')->withoutOverlapping();
+
 // builds up weather advisory history one day at a time
 Schedule::command('weather:snapshot-advisories')->dailyAt('03:00')->withoutOverlapping();
 

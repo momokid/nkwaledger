@@ -115,6 +115,8 @@ class AppServiceProvider extends ServiceProvider
         // locking and unlocking share one short leash per admin
         RateLimiter::for('account-lock', fn(Request $request) => Limit::perMinute(10)->by('account-lock:' . $request->user()?->id));
 
+        RateLimiter::for('health-uploads', fn(Request $request) => Limit::perMinute(config('health_reports.requests_per_minute'))->by('health-uploads:' . $request->user()?->id));
+
         RateLimiter::for('pin-reset', fn(Request $request) => [
             Limit::perHour(config('otp.pin_reset.per_user'))->by('pin-reset-user:' . $request->user()?->id),
             Limit::perHour(config('otp.pin_reset.per_ip'))->by('pin-reset-ip:' . $request->ip()),

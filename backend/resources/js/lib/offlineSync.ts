@@ -3,8 +3,12 @@
 // a retry after a partial success (response lost, tab closed mid-request) can
 // never record the same thing twice — see PostingService::alreadyPosted.
 
-import { listPending, markNeedsAttention, QueueItem, markSynced, recordFailedAttempt, remove } from "./offlineStore";
-import { QueuedBatchRecord, QueuedHealthReport, QueuedSubmission } from "@/types/offlineQueue";
+import { listPending, markNeedsAttention, markStuck, markTextSent, QueueItem, markSynced, recordFailedAttempt, remove } from "./offlineStore";
+import { csrfToken, isSessionEnded } from "./syncHttp";
+import { sendMedia } from "./mediaUpload";
+import { isHealthReport, QueuedBatchRecord, QueuedHealthReport, QueuedSubmission } from "@/types/offlineQueue";
+
+export { isSessionEnded };
 
 type BatchPayload = QueuedBatchRecord | QueuedHealthReport;
 
@@ -12,13 +16,6 @@ export interface SyncOutcome {
     synced: string[];
     needsAttention: Array<{ id: string; message: string }>;
     authExpired: boolean;
-}
-
-function csrfToken(): string {
-    return (
-        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-            ?.content ?? ""
-    );
 }
 
 async function postQueuedItem(item: QueuedSubmission): Promise<Response> {
@@ -36,11 +33,6 @@ async function postQueuedItem(item: QueuedSubmission): Promise<Response> {
         },
         body: JSON.stringify(item.data),
     });
-}
-
-// a redirect, 401 or 419 all mean the same thing: sign in again
-export function isSessionEnded(response: Pick<Response, "type" | "status">): boolean {
-    return response.type === "opaqueredirect" || response.status === 419 || response.status === 401;
 }
 
 const SYNC_LOCK = "nkwa-offline-sync";
@@ -169,8 +161,14 @@ async function sendBatch(items: BatchItem[], outcome: SyncOutcome): Promise<bool
         if (result.status === "error") {
             await recordFailedAttempt(item.id);
         } else if (STORED_BY_SERVER.includes(result.status)) {
-            await remove(item.id);
-            outcome.synced.push(item.id);
+            if (isHealthReport(item.payload)) {
+                // the photo and voice note are still to come: the row keeps its media until every file is confirmed.
+                // a report the server would not take has nowhere to send them, so it is parked, not deleted
+                await (result.status === "accepted" ? markTextSent(item.id) : markStuck(item.id));
+            } else {
+                await remove(item.id);
+                outcome.synced.push(item.id);
+            }
         }
     }
 
@@ -220,10 +218,18 @@ export async function runSync(currentUser: string | null): Promise<SyncOutcome> 
         // any other failure (server error, etc.): leave it queued, retry next time
     }
 
+    let stopped = false;
+
     for (let start = 0; start < batchItems.length && !outcome.authExpired; start += BATCH_SIZE) {
         if (!(await sendBatch(batchItems.slice(start, start + BATCH_SIZE), outcome))) {
+            stopped = true;
+
             break;
         }
+    }
+
+    if (!stopped && !outcome.authExpired) {
+        await sendMedia(currentUser, outcome);
     }
 
     return outcome;

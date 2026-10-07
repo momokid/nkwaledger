@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Farm;
 
-use App\Enums\OfficerRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DiseaseReports\StoreDiseaseReportRequest;
 use App\Models\DiseaseReport;
@@ -11,7 +10,7 @@ use App\Models\FarmUnit;
 use App\Models\SyncSubmission;
 use App\Models\User;
 use App\Services\DiseaseReports\ReportRoutingService;
-use App\Services\NotificationService;
+use App\Services\DiseaseReports\ReportReleaseService;
 use App\Services\RecordLock;
 use App\Support\AudioUpload;
 use App\Support\PhotoUpload;
@@ -24,7 +23,7 @@ class DiseaseReportController extends Controller
 {
     public function __construct(
         private readonly ReportRoutingService $routing,
-        private readonly NotificationService $notifications,
+        private readonly ReportReleaseService $release,
         private readonly RecordLock $lock,
     ) {}
 
@@ -64,10 +63,8 @@ class DiseaseReportController extends Controller
                 'category' => $report->category,
                 'status' => $report->status->value,
                 'description' => $report->description,
-                'photo_url' => $request->getSchemeAndHttpHost() . '/storage/' . $report->photo_path,
-                'audio_url' => $report->audio_path
-                    ? $request->getSchemeAndHttpHost() . '/storage/' . $report->audio_path
-                    : null,
+                'photo_url' => $report->mediaUrl('photo', $request),
+                'audio_url' => $report->mediaUrl('audio', $request),
                 'contact_method' => $report->contact_method?->value,
                 'response_note' => $report->response_note,
                 'created_at' => $report->created_at->toDateString(),
@@ -104,7 +101,7 @@ class DiseaseReportController extends Controller
         if ($created !== null) {
             [$report, $officer, $role] = $created;
 
-            $this->notifySubmission($report, $user, $farmer, $farmUnit, $officer, $role);
+            $this->release->notifySubmission($report, $user, $farmer, $farmUnit, $officer, $role);
         }
 
         return redirect()
@@ -159,43 +156,5 @@ class DiseaseReportController extends Controller
         }
 
         return $farmer;
-    }
-
-    private function notifySubmission(
-        DiseaseReport $report,
-        User $farmerUser,
-        FarmerProfile $farmer,
-        FarmUnit $farmUnit,
-        ?User $officer,
-        OfficerRole $role,
-    ): void {
-        $this->notifications->send(
-            $farmerUser,
-            'disease_report.submitted',
-            'Your report has been sent.',
-            '/my-farm/reports',
-        );
-
-        if ($farmer->assignedAgent) {
-            $farmerName = trim("{$farmerUser->surname} {$farmerUser->first_name}");
-
-            $this->notifications->send(
-                $farmer->assignedAgent,
-                'disease_report.submitted',
-                "A new report was submitted for {$farmerName}'s {$farmUnit->name}.",
-                "/agent/farmers/{$farmer->uuid}",
-            );
-        }
-
-        if ($officer) {
-            $this->notifications->send(
-                $officer,
-                'disease_report.submitted',
-                "A new {$report->category} report needs your attention.",
-                $role === OfficerRole::Vet
-                    ? "/vet/reports/{$report->uuid}"
-                    : "/adviser/reports/{$report->uuid}",
-            );
-        }
     }
 }

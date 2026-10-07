@@ -39,6 +39,8 @@ interface QueueRow {
     needsAttention?: string;
     attempts?: number;
     stuck?: boolean;
+    // the report's text reached the server; its media is still on this row until every file is confirmed
+    textSent?: boolean;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -185,7 +187,7 @@ export async function listPending<T = unknown>(currentUser: string | null): Prom
     db.close();
 
     const pending = ownedBy(rows, currentUser)
-        .filter((row) => !row.synced && !row.needsAttention && !row.stuck)
+        .filter((row) => !row.synced && !row.needsAttention && !row.stuck && !row.textSent)
         .sort(bySavedOrder);
 
     return Promise.all(
@@ -211,6 +213,54 @@ export async function markNeedsAttention(id: string, message: string): Promise<v
 
     await whenDone(tx);
     db.close();
+}
+
+export async function markTextSent(id: string): Promise<void> {
+    await patchRow(id, { textSent: true });
+}
+
+// kept on the device with everything it holds, never retried by itself
+export async function markStuck(id: string): Promise<void> {
+    await patchRow(id, { stuck: true });
+}
+
+async function patchRow(id: string, change: Partial<QueueRow>): Promise<void> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(QUEUE_STORE);
+    const row = (await requestResult(store.get(id))) as QueueRow | undefined;
+
+    if (row) {
+        store.put({ ...row, ...change });
+    }
+
+    await whenDone(tx);
+    db.close();
+}
+
+// rows whose text is on the server and whose files are still being sent: ids only, nothing is opened here
+export async function listMediaIds(currentUser: string | null): Promise<string[]> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    return ownedBy(rows, currentUser)
+        .filter((row) => row.textSent && !row.synced && !row.stuck)
+        .sort(bySavedOrder)
+        .map((row) => row.id);
+}
+
+// one item, opened on its own
+export async function readItem<T = unknown>(id: string): Promise<T | null> {
+    const key = await getOrCreateDeviceKey();
+
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const row = (await requestResult(tx.objectStore(QUEUE_STORE).get(id))) as QueueRow | undefined;
+    db.close();
+
+    return row ? decrypt<T>(key, row.envelope) : null;
 }
 
 export const MAX_FAILED_ATTEMPTS = 5;

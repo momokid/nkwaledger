@@ -29,7 +29,12 @@ function serve(status: (uuid: string) => string | null = () => "accepted") {
 
     vi.stubGlobal(
         "fetch",
-        vi.fn(async (_url: string, init: RequestInit) => {
+        vi.fn(async (url: string, init: RequestInit) => {
+            // the files have their own upload; here they are always already stored
+            if (url.startsWith("/sync/health-reports/")) {
+                return new Response(JSON.stringify({ state: "complete", offset: 0, chunk_size: 4 }), { status: 200 });
+            }
+
             const { records } = JSON.parse(init.body as string) as { records: Array<{ uuid: string }> };
             sent.push(...records);
 
@@ -66,14 +71,15 @@ describe("health reports in the offline queue", () => {
         expect(await listPending(USER)).toEqual([]);
     });
 
-    it("sends a report the server refused to needs-fixing out of the queue like a record", async () => {
+    it("parks a report the server refused as stuck, with its media, instead of deleting it", async () => {
         await enqueue(await report("h-1"), USER);
         serve(() => "needs_fixing");
 
         const outcome = await runSync(USER);
 
-        expect(outcome.synced).toHaveLength(1);
-        expect(await queueCounts(USER)).toEqual({ own: 0, total: 0 });
+        expect(outcome.synced).toHaveLength(0);
+        expect(await queueCounts(USER)).toEqual({ own: 0, total: 1 });
+        expect(await listStuck(USER)).toHaveLength(1);
     });
 
     it("parks a report as stuck after five failed sends, keeps it with its media, and never sends it again", async () => {
