@@ -42,6 +42,27 @@ export interface QueuedHealthReport {
     media: { photo: QueuedMedia; audio?: QueuedMedia };
 }
 
+// the few plain details a list needs, kept in their own small envelope so a list never opens the media
+export interface RowSummary {
+    kind: "record" | "health_report";
+    farmer: string;
+    event_date: string;
+    amount?: string;
+    description?: string;
+}
+
+export function summaryOf(payload: unknown): RowSummary | null {
+    if (isHealthReport(payload)) {
+        return { kind: "health_report", farmer: payload.farmer, event_date: payload.event_date, description: payload.description };
+    }
+
+    const record = payload as Partial<QueuedBatchRecord> | null;
+
+    return record?.shape === 2 && record.farmer && record.event_date
+        ? { kind: "record", farmer: record.farmer, event_date: record.event_date, amount: record.amount }
+        : null;
+}
+
 export function isHealthReport(payload: unknown): payload is QueuedHealthReport {
     return typeof payload === "object" && payload !== null && (payload as { type?: unknown }).type === "health_report";
 }

@@ -18,6 +18,7 @@ use App\Support\Money;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -179,6 +180,33 @@ class SyncSubmissionService
             fn(Builder $query) => $query->where('user_id', $user->id)
                 ->orWhereIn('farmer_profile_id', $this->reachableFarmerIds($user)),
         );
+    }
+
+    // what this person sent for this farmer that still needs a fix or a check; only their own, plain details, no ids
+    public function flaggedFor(User $user, FarmerProfile $farmer): Collection
+    {
+        $rows = SyncSubmission::query()
+            ->where('user_id', $user->id)
+            ->where('farmer_profile_id', $farmer->id)
+            ->whereIn('status', [SyncSubmission::NEEDS_FIXING, SyncSubmission::HELD])
+            ->latest('received_at')->latest('id')
+            ->get();
+
+        $templates = TransactionTemplate::withTrashed()
+            ->whereIn('id', $rows->map(fn(SyncSubmission $row) => (int) ($row->payload['template'] ?? 0)))
+            ->pluck('name', 'id');
+
+        return $rows->map(fn(SyncSubmission $row) => [
+            'uuid' => $row->uuid,
+            'kind' => $row->type === SyncSubmission::TYPE_HEALTH_REPORT ? 'health_report' : 'record',
+            'status' => $row->status === SyncSubmission::HELD ? 'held' : 'needs_fixing',
+            // a held record's reason is for the admin who checks it
+            'reason' => $row->status === SyncSubmission::NEEDS_FIXING ? $row->reason : null,
+            'event_date' => $row->device_date->toDateString(),
+            'template' => $templates[(int) ($row->payload['template'] ?? 0)] ?? null,
+            'amount' => $row->payload['amount'] ?? null,
+            'description' => $row->payload['description'] ?? null,
+        ]);
     }
 
     // an admin sees the whole platform, an agent their farmers, a farmer only themselves

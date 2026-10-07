@@ -4,6 +4,7 @@ import { Head, Link } from "@inertiajs/react";
 import { cedis, shortDate } from "@/lib/format";
 import { useState } from "react";
 import GreetingHeader from "@/Components/GreetingHeader";
+import UnsentRecordsCount from "@/Components/UnsentRecordsCount";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
@@ -189,6 +190,8 @@ function DashboardContent({
     return (
         <>
             <GreetingHeader subtitle="Here is your farm's financial snapshot for today." />
+
+            <UnsentRecordsCount />
 
             <div
                 style={{

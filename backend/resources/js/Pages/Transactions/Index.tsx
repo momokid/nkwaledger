@@ -3,6 +3,7 @@ import Button from "@/Components/Button";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { useState } from "react";
+import RecordsAttention, { FlaggedRow } from "@/Components/RecordsAttention";
 
 type MoneyClass = "asset" | "expenditure" | "income" | "liability";
 
@@ -68,6 +69,7 @@ interface Props extends PageProps {
     accounts: AccountOption[];
     creditRows: CreditRow[];
     creditSettlementAccounts: AccountOption[];
+    flagged: FlaggedRow[];
     canSettle: boolean;
     layout: "farmer" | "agent";
     basePath: string;
@@ -91,6 +93,7 @@ type ContentProps = Pick<
     | "accounts"
     | "creditRows"
     | "creditSettlementAccounts"
+    | "flagged"
     | "canSettle"
     | "layout"
     | "basePath"
@@ -103,6 +106,7 @@ function IndexContent({
     accounts,
     creditRows,
     creditSettlementAccounts,
+    flagged,
     canSettle,
     layout,
     basePath,
@@ -226,6 +230,10 @@ function IndexContent({
             <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
                 {layout === "agent" ? `${farmer.name} — records` : "My records"}
             </h2>
+
+            <div className="mt-4">
+                <RecordsAttention flagged={flagged} farmerId={farmer.id} />
+            </div>
 
             {flash?.success && (
                 <div

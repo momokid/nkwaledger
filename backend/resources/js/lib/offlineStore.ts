@@ -5,6 +5,7 @@
 
 import { buildQueueRow, ownedBy } from "./queueOwner";
 import { withQueueLock } from "./queueLock";
+import { RowSummary, summaryOf } from "@/types/offlineQueue";
 
 const DB_NAME = "nkwa-offline-store";
 const DB_VERSION = 1;
@@ -43,6 +44,8 @@ interface QueueRow {
     textSent?: boolean;
     // the farmer said "Send now" for this report's files; never asked again for it
     dataApproved?: boolean;
+    // what a list shows, encrypted apart from the payload so media is never opened to draw a row
+    summary?: EncryptedEnvelope;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -159,8 +162,10 @@ export function enqueue(payload: unknown, owner: string | null = null): Promise<
 
         const key = await getOrCreateDeviceKey();
         const envelope = await encrypt(key, payload);
+        const details = summaryOf(payload);
+        const summary = details ? await encrypt(key, details) : undefined;
         const row: QueueRow = buildQueueRow(
-            { id: crypto.randomUUID(), envelope, createdAt: new Date().toISOString() },
+            { id: crypto.randomUUID(), envelope, ...(summary ? { summary } : {}), createdAt: new Date().toISOString() },
             owner,
         );
 
@@ -267,6 +272,58 @@ export async function readItem<T = unknown>(id: string): Promise<T | null> {
     db.close();
 
     return row ? decrypt<T>(key, row.envelope) : null;
+}
+
+export interface StuckRow {
+    id: string;
+    // null for a row saved before summaries existed: it is listed without details
+    summary: RowSummary | null;
+}
+
+// stuck rows for a list: only each row's small summary is opened, never its payload or media
+export async function listStuckSummaries(currentUser: string | null): Promise<StuckRow[]> {
+    const key = await getOrCreateDeviceKey();
+
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    return Promise.all(
+        ownedBy(rows, currentUser)
+            .filter((row) => row.stuck && !row.synced)
+            .sort(bySavedOrder)
+            .map(async (row) => ({ id: row.id, summary: row.summary ? await decrypt<RowSummary>(key, row.summary) : null })),
+    );
+}
+
+export async function stuckCount(currentUser: string | null): Promise<number> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    return ownedBy(rows, currentUser).filter((row) => row.stuck && !row.synced).length;
+}
+
+// back in the queue with a fresh count, so the next sync sends it
+export async function retryStuck(id: string): Promise<void> {
+    await patchRow(id, { stuck: false, attempts: 0 });
+}
+
+// only a stuck row can be deleted this way, and only the farmer asks for it
+export async function deleteStuck(id: string): Promise<void> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(QUEUE_STORE);
+    const row = (await requestResult(store.get(id))) as QueueRow | undefined;
+
+    if (row?.stuck) {
+        store.delete(id);
+    }
+
+    await whenDone(tx);
+    db.close();
 }
 
 export const MAX_FAILED_ATTEMPTS = 5;

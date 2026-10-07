@@ -16,6 +16,7 @@ use App\Services\Ledger\PostingRequest;
 use App\Services\AccessControlService;
 use App\Services\Ledger\PostingService;
 use App\Services\RecordLock;
+use App\Services\SyncSubmissionService;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +37,7 @@ class RecordTransactionController extends Controller
         private readonly CreditSettlementService $creditSettlements,
         private readonly RecordLock $lock,
         private readonly AccessControlService $access,
+        private readonly SyncSubmissionService $sync,
     ) {}
 
     public function index(Request $request, ?FarmerProfile $farmer = null): Response
@@ -93,6 +95,7 @@ class RecordTransactionController extends Controller
                 'last_page' => $statement->lastPage,
             ],
             'filters' => ['from' => $from, 'to' => $to, 'account' => $accountId],
+            'flagged' => $this->sync->flaggedFor($request->user(), $farmer),
             'accounts' => LedgerAccount::settlement()
                 ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
                 ->orderBy('name')
