@@ -209,6 +209,7 @@ Route::middleware(['marketplace', 'auth', 'role:farmer', 'verified.phone'])->gro
 Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-records.')->group(function () {
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/', [RecordTransactionController::class, 'index'])->name('index');
+        Route::post('/rejected/{submission}/dismiss', \App\Http\Controllers\Transactions\DismissRejectedRecordController::class)->name('dismiss-rejected');
     });
 
     Route::middleware('access:transactions.create')->group(function () {

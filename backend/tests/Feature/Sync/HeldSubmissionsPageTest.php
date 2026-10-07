@@ -69,15 +69,16 @@ function pageProps($response): array
     return Arr::only($response->viewData('page')['props'], ['submissions']);
 }
 
-test('an admin sees held submissions only', function () {
-    $held = heldRow();
-    foreach (['accepted', 'needs_fixing', 'rejected', 'superseded'] as $status) {
+test('an admin sees held and needs-a-fix submissions only', function () {
+    $held = heldRow(['received_at' => now()->subMinute()]);
+    $fix = heldRow(['status' => 'needs_fixing']);
+    foreach (['accepted', 'rejected', 'superseded'] as $status) {
         heldRow(['status' => $status]);
     }
 
-    $response = heldPage($this->admin)->assertOk()->assertInertia(fn($page) => $page->component('Admin/SyncSubmissions/Index')->has('submissions.data', 1));
+    $response = heldPage($this->admin)->assertOk()->assertInertia(fn($page) => $page->component('Admin/SyncSubmissions/Index')->has('submissions.data', 2));
 
-    expect(pageProps($response)['submissions']['data'][0]['uuid'])->toBe($held->uuid);
+    expect(collect(pageProps($response)['submissions']['data'])->pluck('uuid')->sort()->values()->all())->toBe(collect([$held->uuid, $fix->uuid])->sort()->values()->all());
 });
 
 test('newest received first and 20 to a page', function () {

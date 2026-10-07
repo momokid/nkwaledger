@@ -7,11 +7,12 @@ import { shortDate } from "@/lib/format";
 import { deleteStuck, listStuckSummaries, retryStuck, StuckRow } from "@/lib/offlineStore";
 import { OFFLINE_SYNC_RAN_EVENT, syncOnce } from "@/lib/offlineSync";
 import { RECORDS_TEXT } from "@/lib/recordsText";
+import { csrfToken } from "@/lib/syncHttp";
 
 export interface FlaggedRow {
     uuid: string;
     kind: "record" | "health_report";
-    status: "needs_fixing" | "held";
+    status: "needs_fixing" | "held" | "rejected";
     reason: string | null;
     event_date: string;
     template: string | null;
@@ -33,6 +34,20 @@ export default function RecordsAttention({ flagged = [], farmerId }: Props) {
     const [stuck, setStuck] = useState<StuckRow[]>([]);
     const [asking, setAsking] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
+    const [dismissed, setDismissed] = useState<string[]>([]);
+    const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+
+    useEffect(() => {
+        const sync = () => setOnline(navigator.onLine);
+
+        window.addEventListener("online", sync);
+        window.addEventListener("offline", sync);
+
+        return () => {
+            window.removeEventListener("online", sync);
+            window.removeEventListener("offline", sync);
+        };
+    }, []);
 
     const refresh = () => {
         void listStuckSummaries(currentUser)
@@ -78,10 +93,32 @@ export default function RecordsAttention({ flagged = [], farmerId }: Props) {
         refresh();
     };
 
+    // saved on the server, so the record stays hidden on every device
+    const dismiss = async (uuid: string) => {
+        setFailed(false);
+
+        try {
+            const response = await fetch(`/my-records/rejected/${uuid}/dismiss`, {
+                method: "POST",
+                redirect: "manual",
+                headers: { Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+            });
+
+            if (!response.ok) throw new Error("not dismissed");
+        } catch {
+            setFailed(true);
+
+            return;
+        }
+
+        setDismissed((all) => [...all, uuid]);
+    };
+
     const needFix = flagged.filter((row) => row.status === "needs_fixing");
+    const rejected = flagged.filter((row) => row.status === "rejected" && !dismissed.includes(row.uuid));
     const held = flagged.filter((row) => row.status === "held");
 
-    if (stuck.length + needFix.length + held.length === 0 && !failed) return null;
+    if (stuck.length + needFix.length + held.length + rejected.length === 0 && !failed) return null;
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -142,6 +179,22 @@ export default function RecordsAttention({ flagged = [], farmerId }: Props) {
                         <p style={{ color: text, margin: 0, fontSize: "1.0625rem" }}>{RECORDS_TEXT.fix}</p>
                         {row.reason && <p style={{ color: textSecondary, marginTop: "4px", fontSize: "1rem" }}>{row.reason}</p>}
                         {flaggedDetails(row)}
+                    </div>
+                )),
+            )}
+
+            {group(
+                RECORDS_TEXT.rejectedHeading,
+                rejected.map((row) => (
+                    <div key={row.uuid} className="mt-3" style={{ borderTop: `1px solid ${border}`, paddingTop: "12px" }}>
+                        <p style={{ color: text, margin: 0, fontSize: "1.0625rem" }}>{RECORDS_TEXT.rejected}</p>
+                        {row.reason && <p style={{ color: textSecondary, marginTop: "4px", fontSize: "1rem" }}>{row.reason}</p>}
+                        {flaggedDetails(row)}
+                        <div className="mt-2">
+                            <Button type="button" size="small" look="secondary" disabled={!online} onClick={() => void dismiss(row.uuid)}>
+                                {RECORDS_TEXT.dismiss}
+                            </Button>
+                        </div>
                     </div>
                 )),
             )}

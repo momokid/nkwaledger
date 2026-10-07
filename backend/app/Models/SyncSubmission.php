@@ -32,6 +32,7 @@ class SyncSubmission extends Model
         'supersedes_id',
         'reviewed_by',
         'reviewed_at',
+        'dismissed_at',
     ];
 
     protected function casts(): array
@@ -41,6 +42,7 @@ class SyncSubmission extends Model
             'device_date' => 'date',
             'received_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'dismissed_at' => 'datetime',
         ];
     }
 

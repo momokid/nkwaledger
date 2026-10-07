@@ -154,12 +154,13 @@ class SyncSubmissionService
     public function approve(SyncSubmission $submission, User $admin): SyncSubmission
     {
         return $this->review($submission, $admin, function (SyncSubmission $held) {
-            // no farmer to post for: refuse with the reason the row already carries, leaving it held
-            if ($held->farmer_profile_id === null) {
+            // no farmer to post for, or a health report that has no ledger entry: refuse with the reason the row already carries
+            if ($held->farmer_profile_id === null || $held->type === SyncSubmission::TYPE_HEALTH_REPORT) {
                 throw ValidationException::withMessages(['submission' => $held->reason]);
             }
 
-            $this->post($held);
+            // a record that already needed a fix was told so once; a refused approval does not tell the farmer again
+            $this->post($held, $held->status === SyncSubmission::HELD);
             $this->audit->recordOn('sync.submission_approved', $held, null, ['status' => $held->status]);
         });
     }
@@ -188,7 +189,8 @@ class SyncSubmissionService
         $rows = SyncSubmission::query()
             ->where('user_id', $user->id)
             ->where('farmer_profile_id', $farmer->id)
-            ->whereIn('status', [SyncSubmission::NEEDS_FIXING, SyncSubmission::HELD])
+            ->whereIn('status', [SyncSubmission::NEEDS_FIXING, SyncSubmission::HELD, SyncSubmission::REJECTED])
+            ->whereNull('dismissed_at')
             ->latest('received_at')->latest('id')
             ->get();
 
@@ -199,14 +201,23 @@ class SyncSubmissionService
         return $rows->map(fn(SyncSubmission $row) => [
             'uuid' => $row->uuid,
             'kind' => $row->type === SyncSubmission::TYPE_HEALTH_REPORT ? 'health_report' : 'record',
-            'status' => $row->status === SyncSubmission::HELD ? 'held' : 'needs_fixing',
+            'status' => $row->status === SyncSubmission::HELD ? 'held' : $row->status,
             // a held record's reason is for the admin who checks it
-            'reason' => $row->status === SyncSubmission::NEEDS_FIXING ? $row->reason : null,
+            'reason' => $row->status === SyncSubmission::HELD ? null : $row->reason,
             'event_date' => $row->device_date->toDateString(),
             'template' => $templates[(int) ($row->payload['template'] ?? 0)] ?? null,
             'amount' => $row->payload['amount'] ?? null,
             'description' => $row->payload['description'] ?? null,
         ]);
+    }
+
+    // only the farmer who sent a rejected record may clear it from their list; the record itself stays
+    public function dismiss(User $user, SyncSubmission $submission): void
+    {
+        abort_unless($submission->user_id === $user->id && $submission->status === SyncSubmission::REJECTED, 404);
+
+        $submission->dismissed_at ??= now();
+        $submission->save();
     }
 
     // an admin sees the whole platform, an agent their farmers, a farmer only themselves
@@ -346,7 +357,7 @@ class SyncSubmissionService
     }
 
     // posts through the ledger; a refusal sends the record back, nothing is written
-    private function post(SyncSubmission $submission): void
+    private function post(SyncSubmission $submission, bool $notify = true): void
     {
         try {
             $this->assertMayUse($submission);
@@ -358,7 +369,10 @@ class SyncSubmissionService
             }
 
             $submission->update(['status' => SyncSubmission::NEEDS_FIXING, 'reason' => $failure->getMessage()]);
-            $this->notifySubmitter($submission, 'sync.needs_fixing', "A record could not be saved. {$submission->reason}");
+
+            if ($notify) {
+                $this->notifySubmitter($submission, 'sync.needs_fixing', "A record could not be saved. {$submission->reason}");
+            }
 
             return;
         }
@@ -445,7 +459,7 @@ class SyncSubmissionService
         return DB::transaction(function () use ($submission, $admin, $decide) {
             $held = SyncSubmission::lockForUpdate()->findOrFail($submission->id);
 
-            if ($held->status !== SyncSubmission::HELD) {
+            if (! in_array($held->status, [SyncSubmission::HELD, SyncSubmission::NEEDS_FIXING], true)) {
                 throw ValidationException::withMessages(['submission' => 'This record has already been decided.']);
             }
 

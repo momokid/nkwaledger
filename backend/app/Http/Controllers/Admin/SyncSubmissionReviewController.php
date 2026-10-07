@@ -27,7 +27,8 @@ class SyncSubmissionReviewController extends Controller
     public function index(Request $request): Response
     {
         $held = SyncSubmission::query()
-            ->where('status', SyncSubmission::HELD)
+            ->whereIn('status', [SyncSubmission::HELD, SyncSubmission::NEEDS_FIXING])
+            ->where('type', SyncSubmission::TYPE_TRANSACTION)
             ->with(['farmerProfile.user:id,surname,first_name', 'user:id,surname,first_name'])
             ->latest('received_at')
             ->latest('id')

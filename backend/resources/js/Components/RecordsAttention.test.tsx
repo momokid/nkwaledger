@@ -125,6 +125,15 @@ describe("the three groups", () => {
         expect(text()).toContain("I sold crops");
     });
 
+    it("shows a rejected record with its wording and the reason as plain text", async () => {
+        await show([flaggedRow({ status: "rejected", reason: "<b>Not a sale.</b>" })]);
+
+        expect(text()).toContain(RECORDS_TEXT.rejectedHeading);
+        expect(text()).toContain(RECORDS_TEXT.rejected);
+        expect(text()).toContain("<b>Not a sale.</b>");
+        expect(container.querySelector("b")).toBeNull();
+    });
+
     it("shows a held record with its wording and no reason", async () => {
         await show([flaggedRow({ status: "held", reason: null })]);
 
@@ -281,6 +290,80 @@ describe("Delete", () => {
 
         expect(text()).toContain(GENERIC);
         expect(await rowOf(id)).toMatchObject({ stuck: true });
+    });
+});
+
+describe("Dismiss", () => {
+    const online = (value: boolean) => Object.defineProperty(navigator, "onLine", { value, configurable: true });
+    const rejected = (over: Record<string, unknown> = {}) => flaggedRow({ status: "rejected", reason: "Not a sale.", ...over });
+    const dismissButton = () => Array.from(container.querySelectorAll("button")).find((b) => b.textContent === RECORDS_TEXT.dismiss)!;
+
+    afterEach(() => online(true));
+
+    it("is on rejected records only", async () => {
+        await show([flaggedRow(), flaggedRow({ status: "held", reason: null }), rejected()]);
+
+        expect(buttons()).toEqual([RECORDS_TEXT.dismiss]);
+    });
+
+    it("asks the server, and the record leaves the list at once with no confirmation", async () => {
+        const row = rejected();
+        const calls: Array<{ url: string; method: string | undefined }> = [];
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async (url: string, init: RequestInit) => {
+                calls.push({ url, method: init.method });
+
+                return new Response(JSON.stringify({ dismissed: true }), { status: 200 });
+            }),
+        );
+        await show([row]);
+
+        await press(RECORDS_TEXT.dismiss);
+
+        await vi.waitFor(() => expect(text()).not.toContain(RECORDS_TEXT.rejected));
+        expect(calls).toEqual([{ url: `/my-records/rejected/${row.uuid}/dismiss`, method: "POST" }]);
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
+    });
+
+    it("keeps the record and shows the approved text when the server cannot be reached", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => {
+                throw new TypeError("offline");
+            }),
+        );
+        await show([rejected()]);
+
+        await press(RECORDS_TEXT.dismiss);
+
+        await vi.waitFor(() => expect(text()).toContain(GENERIC));
+        expect(text()).toContain(RECORDS_TEXT.rejected);
+    });
+
+    it("is disabled with no connection, adds no text, and sends nothing", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        online(false);
+        await show([rejected()]);
+        const before = text();
+
+        await act(async () => dismissButton().click());
+
+        expect(dismissButton().disabled).toBe(true);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(text()).toBe(before);
+    });
+
+    it("turns on again when the connection comes back", async () => {
+        online(false);
+        await show([rejected()]);
+        expect(dismissButton().disabled).toBe(true);
+
+        online(true);
+        await act(async () => window.dispatchEvent(new Event("online")));
+
+        expect(dismissButton().disabled).toBe(false);
     });
 });
 

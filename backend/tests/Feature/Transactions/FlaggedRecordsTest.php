@@ -101,7 +101,6 @@ it('never lists another person\'s records, or any that are settled', function ()
     flagged($other, $otherProfile, 'needs_fixing');
     flagged($this->agent, $this->profile, 'needs_fixing');
     flagged($this->farmerUser, $this->profile, 'accepted');
-    flagged($this->farmerUser, $this->profile, 'rejected');
     flagged($this->farmerUser, $this->profile, 'superseded');
 
     expect(flaggedRows($this->farmerUser))->toBe([]);
