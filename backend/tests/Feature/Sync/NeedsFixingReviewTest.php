@@ -314,3 +314,72 @@ describe('what the farmer\'s page is given', function () {
         expect(nfFlagged()[0])->not->toHaveKeys(['id', 'user_id', 'farmer_profile_id', 'transaction_id', 'dismissed_at']);
     });
 });
+
+describe('what a review leaves on the record', function () {
+    it('a failed approve sets no reviewer and no reviewed time, keeps the status, and refreshes the reason', function () {
+        $row = nfRow(['settlement_account_id' => $this->sales->id], 'needs_fixing', 'An old reason.');
+
+        nfAjax($this->admin)->postJson("/admin/sync-submissions/{$row->uuid}/approve")->assertOk();
+
+        $fresh = $row->fresh();
+        expect($fresh->reviewed_by)->toBeNull()
+            ->and($fresh->reviewed_at)->toBeNull()
+            ->and($fresh->status)->toBe('needs_fixing')
+            ->and($fresh->reason)->not->toBe('An old reason.')
+            ->and($fresh->reason)->not->toBeEmpty();
+    });
+
+    it('a failed approve writes an audit entry with the admin, the record and the reason', function () {
+        $row = nfRow(['settlement_account_id' => $this->sales->id]);
+
+        nfAjax($this->admin)->postJson("/admin/sync-submissions/{$row->uuid}/approve")->assertOk();
+
+        $entry = AuditLog::where('action', 'sync.submission_approve_failed')->firstOrFail();
+        expect($entry->user_id)->toBe($this->admin->id)
+            ->and($entry->auditable_id)->toBe($row->id)
+            ->and($entry->new_values['reason'])->toBe($row->fresh()->reason)
+            ->and(AuditLog::where('action', 'sync.submission_approved')->count())->toBe(0);
+    });
+
+    it('a blocked approve changes nothing on the record and still writes an audit entry', function () {
+        $row = nfRow(['description' => 'Weak birds', 'template' => null], 'needs_fixing', 'A record could not be saved.', null, 'health_report');
+
+        nfAjax($this->admin)->postJson("/admin/sync-submissions/{$row->uuid}/approve")->assertStatus(422);
+
+        $fresh = $row->fresh();
+        expect($fresh->reviewed_by)->toBeNull()->and($fresh->reviewed_at)->toBeNull()->and($fresh->reason)->toBe('A record could not be saved.');
+
+        $entry = AuditLog::where('action', 'sync.submission_approve_blocked')->firstOrFail();
+        expect($entry->user_id)->toBe($this->admin->id)->and($entry->auditable_id)->toBe($row->id)->and($entry->new_values['reason'])->toBe('A record could not be saved.');
+    });
+
+    it('a real approve sets the reviewer and the reviewed time', function () {
+        $row = nfRow();
+
+        nfAjax($this->admin)->postJson("/admin/sync-submissions/{$row->uuid}/approve")->assertOk();
+
+        expect($row->fresh()->reviewed_by)->toBe($this->admin->id)->and($row->fresh()->reviewed_at)->not->toBeNull();
+    });
+
+    it('a real reject sets the reviewer and the reviewed time', function () {
+        $row = nfRow();
+
+        nfAjax($this->admin)->postJson("/admin/sync-submissions/{$row->uuid}/reject", ['reason' => 'No.'])->assertOk();
+
+        expect($row->fresh()->reviewed_by)->toBe($this->admin->id)->and($row->fresh()->reviewed_at)->not->toBeNull();
+    });
+
+    it('holds a held record to the same rules', function () {
+        $failing = nfRow(['settlement_account_id' => $this->sales->id], 'held_for_review', 'An admin will look at it.');
+        $good = nfRow([], 'held_for_review', 'An admin will look at it.');
+
+        nfAjax($this->admin)->postJson("/admin/sync-submissions/{$failing->uuid}/approve")->assertOk();
+        nfAjax($this->admin)->postJson("/admin/sync-submissions/{$good->uuid}/approve")->assertOk();
+
+        expect($failing->fresh()->reviewed_by)->toBeNull()
+            ->and($failing->fresh()->reviewed_at)->toBeNull()
+            ->and(AuditLog::where('action', 'sync.submission_approve_failed')->where('auditable_id', $failing->id)->count())->toBe(1)
+            ->and($good->fresh()->reviewed_by)->toBe($this->admin->id)
+            ->and($good->fresh()->status)->toBe('accepted');
+    });
+});

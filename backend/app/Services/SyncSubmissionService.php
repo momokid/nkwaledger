@@ -153,22 +153,36 @@ class SyncSubmissionService
 
     public function approve(SyncSubmission $submission, User $admin): SyncSubmission
     {
-        return $this->review($submission, $admin, function (SyncSubmission $held) {
-            // no farmer to post for, or a health report that has no ledger entry: refuse with the reason the row already carries
-            if ($held->farmer_profile_id === null || $held->type === SyncSubmission::TYPE_HEALTH_REPORT) {
-                throw ValidationException::withMessages(['submission' => $held->reason]);
-            }
+        try {
+            return $this->review($submission, $admin, function (SyncSubmission $held) use ($admin) {
+                // no farmer to post for, or a health report that has no ledger entry: refuse with the reason the row already carries
+                if ($held->farmer_profile_id === null || $held->type === SyncSubmission::TYPE_HEALTH_REPORT) {
+                    throw ValidationException::withMessages(['submission' => $held->reason]);
+                }
 
-            // a record that already needed a fix was told so once; a refused approval does not tell the farmer again
-            $this->post($held, $held->status === SyncSubmission::HELD);
-            $this->audit->recordOn('sync.submission_approved', $held, null, ['status' => $held->status]);
-        });
+                // a record that already needed a fix was told so once; a refused approval does not tell the farmer again
+                $this->post($held, $held->status === SyncSubmission::HELD);
+
+                // only a real approval marks who decided and when; a refused one leaves the record as it was, bar the fresh reason
+                if ($held->status === SyncSubmission::ACCEPTED) {
+                    $held->update(['reviewed_by' => $admin->id, 'reviewed_at' => now()]);
+                    $this->audit->recordOn('sync.submission_approved', $held, null, ['status' => $held->status]);
+                } else {
+                    $this->audit->recordOn('sync.submission_approve_failed', $held, null, ['status' => $held->status, 'reason' => $held->reason]);
+                }
+            });
+        } catch (ValidationException $blocked) {
+            // written after the review's transaction has been rolled back, so the attempt is kept
+            $this->audit->recordOn('sync.submission_approve_blocked', $submission, null, ['reason' => collect($blocked->errors())->flatten()->first()]);
+
+            throw $blocked;
+        }
     }
 
     public function reject(SyncSubmission $submission, User $admin, string $reason): SyncSubmission
     {
-        return $this->review($submission, $admin, function (SyncSubmission $held) use ($reason) {
-            $held->update(['status' => SyncSubmission::REJECTED, 'reason' => $reason]);
+        return $this->review($submission, $admin, function (SyncSubmission $held) use ($reason, $admin) {
+            $held->update(['status' => SyncSubmission::REJECTED, 'reason' => $reason, 'reviewed_by' => $admin->id, 'reviewed_at' => now()]);
             $this->audit->recordOn('sync.submission_rejected', $held, null, ['reason' => $reason]);
             $this->notifySubmitter($held, 'sync.rejected', "A record was not accepted. {$reason}");
         });
@@ -463,7 +477,6 @@ class SyncSubmissionService
                 throw ValidationException::withMessages(['submission' => 'This record has already been decided.']);
             }
 
-            $held->update(['reviewed_by' => $admin->id, 'reviewed_at' => now()]);
             $decide($held);
 
             return $held;
