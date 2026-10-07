@@ -6,7 +6,12 @@ import { DATA_COST_TEXT } from "@/lib/dataCostText";
 import { dataCostGateAllows, setDataCostAsker } from "@/lib/dataCostGate";
 import DataCostDialog from "./DataCostDialog";
 
-vi.mock("@/Layouts/AuthenticatedLayout", () => ({ useTheme: () => ({ dark: false }) }));
+vi.mock("@/Layouts/AuthenticatedLayout", async () => {
+    const { createContext, useContext } = await import("react");
+    const ThemeContext = createContext({ dark: false, toggle: () => {}, textSize: "normal", setTextSize: () => {} });
+
+    return { ThemeContext, useTheme: () => useContext(ThemeContext) };
+});
 
 let root: Root;
 let container: HTMLElement;
@@ -23,6 +28,7 @@ afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
     setDataCostAsker(null);
+    localStorage.clear();
 });
 
 const button = (label: string) => Array.from(container.querySelectorAll("button")).find((b) => b.textContent === label)!;
@@ -75,5 +81,51 @@ describe("the data-cost dialog", () => {
             void dataCostGateAllows();
         });
         expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    });
+});
+
+describe("the dialog's theme", () => {
+    const panel = () => container.querySelector<HTMLElement>('[role="dialog"] > div')!;
+    const open = () =>
+        act(async () => {
+            void dataCostGateAllows();
+        });
+    // "Wait" holds until the farmer comes back to the app
+    const comeBack = () => {
+        Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+        document.dispatchEvent(new Event("visibilitychange"));
+    };
+
+    it("is light when the app is set to light, or was never set", async () => {
+        await open();
+        expect(panel().style.background).toBe("rgb(255, 255, 255)");
+        expect(container.querySelector("p")!.style.color).toBe("rgb(17, 24, 39)");
+
+        await act(async () => button("Wait").click());
+        comeBack();
+        localStorage.setItem("nkwa_theme", "light");
+        await open();
+        expect(panel().style.background).toBe("rgb(255, 255, 255)");
+    });
+
+    it("is dark when the app is set to dark, with no layout around it", async () => {
+        localStorage.setItem("nkwa_theme", "dark");
+
+        await open();
+
+        expect(panel().style.background).toBe("rgb(31, 41, 55)");
+        expect(container.querySelector("p")!.style.color).toBe("rgb(249, 250, 251)");
+        expect(container.textContent).toBe(`${DATA_COST_TEXT.warning}${DATA_COST_TEXT.send}${DATA_COST_TEXT.wait}`);
+    });
+
+    it("follows a change of theme made while the app stays open", async () => {
+        await open();
+        await act(async () => button("Wait").click());
+        comeBack();
+
+        localStorage.setItem("nkwa_theme", "dark");
+        await open();
+
+        expect(panel().style.background).toBe("rgb(31, 41, 55)");
     });
 });
