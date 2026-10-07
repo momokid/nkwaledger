@@ -274,12 +274,12 @@ class SyncSubmissionService
         ]);
 
         if ($refusal !== null) {
-            $this->notifySubmitter($submission, 'sync.needs_fixing', "A record could not be saved. {$refusal}");
+            $this->notifySubmitter($submission, 'sync.needs_fixing', $refusal === OfflineHealthReportService::REFUSED ? $refusal : "A record could not be saved. {$refusal}");
 
             return $submission;
         }
 
-        $submission->update(['disease_report_id' => $this->health->createWaiting($user, $farmer, $unit, $record)->id]);
+        $submission->update(['disease_report_id' => $this->health->createWaiting($farmer, $unit, $record)->id]);
 
         // a web post of the same report may have committed meanwhile: undo ours
         if ($this->webPost($user, $record) !== null) {

@@ -169,15 +169,20 @@ it('posts nothing online when the same record already arrived through sync', fun
         ->and(Notification::count())->toBe(0);
 });
 
-it('keeps the agent as submitter of a report made for a farmer', function () {
+it('refuses an agent, even the own agent of the farmer, as the online form does', function () {
+    $this->actingAs($this->agent)->post("/my-farm/{$this->unit->id}/report-problem", [
+        'description' => 'Weak birds.',
+        'photo' => UploadedFile::fake()->image('sick.jpg'),
+    ])->assertNotFound();
+
     $result = syncHealth($this->agent, healthRecord())[0];
 
-    expect($result['status'])->toBe('accepted')
-        ->and(waiting()->reported_by)->toBe($this->agent->id)
-        ->and(SyncSubmission::first()->user_id)->toBe($this->agent->id);
+    expect($result['status'])->toBe('needs_fixing')
+        ->and($result['reason'])->toBe('A record could not be saved.')
+        ->and(DiseaseReport::withoutGlobalScopes()->count())->toBe(0);
 });
 
-it('leaves reported_by empty when the farmer sends their own', function () {
+it('leaves reported_by empty', function () {
     syncHealth($this->farmerUser, healthRecord());
 
     expect(waiting()->reported_by)->toBeNull();
@@ -205,7 +210,7 @@ it('sends a report back as needing a fix when the sender may not report for that
     $result = syncHealth($other, healthRecord())[0];
 
     expect($result['status'])->toBe('needs_fixing')
-        ->and($result['reason'])->not->toBeEmpty()
+        ->and($result['reason'])->toBe('A record could not be saved.')
         ->and(DiseaseReport::withoutGlobalScopes()->count())->toBe(0);
 })->with(['another agent' => 'agent', 'another farmer' => 'farmer', 'a vet' => 'vet']);
 
@@ -214,7 +219,7 @@ it('sends a report back as needing a fix when the unit is not that farmer\'s', f
 
     $result = syncHealth($this->farmerUser, healthRecord(['farm_unit_id' => $stranger->id]))[0];
 
-    expect($result['status'])->toBe('needs_fixing')->and(DiseaseReport::withoutGlobalScopes()->count())->toBe(0);
+    expect($result['status'])->toBe('needs_fixing')->and($result['reason'])->toBe('A record could not be saved.')->and(DiseaseReport::withoutGlobalScopes()->count())->toBe(0);
 });
 
 it('gives the report form the public uuid of the farmer', function () {
@@ -238,4 +243,10 @@ it('stores the online idempotency key on a report posted through the form', func
     ])->assertRedirect();
 
     expect(DiseaseReport::first()->client_uuid)->toBe($key);
+});
+
+it('sends the generic notice, with no extra reason, when a refusal has none of its own', function () {
+    syncHealth($this->agent, healthRecord());
+
+    expect(Notification::where('kind', 'sync.needs_fixing')->pluck('message')->unique()->all())->toBe(['A record could not be saved.']);
 });
