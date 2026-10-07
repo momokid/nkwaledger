@@ -14,7 +14,7 @@ import {
 import { buildBatchRecord } from "@/lib/batchRecord";
 import { shortDate } from "@/lib/format";
 import { createRecordKey } from "@/lib/recordKey";
-import { QueuedBatchRecord, QueuedSubmission } from "@/types/offlineQueue";
+import { isHealthReport, QueuedBatchRecord, QueuedHealthReport, QueuedSubmission } from "@/types/offlineQueue";
 import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
 interface Template {
@@ -149,7 +149,9 @@ function CreateContent({
 
     const refreshAttentionItems = () => {
         void listNeedsAttention<QueuedSubmission>(currentUser).then(setAttentionItems);
-        void listStuck<QueuedBatchRecord>(currentUser).then(setStuckItems);
+        void listStuck<QueuedBatchRecord | QueuedHealthReport>(currentUser).then((items) =>
+            setStuckItems(items.filter((item): item is QueueItem<QueuedBatchRecord> => !isHealthReport(item.payload))),
+        );
     };
 
     useEffect(() => {

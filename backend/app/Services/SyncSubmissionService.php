@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Exceptions\Ledger\PostingFailed;
+use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
+use App\Models\FarmUnit;
 use App\Models\LedgerAccount;
 use App\Models\SyncSubmission;
 use App\Models\Transaction;
 use App\Models\TransactionTemplate;
 use App\Models\User;
+use App\Services\DiseaseReports\OfflineHealthReportService;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
 use App\Support\Money;
@@ -31,6 +34,7 @@ class SyncSubmissionService
         private readonly NotificationService $notifications,
         private readonly AuditService $audit,
         private readonly RecordLock $lock,
+        private readonly OfflineHealthReportService $health,
     ) {}
 
     public function submit(User $user, array $record): array
@@ -82,24 +86,35 @@ class SyncSubmissionService
     {
         $before = $stored->payload;
 
-        return Transaction::sameDetails($before['template'], $before['amount'], $record['template'], $record['amount'])
+        $same = self::isHealth($record) || $stored->type === SyncSubmission::TYPE_HEALTH_REPORT
+            ? $this->sameHealthReport($stored, $record)
+            : Transaction::sameDetails($before['template'], $before['amount'], $record['template'], $record['amount']);
+
+        return $same
             ? $this->outcome($stored)
             : ['uuid' => $record['uuid'], 'status' => 'error', 'error' => Transaction::KEY_REUSED];
     }
 
     // the web form keys a post by the record's raw uuid; only this user's own post counts
-    private function webPost(User $user, array $record): ?Transaction
+    private function webPost(User $user, array $record): Transaction|DiseaseReport|null
     {
+        if (self::isHealth($record)) {
+            return $this->health->webTwin($user, $record['uuid']);
+        }
+
         return Transaction::where('idempotency_key', $record['uuid'])->where('recorded_by', $user->id)->first();
     }
 
     // the record already reached the books through the web form: link it, post nothing
-    private function adopt(User $user, array $record, Transaction $web): array
+    private function adopt(User $user, array $record, Transaction|DiseaseReport $web): array
     {
         $farmer = FarmerProfile::where('uuid', $record['farmer'])->first();
 
-        if ($farmer?->id !== $web->farmer_profile_id
-            || ! Transaction::sameDetails($web->transaction_template_id, Money::toDecimal($web->amount_minor), $record['template'], $record['amount'])) {
+        $same = $web instanceof DiseaseReport
+            ? $web->farm_unit_id === (int) ($record['farm_unit_id'] ?? 0) && $web->description === ($record['description'] ?? null)
+            : Transaction::sameDetails($web->transaction_template_id, Money::toDecimal($web->amount_minor), $record['template'], $record['amount']);
+
+        if ($farmer?->id !== $web->farmer_profile_id || ! $same) {
             return ['uuid' => $record['uuid'], 'status' => 'error', 'error' => Transaction::KEY_REUSED];
         }
 
@@ -112,7 +127,9 @@ class SyncSubmissionService
                 'device_date' => $record['event_date'],
                 'received_at' => now(),
                 'status' => SyncSubmission::ACCEPTED,
-                'transaction_id' => $web->id,
+                'type' => $web instanceof DiseaseReport ? SyncSubmission::TYPE_HEALTH_REPORT : SyncSubmission::TYPE_TRANSACTION,
+                'transaction_id' => $web instanceof Transaction ? $web->id : null,
+                'disease_report_id' => $web instanceof DiseaseReport ? $web->id : null,
             ]);
         } catch (UniqueConstraintViolationException $e) {
             $twin = $this->stored($user, $record);
@@ -158,7 +175,7 @@ class SyncSubmissionService
     // what this person submitted, plus every farmer they may act for
     public function visibleTo(User $user): Builder
     {
-        return SyncSubmission::query()->where(
+        return SyncSubmission::query()->where('type', SyncSubmission::TYPE_TRANSACTION)->where(
             fn(Builder $query) => $query->where('user_id', $user->id)
                 ->orWhereIn('farmer_profile_id', $this->reachableFarmerIds($user)),
         );
@@ -193,6 +210,10 @@ class SyncSubmissionService
 
     private function store(User $user, array $record): SyncSubmission
     {
+        if (self::isHealth($record)) {
+            return $this->storeHealthReport($user, $record);
+        }
+
         // an unknown farmer is held exactly like one this user may not act for, so the two cannot be told apart
         $farmer = FarmerProfile::where('uuid', $record['farmer'])->first();
         $hold = $this->holdReason($user, $farmer);
@@ -231,6 +252,56 @@ class SyncSubmissionService
         }
 
         return $submission;
+    }
+
+    // a refused health report is sent back with its reason; it is never held, since nobody reviews one
+    private function storeHealthReport(User $user, array $record): SyncSubmission
+    {
+        $farmer = FarmerProfile::where('uuid', $record['farmer'])->first();
+        $unit = isset($record['farm_unit_id']) ? FarmUnit::find($record['farm_unit_id']) : null;
+        $refusal = $this->health->refusalFor($user, $farmer, $unit, $record);
+
+        $submission = SyncSubmission::create([
+            'client_uuid' => $record['uuid'],
+            'type' => SyncSubmission::TYPE_HEALTH_REPORT,
+            'user_id' => $user->id,
+            'farmer_profile_id' => $farmer?->id,
+            'payload' => $record,
+            'device_date' => $record['event_date'],
+            'received_at' => now(),
+            'status' => $refusal === null ? SyncSubmission::ACCEPTED : SyncSubmission::NEEDS_FIXING,
+            'reason' => $refusal,
+        ]);
+
+        if ($refusal !== null) {
+            $this->notifySubmitter($submission, 'sync.needs_fixing', "A record could not be saved. {$refusal}");
+
+            return $submission;
+        }
+
+        $submission->update(['disease_report_id' => $this->health->createWaiting($user, $farmer, $unit, $record)->id]);
+
+        // a web post of the same report may have committed meanwhile: undo ours
+        if ($this->webPost($user, $record) !== null) {
+            throw new LogicException('This report was posted through the web form meanwhile.');
+        }
+
+        return $submission;
+    }
+
+    private function sameHealthReport(SyncSubmission $stored, array $record): bool
+    {
+        $before = $stored->payload;
+
+        return $stored->type === SyncSubmission::TYPE_HEALTH_REPORT && self::isHealth($record)
+            && ($before['farmer'] ?? null) === $record['farmer']
+            && ($before['farm_unit_id'] ?? null) === ($record['farm_unit_id'] ?? null)
+            && ($before['description'] ?? null) === ($record['description'] ?? null);
+    }
+
+    private static function isHealth(array $record): bool
+    {
+        return ($record['type'] ?? null) === SyncSubmission::TYPE_HEALTH_REPORT;
     }
 
     private function holdReason(User $user, ?FarmerProfile $farmer): ?string

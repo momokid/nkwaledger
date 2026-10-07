@@ -8,9 +8,11 @@ use App\Http\Requests\DiseaseReports\StoreDiseaseReportRequest;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
+use App\Models\SyncSubmission;
 use App\Models\User;
 use App\Services\DiseaseReports\ReportRoutingService;
 use App\Services\NotificationService;
+use App\Services\RecordLock;
 use App\Support\AudioUpload;
 use App\Support\PhotoUpload;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +25,7 @@ class DiseaseReportController extends Controller
     public function __construct(
         private readonly ReportRoutingService $routing,
         private readonly NotificationService $notifications,
+        private readonly RecordLock $lock,
     ) {}
 
     public function index(Request $request): Response
@@ -74,20 +77,51 @@ class DiseaseReportController extends Controller
 
     public function create(Request $request, FarmUnit $farmUnit): Response
     {
-        $this->resolveFarmer($request, $farmUnit);
+        $farmer = $this->resolveFarmer($request, $farmUnit);
 
         return Inertia::render('DiseaseReports/Create', [
             'farmUnit' => [
                 'id' => $farmUnit->id,
                 'name' => $farmUnit->name,
             ],
+            'farmer' => ['id' => $farmer->uuid],
         ]);
     }
 
     public function store(StoreDiseaseReportRequest $request, FarmUnit $farmUnit): RedirectResponse
     {
         $farmer = $this->resolveFarmer($request, $farmUnit);
+        $user = $request->user();
+        $key = $request->validated('idempotency_key');
 
+        // the phone may already have sent this same report through sync: then there is nothing to make
+        $created = $this->lock->around(
+            $user->id,
+            $key,
+            fn() => $this->arrivedBySync($user, $key) ? null : $this->createReport($request, $farmer, $farmUnit, $key),
+        );
+
+        if ($created !== null) {
+            [$report, $officer, $role] = $created;
+
+            $this->notifySubmission($report, $user, $farmer, $farmUnit, $officer, $role);
+        }
+
+        return redirect()
+            ->route('my-farm.index')
+            ->with('success', 'Thank you. Your report has been sent.');
+    }
+
+    private function arrivedBySync(User $user, ?string $key): bool
+    {
+        return $key !== null && SyncSubmission::where('client_uuid', $key)
+            ->where('user_id', $user->id)
+            ->where('type', SyncSubmission::TYPE_HEALTH_REPORT)
+            ->exists();
+    }
+
+    private function createReport(StoreDiseaseReportRequest $request, FarmerProfile $farmer, FarmUnit $farmUnit, ?string $key): array
+    {
         [$category, $role] = $this->routing->routeFor($farmUnit);
         $officer = $this->routing->officerFor($farmer, $role);
 
@@ -98,6 +132,7 @@ class DiseaseReportController extends Controller
             : null;
 
         $report = DiseaseReport::create([
+            'client_uuid' => $key,
             'farm_unit_id' => $farmUnit->id,
             'farmer_profile_id' => $farmer->id,
             'reported_by' => null,
@@ -109,11 +144,7 @@ class DiseaseReportController extends Controller
             'audio_path' => $audioPath,
         ]);
 
-        $this->notifySubmission($report, $request->user(), $farmer, $farmUnit, $officer, $role);
-
-        return redirect()
-            ->route('my-farm.index')
-            ->with('success', 'Thank you. Your report has been sent.');
+        return [$report, $officer, $role];
     }
 
     // only the farmer who owns this unit may report a problem on it

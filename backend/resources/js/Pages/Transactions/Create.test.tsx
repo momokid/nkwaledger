@@ -246,6 +246,21 @@ describe("stuck records in the attention panel", () => {
         expect(panelText()).not.toContain(WORDING);
     });
 
+    it("does not show a stuck health report on the records page", async () => {
+        const id = await enqueue(
+            { shape: 2, type: "health_report", uuid: crypto.randomUUID(), farmer: FARMER, farm_unit_id: 4, description: "Weak birds", event_date: "2026-03-01", device_created_at: "2026-03-01T08:00:00.000Z", media: { photo: { name: "a.webp", type: "image/webp", data: "" } } },
+            "7",
+        );
+
+        for (let i = 0; i < 5; i++) {
+            await recordFailedAttempt(id);
+        }
+
+        await refresh();
+
+        expect(panelText()).not.toContain(WORDING);
+    });
+
     it("does not show another user's stuck item", async () => {
         await stick("8");
         await refresh();

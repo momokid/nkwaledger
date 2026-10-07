@@ -21,3 +21,27 @@ export interface QueuedBatchRecord {
     quantity?: string;
     narration?: string;
 }
+
+// a photo or voice note kept on the phone as base64, so it is encrypted with the rest of the queue
+export interface QueuedMedia {
+    name: string;
+    type: string;
+    data: string;
+}
+
+// a health report saved offline: the text goes to /sync/submissions, `media` never does
+export interface QueuedHealthReport {
+    shape: 2;
+    type: "health_report";
+    uuid: string;
+    farmer: string;
+    farm_unit_id: number;
+    description: string;
+    event_date: string;
+    device_created_at: string;
+    media: { photo: QueuedMedia; audio?: QueuedMedia };
+}
+
+export function isHealthReport(payload: unknown): payload is QueuedHealthReport {
+    return typeof payload === "object" && payload !== null && (payload as { type?: unknown }).type === "health_report";
+}

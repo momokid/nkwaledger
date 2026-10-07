@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 #[Fillable([
+    'client_uuid',
     'farm_unit_id',
     'farmer_profile_id',
     'reported_by',
@@ -45,6 +46,14 @@ class DiseaseReport extends Model
 
     protected static function booted(): void
     {
+        // every query, list and route binding skips a report still waiting for its photo;
+        // only withoutGlobalScopes() can reach it
+        static::addGlobalScope('hide_waiting', fn(Builder $query) => $query->where(
+            'disease_reports.status',
+            '!=',
+            DiseaseReportStatus::WaitingForPhoto->value,
+        ));
+
         static::creating(function (DiseaseReport $report) {
             $report->uuid ??= (string) Str::uuid7();
         });

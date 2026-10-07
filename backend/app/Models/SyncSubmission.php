@@ -14,8 +14,13 @@ class SyncSubmission extends Model
     public const REJECTED = 'rejected';
     public const SUPERSEDED = 'superseded';
 
+    public const TYPE_TRANSACTION = 'transaction';
+    public const TYPE_HEALTH_REPORT = 'health_report';
+
     protected $fillable = [
         'client_uuid',
+        'type',
+        'disease_report_id',
         'user_id',
         'farmer_profile_id',
         'payload',
@@ -69,5 +74,10 @@ class SyncSubmission extends Model
     public function transaction(): BelongsTo
     {
         return $this->belongsTo(Transaction::class);
+    }
+
+    public function diseaseReport(): BelongsTo
+    {
+        return $this->belongsTo(DiseaseReport::class)->withoutGlobalScopes();
     }
 }

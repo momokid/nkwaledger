@@ -17,10 +17,14 @@ class SyncBatchRequest extends FormRequest
         return [
             'records' => ['required', 'array', 'min:1', 'max:50'],
             'records.*.uuid' => ['required', 'uuid'],
-            'records.*.template' => ['required', 'integer'],
+            // absent means an ordinary record
+            'records.*.type' => ['nullable', 'in:health_report'],
+            'records.*.template' => ['required_unless:records.*.type,health_report', 'integer'],
             'records.*.farmer' => ['required', 'uuid'],
             'records.*.farm_unit_id' => ['nullable', 'integer'],
-            'records.*.amount' => ['required', 'string'],
+            'records.*.amount' => ['required_unless:records.*.type,health_report', 'string'],
+            // a health report's text is judged per record, like a record's amount, so it never sinks the batch
+            'records.*.description' => ['nullable', 'string'],
             'records.*.settlement_account_id' => ['nullable', 'integer'],
             'records.*.is_credit' => ['nullable', 'boolean'],
             'records.*.quantity' => ['nullable', 'string'],

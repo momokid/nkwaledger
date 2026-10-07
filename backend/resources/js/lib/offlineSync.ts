@@ -4,7 +4,9 @@
 // never record the same thing twice — see PostingService::alreadyPosted.
 
 import { listPending, markNeedsAttention, QueueItem, markSynced, recordFailedAttempt, remove } from "./offlineStore";
-import { QueuedBatchRecord, QueuedSubmission } from "@/types/offlineQueue";
+import { QueuedBatchRecord, QueuedHealthReport, QueuedSubmission } from "@/types/offlineQueue";
+
+type BatchPayload = QueuedBatchRecord | QueuedHealthReport;
 
 export interface SyncOutcome {
     synced: string[];
@@ -84,14 +86,14 @@ const STORED_BY_SERVER = ["accepted", "needs_fixing", "held", "rejected", "super
 
 interface BatchItem {
     id: string;
-    payload: QueuedBatchRecord;
+    payload: BatchPayload;
 }
 
-function isBatchItem(item: QueueItem<QueuedSubmission | QueuedBatchRecord>): item is QueueItem<QueuedBatchRecord> {
+function isBatchItem(item: QueueItem<QueuedSubmission | BatchPayload>): item is QueueItem<BatchPayload> {
     return "shape" in item.payload && item.payload.shape === 2;
 }
 
-async function postBatch(records: QueuedBatchRecord[]): Promise<Response> {
+async function postBatch(records: BatchPayload[]): Promise<Response> {
     return fetch("/sync/submissions", {
         method: "POST",
         redirect: "manual",
@@ -100,7 +102,12 @@ async function postBatch(records: QueuedBatchRecord[]): Promise<Response> {
             "Content-Type": "application/json",
             "X-CSRF-TOKEN": csrfToken(),
         },
-        body: JSON.stringify({ records: records.map(({ shape: _shape, ...record }) => record) }),
+        body: JSON.stringify({ records: records.map(({ shape: _shape, ...record }) => {
+            // a health report's photo and voice note stay on the phone until they are sent on their own
+            const { media: _media, ...text } = record as Partial<QueuedHealthReport> & typeof record;
+
+            return text;
+        }) }),
     });
 }
 
@@ -172,7 +179,7 @@ async function sendBatch(items: BatchItem[], outcome: SyncOutcome): Promise<bool
 
 export async function runSync(currentUser: string | null): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { synced: [], needsAttention: [], authExpired: false };
-    const everything = await listPending<QueuedSubmission | QueuedBatchRecord>(currentUser);
+    const everything = await listPending<QueuedSubmission | BatchPayload>(currentUser);
     const batchItems = everything.filter(isBatchItem);
     const pending = everything.filter((item) => !isBatchItem(item)) as Array<{ id: string; payload: QueuedSubmission }>;
 
