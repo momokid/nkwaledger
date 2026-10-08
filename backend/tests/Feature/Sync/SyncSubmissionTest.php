@@ -96,13 +96,14 @@ test('a duplicate uuid posts once and returns the stored result', function () {
 });
 
 test('the device date and received_at are both stored', function () {
-    sync($this->farmerUser, rec(['event_date' => '2026-03-02']));
+    $date = now()->subDays(3)->toDateString();
+    sync($this->farmerUser, rec(['event_date' => $date]));
 
     $row = SyncSubmission::first();
 
-    expect($row->device_date->toDateString())->toBe('2026-03-02')
+    expect($row->device_date->toDateString())->toBe($date)
         ->and($row->received_at)->not->toBeNull()
-        ->and(Transaction::first()->transaction_date->toDateString())->toBe('2026-03-02');
+        ->and(Transaction::first()->transaction_date->toDateString())->toBe($date);
 });
 
 test('a sale bigger than the stock needs fixing, posts nothing and tells the right people', function () {

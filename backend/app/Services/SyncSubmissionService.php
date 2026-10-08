@@ -36,6 +36,7 @@ class SyncSubmissionService
         private readonly AuditService $audit,
         private readonly RecordLock $lock,
         private readonly OfflineHealthReportService $health,
+        private readonly SyncRecordRules $rules,
     ) {}
 
     public function submit(User $user, array $record): array
@@ -267,6 +268,13 @@ class SyncSubmissionService
             return $this->storeHealthReport($user, $record);
         }
 
+        // too old, or from a phone with its clock ahead: turned away here, before anything is posted or held
+        $breach = $this->rules->breachOf($record, now());
+
+        if ($breach !== null) {
+            return $this->turnAway($user, $record, $breach);
+        }
+
         // an unknown farmer is held exactly like one this user may not act for, so the two cannot be told apart
         $farmer = FarmerProfile::where('uuid', $record['farmer'])->first();
         $hold = $this->holdReason($user, $farmer);
@@ -355,6 +363,29 @@ class SyncSubmissionService
     private static function isHealth(array $record): bool
     {
         return ($record['type'] ?? null) === SyncSubmission::TYPE_HEALTH_REPORT;
+    }
+
+    // the system's own decision: rejected at once, no reviewer, nothing for an admin to do
+    private function turnAway(User $user, array $record, string $code): SyncSubmission
+    {
+        $reason = $this->rules->text($code);
+
+        $submission = SyncSubmission::create([
+            'client_uuid' => $record['uuid'],
+            'user_id' => $user->id,
+            'farmer_profile_id' => FarmerProfile::where('uuid', $record['farmer'])->value('id'),
+            'payload' => $record,
+            'device_date' => $record['event_date'],
+            'received_at' => now(),
+            'status' => SyncSubmission::REJECTED,
+            'reason' => $reason,
+            'reason_code' => $code,
+        ]);
+
+        $this->audit->recordOnBySystem('sync.submission_auto_rejected', $submission, ['code' => $code]);
+        $this->notifySubmitter($submission, 'sync.rejected', "A record was not accepted. {$reason}");
+
+        return $submission;
     }
 
     private function holdReason(User $user, ?FarmerProfile $farmer): ?string

@@ -33,6 +33,7 @@ class SyncSubmission extends Model
         'reviewed_by',
         'reviewed_at',
         'dismissed_at',
+        'reason_code',
     ];
 
     protected function casts(): array

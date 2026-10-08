@@ -94,7 +94,7 @@ function listed(User $user, string $uuid): ?array
 }
 
 test('a needs_fixing row carries exactly what the device sent', function () {
-    $sent = fixable(o: ['narration' => 'Sold at the market', 'is_credit' => false, 'event_date' => '2026-03-02']);
+    $sent = fixable(o: ['narration' => 'Sold at the market', 'is_credit' => false, 'event_date' => now()->subDays(2)->toDateString()]);
     expect(send($this->farmerUser, $sent)->json('results.0.status'))->toBe('needs_fixing');
 
     expect(listed($this->farmerUser, $sent['uuid'])['payload'])->toEqual($sent);
