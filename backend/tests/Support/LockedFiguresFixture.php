@@ -20,6 +20,9 @@ use App\Models\LedgerClass;
 use App\Models\LedgerControl;
 use App\Models\LedgerSubcategory;
 use App\Models\LedgerType;
+use App\Models\Community;
+use App\Models\District;
+use App\Models\Region;
 use App\Models\Transaction;
 use App\Models\TransactionTemplate;
 use App\Models\User;
@@ -153,6 +156,17 @@ function buildLockedFigures($t): void
     ($t->cancel)($t->cancelledSale);
     ($t->cancel)($t->cancelledExpense);
     ($t->cancel)($t->cancelledPayment);
+
+    // a third farmer on an unapproved unit, so her records are provisional: a live sale of 100 and a
+    // sale of 250 that is cancelled
+    $t->region = Region::create(['name' => 'Locked Region']);
+    $community = Community::create(['name' => 'Locked Community', 'district_id' => District::create(['name' => 'Locked District', 'region_id' => $t->region->id])->id]);
+    $t->provisional = FarmerProfile::factory()->create(['community_id' => $community->id]);
+    $t->provisionalUnit = FarmUnit::factory()->create(['farmer_profile_id' => $t->provisional->id, 'community_id' => $community->id]);
+    FarmUnitStock::factory()->create(['farm_unit_id' => $t->provisionalUnit->id, 'opening_quantity' => 100]);
+
+    ($t->put)($t->provisional, $t->provisionalUnit, $t->saleTemplate, '100');
+    ($t->cancel)(($t->put)($t->provisional, $t->provisionalUnit, $t->saleTemplate, '250'));
 
     $t->from = now()->subDays(6)->toDateString();
     $t->to = now()->toDateString();

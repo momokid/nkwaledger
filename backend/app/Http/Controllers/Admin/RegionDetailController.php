@@ -23,6 +23,7 @@ class RegionDetailController extends Controller
             ->get();
 
         $incomeByFarmer = Transaction::query()
+            ->notCancelled()
             ->whereIn('farmer_profile_id', $farmers->pluck('id'))
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
@@ -32,6 +33,7 @@ class RegionDetailController extends Controller
             ->pluck('total', 'farmer_profile_id');
 
         $expenseByFarmer = Transaction::query()
+            ->notCancelled()
             ->whereIn('farmer_profile_id', $farmers->pluck('id'))
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)

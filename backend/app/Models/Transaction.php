@@ -170,6 +170,17 @@ class Transaction extends Model
         return self::excludeCancelled($query, $this->qualifyColumn('id'));
     }
 
+    // a record that really happened: not cancelled, and not the correction row that undoes another one
+    public static function onlyLive(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
+    {
+        return self::excludeCancelled($query, "{$table}.id")->whereNull("{$table}.reverses_transaction_id");
+    }
+
+    public function scopeLive(Builder $query): Builder
+    {
+        return self::onlyLive($query, $this->getTable());
+    }
+
     public function reversalRequests(): HasMany
     {
         return $this->hasMany(ReversalRequest::class);

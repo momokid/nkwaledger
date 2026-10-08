@@ -108,6 +108,14 @@ test('the clean farmer with nothing cancelled has the plain figures', function (
     ]);
 });
 
+// the farmer on an unapproved unit: one live sale of 100 and one cancelled sale of 250, both provisional
+test('held back: only the live provisional sale is held back on the statement and the trial balance (the cancelled one used to add 50000)', function () {
+    $statement = ($this->statement)($this->provisional);
+    $trial = ($this->trial)($this->provisional);
+
+    expect([$statement->provisionalHeldBackMinor, $trial->provisionalHeldBackMinor])->toBe([10000, 10000]);
+});
+
 // --- income and expenditure ---
 
 test('income and expenditure: income, expense, loss, net, cash collected and cash paid out', function () {

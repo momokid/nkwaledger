@@ -183,3 +183,21 @@ test('my farm: income, expense, loss, net, sold and stock for the unit', functio
         'sold' => $analysis['produce_quantity_sold'], 'stock' => $analysis['current_stock'],
     ])->toBe(['income' => 150000, 'expense' => 70000, 'loss' => 12000, 'net' => 80000, 'sold' => '0', 'stock' => '98']);
 });
+
+// --- admin region detail and approval queue ---
+
+test('admin region detail: income 100.00 and expense 0 for the farmer with one live and one cancelled sale (the cancelled one used to add 250.00)', function () {
+    $farmers = $this->actingAs($this->admin)
+        ->get("/admin/regions/{$this->region->id}/detail?{$this->range}")
+        ->assertOk()->json('farmers');
+
+    expect(collect($farmers)->map(fn($farmer) => [$farmer['income'], $farmer['expense']])->all())->toBe([[10000, 0]]);
+});
+
+test('approval queue: the unapproved unit shows 1 provisional record (the cancelled sale and its correction used to make it 3)', function () {
+    $props = ($this->props)($this->admin, '/admin/approvals');
+
+    $item = collect($props['items']['data'])->first(fn($row) => isset($row['details']['provisional_records']));
+
+    expect($item['details']['provisional_records'])->toBe(1);
+});

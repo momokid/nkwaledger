@@ -275,6 +275,7 @@ class AccountStatementService
         Collection $settlementAccounts,
     ): int {
         $waiting = $this->scope($farmerProfileId, true, $accountId)
+            ->live()
             ->where('is_provisional', true)
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)

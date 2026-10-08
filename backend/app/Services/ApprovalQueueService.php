@@ -70,6 +70,7 @@ class ApprovalQueueService
                     'capacity_unit' => $unit->capacity_unit,
                     // a unit with records piling up on it is the urgent one
                     'provisional_records' => Transaction::query()
+                        ->live()
                         ->where('farm_unit_id', $unit->id)
                         ->where('is_provisional', true)
                         ->count(),
