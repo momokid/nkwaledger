@@ -54,6 +54,8 @@ class AccountStatementService
 
         $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
 
+        $classTotals = AccountStatement::classTotals($rows);
+
         return new AccountStatement(
             farmerProfileId: $farmerProfileId,
             from: $from,
@@ -64,6 +66,7 @@ class AccountStatementService
             openingBalanceMinor: $opening,
             generatedAt: now(),
             rows: $rows,
+            classTotals: $classTotals,
             total: $total,
             page: $page,
             perPage: $perPage,
@@ -80,10 +83,10 @@ class AccountStatementService
                     'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
                     'closing' => $rows === [] ? $opening : $rows[array_key_last($rows)]->balanceMinor,
                     'page' => $page,
-                    'assets' => $this->sumByClass($rows, MoneyClass::Asset),
-                    'expenditure' => $this->sumByClass($rows, MoneyClass::Expenditure),
-                    'income' => $this->sumByClass($rows, MoneyClass::Income),
-                    'liability' => $this->sumByClass($rows, MoneyClass::Liability),
+                    'assets' => $classTotals[MoneyClass::Asset->value],
+                    'expenditure' => $classTotals[MoneyClass::Expenditure->value],
+                    'income' => $classTotals[MoneyClass::Income->value],
+                    'liability' => $classTotals[MoneyClass::Liability->value],
                 ],
             ),
         );
@@ -123,16 +126,6 @@ class AccountStatementService
 
             return [$adjustment->id => $originalId !== null ? $originalsById->get($originalId) : null];
         })->filter();
-    }
-
-    // an original not found (should never happen, but the classifier still refuses to throw) is
-    // simply missing from this map, which classify() already treats the same as null
-    private function sumByClass(array $rows, MoneyClass $class): int
-    {
-        return array_sum(array_map(
-            fn($row) => $row->moneyClass === $class ? $row->moneyInMinor + $row->moneyOutMinor : 0,
-            $rows,
-        ));
     }
 
     private function cancelState(Transaction $transaction): string

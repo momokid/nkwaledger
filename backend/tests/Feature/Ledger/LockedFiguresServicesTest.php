@@ -223,6 +223,73 @@ test('signed figures: the statement signs exactly these nine figures', function 
     ]));
 });
 
+// the signed class figures are the very numbers the page shows; with cancelled records in the books they
+// used to include the correction rows (income 190000, expenditure 70000), which the page never showed
+test('signed figures: with cancelled records, each signed class value equals the displayed total', function () {
+    $s = ($this->statement)();
+    $rows = $s->rows;
+
+    expect($s->header->verificationCode)->toBe(($this->expectedCode)('Account Statement', $this->profile, [
+        'opening' => 0,
+        // money in and out are signed over every row, corrections included (not changed here)
+        'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $rows)),
+        'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
+        'closing' => $s->closingBalanceMinor,
+        'page' => 1,
+        'assets' => $s->totalAssetsMinor,
+        'expenditure' => $s->totalExpenditureMinor,
+        'income' => $s->totalIncomeMinor,
+        'liability' => $s->totalLiabilityMinor,
+    ]));
+});
+
+test('signed figures: the cancellation statement signs exactly these nine numbers', function () {
+    $s = ($this->statement)();
+
+    expect($s->header->verificationCode)->toBe(($this->expectedCode)('Account Statement', $this->profile, [
+        'opening' => 0,
+        'in' => 170000,
+        'out' => 120000,
+        'closing' => 50000,
+        'page' => 1,
+        'assets' => 30000,
+        'expenditure' => 55000,
+        'income' => 155000,
+        'liability' => 0,
+    ]));
+});
+
+test('signed figures: a statement with no cancellations signs the same values and code as before', function () {
+    $s = ($this->statement)($this->clean);
+
+    expect([
+        'class_values_equal_displayed' => [30000, 40000, 100000, 0] === [$s->totalAssetsMinor, $s->totalExpenditureMinor, $s->totalIncomeMinor, $s->totalLiabilityMinor],
+        'code_unchanged' => $s->header->verificationCode === ($this->expectedCode)('Account Statement', $this->clean, [
+            'opening' => 0, 'in' => 100000, 'out' => 70000, 'closing' => 30000, 'page' => 1,
+            'assets' => 30000, 'expenditure' => 40000, 'income' => 100000, 'liability' => 0,
+        ]),
+    ])->toBe(['class_values_equal_displayed' => true, 'code_unchanged' => true]);
+});
+
+test('signed figures: income and expenditure signs the same income, expense and loss it shows', function () {
+    $r = ($this->incomeReport)();
+
+    expect($r->header->verificationCode)->toBe(($this->expectedCode)('Income and Expenditure', $this->profile, [
+        'income' => $r->totalIncomeMinor,
+        'expense' => $r->totalExpenseMinor,
+        'loss' => $r->totalLossMinor,
+    ]));
+});
+
+test('signed figures: the trial balance signs the same debit and credit totals it shows', function () {
+    $t = ($this->trial)();
+
+    expect($t->header->verificationCode)->toBe(($this->expectedCode)('Trial Balance', $this->profile, [
+        'debit' => $t->totalDebitMinor,
+        'credit' => $t->totalCreditMinor,
+    ]));
+});
+
 test('signed figures: the same figures give the same code, and one changed figure gives another', function () {
     $first = [
         ($this->statement)()->header->verificationCode,

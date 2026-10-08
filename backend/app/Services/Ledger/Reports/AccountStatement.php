@@ -36,6 +36,8 @@ class AccountStatement
         public readonly Carbon $generatedAt,
         /** @var array<int, AccountStatementRow> */
         public readonly array $rows,
+        /** @var array<string, int> the one result of classTotals() that the page and the signed figures both read */
+        array $classTotals,
         public readonly int $total,
         public readonly int $page,
         public readonly int $perPage,
@@ -47,10 +49,10 @@ class AccountStatement
         $this->totalInMinor = array_sum(array_map(fn($row) => $row->moneyInMinor, $ordinary));
         $this->totalOutMinor = array_sum(array_map(fn($row) => $row->moneyOutMinor, $ordinary));
 
-        $this->totalAssetsMinor = $this->sumByClass($ordinary, MoneyClass::Asset);
-        $this->totalExpenditureMinor = $this->sumByClass($ordinary, MoneyClass::Expenditure);
-        $this->totalIncomeMinor = $this->sumByClass($ordinary, MoneyClass::Income);
-        $this->totalLiabilityMinor = $this->sumByClass($ordinary, MoneyClass::Liability);
+        $this->totalAssetsMinor = $classTotals[MoneyClass::Asset->value];
+        $this->totalExpenditureMinor = $classTotals[MoneyClass::Expenditure->value];
+        $this->totalIncomeMinor = $classTotals[MoneyClass::Income->value];
+        $this->totalLiabilityMinor = $classTotals[MoneyClass::Liability->value];
 
         $this->cancelledMinor = array_sum(
             array_map(fn($row) => $row->moneyInMinor + $row->moneyOutMinor, $corrections),
@@ -63,12 +65,21 @@ class AccountStatement
         $this->lastPage = $perPage > 0 ? (int) max(1, ceil($total / $perPage)) : 1;
     }
 
-    /** @param array<int, AccountStatementRow> $rows */
-    private function sumByClass(array $rows, MoneyClass $class): int
+    // money in plus money out per class, over every row except the correction rows - the
+    // correction of a record is not a second record, so it adds nothing to a class
+    /**
+     * @param array<int, AccountStatementRow> $rows
+     * @return array<string, int>
+     */
+    public static function classTotals(array $rows): array
     {
-        return array_sum(array_map(
-            fn($row) => $row->moneyClass === $class ? $row->moneyInMinor + $row->moneyOutMinor : 0,
-            $rows,
-        ));
+        $ordinary = array_filter($rows, fn($row) => $row->cancelState !== 'correction');
+
+        return collect(MoneyClass::cases())->mapWithKeys(fn(MoneyClass $class) => [
+            $class->value => array_sum(array_map(
+                fn($row) => $row->moneyClass === $class ? $row->moneyInMinor + $row->moneyOutMinor : 0,
+                $ordinary,
+            )),
+        ])->all();
     }
 }
