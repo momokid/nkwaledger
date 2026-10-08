@@ -119,6 +119,7 @@ class RecordTransactionController extends Controller
     private function creditRows(FarmerProfile $farmer): Collection
     {
         return Transaction::query()
+            ->notCancelled()
             ->where('farmer_profile_id', $farmer->id)
             ->where('is_credit', true)
             ->with('template')

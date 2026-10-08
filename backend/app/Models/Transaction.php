@@ -175,6 +175,17 @@ class Transaction extends Model
         return $this->hasMany(ReversalRequest::class);
     }
 
+    // the link row that makes this ADJUSTMENT a payment against a credit record
+    public function settlementLink(): HasOne
+    {
+        return $this->hasOne(CreditSettlement::class, 'settlement_transaction_id');
+    }
+
+    public function isCreditSettlement(): bool
+    {
+        return $this->isAdjustment() && $this->settlementLink()->exists();
+    }
+
     public function isAdjustment(): bool
     {
         return $this->transaction_type === self::ADJUSTMENT;
@@ -224,8 +235,8 @@ class Transaction extends Model
             throw new InvalidArgumentException('The transaction being reversed does not exist.');
         }
 
-        // a correction of a correction hides the trail
-        if ($original->isAdjustment()) {
+        // a correction of a correction hides the trail; a credit payment is the one adjustment that may be cancelled
+        if ($original->isAdjustment() && ! $original->isCreditSettlement()) {
             throw new InvalidArgumentException('An adjustment cannot be adjusted.');
         }
     }

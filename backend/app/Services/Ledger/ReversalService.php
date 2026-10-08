@@ -21,6 +21,7 @@ class ReversalService
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly StockReversal $stock,
+        private readonly CreditSettlementService $settlements,
     ) {}
 
     public function request(Transaction $transaction, User $requestedBy, string $reason): ReversalRequest
@@ -118,8 +119,8 @@ class ReversalService
 
     private function guardCanBeReversed(Transaction $transaction, ?ReversalRequest $ignore = null): void
     {
-        // a correction of a correction hides the trail
-        if ($transaction->isAdjustment()) {
+        // a correction of a correction hides the trail; a payment on a credit record is the one exception
+        if ($transaction->isAdjustment() && ! $transaction->isCreditSettlement()) {
             throw PostingFailed::because('A correction cannot itself be cancelled.');
         }
 
@@ -135,6 +136,15 @@ class ReversalService
 
         if ($pending) {
             throw PostingFailed::because('Somebody has already asked to cancel that record.');
+        }
+
+        // payments come off newest first, so a record is cancelled only once nothing is paid on it
+        if ($this->settlements->livePayments($transaction)->exists()) {
+            throw PostingFailed::because('Please cancel the payments on this record first, newest first.');
+        }
+
+        if ($transaction->isCreditSettlement() && $this->settlements->hasNewerLivePayment($transaction)) {
+            throw PostingFailed::because('Please cancel the newer payments on this record first.');
         }
 
         $stockRefusal = $this->stock->refusalFor($transaction);

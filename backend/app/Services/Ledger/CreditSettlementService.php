@@ -8,6 +8,7 @@ use App\Models\LedgerAccount;
 use App\Models\Transaction;
 use App\Models\TransactionTemplate;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class CreditSettlementService
@@ -24,6 +25,10 @@ class CreditSettlementService
     ): Transaction {
         if ($amountMinor <= 0) {
             throw PostingFailed::because('The amount needs to be more than zero.');
+        }
+
+        if ($original->reversedBy()->exists()) {
+            throw PostingFailed::because('That record has been cancelled, so it cannot be paid.');
         }
 
         if (! $this->isCreditTransaction($original)) {
@@ -62,13 +67,31 @@ class CreditSettlementService
     // nothing outstanding to settle, not an error condition for a caller to handle
     public function outstandingAmount(Transaction $original): int
     {
-        if (! $this->isCreditTransaction($original)) {
+        // a cancelled record owes nothing
+        if (! $this->isCreditTransaction($original) || $original->reversedBy()->exists()) {
             return 0;
         }
 
-        $settled = (int) CreditSettlement::where('transaction_id', $original->id)->sum('amount_minor');
+        $settled = (int) $this->livePayments($original)->sum('amount_minor');
 
         return $original->amount_minor - $settled;
+    }
+
+    // the payments still standing: one that was cancelled no longer counts
+    public function livePayments(Transaction $original): Builder
+    {
+        return CreditSettlement::query()
+            ->where('transaction_id', $original->id)
+            ->whereHas('settlementTransaction', fn($query) => $query->notCancelled());
+    }
+
+    // a later payment still standing on the same record
+    public function hasNewerLivePayment(Transaction $settlement): bool
+    {
+        $link = $settlement->settlementLink;
+
+        return $link !== null
+            && $this->livePayments($link->transaction)->where('settlement_transaction_id', '>', $settlement->id)->exists();
     }
 
     // a credit transaction is one whose template allows it AND was actually settled
