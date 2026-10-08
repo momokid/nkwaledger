@@ -29,7 +29,7 @@ class StockReversal
     public function release(Transaction $original, User $by): void
     {
         foreach ($this->movementsOf($original) as $movement) {
-            $movement->forceFill(['rejected_at' => now(), 'rejected_by' => $by->id])->save();
+            $movement->forceFill(['rejected_at' => now(), 'rejected_by' => $by->id, 'cancelled_at' => now()])->save();
 
             if ($movement->reason === MovementReason::Opening) {
                 $this->endIfEmpty($movement->stock, $movement);

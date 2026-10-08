@@ -79,7 +79,8 @@ class MyFarmController extends Controller
                                 'occurred_on' => $movement->occurred_on?->toDateString(),
                                 'recorded_by' => $movement->recordedBy?->surname,
                                 'is_confirmed' => $movement->isConfirmed(),
-                                'is_rejected' => $movement->isRejected(),
+                                'is_rejected' => $movement->isRejectedByChecker(),
+                'is_cancelled' => $movement->isCancelled(),
                                 'rejection_reason' => $movement->rejection_reason,
                             ]),
                     ]),
@@ -174,7 +175,8 @@ class MyFarmController extends Controller
                 'expected_ready_on' => $isOpening ? $movement->stock?->expected_ready_on?->toDateString() : null,
                 'running_total' => $this->trimmedQuantity(max($runningTotal, 0)),
                 'is_confirmed' => $movement->isConfirmed(),
-                'is_rejected' => $movement->isRejected(),
+                'is_rejected' => $movement->isRejectedByChecker(),
+                                'is_cancelled' => $movement->isCancelled(),
                 'rejection_reason' => $movement->rejection_reason,
             ];
         }

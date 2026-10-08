@@ -94,7 +94,8 @@ class FarmUnitStockController extends Controller
                             'note' => $movement->note,
                             'recorded_by' => $movement->recordedBy?->surname,
                             'is_confirmed' => $movement->isConfirmed(),
-                            'is_rejected' => $movement->isRejected(),
+                            'is_rejected' => $movement->isRejectedByChecker(),
+                            'is_cancelled' => $movement->isCancelled(),
                             'rejection_reason' => $movement->rejection_reason,
                             'can_confirm' => $movement->conflictedUserId() !== $actorId
                                 && (! $movement->requiresAdminToApprove() || $request->user()->hasRole('admin')),
