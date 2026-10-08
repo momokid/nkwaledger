@@ -99,6 +99,7 @@ class AdminAnalyticsService
         $activityTo = Carbon::now()->toDateString();
 
         $activeFarmerIds = Transaction::query()
+            ->live()
             ->whereDate('transaction_date', '>=', $activityFrom)
             ->whereDate('transaction_date', '<=', $activityTo)
             ->distinct()
@@ -139,6 +140,7 @@ class AdminAnalyticsService
         );
 
         $recordCounts = Transaction::query()
+            ->live()
             ->join('farmer_profiles', 'farmer_profiles.id', '=', 'transactions.farmer_profile_id')
             ->whereNotNull('farmer_profiles.assigned_agent_id')
             ->whereDate('transactions.transaction_date', '>=', $from)

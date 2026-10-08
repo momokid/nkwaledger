@@ -75,6 +75,7 @@ class FarmerRosterService
     private function lastActivityFor(Collection $farmerIds): Collection
     {
         return Transaction::query()
+            ->live()
             ->whereIn('farmer_profile_id', $farmerIds)
             ->selectRaw('farmer_profile_id, MAX(transaction_date) as last_activity')
             ->groupBy('farmer_profile_id')
