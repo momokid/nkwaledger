@@ -2,6 +2,8 @@
 
 namespace App\Services\Ledger;
 
+use App\Enums\MovementReason;
+use App\Models\FarmUnitStock;
 use App\Models\FarmUnitStockMovement;
 use App\Models\Transaction;
 use App\Models\User;
@@ -28,7 +30,26 @@ class StockReversal
     {
         foreach ($this->movementsOf($original) as $movement) {
             $movement->forceFill(['rejected_at' => now(), 'rejected_by' => $by->id])->save();
+
+            if ($movement->reason === MovementReason::Opening) {
+                $this->endIfEmpty($movement->stock, $movement);
+            }
         }
+    }
+
+    // a batch this purchase started, now holding nothing and with no other history, is ended
+    // (kept for the record, no longer active); any other movement or any stock left keeps it open
+    private function endIfEmpty(FarmUnitStock $stock, FarmUnitStockMovement $opening): void
+    {
+        $stock->refresh();
+
+        $hasOtherMovements = $stock->movements()->whereKeyNot($opening->id)->exists();
+
+        if ($hasOtherMovements || (float) $stock->current_quantity > 0) {
+            return;
+        }
+
+        $stock->forceFill(['ended_on' => now()->toDateString()])->save();
     }
 
     /** @return Collection<int, FarmUnitStockMovement> */

@@ -225,7 +225,7 @@ test('a purchase whose stock has already been used cannot be cancelled', functio
     ]);
 });
 
-test('a purchase that created a brand new batch: cancelling before it is checked leaves an empty batch', function () {
+test('a purchase that created a brand new batch: cancelling before it is checked ends the empty batch', function () {
     FarmUnitStock::query()->delete();
 
     $purchase = ($this->put)($this->purchase, '800', ['bought' => '20']);
@@ -234,7 +234,7 @@ test('a purchase that created a brand new batch: cancelling before it is checked
 
     ($this->cancel)($purchase);
 
-    // characterization: what is left behind, nothing more is done to the batch
+    // the batch is ended, not rejected or deleted, so its history stays
     expect([
         'movement_traced' => $movement !== null,
         'movement_rejected' => $movement->fresh()->isRejected(),
@@ -246,11 +246,11 @@ test('a purchase that created a brand new batch: cancelling before it is checked
         'movement_rejected' => true,
         'batch_count' => 0.0,
         'batch_rejected' => false,
-        'batch_ended' => false,
+        'batch_ended' => true,
     ]);
 });
 
-test('a purchase that created a brand new batch: cancelling after it was checked empties the batch', function () {
+test('a purchase that created a brand new batch: cancelling after it was checked empties and ends the batch', function () {
     FarmUnitStock::query()->delete();
 
     $purchase = ($this->put)($this->purchase, '800', ['bought' => '20']);
@@ -267,5 +267,61 @@ test('a purchase that created a brand new batch: cancelling after it was checked
         'after_cancel' => (float) $batch->fresh()->current_quantity,
         'batch_rejected' => $batch->fresh()->isRejected(),
         'batch_ended' => $batch->fresh()->ended_on !== null,
-    ])->toBe(['after_check' => 20.0, 'after_cancel' => 0.0, 'batch_rejected' => false, 'batch_ended' => false]);
+    ])->toBe(['after_check' => 20.0, 'after_cancel' => 0.0, 'batch_rejected' => false, 'batch_ended' => true]);
+});
+
+test('an ended batch is no longer an active batch of the farm unit, and keeps its history', function () {
+    FarmUnitStock::query()->delete();
+
+    $purchase = ($this->put)($this->purchase, '800', ['bought' => '20']);
+    ($this->cancel)($purchase);
+
+    $batch = FarmUnitStock::where('farm_unit_id', $this->unit->id)->first();
+
+    expect([
+        'active_batches' => FarmUnitStock::where('farm_unit_id', $this->unit->id)->whereNull('ended_on')->count(),
+        'ended_on' => $batch->ended_on->toDateString(),
+        'still_has_its_movement' => $batch->movements()->count(),
+    ])->toBe(['active_batches' => 0, 'ended_on' => now()->toDateString(), 'still_has_its_movement' => 1]);
+});
+
+test('cancelling a purchase that added to an existing batch leaves that batch active', function () {
+    $purchase = ($this->put)($this->purchase, '800', ['bought' => '20']);
+
+    ($this->cancel)($purchase);
+
+    expect([
+        'ended' => $this->stock->fresh()->ended_on !== null,
+        'on_hand' => ($this->onHand)(),
+    ])->toBe(['ended' => false, 'on_hand' => 100.0]);
+});
+
+test('a new batch with another movement on it is not ended when the first purchase is cancelled', function () {
+    FarmUnitStock::query()->delete();
+
+    $first = ($this->put)($this->purchase, '800', ['bought' => '20']);
+    ($this->put)($this->purchase, '100', ['bought' => '5']);
+    $batch = FarmUnitStock::where('farm_unit_id', $this->unit->id)->first();
+
+    ($this->cancel)($first);
+
+    expect($batch->fresh()->ended_on)->toBeNull();
+});
+
+test('a new batch that still holds stock is not ended when the first purchase is cancelled', function () {
+    FarmUnitStock::query()->delete();
+
+    $first = ($this->put)($this->purchase, '800', ['bought' => '20']);
+    $second = ($this->put)($this->purchase, '100', ['bought' => '5']);
+    $batch = FarmUnitStock::where('farm_unit_id', $this->unit->id)->first();
+
+    FarmUnitStockMovement::whereIn('transaction_id', [$first->id, $second->id])->get()
+        ->each(fn($movement) => $movement->forceFill(['confirmed_at' => now(), 'confirmed_by' => $this->approver->id])->save());
+
+    ($this->cancel)($first);
+
+    expect([
+        'ended' => $batch->fresh()->ended_on !== null,
+        'left' => (float) $batch->fresh()->current_quantity,
+    ])->toBe(['ended' => false, 'left' => 5.0]);
 });
