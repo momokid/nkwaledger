@@ -124,6 +124,8 @@ class DemoDataSeeder extends Seeder
             $query->select('id')->from('journal_entries')->whereIn('transaction_id', $transactionIds);
         })->delete();
         DB::table('journal_entries')->whereIn('transaction_id', $transactionIds)->delete();
+        // a stock movement points at the transaction that made it, so those go before it too
+        DB::table('farm_unit_stock_movements')->whereIn('transaction_id', $transactionIds)->delete();
         Transaction::whereIn('id', $transactionIds)->delete();
 
         // produce_sales/produce_listings restrict-delete against farm_unit_stocks and

@@ -358,6 +358,7 @@ class PostingService
         foreach ($resolved['allocations'] as $allocation) {
             FarmUnitStockMovement::create([
                 'farm_unit_stock_id' => $allocation['stock']->id,
+                'transaction_id' => $transaction->id,
                 'reason' => $reason,
                 'quantity' => $allocation['quantity'],
                 'occurred_on' => $transaction->transaction_date,
@@ -380,6 +381,7 @@ class PostingService
         if ($resolved['stock'] !== null) {
             FarmUnitStockMovement::create([
                 'farm_unit_stock_id' => $resolved['stock']->id,
+                'transaction_id' => $transaction->id,
                 'reason' => MovementReason::Purchase,
                 'quantity' => $resolved['quantity'],
                 'occurred_on' => $transaction->transaction_date,
@@ -389,7 +391,7 @@ class PostingService
             return;
         }
 
-        FarmUnitStock::create([
+        $stock = FarmUnitStock::create([
             'farm_unit_id' => $farmUnit->id,
             'source' => $template->stock_source ?? StockSource::Purchase,
             'opening_quantity' => $resolved['quantity'],
@@ -399,6 +401,8 @@ class PostingService
             'acquisition_cost' => $transaction->amount_minor / 100,
             'recorded_by' => $request->recordedBy,
         ]);
+
+        $stock->movements()->where('reason', MovementReason::Opening)->update(['transaction_id' => $transaction->id]);
     }
 
     private function legs(TransactionTemplate $template, ?int $settlementAccountId): array

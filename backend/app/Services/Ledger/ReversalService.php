@@ -18,7 +18,10 @@ class ReversalService
 {
     private const REFERENCE_ATTEMPTS = 5;
 
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly StockReversal $stock,
+    ) {}
 
     public function request(Transaction $transaction, User $requestedBy, string $reason): ReversalRequest
     {
@@ -59,6 +62,7 @@ class ReversalService
 
         return DB::transaction(function () use ($request, $original, $approvedBy) {
             $reversal = $this->post($original, $request, $approvedBy);
+            $this->stock->release($original, $approvedBy);
 
             $request->forceFill([
                 'status' => ReversalRequest::APPROVED,
@@ -131,6 +135,12 @@ class ReversalService
 
         if ($pending) {
             throw PostingFailed::because('Somebody has already asked to cancel that record.');
+        }
+
+        $stockRefusal = $this->stock->refusalFor($transaction);
+
+        if ($stockRefusal !== null) {
+            throw PostingFailed::because($stockRefusal);
         }
     }
 

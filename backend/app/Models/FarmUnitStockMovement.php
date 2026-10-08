@@ -13,6 +13,7 @@ use InvalidArgumentException;
 
 #[Fillable([
     'farm_unit_stock_id',
+    'transaction_id',
     'reason',
     'quantity',
     'is_increase',
@@ -103,6 +104,11 @@ class FarmUnitStockMovement extends Model
     public function stock(): BelongsTo
     {
         return $this->belongsTo(FarmUnitStock::class, 'farm_unit_stock_id');
+    }
+
+    public function transaction(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class);
     }
 
     public function recordedBy(): BelongsTo
