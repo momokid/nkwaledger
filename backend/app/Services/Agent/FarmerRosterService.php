@@ -4,6 +4,7 @@ namespace App\Services\Agent;
 
 use App\Models\FarmerProfile;
 use App\Models\Transaction;
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -32,6 +33,7 @@ class FarmerRosterService
 
         $income = 0;
         $expense = 0;
+        $loss = 0;
         $collected = 0;
         $paidOut = 0;
         $activeCount = 0;
@@ -42,6 +44,7 @@ class FarmerRosterService
 
             $income += $report->totalIncomeMinor;
             $expense += $report->totalExpenseMinor;
+            $loss += $report->totalLossMinor;
             $collected += $report->cashCollectedMinor;
             $paidOut += $report->cashPaidOutMinor;
 
@@ -60,6 +63,8 @@ class FarmerRosterService
                     'last_activity' => $lastActivity->get($farmer->id),
                     'income' => $report->totalIncomeMinor,
                     'expense' => $report->totalExpenseMinor,
+                    'loss' => $report->totalLossMinor,
+                    'net' => $report->netMinor,
                     'status' => $isActive ? 'active' : 'dormant',
                 ];
             }
@@ -67,7 +72,7 @@ class FarmerRosterService
 
         usort($rows, fn($a, $b) => $a['name'] <=> $b['name']);
 
-        return [$income, $expense, $activeCount, $rows, $collected, $paidOut];
+        return [$income, $expense, $activeCount, $rows, $collected, $paidOut, $loss];
     }
 
     // the most recent transaction date each farmer has ever posted, regardless of the

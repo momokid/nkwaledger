@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Farm;
 
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Enums\MovementReason;
 use App\Enums\StockSource;
 use App\Http\Controllers\Controller;
@@ -134,7 +135,7 @@ class MyFarmController extends Controller
             'total_income' => $income,
             'total_expense' => $expense,
             'total_loss' => $loss,
-            'net' => $income - $expense,
+            'net' => IncomeAndExpenditure::netOf($income, $expense, $loss),
             'produce_quantity_sold' => $this->trimmedQuantity((float) $quantitySold),
         ];
     }

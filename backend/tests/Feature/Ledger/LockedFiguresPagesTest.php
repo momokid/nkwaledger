@@ -151,11 +151,11 @@ test('print view: the income and expenditure sections', function () {
 test('farmer dashboard: income, expense, net, cash collected and cash paid out', function () {
     $summary = ($this->props)($this->farmerUser, '/farmer/dashboard')['summary'];
 
-    // net here is income minus expense (the loss is shown on its own)
+    // net is income minus expense minus loss: 150000 - 70000 - 12000 (it was 80000 before the loss counted)
     expect([
         'income' => $summary['total_income'], 'expense' => $summary['total_expense'], 'net' => $summary['net'],
         'cash_collected' => $summary['cash_collected'], 'cash_paid_out' => $summary['cash_paid_out'],
-    ])->toBe(['income' => 150000, 'expense' => 70000, 'net' => 80000, 'cash_collected' => 120000, 'cash_paid_out' => 70000]);
+    ])->toBe(['income' => 150000, 'expense' => 70000, 'net' => 68000, 'cash_collected' => 120000, 'cash_paid_out' => 70000]);
 });
 
 test('farmer dashboard: the loss line and the recent list without the cancelled records', function () {
@@ -179,7 +179,8 @@ test('my farm: income, expense, loss, net, sold and stock for the unit', functio
         'income' => $analysis['total_income'], 'expense' => $analysis['total_expense'],
         'loss' => $analysis['total_loss'], 'net' => $analysis['net'],
         'sold' => $analysis['produce_quantity_sold'], 'stock' => $analysis['current_stock'],
-    ])->toBe(['income' => 150000, 'expense' => 70000, 'loss' => 12000, 'net' => 80000, 'sold' => '0', 'stock' => '98']);
+    ])// net was 80000 before the loss counted
+    ->toBe(['income' => 150000, 'expense' => 70000, 'loss' => 12000, 'net' => 68000, 'sold' => '0', 'stock' => '98']);
 });
 
 // --- admin region detail and approval queue ---

@@ -114,11 +114,11 @@ class FarmerDashboardController extends Controller
     {
         $income = $report->totalIncomeMinor;
         $expense = $report->totalExpenseMinor;
-        $net = $income - $expense;
+        $net = $report->netMinor;
 
         $prevIncome = $previous->totalIncomeMinor;
         $prevExpense = $previous->totalExpenseMinor;
-        $prevNet = $prevIncome - $prevExpense;
+        $prevNet = $previous->netMinor;
 
         return [
             'total_income' => $income,
