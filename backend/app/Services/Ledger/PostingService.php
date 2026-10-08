@@ -60,6 +60,8 @@ class PostingService
             throw PostingFailed::because('The number lost needs to be more than zero.');
         }
 
+        $this->assertWholeIfRequired($farmUnit, $request->quantityLost);
+
         $stocks = $this->activeStocks($farmUnit);
 
         if ($stocks->isEmpty()) {
@@ -75,7 +77,7 @@ class PostingService
 
         return [
             'quantity' => $request->quantityLost,
-            'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand),
+            'allocations' => $this->splitProportionally($stocks, $requested),
         ];
     }
 
@@ -93,6 +95,8 @@ class PostingService
             throw PostingFailed::because('The number sold needs to be more than zero.');
         }
 
+        $this->assertWholeIfRequired($farmUnit, $request->quantitySold);
+
         $stocks = $this->activeStocks($farmUnit);
 
         if ($stocks->isEmpty()) {
@@ -108,7 +112,7 @@ class PostingService
 
         return [
             'quantity' => $request->quantitySold,
-            'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand),
+            'allocations' => $this->splitProportionally($stocks, $requested),
         ];
     }
 
@@ -129,12 +133,23 @@ class PostingService
             throw PostingFailed::because('The number bought needs to be more than zero.');
         }
 
+        $this->assertWholeIfRequired($farmUnit, $request->quantityPurchased);
+
         $stocks = $this->activeStocks($farmUnit);
 
         return [
             'quantity' => $request->quantityPurchased,
             'stock' => $stocks->isEmpty() ? null : $stocks->last(),
         ];
+    }
+
+    private function assertWholeIfRequired(?FarmUnit $farmUnit, string $quantity): void
+    {
+        $refusal = $farmUnit?->quantityRefusal($quantity);
+
+        if ($refusal !== null) {
+            throw PostingFailed::because($refusal);
+        }
     }
 
     private function activeStocks(?FarmUnit $farmUnit)
@@ -147,23 +162,30 @@ class PostingService
             ->get();
     }
 
+    // works in hundredths so the parts add up exactly; only a batch with stock on hand takes a share
+    // (the last such batch absorbs the rounding), and no batch is ever given more than it holds
     /** @param \Illuminate\Support\Collection<int, FarmUnitStock> $stocks */
-    private function splitProportionally($stocks, float $requested, float $totalOnHand): array
+    private function splitProportionally($stocks, float $requested): array
     {
+        $live = $stocks->filter(fn($stock) => (float) $stock->current_quantity > 0)->values();
+        $held = $live->map(fn($stock) => (int) round((float) $stock->current_quantity * 100))->all();
+        $total = array_sum($held);
+        $wanted = (int) round($requested * 100);
+
+        $shares = array_map(fn($amount) => (int) round($wanted * $amount / $total), $held);
+        $diff = $wanted - array_sum($shares);
+
+        for ($i = count($shares) - 1; $i >= 0 && $diff !== 0; $i--) {
+            $move = $diff > 0 ? min($diff, $held[$i] - $shares[$i]) : -min(-$diff, $shares[$i]);
+            $shares[$i] += $move;
+            $diff -= $move;
+        }
+
         $allocations = [];
-        $allocatedSoFar = 0.0;
 
-        foreach ($stocks as $index => $stock) {
-            $isLast = $index === $stocks->count() - 1;
-            $available = (float) $stock->current_quantity;
-
-            $share = $isLast
-                ? round($requested - $allocatedSoFar, 2)
-                : round($requested * ($available / $totalOnHand), 2);
-
-            if ($share > 0) {
-                $allocations[] = ['stock' => $stock, 'quantity' => $share];
-                $allocatedSoFar += $share;
+        foreach ($live as $index => $stock) {
+            if ($shares[$index] > 0) {
+                $allocations[] = ['stock' => $stock, 'quantity' => $shares[$index] / 100];
             }
         }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Transactions;
 
 use App\Models\FarmerProfile;
+use App\Models\FarmUnit;
 use App\Models\LedgerAccount;
 use App\Models\TransactionTemplate;
 use App\Support\Money;
@@ -102,6 +103,14 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_lost', 'The number lost needs to be more than zero.');
+
+                    return;
+                }
+
+                $refusal = $this->wholeNumberRefusal($quantity);
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('quantity_lost', $refusal);
                 }
             },
             // a produce sale always says how many, so the stock the farmer has left stays accurate
@@ -126,6 +135,14 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_sold', 'The number sold needs to be more than zero.');
+
+                    return;
+                }
+
+                $refusal = $this->wholeNumberRefusal($quantity);
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('quantity_sold', $refusal);
                 }
             },
             // buying the tracked stock itself always says how many, so the count stays accurate
@@ -150,6 +167,14 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_purchased', 'The number bought needs to be more than zero.');
+
+                    return;
+                }
+
+                $refusal = $this->wholeNumberRefusal($quantity);
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('quantity_purchased', $refusal);
                 }
             },
             // a template that never allows credit cannot be forced into it by hand-crafting the request
@@ -165,6 +190,12 @@ class RecordTransactionRequest extends FormRequest
                 }
             },
         ];
+    }
+
+    // the same whole-number rule posting applies, so the farmer sees it under the field
+    private function wholeNumberRefusal(mixed $quantity): ?string
+    {
+        return FarmUnit::query()->with('farmType')->find($this->input('farm_unit_id'))?->quantityRefusal($quantity);
     }
 
     public function messages(): array
