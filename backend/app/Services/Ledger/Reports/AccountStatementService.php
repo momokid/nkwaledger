@@ -107,9 +107,21 @@ class AccountStatementService
             ->whereIn('settlement_transaction_id', $settlements->pluck('id'))
             ->pluck('transaction_id', 'settlement_transaction_id');
 
-        $originalIds = $corrections->pluck('reverses_transaction_id')
-            ->merge($settlementOriginalIds->values())
-            ->unique();
+        // the correction of a credit payment takes the class of the credit record that payment was for,
+        // the same class the payment itself shows
+        $correctedIds = $corrections->pluck('reverses_transaction_id');
+
+        $paymentRecordIds = $correctedIds->isEmpty()
+            ? collect()
+            : CreditSettlement::query()
+                ->whereIn('settlement_transaction_id', $correctedIds)
+                ->pluck('transaction_id', 'settlement_transaction_id');
+
+        $subjectId = fn(Transaction $adjustment) => $adjustment->reverses_transaction_id !== null
+            ? ($paymentRecordIds->get($adjustment->reverses_transaction_id) ?? $adjustment->reverses_transaction_id)
+            : $settlementOriginalIds->get($adjustment->id);
+
+        $originalIds = $adjustments->map($subjectId)->filter()->unique();
 
         if ($originalIds->isEmpty()) {
             return collect();
@@ -121,8 +133,8 @@ class AccountStatementService
             ->get()
             ->keyBy('id');
 
-        return $adjustments->mapWithKeys(function (Transaction $adjustment) use ($originalsById, $settlementOriginalIds) {
-            $originalId = $adjustment->reverses_transaction_id ?? $settlementOriginalIds->get($adjustment->id);
+        return $adjustments->mapWithKeys(function (Transaction $adjustment) use ($originalsById, $subjectId) {
+            $originalId = $subjectId($adjustment);
 
             return [$adjustment->id => $originalId !== null ? $originalsById->get($originalId) : null];
         })->filter();

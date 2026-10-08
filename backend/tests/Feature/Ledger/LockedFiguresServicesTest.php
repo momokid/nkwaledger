@@ -67,13 +67,6 @@ test('statement: every row with its money, running balance, class tag and cancel
         $row->moneyClass?->value, $row->cancelState,
     ])->all();
 
-    // the last row is the correction of the cancelled payment; its class tag is not pinned (see the sweep:
-    // a correction of a payment carries no tag, unlike the other corrections), so only its money is
-    $lastRow = array_pop($rows);
-    $lastRow = [$lastRow[0], $lastRow[1], $lastRow[2], $lastRow[3], $lastRow[4], $lastRow[6]];
-
-    expect($lastRow)->toBe(['Correction', 'Cash A/C', 0, 10000, 50000, 'correction']);
-
     expect($rows)->toBe([
         ['Cash sale', 'Cash A/C', 100000, 0, 100000, 'income', 'open'],
         ['Feed expense', 'Cash A/C', 0, 40000, 60000, 'expenditure', 'open'],
@@ -86,6 +79,8 @@ test('statement: every row with its money, running balance, class tag and cancel
         ['Payment received', 'Cash A/C', 10000, 0, 70000, 'income', 'cancelled'],
         ['Correction', 'Cash A/C', 0, 25000, 45000, 'income', 'correction'],
         ['Correction', 'Cash A/C', 15000, 0, 60000, 'expenditure', 'correction'],
+        // the correction of the cancelled payment carries the payment's class too (it used to carry none)
+        ['Correction', 'Cash A/C', 0, 10000, 50000, 'income', 'correction'],
     ]);
 });
 

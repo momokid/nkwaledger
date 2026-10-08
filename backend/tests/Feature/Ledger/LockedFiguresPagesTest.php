@@ -115,10 +115,6 @@ test('csv: every row line with its money and class tag', function () {
 
     $rows = $lines->slice(2, 12)->map(fn($line) => [$line[3], $line[4], $line[5], $line[6]])->values()->all();
 
-    // the last row (correction of the cancelled payment) carries no class tag, which is not pinned
-    $last = array_pop($rows);
-
-    expect($last[0] . '|' . $last[1] . '|' . $last[2])->toBe('|100.00|500.00');
     expect($rows)->toBe([
         ['1000.00', '', '1000.00', 'Income'],
         ['', '400.00', '600.00', 'Expenditure'],
@@ -131,6 +127,8 @@ test('csv: every row line with its money and class tag', function () {
         ['100.00', '', '700.00', 'Income'],
         ['', '250.00', '450.00', 'Income'],
         ['150.00', '', '600.00', 'Expenditure'],
+        // the correction of the cancelled payment now carries the payment's class (it used to carry none)
+        ['', '100.00', '500.00', 'Income'],
     ]);
 });
 
