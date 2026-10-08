@@ -8,6 +8,7 @@ use App\Models\LedgerAccount;
 use App\Models\Transaction;
 use App\Models\TransactionTemplate;
 use App\Support\Money;
+use Illuminate\Support\Facades\DB;
 
 class CreditSettlementService
 {
@@ -35,23 +36,26 @@ class CreditSettlementService
 
         $template = $this->settlementTemplate($original);
 
-        $settlementTransaction = $this->posting->post(new PostingRequest(
-            farmerProfileId: $original->farmer_profile_id,
-            transactionTemplateId: $template->id,
-            amount: Money::toDecimal($amountMinor),
-            settlementAccountId: $settlementAccountId,
-            transactionDate: $transactionDate,
-            narration: $narration ?? "Settles {$original->reference}",
-            recordedBy: $recordedBy,
-        ));
+        // the payment and its link are one fact, so both are saved or neither is
+        return DB::transaction(function () use ($original, $template, $amountMinor, $settlementAccountId, $transactionDate, $narration, $recordedBy) {
+            $settlementTransaction = $this->posting->post(new PostingRequest(
+                farmerProfileId: $original->farmer_profile_id,
+                transactionTemplateId: $template->id,
+                amount: Money::toDecimal($amountMinor),
+                settlementAccountId: $settlementAccountId,
+                transactionDate: $transactionDate,
+                narration: $narration ?? "Settles {$original->reference}",
+                recordedBy: $recordedBy,
+            ));
 
-        CreditSettlement::create([
-            'transaction_id' => $original->id,
-            'settlement_transaction_id' => $settlementTransaction->id,
-            'amount_minor' => $amountMinor,
-        ]);
+            CreditSettlement::create([
+                'transaction_id' => $original->id,
+                'settlement_transaction_id' => $settlementTransaction->id,
+                'amount_minor' => $amountMinor,
+            ]);
 
-        return $settlementTransaction;
+            return $settlementTransaction;
+        });
     }
 
     // zero for a transaction that was never on credit in the first place - there is
