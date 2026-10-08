@@ -204,6 +204,7 @@ function formatActivityFeed(entries: BackendActivityEntry[]): ActivityEntry[] {
             amount: `${isIncrease ? "+" : "-"}${entry.quantity ?? "0"}`,
             time: formatRelativeTime(entry.occurred_at),
             income: isIncrease,
+            cancelled: entry.is_cancelled ?? false,
         };
     });
 }
