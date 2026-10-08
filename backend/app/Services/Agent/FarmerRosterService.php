@@ -120,6 +120,7 @@ class FarmerRosterService
     private function weeklySum(Collection $farmerIds, Carbon $from, Carbon $to, string $type): int
     {
         return (int) Transaction::query()
+            ->notCancelled()
             ->whereIn('farmer_profile_id', $farmerIds)
             ->where('transaction_type', $type)
             ->where('is_provisional', false)

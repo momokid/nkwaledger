@@ -32,6 +32,7 @@ class AdminAnalyticsService
             ->groupBy(fn($farmer) => $farmer->community->district->region->id);
 
         $incomeByFarmer = Transaction::query()
+            ->notCancelled()
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
             ->where('transaction_type', 'INCOME')
@@ -40,6 +41,7 @@ class AdminAnalyticsService
             ->pluck('total', 'farmer_profile_id');
 
         $expenseByFarmer = Transaction::query()
+            ->notCancelled()
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
             ->where('transaction_type', 'EXPENSE')
@@ -176,6 +178,7 @@ class AdminAnalyticsService
             ->whereIn('transactions.transaction_type', [Transaction::INCOME, Transaction::EXPENSE])
             ->where('ledger_accounts.is_settlement', false)
             ->where('transactions.is_provisional', false)
+            ->tap(fn($query) => Transaction::excludeCancelled($query))
             ->where(fn($query) => $query
                 ->where(fn($income) => $income
                     ->where('transactions.transaction_type', Transaction::INCOME)

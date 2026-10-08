@@ -43,6 +43,7 @@ interface ActivityEntry {
     amount: string;
     time: string;
     income: boolean;
+    cancelled?: boolean;
 }
 
 type FarmerStatus = "Active" | "Flagged" | "Dormant";
@@ -89,6 +90,7 @@ interface BackendActivityEntry {
     detail?: string;
     amount_minor?: number;
     is_income?: boolean;
+    is_cancelled?: boolean;
     // stock movement fields
     reason?: string;
     farm_unit?: string;
@@ -190,6 +192,7 @@ function formatActivityFeed(entries: BackendActivityEntry[]): ActivityEntry[] {
                 amount: `${isIncome ? "+" : "-"}GHS ${formatMoney(entry.amount_minor ?? 0)}`,
                 time: formatRelativeTime(entry.occurred_at),
                 income: isIncome,
+                cancelled: entry.is_cancelled ?? false,
             };
         }
 
@@ -714,6 +717,7 @@ function DashboardContent({
                                             }}
                                         >
                                             {entry.detail} · {entry.time}
+                                            {entry.cancelled && " · Cancelled"}
                                         </p>
                                     </div>
                                     <p

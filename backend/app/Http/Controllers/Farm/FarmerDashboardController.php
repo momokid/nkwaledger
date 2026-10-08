@@ -164,7 +164,7 @@ class FarmerDashboardController extends Controller
             ->where('farmer_profile_id', $farmerId)
             ->whereIn('transaction_type', [Transaction::INCOME, Transaction::EXPENSE])
             // a cancelled record never happened, as far as the farmer's eye is concerned
-            ->whereDoesntHave('reversedBy')
+            ->notCancelled()
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
             ->limit(5)

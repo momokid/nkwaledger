@@ -98,6 +98,7 @@ class MyFarmController extends Controller
     private function analysisFor(int $farmerId, int $farmUnitId, string $from, string $to): array
     {
         $totals = Transaction::query()
+            ->notCancelled()
             ->where('farmer_profile_id', $farmerId)
             ->where('farm_unit_id', $farmUnitId)
             ->whereBetween('transaction_date', [$from, $to])

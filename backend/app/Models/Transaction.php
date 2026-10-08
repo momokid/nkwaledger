@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 class Transaction extends Model
 {
@@ -150,6 +153,21 @@ class Transaction extends Model
     public function reversedBy(): HasOne
     {
         return $this->hasOne(self::class, 'reverses_transaction_id');
+    }
+
+    // the one rule for a cancelled record: some correction points back at it. Works on a
+    // Transaction query, or on any query that has the transactions table joined in
+    public static function excludeCancelled(Builder|QueryBuilder $query, string $column = 'transactions.id'): Builder|QueryBuilder
+    {
+        return $query->whereNotExists(fn($sub) => $sub
+            ->select(DB::raw(1))
+            ->from('transactions as reversal')
+            ->whereColumn('reversal.reverses_transaction_id', $column));
+    }
+
+    public function scopeNotCancelled(Builder $query): Builder
+    {
+        return self::excludeCancelled($query, $this->qualifyColumn('id'));
     }
 
     public function reversalRequests(): HasMany

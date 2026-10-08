@@ -56,6 +56,7 @@ class AgentActivityFeedService
             ->whereIn('farmer_profile_id', $activeFarmers->keys())
             ->whereIn('transaction_type', [Transaction::INCOME, Transaction::EXPENSE, Transaction::LOSS])
             ->with('template:id,name')
+            ->withExists('reversedBy as is_cancelled')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit($limit)
@@ -71,6 +72,7 @@ class AgentActivityFeedService
                 'detail' => $transaction->template?->name,
                 'amount_minor' => $transaction->amount_minor,
                 'is_income' => $transaction->transaction_type === Transaction::INCOME,
+                'is_cancelled' => (bool) $transaction->is_cancelled,
                 'occurred_at' => $transaction->created_at->toIso8601String(),
                 'sort_at' => $transaction->created_at,
                 'sort_id' => $transaction->id,
