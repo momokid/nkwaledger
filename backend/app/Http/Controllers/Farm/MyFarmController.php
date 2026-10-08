@@ -42,7 +42,9 @@ class MyFarmController extends Controller
                 'is_approved' => $unit->isApproved(),
                 'analysis' => $this->analysisFor($farmer->id, $unit->id, $from, $to),
                 'timeline' => $this->timelineFor($unit),
+                // a batch that has ended is history: its movements stay in the timeline above
                 'stocks' => $unit->stocks
+                    ->whereNull('ended_on')
                     ->sortByDesc('started_on')
                     ->values()
                     ->map(fn(FarmUnitStock $stock) => [

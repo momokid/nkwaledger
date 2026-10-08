@@ -60,7 +60,9 @@ class FarmUnitStockController extends Controller
                 'farm_type_category' => $farmUnit->farmType?->category?->name,
                 'is_approved' => $farmUnit->isApproved(),
             ],
+            // a batch that has ended is not current stock, so it is left off this list
             'stocks' => $farmUnit->stocks()
+                ->whereNull('ended_on')
                 ->with(['recordedBy:id,surname', 'confirmedBy:id,surname', 'movements.recordedBy:id,surname'])
                 ->orderByDesc('started_on')
                 ->get()
