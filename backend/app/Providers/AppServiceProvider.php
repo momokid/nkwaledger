@@ -7,6 +7,7 @@ use App\Auth\LockAwareUserProvider;
 use App\Contracts\SmsProvider;
 use App\Models\User;
 use App\Services\Sms\ArkeselSmsProvider;
+use App\Services\Sms\LogSmsProvider;
 use App\Session\RoleAwareDatabaseSessionHandler;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Vite;
@@ -16,6 +17,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use App\Observers\AuditableObserver;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -40,14 +42,24 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->app->bind(SmsProvider::class, fn() => new ArkeselSmsProvider(
-            apiKey: config('services.arkesel.key'),
-            sender: config('services.arkesel.sender'),
-        ));
+        // an explicit flag rather than app()->isLocal(), so arkesel can still be
+        // tested from a local machine on demand
+        $this->app->bind(SmsProvider::class, fn() => env('SMS_DRIVER', 'arkesel') === 'log'
+            ? new LogSmsProvider()
+            : new ArkeselSmsProvider(
+                apiKey: config('services.arkesel.key'),
+                sender: config('services.arkesel.sender'),
+            ));
     }
 
     public function boot(): void
     {
+        // a test bypass code left on in production would let anyone log in as
+        // whatever number is listed - this must fail at boot, not at OTP time
+        if (app()->environment('production') && trim((string) config('otp.test_phones')) !== '') {
+            throw new RuntimeException('OTP_TEST_PHONES must not be set in production.');
+        }
+
         Vite::prefetch(concurrency: 3);
 
         // the one place a locked account is turned away, for every sign-in and every later request

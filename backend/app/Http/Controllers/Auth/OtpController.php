@@ -34,6 +34,7 @@ class OtpController extends Controller
         // only the purpose reaches the browser; the number/email itself stays on the server
         return Inertia::render('Auth/VerifyOtp', [
             'type'             => $request->session()->get('auth.otp_type'),
+            'channel'          => $request->session()->get('auth.otp_channel'),
             'canFallbackToSms' => $identifier !== null && filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false,
         ]);
     }

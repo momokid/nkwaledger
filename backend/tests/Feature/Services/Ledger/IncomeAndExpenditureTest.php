@@ -98,6 +98,20 @@ beforeEach(function () {
         'settlement_side' => 'credit',
     ]);
 
+    // an asset acquired, not an operating cost - debits the stock account itself,
+    // same shape as the real animal/seedling/fingerling purchase templates
+    $this->stockPurchaseTemplate = TransactionTemplate::create([
+        'name' => 'I bought animals',
+        'slug' => 'animal_purchase',
+        'transaction_type' => 'EXPENSE',
+        'debit_account_id' => $this->livestock->id,
+        'credit_account_id' => $this->cash->id,
+        'settlement_side' => 'credit',
+        'requires_farm_unit' => true,
+        'is_stock_purchase' => true,
+        'allows_credit' => true,
+    ]);
+
     $this->lossTemplate = TransactionTemplate::create([
         'name' => 'An animal died',
         'slug' => 'livestock_loss',
@@ -174,6 +188,7 @@ beforeEach(function () {
             farmUnitId: $template->requires_farm_unit ? ($unit ?? $this->approvedUnit)->id : null,
             recordedBy: $this->staff->id,
             quantityLost: $template->transaction_type === 'LOSS' ? '1' : null,
+            quantityPurchased: $template->is_stock_purchase ? '1' : null,
         ));
     };
 
@@ -481,4 +496,63 @@ it('keeps net profit based on earned and incurred, unaffected by collection', fu
     ($this->post)($this->feedTemplate, '200');
 
     expect(($this->run)()->netMinor)->toBe(30000);
+});
+
+// a stock purchase is an asset acquired, not money spent running the farm
+it('excludes a stock purchase from the expense total that drives net profit', function () {
+    ($this->post)($this->feedTemplate, '200');
+    ($this->post)($this->stockPurchaseTemplate, '500');
+
+    expect(($this->run)()->totalExpenseMinor)->toBe(20000);
+});
+
+it('excludes a stock purchase from the expense account listing', function () {
+    ($this->post)($this->stockPurchaseTemplate, '500');
+
+    expect(($this->run)()->expenseRows)->toBeEmpty();
+});
+
+it('leaves net profit unaffected by a stock purchase', function () {
+    ($this->post)($this->saleTemplate, '1000');
+    ($this->post)($this->stockPurchaseTemplate, '400');
+
+    expect(($this->run)()->netMinor)->toBe(100000);
+});
+
+// real cash still left the farmer's hand, whatever the accounting treatment
+it('still counts a stock purchase in cash paid out', function () {
+    ($this->post)($this->stockPurchaseTemplate, '500');
+
+    expect(($this->run)()->cashPaidOutMinor)->toBe(50000);
+});
+
+it('shows net profit unaffected but cash paid out reduced for a farmer with only a stock purchase', function () {
+    ($this->post)($this->saleTemplate, '1000');
+    ($this->post)($this->stockPurchaseTemplate, '400');
+
+    $report = ($this->run)();
+
+    expect($report->totalExpenseMinor)->toBe(0);
+    expect($report->netMinor)->toBe(100000);
+    expect($report->cashPaidOutMinor)->toBe(40000);
+});
+
+it('sums stock purchases into assets acquired', function () {
+    ($this->post)($this->stockPurchaseTemplate, '500');
+    ($this->post)($this->stockPurchaseTemplate, '300');
+
+    expect(($this->run)()->assetsAcquiredMinor)->toBe(80000);
+});
+
+it('counts assets acquired the same whether paid by cash or credit', function () {
+    ($this->post)($this->stockPurchaseTemplate, '500');
+    ($this->post)($this->stockPurchaseTemplate, '300', settlementAccountId: $this->payable->id);
+
+    expect(($this->run)()->assetsAcquiredMinor)->toBe(80000);
+});
+
+it('leaves assets acquired at zero for a farmer with no stock purchases', function () {
+    ($this->post)($this->feedTemplate, '200');
+
+    expect(($this->run)()->assetsAcquiredMinor)->toBe(0);
 });

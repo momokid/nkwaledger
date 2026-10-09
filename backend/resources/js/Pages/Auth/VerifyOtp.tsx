@@ -7,6 +7,7 @@ import { type } from "@/theme/typography";
 
 interface Props {
     masked: string | null;
+    channel?: "sms" | "email" | null;
     canFallbackToSms?: boolean;
 }
 
@@ -18,7 +19,7 @@ export default function VerifyOtp(props: Props) {
     );
 }
 
-function VerifyOtpContent({ masked, canFallbackToSms }: Props) {
+function VerifyOtpContent({ masked, channel, canFallbackToSms }: Props) {
     const { dark } = useTheme();
     const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
     const [countdown, setCountdown] = useState(60);
@@ -192,7 +193,11 @@ function VerifyOtpContent({ masked, canFallbackToSms }: Props) {
                         >
                             {masked
                                 ? `Code sent to ${masked}`
-                                : "We sent you a code"}
+                                : channel === "email"
+                                  ? "We sent a code to your email"
+                                  : channel === "sms"
+                                    ? "We sent a code to your phone"
+                                    : "We sent you a code"}
                         </p>
                     </div>
 
