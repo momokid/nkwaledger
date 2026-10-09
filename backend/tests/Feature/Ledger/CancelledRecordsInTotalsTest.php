@@ -417,6 +417,6 @@ test('control: the statement nets a cancelled sale to zero in the cash balance',
     $statement = app(\App\Services\Ledger\Reports\AccountStatementService::class)
         ->for($this->profile->id, $this->from, $this->to);
 
-    expect(['closing' => $statement->closingBalanceMinor, 'cancelled' => $statement->cancelledMinor])
-        ->toBe(['closing' => 100000, 'cancelled' => 25000]);
+    expect(['closing' => $statement->closingBalanceMinor, 'cancelled_in' => $statement->cancelledInMinor, 'cancelled_out' => $statement->cancelledOutMinor])
+        ->toBe(['closing' => 100000, 'cancelled_in' => 25000, 'cancelled_out' => 0]);
 });

@@ -47,7 +47,8 @@ function props(canSettle: boolean, creditRows = [creditRow("owed", 50000)]) {
             total_expenditure: 0,
             total_income: 0,
             total_liability: 0,
-            cancelled: 0,
+            cancelled_in: 0,
+            cancelled_out: 0,
             provisional_held_back: 0,
             total: 0,
             page: 1,
@@ -106,5 +107,34 @@ describe("Record payment on the credit tab", () => {
 
         expect(recordPaymentButtons()).toHaveLength(0);
         expect(container.textContent).toContain("Paid");
+    });
+});
+
+describe("What was cancelled", () => {
+    const render = async (cancelledIn: number, cancelledOut: number) => {
+        const base = props(true) as unknown as { statement: Record<string, unknown> };
+        base.statement = { ...base.statement, cancelled_in: cancelledIn, cancelled_out: cancelledOut };
+
+        await act(async () => root.render(<Index {...(base as unknown as ComponentProps<typeof Index>)} />));
+    };
+
+    it("shows cancelled money in and cancelled money out as two amounts", async () => {
+        await render(35000, 15000);
+
+        expect(container.textContent).toContain("Cancelled money in");
+        expect(container.textContent).toContain("Cancelled money out");
+    });
+
+    it("shows only the amount that is not zero", async () => {
+        await render(0, 15000);
+
+        expect(container.textContent).not.toContain("Cancelled money in");
+        expect(container.textContent).toContain("Cancelled money out");
+    });
+
+    it("shows neither when nothing was cancelled", async () => {
+        await render(0, 0);
+
+        expect(container.textContent).not.toContain("Cancelled money");
     });
 });

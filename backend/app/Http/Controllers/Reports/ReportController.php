@@ -121,7 +121,8 @@ class ReportController extends Controller
             'total_expenditure' => $report->totalExpenditureMinor,
             'total_income' => $report->totalIncomeMinor,
             'total_liability' => $report->totalLiabilityMinor,
-            'cancelled' => $report->cancelledMinor,
+            'cancelled_in' => $report->cancelledInMinor,
+            'cancelled_out' => $report->cancelledOutMinor,
             'provisional_held_back' => $report->provisionalHeldBackMinor,
         ];
     }

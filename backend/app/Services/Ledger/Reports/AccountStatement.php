@@ -19,7 +19,9 @@ class AccountStatement
 
     public readonly int $totalLiabilityMinor;
 
-    public readonly int $cancelledMinor;
+    public readonly int $cancelledInMinor;
+
+    public readonly int $cancelledOutMinor;
 
     public readonly int $closingBalanceMinor;
 
@@ -38,7 +40,7 @@ class AccountStatement
         public readonly array $rows,
         /** @var array<string, int> the one result of classTotals() that the page and the signed figures both read */
         array $classTotals,
-        /** @var array{in: int, out: int} the one result of moneyTotals() that the page and the signed figures both read */
+        /** @var array{in: int, out: int, cancelled_in: int, cancelled_out: int} the one result of moneyTotals() that the page and the signed figures both read */
         array $moneyTotals,
         public readonly int $total,
         public readonly int $page,
@@ -46,7 +48,6 @@ class AccountStatement
         public readonly ReportHeader $header,
     ) {
         $ordinary = array_filter($rows, fn($row) => $row->cancelState !== 'correction');
-        $corrections = array_filter($rows, fn($row) => $row->cancelState === 'correction');
 
         $this->totalInMinor = $moneyTotals['in'];
         $this->totalOutMinor = $moneyTotals['out'];
@@ -56,9 +57,8 @@ class AccountStatement
         $this->totalIncomeMinor = $classTotals[MoneyClass::Income->value];
         $this->totalLiabilityMinor = $classTotals[MoneyClass::Liability->value];
 
-        $this->cancelledMinor = array_sum(
-            array_map(fn($row) => $row->moneyInMinor + $row->moneyOutMinor, $corrections),
-        );
+        $this->cancelledInMinor = $moneyTotals['cancelled_in'];
+        $this->cancelledOutMinor = $moneyTotals['cancelled_out'];
 
         $this->closingBalanceMinor = $rows === []
             ? $openingBalanceMinor
@@ -67,18 +67,22 @@ class AccountStatement
         $this->lastPage = $perPage > 0 ? (int) max(1, ceil($total / $perPage)) : 1;
     }
 
-    // money in and out over every row except the correction rows
+    // money in and out over every row except the correction rows; and, measured on the cancelled
+    // records themselves (never on their correction rows), the money in and out that was cancelled
     /**
      * @param array<int, AccountStatementRow> $rows
-     * @return array{in: int, out: int}
+     * @return array{in: int, out: int, cancelled_in: int, cancelled_out: int}
      */
     public static function moneyTotals(array $rows): array
     {
         $ordinary = array_filter($rows, fn($row) => $row->cancelState !== 'correction');
+        $cancelled = array_filter($rows, fn($row) => $row->cancelState === 'cancelled');
 
         return [
             'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $ordinary)),
             'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $ordinary)),
+            'cancelled_in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $cancelled)),
+            'cancelled_out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $cancelled)),
         ];
     }
 

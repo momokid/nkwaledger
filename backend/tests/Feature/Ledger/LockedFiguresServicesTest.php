@@ -48,7 +48,8 @@ test('statement: money in, money out, balance and the four class totals', functi
         'expenditure' => $s->totalExpenditureMinor,
         'income' => $s->totalIncomeMinor,
         'liability' => $s->totalLiabilityMinor,
-        'cancelled' => $s->cancelledMinor,
+        'cancelled_in' => $s->cancelledInMinor,
+        'cancelled_out' => $s->cancelledOutMinor,
     ])->toBe([
         'in' => 155000,
         'out' => 85000,
@@ -57,7 +58,9 @@ test('statement: money in, money out, balance and the four class totals', functi
         'expenditure' => 55000,
         'income' => 155000,
         'liability' => 0,
-        'cancelled' => 50000,
+        // the old single cancelled figure was 50000: the correction rows' 25000 + 15000 + 10000, in and out mixed
+        'cancelled_in' => 35000,
+        'cancelled_out' => 15000,
     ]);
 });
 
@@ -96,10 +99,12 @@ test('the clean farmer with nothing cancelled has the plain figures', function (
     expect([
         'in' => $s->totalInMinor, 'out' => $s->totalOutMinor, 'closing' => $s->closingBalanceMinor,
         'assets' => $s->totalAssetsMinor, 'expenditure' => $s->totalExpenditureMinor,
-        'income' => $s->totalIncomeMinor, 'liability' => $s->totalLiabilityMinor, 'cancelled' => $s->cancelledMinor,
+        'income' => $s->totalIncomeMinor, 'liability' => $s->totalLiabilityMinor,
+        'cancelled_in' => $s->cancelledInMinor, 'cancelled_out' => $s->cancelledOutMinor,
     ])->toBe([
         'in' => 100000, 'out' => 70000, 'closing' => 30000,
-        'assets' => 30000, 'expenditure' => 40000, 'income' => 100000, 'liability' => 0, 'cancelled' => 0,
+        'assets' => 30000, 'expenditure' => 40000, 'income' => 100000, 'liability' => 0,
+        'cancelled_in' => 0, 'cancelled_out' => 0,
     ]);
 });
 

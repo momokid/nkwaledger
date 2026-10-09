@@ -68,7 +68,8 @@ interface Report {
     total_assets?: number;
     total_expenditure?: number;
     total_liability?: number;
-    cancelled?: number;
+    cancelled_in?: number;
+    cancelled_out?: number;
     income_rows?: IncomeRow[];
     expense_rows?: IncomeRow[];
     loss_rows?: IncomeRow[];

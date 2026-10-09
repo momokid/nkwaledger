@@ -170,9 +170,10 @@ test('a cancelled credit payment nets out of the statement and shows as cancelle
 
     expect([
         'closing' => $statement->closingBalanceMinor,
-        'cancelled' => $statement->cancelledMinor,
+        'cancelled_in' => $statement->cancelledInMinor,
+        'cancelled_out' => $statement->cancelledOutMinor,
         'payment_state' => $states[$payment->reference],
-    ])->toBe(['closing' => 0, 'cancelled' => 20000, 'payment_state' => 'cancelled']);
+    ])->toBe(['closing' => 0, 'cancelled_in' => 20000, 'cancelled_out' => 0, 'payment_state' => 'cancelled']);
 });
 
 test('a cancelled credit payment is not counted on the credit tab', function () {

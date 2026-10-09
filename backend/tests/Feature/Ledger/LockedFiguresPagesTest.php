@@ -34,12 +34,13 @@ test('my records: the statement totals, the cancelled amount and the row count',
         'expenditure' => $s['total_expenditure'],
         'income' => $s['total_income'],
         'liability' => $s['total_liability'],
-        'cancelled' => $s['cancelled'],
+        'cancelled_in' => $s['cancelled_in'],
+        'cancelled_out' => $s['cancelled_out'],
         'rows' => count($s['rows']),
     ])->toBe([
         'in' => 155000, 'out' => 85000, 'closing' => 50000,
         'assets' => 30000, 'expenditure' => 55000, 'income' => 155000, 'liability' => 0,
-        'cancelled' => 50000, 'rows' => 12,
+        'cancelled_in' => 35000, 'cancelled_out' => 15000, 'rows' => 12,
     ]);
 });
 
@@ -68,11 +69,11 @@ test('reports page: the statement figures', function () {
         'in' => $report['total_in'], 'out' => $report['total_out'], 'closing' => $report['closing_balance'],
         'assets' => $report['total_assets'], 'expenditure' => $report['total_expenditure'],
         'income' => $report['total_income'], 'liability' => $report['total_liability'],
-        'cancelled' => $report['cancelled'], 'rows' => count($report['rows']),
+        'cancelled_in' => $report['cancelled_in'], 'cancelled_out' => $report['cancelled_out'], 'rows' => count($report['rows']),
     ])->toBe([
         'in' => 155000, 'out' => 85000, 'closing' => 50000,
         'assets' => 30000, 'expenditure' => 55000, 'income' => 155000, 'liability' => 0,
-        'cancelled' => 50000, 'rows' => 12,
+        'cancelled_in' => 35000, 'cancelled_out' => 15000, 'rows' => 12,
     ]);
 });
 

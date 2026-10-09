@@ -55,7 +55,8 @@ interface Statement {
     total_expenditure: number;
     total_income: number;
     total_liability: number;
-    cancelled: number;
+    cancelled_in: number;
+    cancelled_out: number;
     provisional_held_back: number;
     total: number;
     page: number;
@@ -206,11 +207,20 @@ function IndexContent({
     const summary = [
         { label: "Money in", value: statement.total_in, colour: brand },
         { label: "Money out", value: statement.total_out, colour: "#B45309" },
-        ...(statement.cancelled > 0
+        ...(statement.cancelled_in > 0
             ? [
                   {
-                      label: "Cancelled",
-                      value: statement.cancelled,
+                      label: "Cancelled money in",
+                      value: statement.cancelled_in,
+                      colour: textSecondary,
+                  },
+              ]
+            : []),
+        ...(statement.cancelled_out > 0
+            ? [
+                  {
+                      label: "Cancelled money out",
+                      value: statement.cancelled_out,
                       colour: textSecondary,
                   },
               ]
