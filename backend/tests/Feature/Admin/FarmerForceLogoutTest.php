@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../../Support/OrphanedFarmer.php';
+
 use App\Models\AuditLog;
 use App\Models\FarmerProfile;
 use App\Models\User;
@@ -63,12 +65,7 @@ function forceLogoutFarmer(User $admin, FarmerProfile|string $farmer)
 // a farmer profile whose account is gone: the constraint is deferred inside the test's own transaction
 function farmerWithoutLogin(): FarmerProfile
 {
-    $profile = FarmerProfile::factory()->create();
-
-    DB::statement('PRAGMA defer_foreign_keys = ON');
-    DB::table('farmer_profiles')->where('id', $profile->id)->update(['user_id' => 987654]);
-
-    return $profile->fresh();
+    return orphanFarmerProfile(FarmerProfile::factory()->create());
 }
 
 function denyPermission(User $user, string $permission): void

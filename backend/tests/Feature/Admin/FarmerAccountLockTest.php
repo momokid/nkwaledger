@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../../Support/OrphanedFarmer.php';
+
 use App\Models\AuditLog;
 use App\Models\FarmerProfile;
 use App\Models\Notification;
@@ -225,10 +227,7 @@ test('staff and admin accounts cannot be reached on the farmer routes', function
 });
 
 test('a farmer with no linked login is refused with the server\'s own message', function () {
-    $profile = FarmerProfile::factory()->create();
-    DB::statement('PRAGMA defer_foreign_keys = ON');
-    DB::table('farmer_profiles')->where('id', $profile->id)->update(['user_id' => 987654]);
-    $orphan = $profile->fresh();
+    $orphan = orphanFarmerProfile(FarmerProfile::factory()->create());
 
     expect(lockFarmer($this->admin, $orphan)->assertStatus(409)->json('message'))->toBe('Conflict');
     expect(unlockFarmer($this->admin, $orphan)->assertStatus(409)->json('message'))->toBe('Conflict');
