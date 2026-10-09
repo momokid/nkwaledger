@@ -220,15 +220,13 @@ test('signed figures: the statement signs exactly these nine figures', function 
 
 // the signed class figures are the very numbers the page shows; with cancelled records in the books they
 // used to include the correction rows (income 190000, expenditure 70000), which the page never showed
-test('signed figures: with cancelled records, each signed class value equals the displayed total', function () {
+test('signed figures: with cancelled records, each signed value equals the displayed total', function () {
     $s = ($this->statement)();
-    $rows = $s->rows;
-
     expect($s->header->verificationCode)->toBe(($this->expectedCode)('Account Statement', $this->profile, [
         'opening' => 0,
-        // money in and out are signed over every row, corrections included (not changed here)
-        'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $rows)),
-        'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
+        // money in and out are the totals the page shows (they used to be signed over the correction rows too)
+        'in' => $s->totalInMinor,
+        'out' => $s->totalOutMinor,
         'closing' => $s->closingBalanceMinor,
         'page' => 1,
         'assets' => $s->totalAssetsMinor,
@@ -243,8 +241,9 @@ test('signed figures: the cancellation statement signs exactly these nine number
 
     expect($s->header->verificationCode)->toBe(($this->expectedCode)('Account Statement', $this->profile, [
         'opening' => 0,
-        'in' => 170000,
-        'out' => 120000,
+        // signed in 170000 and out 120000 before they matched the page
+        'in' => 155000,
+        'out' => 85000,
         'closing' => 50000,
         'page' => 1,
         'assets' => 30000,

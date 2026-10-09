@@ -55,6 +55,7 @@ class AccountStatementService
         $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
 
         $classTotals = AccountStatement::classTotals($rows);
+        $moneyTotals = AccountStatement::moneyTotals($rows);
 
         return new AccountStatement(
             farmerProfileId: $farmerProfileId,
@@ -67,6 +68,7 @@ class AccountStatementService
             generatedAt: now(),
             rows: $rows,
             classTotals: $classTotals,
+            moneyTotals: $moneyTotals,
             total: $total,
             page: $page,
             perPage: $perPage,
@@ -79,8 +81,8 @@ class AccountStatementService
                 // the page number is in here, so two pages never sign the same
                 figures: [
                     'opening' => $opening,
-                    'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $rows)),
-                    'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
+                    'in' => $moneyTotals['in'],
+                    'out' => $moneyTotals['out'],
                     'closing' => $rows === [] ? $opening : $rows[array_key_last($rows)]->balanceMinor,
                     'page' => $page,
                     'assets' => $classTotals[MoneyClass::Asset->value],

@@ -38,6 +38,8 @@ class AccountStatement
         public readonly array $rows,
         /** @var array<string, int> the one result of classTotals() that the page and the signed figures both read */
         array $classTotals,
+        /** @var array{in: int, out: int} the one result of moneyTotals() that the page and the signed figures both read */
+        array $moneyTotals,
         public readonly int $total,
         public readonly int $page,
         public readonly int $perPage,
@@ -46,8 +48,8 @@ class AccountStatement
         $ordinary = array_filter($rows, fn($row) => $row->cancelState !== 'correction');
         $corrections = array_filter($rows, fn($row) => $row->cancelState === 'correction');
 
-        $this->totalInMinor = array_sum(array_map(fn($row) => $row->moneyInMinor, $ordinary));
-        $this->totalOutMinor = array_sum(array_map(fn($row) => $row->moneyOutMinor, $ordinary));
+        $this->totalInMinor = $moneyTotals['in'];
+        $this->totalOutMinor = $moneyTotals['out'];
 
         $this->totalAssetsMinor = $classTotals[MoneyClass::Asset->value];
         $this->totalExpenditureMinor = $classTotals[MoneyClass::Expenditure->value];
@@ -63,6 +65,21 @@ class AccountStatement
             : $rows[array_key_last($rows)]->balanceMinor;
 
         $this->lastPage = $perPage > 0 ? (int) max(1, ceil($total / $perPage)) : 1;
+    }
+
+    // money in and out over every row except the correction rows
+    /**
+     * @param array<int, AccountStatementRow> $rows
+     * @return array{in: int, out: int}
+     */
+    public static function moneyTotals(array $rows): array
+    {
+        $ordinary = array_filter($rows, fn($row) => $row->cancelState !== 'correction');
+
+        return [
+            'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $ordinary)),
+            'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $ordinary)),
+        ];
     }
 
     // money in plus money out per class, over every row except the correction rows - the
