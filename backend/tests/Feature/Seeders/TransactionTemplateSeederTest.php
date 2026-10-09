@@ -82,7 +82,7 @@ it('can run twice without duplicating rows', function () {
     $duplicated = TransactionTemplate::query()
         ->selectRaw('slug, COUNT(*) as total')
         ->groupBy('slug')
-        ->having('total', '>', 1)
+        ->havingRaw('COUNT(*) > 1')
         ->count();
 
     expect($duplicated)->toBe(0);
