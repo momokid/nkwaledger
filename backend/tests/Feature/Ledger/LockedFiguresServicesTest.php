@@ -121,8 +121,8 @@ test('held back: only the live provisional sale is held back on the statement an
 test('income and expenditure: income, expense, loss, net, cash collected and cash paid out', function () {
     $r = ($this->incomeReport)();
 
-    // cancelled records count as zero. Expense includes the animal purchase (EXPENSE type, today's rule),
-    // and income includes the whole credit sale (earned), while cash collected has only the 200 paid
+    // cancelled records count as zero. Expense leaves out the animal purchase (an asset gained, 300.00; it
+    // used to be counted, giving expense 70000 and net 68000), and income includes the whole credit sale (earned), while cash collected has only the 200 paid
     expect([
         'income' => $r->totalIncomeMinor,
         'expense' => $r->totalExpenseMinor,
@@ -133,9 +133,9 @@ test('income and expenditure: income, expense, loss, net, cash collected and cas
         'held_back' => $r->provisionalHeldBackMinor,
     ])->toBe([
         'income' => 150000,
-        'expense' => 70000,
+        'expense' => 40000,
         'loss' => 12000,
-        'net' => 68000,
+        'net' => 98000,
         'cash_collected' => 120000,
         'cash_paid_out' => 70000,
         'held_back' => 0,
@@ -192,7 +192,7 @@ test('signed figures: income and expenditure signs exactly income, expense and l
 
     expect($header->verificationCode)->toBe(($this->expectedCode)('Income and Expenditure', $this->profile, [
         'income' => 150000,
-        'expense' => 70000,
+        'expense' => 40000, // was 70000 before the animal purchase left the expense
         'loss' => 12000,
     ]));
 });

@@ -34,6 +34,7 @@ class RegionDetailController extends Controller
 
         $expenseByFarmer = Transaction::query()
             ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeStockPurchases($query))
             ->whereIn('farmer_profile_id', $farmers->pluck('id'))
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)

@@ -43,6 +43,7 @@ class AdminAnalyticsService
 
         $expenseByFarmer = Transaction::query()
             ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeStockPurchases($query))
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
             ->where('transaction_type', 'EXPENSE')
@@ -192,6 +193,7 @@ class AdminAnalyticsService
             ->where('ledger_accounts.is_settlement', false)
             ->where('transactions.is_provisional', false)
             ->tap(fn($query) => Transaction::excludeCancelled($query))
+            ->tap(fn($query) => Transaction::excludeStockPurchases($query))
             ->where(fn($query) => $query
                 ->where(fn($income) => $income
                     ->where('transactions.transaction_type', Transaction::INCOME)

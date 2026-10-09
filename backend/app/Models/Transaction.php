@@ -165,6 +165,17 @@ class Transaction extends Model
             ->whereColumn('reversal.reverses_transaction_id', $column));
     }
 
+    // buying stock is an asset gained, not an expense: left out of every expense and net figure
+    public static function excludeStockPurchases(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
+    {
+        return $query->whereNotExists(fn($sub) => $sub
+            ->select(DB::raw(1))
+            ->from('transaction_templates')
+            ->whereColumn('transaction_templates.id', "{$table}.transaction_template_id")
+            ->where('transaction_templates.is_stock_purchase', true)
+            ->where("{$table}.transaction_type", self::EXPENSE));
+    }
+
     public function scopeNotCancelled(Builder $query): Builder
     {
         return self::excludeCancelled($query, $this->qualifyColumn('id'));

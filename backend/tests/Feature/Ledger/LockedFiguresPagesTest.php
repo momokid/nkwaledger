@@ -83,7 +83,9 @@ test('reports page: the income and expenditure figures', function () {
     expect([
         'income' => $report['total_income'], 'expense' => $report['total_expense'], 'loss' => $report['total_loss'],
         'net' => $report['net'], 'cash_collected' => $report['cash_collected'], 'cash_paid_out' => $report['cash_paid_out'],
-    ])->toBe(['income' => 150000, 'expense' => 70000, 'loss' => 12000, 'net' => 68000, 'cash_collected' => 120000, 'cash_paid_out' => 70000]);
+    // the animal purchase is an asset gained, so expense is 40000 (was 70000) and net 98000 (was 68000);
+    // cash paid out still has the 300.00 that left the farmer's hand
+    ])->toBe(['income' => 150000, 'expense' => 40000, 'loss' => 12000, 'net' => 98000, 'cash_collected' => 120000, 'cash_paid_out' => 70000]);
 });
 
 test('reports page for staff: the trial balance totals', function () {
@@ -144,7 +146,7 @@ test('print view: the statement totals and the three class lines', function () {
 test('print view: the income and expenditure sections', function () {
     $this->actingAs($this->farmerUser)->get("/my-reports/print?kind=income&{$this->range}")
         ->assertOk()
-        ->assertSeeInOrder(['What came in', '1,500.00', 'What went out', '700.00', 'What was lost', '120.00'], false);
+        ->assertSeeInOrder(['What came in', '1,500.00', 'What went out', '400.00', 'What was lost', '120.00'], false);
 });
 
 // --- farmer dashboard ---
@@ -152,11 +154,11 @@ test('print view: the income and expenditure sections', function () {
 test('farmer dashboard: income, expense, net, cash collected and cash paid out', function () {
     $summary = ($this->props)($this->farmerUser, '/farmer/dashboard')['summary'];
 
-    // net is income minus expense minus loss: 150000 - 70000 - 12000 (it was 80000 before the loss counted)
+    // net is income minus expense minus loss: 150000 - 40000 - 12000 (the 300.00 animal purchase is an asset, not an expense)
     expect([
         'income' => $summary['total_income'], 'expense' => $summary['total_expense'], 'net' => $summary['net'],
         'cash_collected' => $summary['cash_collected'], 'cash_paid_out' => $summary['cash_paid_out'],
-    ])->toBe(['income' => 150000, 'expense' => 70000, 'net' => 68000, 'cash_collected' => 120000, 'cash_paid_out' => 70000]);
+    ])->toBe(['income' => 150000, 'expense' => 40000, 'net' => 98000, 'cash_collected' => 120000, 'cash_paid_out' => 70000]);
 });
 
 test('farmer dashboard: the loss line and the recent list without the cancelled records', function () {
@@ -180,8 +182,8 @@ test('my farm: income, expense, loss, net, sold and stock for the unit', functio
         'income' => $analysis['total_income'], 'expense' => $analysis['total_expense'],
         'loss' => $analysis['total_loss'], 'net' => $analysis['net'],
         'sold' => $analysis['produce_quantity_sold'], 'stock' => $analysis['current_stock'],
-    ])// net was 80000 before the loss counted
-    ->toBe(['income' => 150000, 'expense' => 70000, 'loss' => 12000, 'net' => 68000, 'sold' => '0', 'stock' => '98']);
+    ])// expense was 70000 and net 68000 before the animal purchase was left out of the expense
+    ->toBe(['income' => 150000, 'expense' => 40000, 'loss' => 12000, 'net' => 98000, 'sold' => '0', 'stock' => '98']);
 });
 
 // --- admin region detail and approval queue ---

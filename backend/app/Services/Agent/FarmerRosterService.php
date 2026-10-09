@@ -127,6 +127,7 @@ class FarmerRosterService
     {
         return (int) Transaction::query()
             ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeStockPurchases($query))
             ->whereIn('farmer_profile_id', $farmerIds)
             ->where('transaction_type', $type)
             ->where('is_provisional', false)
