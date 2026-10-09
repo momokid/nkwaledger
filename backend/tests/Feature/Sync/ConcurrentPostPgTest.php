@@ -94,4 +94,4 @@ test('a web post and a sync post of the same record, at the same moment, leave o
     } finally {
         Artisan::call('migrate:fresh', ['--force' => true]);
     }
-});
+})->group('sequential-pg');
