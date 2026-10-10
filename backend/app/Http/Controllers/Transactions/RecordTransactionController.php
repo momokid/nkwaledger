@@ -289,7 +289,7 @@ class RecordTransactionController extends Controller
         return TransactionTemplate::query()
             ->where('is_active', true)
             // a farmer never cancels their own record
-            ->where('transaction_type', '!=', Transaction::ADJUSTMENT)
+            ->whereNotIn('transaction_type', Transaction::NOT_PICKABLE)
             ->where(fn($query) => $query
                 ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
                 // some things are true on every farm, so they belong to no category

@@ -81,6 +81,7 @@ class FarmerRosterService
     {
         return Transaction::query()
             ->live()
+            ->tap(fn($query) => Transaction::withoutLoanRecords($query))
             ->whereIn('farmer_profile_id', $farmerIds)
             ->selectRaw('farmer_profile_id, MAX(transaction_date) as last_activity')
             ->groupBy('farmer_profile_id')

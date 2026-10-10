@@ -104,6 +104,7 @@ class MyFarmController extends Controller
         $totals = Transaction::query()
             ->notCancelled()
             ->tap(fn($query) => Transaction::excludeStockPurchases($query))
+            ->whereIn('transaction_type', Transaction::FIGURE_TYPES)
             ->where('farmer_profile_id', $farmerId)
             ->where('farm_unit_id', $farmUnitId)
             ->whereBetween('transaction_date', [$from, $to])
