@@ -112,6 +112,8 @@ class ReportController extends Controller
                 'cancel_state' => $row->cancelState,
                 'value_lost' => $row->valueLostMinor,
                 'money_class' => $row->moneyClass?->value,
+                'is_non_cash' => $row->isNonCash,
+                'non_cash' => $row->nonCashMinor,
             ]),
             'opening_balance' => $report->openingBalanceMinor,
             'closing_balance' => $report->closingBalanceMinor,
@@ -121,6 +123,8 @@ class ReportController extends Controller
             'total_expenditure' => $report->totalExpenditureMinor,
             'total_income' => $report->totalIncomeMinor,
             'total_liability' => $report->totalLiabilityMinor,
+            'total_loan_repayment' => $report->totalLoanRepaymentMinor,
+            'non_cash' => $report->nonCashMinor,
             'cancelled_in' => $report->cancelledInMinor,
             'cancelled_out' => $report->cancelledOutMinor,
             'provisional_held_back' => $report->provisionalHeldBackMinor,
@@ -233,22 +237,26 @@ class ReportController extends Controller
 
         $handle = fopen('php://temp', 'w+');
 
-        fputcsv($handle, ['Date', 'Reference', 'Description', 'Money In (GHS)', 'Money Out (GHS)', 'Balance (GHS)', 'Type']);
-        fputcsv($handle, ['', '', 'Brought forward', '', '', Money::toDecimal($report['opening_balance']), '']);
+        // the non-cash column exists only when a row has a non-cash amount to put in it
+        $wide = collect($report['rows'])->contains(fn($row) => $row['is_non_cash']);
+        $cells = fn(array $cells, string $extra = '') => $wide ? [...$cells, $extra] : $cells;
+
+        fputcsv($handle, $cells(['Date', 'Reference', 'Description', 'Money In (GHS)', 'Money Out (GHS)', 'Balance (GHS)', 'Type'], 'Non-cash'));
+        fputcsv($handle, $cells(['', '', 'Brought forward', '', '', Money::toDecimal($report['opening_balance']), '']));
 
         foreach ($report['rows'] as $row) {
-            fputcsv($handle, [
+            fputcsv($handle, $cells([
                 $row['date'],
                 $row['reference'],
                 CsvCell::text($row['description']),
                 $row['money_in'] > 0 ? Money::toDecimal($row['money_in']) : '',
                 $row['money_out'] > 0 ? Money::toDecimal($row['money_out']) : '',
                 Money::toDecimal($row['balance']),
-                $row['money_class'] ? MoneyClass::from($row['money_class'])->name : '',
-            ]);
+                $row['money_class'] ? MoneyClass::from($row['money_class'])->label() : '',
+            ], $row['is_non_cash'] ? Money::toDecimal($row['non_cash']) : ''));
         }
 
-        fputcsv($handle, [
+        fputcsv($handle, $cells([
             '',
             '',
             'Totals',
@@ -256,16 +264,24 @@ class ReportController extends Controller
             Money::toDecimal($report['total_out']),
             Money::toDecimal($report['closing_balance']),
             '',
-        ]);
+        ]));
 
-        fputcsv($handle, ['', '', 'Of which: Income', Money::toDecimal($report['total_income']), '', '', '']);
+        fputcsv($handle, $cells(['', '', 'Of which: Income', Money::toDecimal($report['total_income']), '', '', '']));
 
         if ($report['total_liability'] > 0) {
-            fputcsv($handle, ['', '', 'Of which: Liability', Money::toDecimal($report['total_liability']), '', '', '']);
+            fputcsv($handle, $cells(['', '', 'Of which: Liability', Money::toDecimal($report['total_liability']), '', '', '']));
         }
 
-        fputcsv($handle, ['', '', 'Of which: Assets', '', Money::toDecimal($report['total_assets']), '', '']);
-        fputcsv($handle, ['', '', 'Of which: Expenditure', '', Money::toDecimal($report['total_expenditure']), '', '']);
+        fputcsv($handle, $cells(['', '', 'Of which: Assets', '', Money::toDecimal($report['total_assets']), '', '']));
+        fputcsv($handle, $cells(['', '', 'Of which: Expenditure', '', Money::toDecimal($report['total_expenditure']), '', '']));
+
+        if ($report['total_loan_repayment'] > 0) {
+            fputcsv($handle, $cells(['', '', 'Of which: Loan repayment', '', Money::toDecimal($report['total_loan_repayment']), '', '']));
+        }
+
+        if ($report['non_cash'] > 0) {
+            fputcsv($handle, $cells(['', '', 'Non-cash', '', '', '', ''], Money::toDecimal($report['non_cash'])));
+        }
 
         rewind($handle);
         $csv = stream_get_contents($handle);
