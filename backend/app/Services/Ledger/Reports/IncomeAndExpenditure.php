@@ -44,7 +44,13 @@ class IncomeAndExpenditure
         $this->totalExpenseMinor = $this->sum($expenseRows);
         $this->totalLossMinor = $this->sum($lossRows);
 
-        $this->netMinor = $this->totalIncomeMinor - $this->totalExpenseMinor - $this->totalLossMinor;
+        $this->netMinor = self::netOf($this->totalIncomeMinor, $this->totalExpenseMinor, $this->totalLossMinor);
+    }
+
+    // the one definition of net everywhere in the app: income minus expense minus loss
+    public static function netOf(int $income, int $expense, int $loss): int
+    {
+        return $income - $expense - $loss;
     }
 
     /** @param array<int, IncomeLine> $rows */

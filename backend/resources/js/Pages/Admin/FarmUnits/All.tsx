@@ -3,6 +3,7 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
+import { compressImage } from "@/lib/compressImage";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
 interface Option {
@@ -133,6 +134,7 @@ function AllContent({
         name: "",
         capacity: "",
         capacity_unit: "",
+        images: [] as File[],
     });
 
     const matches = (farmer: FarmerOption, term: string) => {
@@ -551,6 +553,37 @@ function AllContent({
                                 </p>
                             )}
                         </div>
+                    </div>
+
+                    <div>
+                        <label style={labelStyle}>
+                            Photos of the unit (1 to 3)
+                        </label>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={async (event) =>
+                                form.setData(
+                                    "images",
+                                    await Promise.all(
+                                        Array.from(
+                                            event.target.files ?? [],
+                                        ).map(compressImage),
+                                    ),
+                                )
+                            }
+                            style={fieldStyle}
+                        />
+                        {(form.errors.images ||
+                            errors.images ||
+                            errors["images.0"]) && (
+                            <p style={errorStyle}>
+                                {form.errors.images ||
+                                    errors.images ||
+                                    errors["images.0"]}
+                            </p>
+                        )}
                     </div>
 
                     <button

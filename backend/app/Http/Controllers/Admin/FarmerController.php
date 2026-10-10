@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CompleteFarmerProfileRequest;
+use App\Http\Requests\Admin\RejectionRequest;
 use App\Http\Requests\Admin\StoreFarmerIdentityRequest;
 use App\Http\Requests\Admin\StoreFarmerRequest;
 use App\Http\Requests\Admin\UpdateFarmerRequest;
@@ -13,15 +14,23 @@ use App\Models\FarmerProfile;
 use App\Models\FarmType;
 use App\Models\User;
 use App\Services\AccessControlService;
+use App\Services\AccountLockService;
 use App\Services\AuditService;
+use App\Services\ForcedLogoutService;
+use App\Services\FarmerKycService;
 use App\Services\OtpService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,6 +40,7 @@ class FarmerController extends Controller
         private readonly AccessControlService $access,
         private readonly AuditService $audit,
         private readonly OtpService $otp,
+        private readonly FarmerKycService $kyc,
     ) {}
 
     public function index(Request $request): Response
@@ -39,7 +49,7 @@ class FarmerController extends Controller
 
         return Inertia::render('Admin/Farmers/Index', [
             'farmers' => $this->visibleTo($user)
-                ->with(['user:id,surname,first_name,phone,phone_verified_at', 'community:id,name', 'assignedAgent:id,surname,first_name'])
+                ->with(['user:id,surname,first_name,phone,phone_verified_at,locked_at', 'community:id,name', 'assignedAgent:id,surname,first_name'])
                 ->orderByDesc('id')
                 ->paginate(15)
                 ->withQueryString()
@@ -49,6 +59,9 @@ class FarmerController extends Controller
                     'name' => "{$profile->user?->surname} {$profile->user?->first_name}",
                     'phone' => $profile->user?->phone,
                     'phone_verified' => $profile->user?->phone_verified_at !== null,
+                    // an account that is gone has no sessions left to end
+                    'has_login' => $profile->user !== null,
+                    'locked' => $profile->user?->isLocked() ?? false,
                     'community' => $profile->community?->name,
                     'agent' => $profile->assignedAgent
                         ? "{$profile->assignedAgent->surname} {$profile->assignedAgent->first_name}"
@@ -63,6 +76,10 @@ class FarmerController extends Controller
                 'update' => $this->access->can($user, 'farmers.update'),
                 'verify' => $this->access->can($user, 'farmers.verify'),
                 'assign' => $user->hasRole('admin'),
+                // the route is an admin's, so the button is only ever offered to one
+                'force_logout' => $user->hasRole('admin') && $this->access->can($user, 'farmers.force-logout'),
+                'lock' => $user->hasRole('admin') && $this->access->can($user, 'farmers.lock'),
+                'unlock' => $user->hasRole('admin') && $this->access->can($user, 'farmers.unlock'),
             ],
             'agents' => $this->agentOptions($user),
             'communities' => Community::orderBy('name')->get(['id', 'name']),
@@ -112,14 +129,23 @@ class FarmerController extends Controller
                 'has_identity' => $farmer->identity_number_hash !== null,
                 'identity_verified_at' => $farmer->identity_verified_at,
                 'identity_verified_by' => $farmer->identityVerifiedBy?->surname,
+                'identity_photo_url' => $farmer->identity_photo_path
+                    ? route('farmers.identity.photo', $farmer, false)
+                    : null,
+                'identity_rejected_reason' => $farmer->identity_rejected_reason,
                 'registered_by' => $farmer->registeredBy?->surname,
                 'is_active' => $farmer->is_active,
             ],
             ...$this->frame($request),
             'permissions' => [
                 'update' => $this->access->can($request->user(), 'farmers.update'),
-                'verify' => $this->access->can($request->user(), 'farmers.verify')
-                    && $farmer->conflictedUserId() !== $request->user()->id,
+                // an agent submits for their own farmers, so the document form is theirs too
+                'capture_identity' => $this->kyc->maySubmitFor($farmer, $request->user()),
+                // approving is admin-only, and never for the person who submitted or holds the farmer
+                'verify' => $request->user()->hasRole('admin')
+                    && $this->access->can($request->user(), 'farmers.verify')
+                    && $farmer->conflictedUserId() !== $request->user()->id
+                    && $farmer->identity_submitted_by !== $request->user()->id,
                 'assign' => $request->user()->hasRole('admin'),
             ],
             'agents' => $this->agentOptions($request->user()),
@@ -264,48 +290,117 @@ class FarmerController extends Controller
         return back()->with('success', 'The farmer details are saved.');
     }
 
+    // the scope and permission rules live in FarmerKycService, and the request checks them first
     public function storeIdentity(StoreFarmerIdentityRequest $request, FarmerProfile $farmer): RedirectResponse
     {
-        $this->guardVisibility($request->user(), $farmer);
-
         $data = $request->validated();
 
-        // capturing is not verifying, so any earlier verification is cleared with the document
-        $farmer->forceFill([
-            'identity_type' => $data['identity_type'],
-            'identity_number' => $data['identity_number'],
-            'identity_verified_at' => null,
-            'identity_verified_by' => null,
-        ])->save();
-
-        $this->audit->recordOn('farmer.identity_captured', $farmer);
+        $this->kyc->submit($farmer, $request->user(), $data['identity_type'], $data['identity_number'], $request->file('photo'));
 
         return back()->with('success', 'The document is saved. It still needs to be verified.');
     }
 
+    // ends every session and remember-me token this farmer has, on every device
+    public function forceLogout(Request $request, FarmerProfile $farmer, ForcedLogoutService $logout): JsonResponse
+    {
+        $this->guardVisibility($request->user(), $farmer);
+
+        $account = $farmer->user;
+
+        if ($account === null) {
+            return response()->json(['message' => HttpResponse::$statusTexts[HttpResponse::HTTP_CONFLICT]], HttpResponse::HTTP_CONFLICT);
+        }
+
+        // locking yourself out is never the intent, and with one admin it cannot be undone
+        if ($request->user()->is($account)) {
+            throw new AccessDeniedHttpException('You cannot change your own account here.');
+        }
+
+        // only an account that is a farmer is this route's to act on
+        abort_unless($account->hasRole('farmer'), 403);
+
+        $logout->signOutEverywhere($account);
+
+        $this->audit->recordOn('farmer.forced_logout', $farmer);
+
+        return response()->json(['status' => 'signed_out']);
+    }
+
+    public function lock(Request $request, FarmerProfile $farmer, AccountLockService $locks): JsonResponse
+    {
+        $account = $this->lockableAccount($request, $farmer);
+
+        if ($account->isLocked()) {
+            return $this->conflict();
+        }
+
+        $locks->lock($farmer, $account, $request->user());
+        $this->audit->recordOn('farmer.locked', $farmer);
+
+        return response()->json(['status' => 'locked']);
+    }
+
+    public function unlock(Request $request, FarmerProfile $farmer, AccountLockService $locks): JsonResponse
+    {
+        $account = $this->lockableAccount($request, $farmer);
+
+        if (! $account->isLocked()) {
+            return $this->conflict();
+        }
+
+        $locks->unlock($farmer, $account, $request->user());
+        $this->audit->recordOn('farmer.unlocked', $farmer);
+
+        return response()->json(['status' => 'unlocked']);
+    }
+
+    // the farmer's account if this admin may lock it; every other case ends the request here
+    private function lockableAccount(Request $request, FarmerProfile $farmer): User
+    {
+        $this->guardVisibility($request->user(), $farmer);
+
+        $account = $farmer->user;
+
+        if ($account === null) {
+            throw new HttpResponseException($this->conflict());
+        }
+
+        if ($request->user()->is($account)) {
+            throw new AccessDeniedHttpException('You cannot change your own account here.');
+        }
+
+        abort_unless($account->hasRole('farmer'), 403);
+
+        return $account;
+    }
+
+    private function conflict(): JsonResponse
+    {
+        return response()->json(['message' => HttpResponse::$statusTexts[HttpResponse::HTTP_CONFLICT]], HttpResponse::HTTP_CONFLICT);
+    }
+
+    // only the admin route reaches this; the service refuses anyone else and the submitter
     public function verifyIdentity(Request $request, FarmerProfile $farmer): RedirectResponse
     {
-        if ($farmer->identity_number_hash === null) {
-            throw ValidationException::withMessages([
-                'identity_number' => 'There is no document on this account yet. Please capture one first.',
-            ]);
-        }
-
-        // whoever serves this farmer cannot also vouch for their document
-        if ($farmer->conflictedUserId() === $request->user()->id) {
-            throw ValidationException::withMessages([
-                'identity_number' => 'Someone other than the person who holds this farmer needs to verify the document.',
-            ]);
-        }
-
-        $farmer->forceFill([
-            'identity_verified_at' => now(),
-            'identity_verified_by' => $request->user()->id,
-        ])->save();
-
-        $this->audit->recordOn('farmer.identity_verified', $farmer);
+        $this->kyc->approve($farmer, $request->user());
 
         return back()->with('success', 'The document is verified.');
+    }
+
+    // an admin sends a submission back with a reason, the same people rules as approving
+    public function rejectIdentity(RejectionRequest $request, FarmerProfile $farmer): RedirectResponse
+    {
+        $this->kyc->reject($farmer, $request->user(), $request->validated('reason'));
+
+        return back()->with('success', 'ID verification rejected.');
+    }
+
+    // private disk, so this is the only way to the file: the agent who holds the farmer, or an admin
+    public function identityPhoto(Request $request, FarmerProfile $farmer): \Illuminate\Http\Response
+    {
+        abort_unless($farmer->identity_photo_path !== null && $this->kyc->mayViewPhotoOf($farmer, $request->user()), 404);
+
+        return response(Storage::disk(config('filesystems.photo_disk'))->get($farmer->identity_photo_path), 200, ['Content-Type' => 'image/webp']);
     }
 
     // a farmer account with no profile, which is what signing up on its own leaves behind
@@ -332,11 +427,11 @@ class FarmerController extends Controller
             ]);
     }
 
-    // the frame and the address the current route group belongs to, so one page serves both
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix)
     private function frame(Request $request): array
     {
-        $name = $request->route()?->getName() ?? '';
-        $group = str_starts_with($name, 'agent.') ? 'agent' : 'admin';
+        $group = $request->user()?->hasRole('admin') ? 'admin' : 'agent';
 
         return [
             'layout' => $group,

@@ -45,12 +45,15 @@ class HandleInertiaRequests extends Middleware
                 'user' => $this->userProps($request),
                 // route names this user may open, so the sidebar can hide the rest
                 'nav'  => fn() => $this->navigation->allowedRouteNames($request->user()),
+                // the whole admin sidebar, built and filtered here so the layout holds no menu of its own
+                'adminMenu' => fn() => $this->navigation->adminMenu($request->user()),
                 // only what this person can actually sign off, so the badge never lies
                 'pendingApprovals' => fn() => $request->user()
                     ? $this->approvals->countFor($request->user())
                     : 0,
                 'unreadNotifications' => fn() => $this->notifications->unreadCountFor($request->user()),
             ],
+            'features' => ['marketplace' => (bool) config('features.marketplace')],
             // one-shot messages any controller can set with ->with(), read once by the layout
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),

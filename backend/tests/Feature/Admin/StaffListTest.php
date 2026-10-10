@@ -3,8 +3,10 @@
 use App\Contracts\SmsProvider;
 use App\Models\OtpCode;
 use App\Models\User;
+use App\Models\UserPermissionDenial;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -105,9 +107,19 @@ test('the page says whether this admin may invite', function () {
 });
 
 test('a viewer without staff.create is told they cannot invite', function () {
+    $denier = User::factory()->create();
     $viewer = User::factory()->create();
-    $viewer->assignRole('agent');
+    $viewer->assignRole('admin');
     $viewer->givePermissionTo('staff.view');
+
+    // the admin role carries staff.create by default (PermissionsSeeder), so an
+    // explicit denial is what actually isolates "has view but not create" now that
+    // role:admin is required just to reach this route
+    UserPermissionDenial::create([
+        'user_id' => $viewer->id,
+        'permission_id' => Permission::where('name', 'staff.create')->value('id'),
+        'denied_by' => $denier->id,
+    ]);
 
     $this->actingAs($viewer)->get('/admin/staff')
         ->assertInertia(fn($page) => $page->where('permissions.create', false));

@@ -126,26 +126,26 @@ test('the page is told which frame to wear', function () {
 });
 
 test('a stock can be added', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload())
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload())
         ->assertSessionDoesntHaveErrors();
 
     expect($this->unit->fresh()->stocks)->toHaveCount(1);
 });
 
 test('adding a stock records who did it', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
 
     expect($this->unit->fresh()->stocks->first()->recorded_by)->toBe($this->agent->id);
 });
 
 test('a new stock is not confirmed', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
 
     expect($this->unit->fresh()->stocks->first()->isConfirmed())->toBeFalse();
 });
 
 test('adding a stock notifies people who can confirm it, except the person who added it', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
 
     expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
         ->where('kind', 'farm_unit_stock.created')
@@ -159,7 +159,7 @@ test('adding a stock notifies people who can confirm it, except the person who a
 test('recording a movement notifies people who can confirm it, except the person who recorded it', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload());
 
     expect(\App\Models\Notification::where('user_id', $this->otherAgent->id)
         ->where('kind', 'farm_unit_stock_movement.created')
@@ -171,7 +171,7 @@ test('recording a movement notifies people who can confirm it, except the person
 });
 
 test('the count starts at the opening quantity once confirmed', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'source' => 'opening_balance',
         'opening_quantity' => 150,
     ]));
@@ -184,7 +184,7 @@ test('the count starts at the opening quantity once confirmed', function () {
 
 // declared stock does not count on nobody's own say-so, "already had it" included
 test('an opening-balance count does not count until confirmed', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'source' => 'opening_balance',
         'opening_quantity' => 150,
     ]));
@@ -199,38 +199,38 @@ test('a stock can be added to a unit that is not checked', function () {
         'farm_type_id' => $this->livestockType->id,
     ]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/stocks", stockPayload())
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$unit->id}/stocks", stockPayload())
         ->assertSessionDoesntHaveErrors();
 
     expect($unit->fresh()->stocks)->toHaveCount(1);
 });
 
 test('an opening quantity above zero is required', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'opening_quantity' => 0,
     ]))->assertSessionHasErrors('opening_quantity');
 });
 
 test('a start date is required', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'started_on' => null,
     ]))->assertSessionHasErrors('started_on');
 });
 
 test('a start date in the future is refused', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'started_on' => now()->addWeek()->toDateString(),
     ]))->assertSessionHasErrors('started_on');
 });
 
 test('an unknown source is refused', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'source' => 'inherited',
     ]))->assertSessionHasErrors('source');
 });
 
 test('a stock the farmer already had can be recorded', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'source' => 'opening_balance',
     ]))->assertSessionDoesntHaveErrors();
 
@@ -312,7 +312,7 @@ test('an agent cannot confirm a stock recorded by another agent', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
         ->assertSessionHasErrors();
 
     expect($stock->fresh()->isConfirmed())->toBeFalse();
@@ -328,7 +328,7 @@ test('an agent can confirm a stock recorded by the farmer', function () {
         'recorded_by' => $farmerUser->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/confirm")
         ->assertSessionDoesntHaveErrors();
 
     expect($stock->fresh()->isConfirmed())->toBeTrue();
@@ -371,7 +371,7 @@ test('confirming a purchased stock also confirms its opening movement', function
 test('a movement can be recorded', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 200]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload())
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload())
         ->assertSessionDoesntHaveErrors();
 
     expect($stock->fresh()->current_quantity)->toBe('195.00');
@@ -380,7 +380,7 @@ test('a movement can be recorded', function () {
 test('an unconfirmed birth does not add to the count yet', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'birth',
         'quantity' => 3,
     ]));
@@ -407,7 +407,7 @@ test('a confirmed birth adds to the count', function () {
 test('a movement records who did it', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload());
 
     expect($stock->movements()->latest('id')->first()->recorded_by)->toBe($this->agent->id);
 });
@@ -415,7 +415,7 @@ test('a movement records who did it', function () {
 test('a new movement is not confirmed', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload());
 
     expect($stock->movements()->latest('id')->first()->isConfirmed())->toBeFalse();
 });
@@ -423,7 +423,7 @@ test('a new movement is not confirmed', function () {
 test('a quantity above zero is required', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'quantity' => 0,
     ]))->assertSessionHasErrors('quantity');
 });
@@ -431,7 +431,7 @@ test('a quantity above zero is required', function () {
 test('a date in the future is refused', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'occurred_on' => now()->addWeek()->toDateString(),
     ]))->assertSessionHasErrors('occurred_on');
 });
@@ -440,7 +440,7 @@ test('a date in the future is refused', function () {
 test('the starting count cannot be chosen as a reason', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'opening',
     ]))->assertSessionHasErrors('reason');
 });
@@ -449,7 +449,7 @@ test('the starting count cannot be chosen as a reason', function () {
 test('a correction needs a direction', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'correction',
         'is_increase' => null,
     ]))->assertSessionHasErrors('is_increase');
@@ -458,7 +458,7 @@ test('a correction needs a direction', function () {
 test('a downward correction takes away', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 100]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'correction',
         'quantity' => 4,
         'is_increase' => false,
@@ -472,7 +472,7 @@ test('a downward correction takes away', function () {
 test('a death cannot take away more than the stock currently has', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'death',
         'quantity' => 15,
     ]))->assertSessionHasErrors('quantity');
@@ -483,7 +483,7 @@ test('a death cannot take away more than the stock currently has', function () {
 test('a sale recorded directly on a stock cannot exceed what it has', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'sale',
         'quantity' => 11,
     ]))->assertSessionHasErrors('quantity');
@@ -492,7 +492,7 @@ test('a sale recorded directly on a stock cannot exceed what it has', function (
 test('a downward correction cannot take away more than the stock has', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'correction',
         'quantity' => 12,
         'is_increase' => false,
@@ -507,7 +507,7 @@ test('nothing can be reported sold, lost, or dead against an unconfirmed purchas
         'opening_quantity' => 10,
     ]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'death',
         'quantity' => 1,
     ]))->assertSessionHasErrors('quantity');
@@ -517,7 +517,7 @@ test('nothing can be reported sold, lost, or dead against an unconfirmed purchas
 test('an addition is not checked against the current quantity', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'birth',
         'quantity' => 999,
     ]))->assertSessionDoesntHaveErrors();
@@ -526,7 +526,7 @@ test('an addition is not checked against the current quantity', function () {
 test('a decrease exactly equal to the current quantity is allowed', function () {
     $stock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id, 'opening_quantity' => 10]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements", movementPayload([
         'reason' => 'death',
         'quantity' => 10,
     ]))->assertSessionDoesntHaveErrors();
@@ -566,7 +566,7 @@ test('an agent cannot confirm a movement recorded by another agent', function ()
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
         ->assertSessionHasErrors();
 
     expect($movement->fresh()->isConfirmed())->toBeFalse();
@@ -577,7 +577,7 @@ test('a movement on another stock is not found here', function () {
     $otherStock = FarmUnitStock::factory()->create(['farm_unit_id' => $this->unit->id]);
     $movement = FarmUnitStockMovement::factory()->create(['farm_unit_stock_id' => $otherStock->id]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/confirm")
         ->assertNotFound();
 });
 
@@ -593,7 +593,7 @@ test('the page lists movements under each stock', function () {
 });
 
 test('the page says what this user may do', function () {
-    $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+    $this->actingAs($this->agent)->get("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
         ->assertInertia(fn($page) => $page->where('permissions.create', true)
             ->where('permissions.confirm', true));
 });
@@ -605,18 +605,18 @@ test('an agent is not offered confirm on a colleague-recorded stock', function (
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
+    $this->actingAs($this->agent)->get("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks")
         ->assertInertia(fn($page) => $page->where('stocks.0.can_confirm', false));
 });
 
 test('expected_ready_on is optional', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'expected_ready_on' => null,
     ]))->assertSessionDoesntHaveErrors('expected_ready_on');
 });
 
 test('expected_ready_on is stored when given', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'expected_ready_on' => '2026-12-01',
     ]));
 
@@ -624,14 +624,14 @@ test('expected_ready_on is stored when given', function () {
 });
 
 test('expected_ready_on cannot be before the start date', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'started_on' => '2026-06-01',
         'expected_ready_on' => '2026-05-01',
     ]))->assertSessionHasErrors('expected_ready_on');
 });
 
 test('an invalid expected_ready_on is refused', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'expected_ready_on' => 'not-a-date',
     ]))->assertSessionHasErrors('expected_ready_on');
 });
@@ -721,7 +721,7 @@ test('an agent cannot reject a stock recorded by another agent', function () {
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/reject", [
         'reason' => 'Wrong number',
     ])->assertSessionHasErrors();
 
@@ -749,7 +749,7 @@ test('the person who recorded a movement cannot reject it', function () {
         'recorded_by' => $this->agent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
         'reason' => 'Wrong reason',
     ])->assertSessionHasErrors();
 });
@@ -762,7 +762,7 @@ test('an agent cannot reject a movement recorded by another agent', function () 
         'recorded_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$stock->id}/movements/{$movement->id}/reject", [
         'reason' => 'Wrong reason chosen',
     ])->assertSessionHasErrors();
 
@@ -831,7 +831,7 @@ test('rejecting a movement notifies whoever recorded it', function () {
 // declare -> confirm lifecycle this now shares with a real farmer-recorded purchase ---
 
 test('a purchase declaration posts a real transaction, not just a bare stock row', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload())
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload())
         ->assertSessionDoesntHaveErrors();
 
     $transaction = \App\Models\Transaction::where('farmer_profile_id', $this->farmer->id)->first();
@@ -843,7 +843,7 @@ test('a purchase declaration posts a real transaction, not just a bare stock row
 });
 
 test('the auto-created stock carries the acquisition cost from the transaction amount', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'acquisition_cost' => 500,
     ]));
 
@@ -851,7 +851,7 @@ test('the auto-created stock carries the acquisition cost from the transaction a
 });
 
 test('a purchase paid in cash settles against cash, not credit', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload());
 
     $transaction = \App\Models\Transaction::where('farmer_profile_id', $this->farmer->id)->first();
 
@@ -860,13 +860,13 @@ test('a purchase paid in cash settles against cash, not credit', function () {
 });
 
 test('cash payment requires saying where the money went', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'settlement_account_id' => null,
     ]))->assertSessionHasErrors('settlement_account_id');
 });
 
 test('a purchase can be put on credit instead of paid in cash', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'is_credit' => true,
         'settlement_account_id' => null,
     ]))->assertSessionDoesntHaveErrors();
@@ -879,7 +879,7 @@ test('a purchase can be put on credit instead of paid in cash', function () {
 });
 
 test('a credit purchase can be partially settled, same as any other credit purchase', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'is_credit' => true,
         'settlement_account_id' => null,
     ]));
@@ -903,7 +903,7 @@ test('a credit purchase can be partially settled, same as any other credit purch
 // "already had it" is an asset gained without cash leaving anyone's hand, so it credits
 // owner funds and never offers - or needs - a cash/credit choice at all
 test('an opening-balance declaration posts against Stated Capital, never cash or credit', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'source' => 'opening_balance',
         'settlement_account_id' => null,
     ]))->assertSessionDoesntHaveErrors();
@@ -923,12 +923,12 @@ test('a farm unit whose category has no matching template is refused clearly', f
         'farm_type_id' => $type->id,
     ]);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/stocks", stockPayload())
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$unit->id}/stocks", stockPayload())
         ->assertSessionHasErrors('source');
 });
 
 test('a zero-cost declaration is refused, same as a real purchase', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'acquisition_cost' => 0,
     ]))->assertSessionHasErrors('acquisition_cost');
 });
@@ -936,7 +936,7 @@ test('a zero-cost declaration is refused, same as a real purchase', function () 
 // the whole point: declared stock now goes through the same confirm/reject queue a real
 // farmer-recorded purchase already uses, end to end over HTTP
 test('a declared purchase counts only after an admin confirms it, then blocks a second confirm', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'opening_quantity' => 75,
     ]));
 
@@ -954,7 +954,7 @@ test('a declared purchase counts only after an admin confirms it, then blocks a 
 });
 
 test('a declared purchase can be rejected instead, and never counts', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'opening_quantity' => 75,
     ]));
 
@@ -969,13 +969,13 @@ test('a declared purchase can be rejected instead, and never counts', function (
 });
 
 test('a purchase declaration adds to the most recently started active batch instead of starting a new one', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'opening_quantity' => 100,
     ]));
     $first = $this->unit->fresh()->stocks->first();
     $this->actingAs($this->admin)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks/{$first->id}/confirm");
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units/{$this->unit->id}/stocks", stockPayload([
         'opening_quantity' => 40,
     ]));
 

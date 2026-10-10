@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\KioskProductStatus;
 use App\Models\CatalogProduct;
 use App\Models\Community;
 use App\Models\District;
@@ -8,16 +7,17 @@ use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\Kiosk;
 use App\Models\KioskProduct;
+use App\Enums\KioskProductStatus;
 use App\Models\Order;
-use App\Models\ProductCategory;
-use App\Models\ProductUnit;
-use App\Models\Region;
 use App\Models\Supplier;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Support\Facades\Storage;
 
+// the browse index itself moved to Market Center (Step 8) - see MarketCenterTest.php
+// for the product-grid/photo/ranking/category coverage that used to live here. What
+// remains here is what did NOT move: the redirect, and the kiosk-detail/order flow,
+// which are unchanged pages behind unchanged routes
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
@@ -31,33 +31,9 @@ test('a guest is redirected to login', function () {
     $this->get('/my-marketplace')->assertRedirect('/login');
 });
 
-// a buyer with the permission but no FarmerProfile - a supplier browsing as a buyer,
-// most concretely - can still browse; only the order form (which needs a farm unit
-// to charge) degrades to hidden, never a hard 403
-test('a user without a farmer profile can still browse, with no farm units to order against', function () {
-    $supplier = User::factory()->create();
-    $supplier->assignRole('supplier');
-
-    $this->actingAs($supplier)->get('/my-marketplace')
-        ->assertOk()
-        ->assertInertia(fn($page) => $page
-            ->component('MyMarketplace/Index')
-            ->where('farmUnits', []));
-});
-
-test('a user without the marketplace-browse permission is forbidden', function () {
-    $vet = User::factory()->create();
-    $vet->assignRole('vet');
-
-    $this->actingAs($vet)->get('/my-marketplace')->assertForbidden();
-});
-
-test('a farmer with no matching products sees an empty page, not an error', function () {
+test('the old browse destination redirects to Market Center', function () {
     $this->actingAs($this->farmerUser)->get('/my-marketplace')
-        ->assertOk()
-        ->assertInertia(fn($page) => $page
-            ->component('MyMarketplace/Index')
-            ->where('products.data', []));
+        ->assertRedirect('/market-center');
 });
 
 function makeKioskWithProduct(FarmerProfile $farmer, array $productOverrides = []): array
@@ -86,68 +62,11 @@ function makeKioskWithProduct(FarmerProfile $farmer, array $productOverrides = [
     return [$kiosk, $product];
 }
 
-test('the product grid shows the product\'s real photo, price, and kiosk', function () {
-    Storage::fake('public');
-
-    [$kiosk, $product] = makeKioskWithProduct($this->profile, ['price' => 3200]);
-    $product->images()->create(['path' => 'kiosk-products/sample.jpg']);
-
-    $this->actingAs($this->farmerUser)->get('/my-marketplace')
-        ->assertInertia(fn($page) => $page
-            ->where('products.data.0.kiosk_product_id', $product->id)
-            ->where('products.data.0.kiosk_uuid', $kiosk->uuid)
-            ->where('products.data.0.kiosk_name', $kiosk->name)
-            ->where('products.data.0.distance_label', 'Your district')
-            ->where('products.data.0.price_minor', 3200)
-            ->where('products.data.0.image_url', fn($url) => str_contains($url, 'kiosk-products/sample.jpg')));
-});
-
-test('a product with no photo shows a null image_url, never a fabricated one', function () {
-    [, $product] = makeKioskWithProduct($this->profile);
-
-    $this->actingAs($this->farmerUser)->get('/my-marketplace')
-        ->assertInertia(fn($page) => $page->where('products.data.0.image_url', null));
-});
-
-test('a kiosk contributing several products contributes one grid row per product', function () {
+test('a user without marketplace-browse.view cannot view a kiosk\'s storefront', function () {
+    $bare = User::factory()->create();
     [$kiosk] = makeKioskWithProduct($this->profile);
-    KioskProduct::factory()->priceConfirmed()->create([
-        'kiosk_id' => $kiosk->id,
-        'catalog_product_id' => CatalogProduct::factory()->create()->id,
-        'in_stock' => true,
-        'status' => KioskProductStatus::Active,
-    ]);
 
-    $this->actingAs($this->farmerUser)->get('/my-marketplace')
-        ->assertInertia(fn($page) => $page->where('products.data', fn($rows) => count($rows) === 2));
-});
-
-test('the category query param narrows the product grid', function () {
-    $matchingCategory = ProductCategory::factory()->create();
-    $otherCategory = ProductCategory::factory()->create();
-
-    [, $matchingProduct] = makeKioskWithProduct($this->profile);
-    $matchingProduct->catalogProduct()->update(['category_id' => $matchingCategory->id]);
-
-    $district = District::where('id', $this->profile->fresh()->community->district_id)->first();
-    $user = User::factory()->create();
-    $supplier = Supplier::factory()->create(['user_id' => $user->id]);
-    $otherKiosk = Kiosk::factory()->confirmed()->create([
-        'supplier_id' => $supplier->id,
-        'district_id' => $district->id,
-        'region_id' => $district->region_id,
-    ]);
-    KioskProduct::factory()->priceConfirmed()->create([
-        'kiosk_id' => $otherKiosk->id,
-        'catalog_product_id' => CatalogProduct::factory()->create(['category_id' => $otherCategory->id])->id,
-        'in_stock' => true,
-        'status' => KioskProductStatus::Active,
-    ]);
-
-    $this->actingAs($this->farmerUser)->get("/my-marketplace?category={$matchingCategory->id}")
-        ->assertInertia(fn($page) => $page
-            ->where('products.data.0.kiosk_product_id', $matchingProduct->id)
-            ->where('products.data', fn($rows) => count($rows) === 1));
+    $this->actingAs($bare)->get("/my-marketplace/kiosks/{$kiosk->uuid}")->assertForbidden();
 });
 
 test('the kiosk-detail page shows only that kiosk\'s own products', function () {

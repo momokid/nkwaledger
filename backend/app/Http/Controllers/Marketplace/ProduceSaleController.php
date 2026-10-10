@@ -18,7 +18,7 @@ class ProduceSaleController extends Controller
     {
         $data = $request->validate([
             'quantity' => ['required', 'numeric', 'gt:0'],
-            'payment_method' => ['required', 'in:bank,cod'],
+            'payment_method' => ['required', 'in:bank,momo,cod'],
             'amount' => ['required', 'numeric', 'gt:0'],
         ]);
 

@@ -42,6 +42,7 @@ const statusLabel: Record<string, string> = {
 
 const paymentLabel: Record<string, string> = {
     bank: "Bank payment",
+    momo: "Mobile Money",
     cod: "Cash on delivery",
 };
 

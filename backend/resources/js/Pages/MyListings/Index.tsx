@@ -1,6 +1,7 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { router } from "@inertiajs/react";
-import { useState } from "react";
+import Button from "@/Components/Button";
+import { router, useForm, usePage } from "@inertiajs/react";
+import { useRef, useState } from "react";
 
 interface Listing {
     uuid: string;
@@ -9,7 +10,7 @@ interface Listing {
     quantity_listed: number;
     quantity_remaining: number;
     unit_of_measure: string | null;
-    photo_url: string | null;
+    photo_urls: string[];
     expires_at: string | null;
     farmer_agreed_at: string | null;
     is_agent_posted_draft: boolean;
@@ -44,12 +45,23 @@ export default function Index(props: Props) {
 
 function IndexContent({ listings, stockBatches, settlementAccounts }: Props) {
     const { dark } = useTheme();
+    const { errors } = usePage().props as unknown as { errors: Record<string, string> };
     const [showCreate, setShowCreate] = useState(false);
-    const [stockId, setStockId] = useState(stockBatches[0] ? String(stockBatches[0].id) : "");
-    const [quantity, setQuantity] = useState("");
-    const [cropExpiryDays, setCropExpiryDays] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const photosInputRef = useRef<HTMLInputElement>(null);
 
+    const createForm = useForm<{
+        farm_unit_stock_id: string;
+        quantity: string;
+        crop_expiry_days: string;
+        photos: File[];
+    }>({
+        farm_unit_stock_id: stockBatches[0] ? String(stockBatches[0].id) : "",
+        quantity: "",
+        crop_expiry_days: "",
+        photos: [],
+    });
+
+    const [submitting, setSubmitting] = useState(false);
     const [saleFor, setSaleFor] = useState<string | null>(null);
     const [saleAmount, setSaleAmount] = useState("");
     const [saleQuantity, setSaleQuantity] = useState("");
@@ -74,26 +86,31 @@ function IndexContent({ listings, stockBatches, settlementAccounts }: Props) {
         fontFamily: "inherit",
     };
 
-    const createListing = () => {
-        if (!stockId || !quantity) return;
-        setSubmitting(true);
-        router.post(
-            "/my-listings",
-            {
-                farm_unit_stock_id: Number(stockId),
-                quantity,
-                crop_expiry_days: cropExpiryDays || null,
-            },
-            {
-                preserveScroll: true,
-                onFinish: () => setSubmitting(false),
-                onSuccess: () => {
-                    setShowCreate(false);
-                    setQuantity("");
-                    setCropExpiryDays("");
-                },
-            },
+    const onPhotosChosen = (files: FileList | null) => {
+        if (!files) return;
+        // cap at 3 total, same as a kiosk product's own limit
+        const next = [...createForm.data.photos, ...Array.from(files)].slice(0, 3);
+        createForm.setData("photos", next);
+    };
+
+    const removePhoto = (index: number) => {
+        createForm.setData(
+            "photos",
+            createForm.data.photos.filter((_, i) => i !== index),
         );
+    };
+
+    const createListing = () => {
+        if (!createForm.data.farm_unit_stock_id || !createForm.data.quantity) return;
+
+        createForm.post("/my-listings", {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowCreate(false);
+                createForm.reset("quantity", "crop_expiry_days", "photos");
+            },
+        });
     };
 
     const agree = (uuid: string) => router.post(`/my-listings/${uuid}/agree`, {}, { preserveScroll: true });
@@ -145,7 +162,11 @@ function IndexContent({ listings, stockBatches, settlementAccounts }: Props) {
                             <label style={{ display: "block", fontSize: "0.8125rem", color: textSecondary, marginBottom: "2px" }}>
                                 Which batch
                             </label>
-                            <select value={stockId} onChange={(e) => setStockId(e.target.value)} style={{ ...inputStyle, width: "100%" }}>
+                            <select
+                                value={createForm.data.farm_unit_stock_id}
+                                onChange={(e) => createForm.setData("farm_unit_stock_id", e.target.value)}
+                                style={{ ...inputStyle, width: "100%" }}
+                            >
                                 {stockBatches.map((batch) => (
                                     <option key={batch.id} value={batch.id}>
                                         {batch.label} - {batch.current_quantity} {batch.unit_of_measure} on hand
@@ -160,8 +181,8 @@ function IndexContent({ listings, stockBatches, settlementAccounts }: Props) {
                             <input
                                 type="number"
                                 min={0}
-                                value={quantity}
-                                onChange={(e) => setQuantity(e.target.value)}
+                                value={createForm.data.quantity}
+                                onChange={(e) => createForm.setData("quantity", e.target.value)}
                                 style={{ ...inputStyle, width: "100%" }}
                             />
                         </div>
@@ -172,14 +193,63 @@ function IndexContent({ listings, stockBatches, settlementAccounts }: Props) {
                             <input
                                 type="number"
                                 min={1}
-                                value={cropExpiryDays}
-                                onChange={(e) => setCropExpiryDays(e.target.value)}
+                                value={createForm.data.crop_expiry_days}
+                                onChange={(e) => createForm.setData("crop_expiry_days", e.target.value)}
                                 style={{ ...inputStyle, width: "100%" }}
                             />
                         </div>
+                        <div>
+                            <label style={{ display: "block", fontSize: "0.8125rem", color: textSecondary, marginBottom: "2px" }}>
+                                Photos (1 to 3)
+                            </label>
+                            <input
+                                ref={photosInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => onPhotosChosen(e.target.files)}
+                                style={{ display: "none" }}
+                            />
+                            <Button type="button" look="secondary" size="small" onClick={() => photosInputRef.current?.click()}>
+                                {createForm.data.photos.length > 0 ? "Add another photo" : "Choose photos"}
+                            </Button>
+                            {createForm.data.photos.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {createForm.data.photos.map((photo, index) => (
+                                        <div key={index} style={{ position: "relative" }}>
+                                            <img
+                                                src={URL.createObjectURL(photo)}
+                                                alt=""
+                                                style={{ width: "72px", height: "72px", objectFit: "cover", border: `1px solid ${border}` }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removePhoto(index)}
+                                                style={{
+                                                    position: "absolute",
+                                                    top: "-6px",
+                                                    right: "-6px",
+                                                    background: "#B91C1C",
+                                                    color: "#FFFFFF",
+                                                    border: "none",
+                                                    width: "18px",
+                                                    height: "18px",
+                                                    fontSize: "0.75rem",
+                                                    lineHeight: "18px",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {errors.photos && <p style={{ color: "#B91C1C", fontSize: "0.8125rem", marginTop: "4px" }}>{errors.photos}</p>}
+                        </div>
                         <button
                             onClick={createListing}
-                            disabled={submitting}
+                            disabled={createForm.processing || createForm.data.photos.length < 1}
                             style={{
                                 background: primary,
                                 color: "#FFFFFF",
@@ -187,7 +257,7 @@ function IndexContent({ listings, stockBatches, settlementAccounts }: Props) {
                                 fontSize: "0.9375rem",
                                 padding: "8px 0",
                                 border: "none",
-                                cursor: submitting ? "not-allowed" : "pointer",
+                                cursor: createForm.processing ? "not-allowed" : "pointer",
                                 fontFamily: "inherit",
                             }}
                         >
@@ -209,9 +279,9 @@ function IndexContent({ listings, stockBatches, settlementAccounts }: Props) {
             <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
                 {listings.map((listing) => (
                     <div key={listing.uuid} style={{ background: surface, border: `1px solid ${border}`, overflow: "hidden" }}>
-                        {listing.photo_url ? (
+                        {listing.photo_urls[0] ? (
                             <img
-                                src={listing.photo_url}
+                                src={listing.photo_urls[0]}
                                 alt={listing.product_name ?? ""}
                                 style={{ width: "100%", height: "140px", objectFit: "cover", display: "block" }}
                             />

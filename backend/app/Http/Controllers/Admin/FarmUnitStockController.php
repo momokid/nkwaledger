@@ -60,7 +60,9 @@ class FarmUnitStockController extends Controller
                 'farm_type_category' => $farmUnit->farmType?->category?->name,
                 'is_approved' => $farmUnit->isApproved(),
             ],
+            // a batch that has ended is not current stock, so it is left off this list
             'stocks' => $farmUnit->stocks()
+                ->whereNull('ended_on')
                 ->with(['recordedBy:id,surname', 'confirmedBy:id,surname', 'movements.recordedBy:id,surname'])
                 ->orderByDesc('started_on')
                 ->get()
@@ -94,7 +96,8 @@ class FarmUnitStockController extends Controller
                             'note' => $movement->note,
                             'recorded_by' => $movement->recordedBy?->surname,
                             'is_confirmed' => $movement->isConfirmed(),
-                            'is_rejected' => $movement->isRejected(),
+                            'is_rejected' => $movement->isRejectedByChecker(),
+                            'is_cancelled' => $movement->isCancelled(),
                             'rejection_reason' => $movement->rejection_reason,
                             'can_confirm' => $movement->conflictedUserId() !== $actorId
                                 && (! $movement->requiresAdminToApprove() || $request->user()->hasRole('admin')),
@@ -164,7 +167,9 @@ class FarmUnitStockController extends Controller
             permission: 'farm-units.confirm',
             kind: 'farm_unit_stock.created',
             message: "A new count of {$stock->opening_quantity} {$stock->unit_of_measure} in {$farmUnit->name} needs checking.",
-            link: '/admin/approvals',
+            // resolved per recipient's own role, never one hardcoded URL - farm-units.confirm
+            // is held by both admin and agent, each with their own approvals page
+            linkFor: fn(User $recipient) => $recipient->hasRole('admin') ? '/admin/approvals' : '/agent/approvals',
             except: $request->user(),
         );
 
@@ -274,7 +279,7 @@ class FarmUnitStockController extends Controller
             permission: 'farm-units.confirm',
             kind: 'farm_unit_stock_movement.created',
             message: "A change of {$movement->quantity} in {$farmUnit->name} needs checking.",
-            link: '/admin/approvals',
+            linkFor: fn(User $recipient) => $recipient->hasRole('admin') ? '/admin/approvals' : '/agent/approvals',
             except: $request->user(),
         );
 
@@ -410,11 +415,11 @@ class FarmUnitStockController extends Controller
         return back()->with('success', 'The change is sent back.');
     }
 
-    // the frame and the address the current route group belongs to
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix)
     private function frame(Request $request): array
     {
-        $name = $request->route()?->getName() ?? '';
-        $group = str_starts_with($name, 'agent.') ? 'agent' : 'admin';
+        $group = $request->user()?->hasRole('admin') ? 'admin' : 'agent';
 
         return [
             'layout' => $group,

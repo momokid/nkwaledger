@@ -4,8 +4,21 @@ import "./bootstrap";
 import { createInertiaApp, router } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 import { createRoot, hydrateRoot } from "react-dom/client";
+import DataCostDialog from "@/Components/DataCostDialog";
+import PinGate from "@/Components/PinGate";
+import { installContactTracking } from "@/lib/serverContact";
 
 const appName = import.meta.env.VITE_APP_NAME || "NkwaLedger";
+
+// every successful answer from our own server counts as contact, for the offline lock
+installContactTracking();
+
+// the worker keeps the static shell and the offline page; page loads and data always go to the network
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    });
+}
 
 window.addEventListener("pageshow", (e: PageTransitionEvent) => {
     if (e.persisted) {
@@ -39,7 +52,16 @@ createInertiaApp({
             hydrateRoot(el, <App {...props} />);
             return;
         }
-        createRoot(el).render(<App {...props} />);
+        createRoot(el).render(
+            <App {...props}>
+                {({ Component, props: page, key }) => (
+                    <PinGate user={(page as { auth?: { user?: { id: number } | null } }).auth?.user}>
+                        <DataCostDialog />
+                        <Component key={key} {...page} />
+                    </PinGate>
+                )}
+            </App>,
+        );
     },
     progress: {
         color: "#1D9E75",

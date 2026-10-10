@@ -2,11 +2,21 @@
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function () {
+        // RefreshDatabase rolls back each test's transaction, but Spatie's permission
+        // cache is a plain in-memory/cache-store collection that survives the rollback -
+        // without this, a permission created (and cached) in one test can leave stale
+        // role/permission data behind for a later test in the same process, causing
+        // spurious 403s that don't reproduce when the failing test is run alone
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        config(['features.marketplace' => true]);
+
         Role::firstOrCreate(['name' => 'farmer', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'agent', 'guard_name' => 'web']);

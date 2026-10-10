@@ -57,3 +57,39 @@ it('gives each stored photo its own unique filename', function () {
 
     expect($first)->not->toBe($second);
 });
+
+it('can store on another disk, and then not on the public one', function () {
+    Storage::fake('local');
+
+    $path = PhotoUpload::store(UploadedFile::fake()->image('id.jpg'), 'kyc', 'local');
+
+    Storage::disk('local')->assertExists($path);
+    Storage::disk('public')->assertMissing($path);
+});
+
+// a hand-built JPEG whose EXIF block carries a camera make, standing in for GPS or owner data
+function jpegWithExif(): string
+{
+    $image = imagecreatetruecolor(40, 30);
+    ob_start();
+    imagejpeg($image);
+    $jpeg = ob_get_clean();
+
+    $tiff = "II\x2A\x00\x08\x00\x00\x00" . "\x01\x00" . "\x0F\x01\x02\x00\x08\x00\x00\x00\x1A\x00\x00\x00" . "\x00\x00\x00\x00" . "PRIVATE\x00";
+    $payload = "Exif\x00\x00" . $tiff;
+
+    return substr($jpeg, 0, 2) . "\xFF\xE1" . pack('n', strlen($payload) + 2) . $payload . substr($jpeg, 2);
+}
+
+it('strips EXIF metadata from the stored photo', function () {
+    $content = jpegWithExif();
+    expect($content)->toContain('PRIVATE');
+
+    $path = PhotoUpload::store(UploadedFile::fake()->createWithContent('gps.jpg', $content), 'disease-reports');
+
+    $stored = Storage::disk('public')->get($path);
+
+    expect($stored)->not->toContain('PRIVATE')
+        ->and($stored)->not->toContain('EXIF')
+        ->and($stored)->not->toContain('Exif');
+});

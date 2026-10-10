@@ -2,7 +2,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { enqueue } from "./offlineStore";
-import { runSync } from "./offlineSync";
+import { isSessionEnded, runSync } from "./offlineSync";
+
+const USER = "7";
 
 beforeEach(() => {
     indexedDB = new IDBFactory();
@@ -28,7 +30,7 @@ describe("runSync", () => {
             .mockResolvedValue(jsonResponse(200, { reference: "TXN-1" }));
         vi.stubGlobal("fetch", fetchMock);
 
-        const outcome = await runSync();
+        const outcome = await runSync(USER);
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(outcome.synced).toHaveLength(2);
@@ -50,7 +52,7 @@ describe("runSync", () => {
         });
         vi.stubGlobal("fetch", fetchMock);
 
-        await runSync();
+        await runSync(USER);
 
         expect(calls).toEqual([{ amount: "first" }, { amount: "second" }]);
 
@@ -65,7 +67,7 @@ describe("runSync", () => {
             .mockResolvedValue(jsonResponse(200, { reference: "TXN-1" }));
         vi.stubGlobal("fetch", fetchMock);
 
-        await runSync();
+        await runSync(USER);
 
         const [, init] = fetchMock.mock.calls[0];
         expect(init.headers["X-CSRF-TOKEN"]).toBe("test-token");
@@ -82,7 +84,7 @@ describe("runSync", () => {
         const fetchMock = vi.fn().mockResolvedValue(jsonResponse(419, {}));
         vi.stubGlobal("fetch", fetchMock);
 
-        const outcome = await runSync();
+        const outcome = await runSync(USER);
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(outcome.authExpired).toBe(true);
@@ -90,7 +92,7 @@ describe("runSync", () => {
 
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { reference: "TXN" })));
 
-        const secondOutcome = await runSync();
+        const secondOutcome = await runSync(USER);
         expect(secondOutcome.synced).toHaveLength(2);
 
         vi.unstubAllGlobals();
@@ -102,7 +104,7 @@ describe("runSync", () => {
         const fetchMock = vi.fn().mockResolvedValue(opaqueRedirectResponse());
         vi.stubGlobal("fetch", fetchMock);
 
-        const outcome = await runSync();
+        const outcome = await runSync(USER);
 
         expect(outcome.authExpired).toBe(true);
         expect(outcome.synced).toEqual([]);
@@ -118,15 +120,15 @@ describe("runSync", () => {
             .mockResolvedValue(jsonResponse(422, { message: "That is more than the farm has on record." }));
         vi.stubGlobal("fetch", fetchMock);
 
-        const outcome = await runSync();
+        const outcome = await runSync(USER);
 
         expect(outcome.needsAttention).toEqual([
             { id, message: "That is more than the farm has on record." },
         ]);
 
         const { listPending, listNeedsAttention } = await import("./offlineStore");
-        expect(await listPending()).toEqual([]);
-        expect(await listNeedsAttention()).toEqual([
+        expect(await listPending(USER)).toEqual([]);
+        expect(await listNeedsAttention(USER)).toEqual([
             {
                 id,
                 payload: { url: "/my-records", data: { amount: "999999" } },
@@ -143,14 +145,14 @@ describe("runSync", () => {
         const fetchMock = vi.fn().mockResolvedValue(jsonResponse(500, {}));
         vi.stubGlobal("fetch", fetchMock);
 
-        const outcome = await runSync();
+        const outcome = await runSync(USER);
 
         expect(outcome.synced).toEqual([]);
         expect(outcome.needsAttention).toEqual([]);
         expect(outcome.authExpired).toBe(false);
 
         const { listPending } = await import("./offlineStore");
-        expect(await listPending()).toHaveLength(1);
+        expect(await listPending(USER)).toHaveLength(1);
 
         vi.unstubAllGlobals();
     });
@@ -161,12 +163,12 @@ describe("runSync", () => {
         const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
         vi.stubGlobal("fetch", fetchMock);
 
-        const outcome = await runSync();
+        const outcome = await runSync(USER);
 
         expect(outcome.synced).toEqual([]);
 
         const { listPending } = await import("./offlineStore");
-        expect(await listPending()).toHaveLength(1);
+        expect(await listPending(USER)).toHaveLength(1);
 
         vi.unstubAllGlobals();
     });
@@ -181,12 +183,81 @@ describe("runSync", () => {
             .mockResolvedValueOnce(jsonResponse(200, { reference: "TXN" }));
         vi.stubGlobal("fetch", fetchMock);
 
-        const outcome = await runSync();
+        const outcome = await runSync(USER);
 
         expect(outcome.synced).toHaveLength(1);
 
         const { listPending } = await import("./offlineStore");
-        expect(await listPending()).toHaveLength(1);
+        expect(await listPending(USER)).toHaveLength(1);
+
+        vi.unstubAllGlobals();
+    });
+});
+
+describe("isSessionEnded", () => {
+    it.each([
+        ["a 401", { type: "basic", status: 401 }, true],
+        ["a 419", { type: "basic", status: 419 }, true],
+        ["a redirect", { type: "opaqueredirect", status: 0 }, true],
+        ["a 200", { type: "basic", status: 200 }, false],
+        ["a 422", { type: "basic", status: 422 }, false],
+        ["a 500", { type: "basic", status: 500 }, false],
+    ])("%s", (_name, response, expected) => {
+        expect(isSessionEnded(response as Pick<Response, "type" | "status">)).toBe(expected);
+    });
+});
+
+describe("authExpired after a session ends", () => {
+    it("goes back to false on the next run that gets past the auth check, with the queue untouched until then", async () => {
+        await enqueue({ url: "/my-records", data: { amount: "10" } });
+        const { listPending } = await import("./offlineStore");
+
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(401, {})));
+        expect((await runSync(USER)).authExpired).toBe(true);
+        expect(await listPending(USER)).toHaveLength(1);
+
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { reference: "TXN" })));
+        const outcome = await runSync(USER);
+
+        expect(outcome.authExpired).toBe(false);
+        expect(outcome.synced).toHaveLength(1);
+
+        vi.unstubAllGlobals();
+    });
+});
+
+describe("runSync owners", () => {
+    it("sends nothing when the current user is unknown", async () => {
+        await enqueue({ amount: "10" }, USER);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+
+        const outcome = await runSync(null);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(outcome).toEqual({ synced: [], needsAttention: [], authExpired: false });
+
+        vi.unstubAllGlobals();
+    });
+
+    it("leaves another user's item exactly as it is and sends the rest", async () => {
+        await enqueue({ url: "/my-records", data: { amount: "theirs" } }, "8");
+        await enqueue({ url: "/my-records", data: { amount: "mine" } }, USER);
+        await enqueue({ url: "/my-records", data: { amount: "old" } });
+        const sent: unknown[] = [];
+        vi.stubGlobal("fetch", vi.fn().mockImplementation((_url, init) => {
+            sent.push(JSON.parse(init.body as string));
+
+            return Promise.resolve(jsonResponse(200, { reference: "TXN" }));
+        }));
+
+        const outcome = await runSync(USER);
+        const { listPending } = await import("./offlineStore");
+
+        expect(sent).toEqual([{ amount: "mine" }, { amount: "old" }]);
+        expect(outcome.synced).toHaveLength(2);
+        expect(outcome.needsAttention).toEqual([]);
+        expect((await listPending<{ data: { amount: string } }>("8")).map((item) => item.payload.data.amount)).toEqual(["theirs"]);
 
         vi.unstubAllGlobals();
     });

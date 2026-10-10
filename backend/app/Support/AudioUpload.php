@@ -22,13 +22,13 @@ class AudioUpload
 
     // MediaRecorder's own output (opus/aac) is already compressed for voice,
     // so this stores the bytes exactly as received - nothing to re-encode
-    public static function store(UploadedFile $file, string $directory): string
+    public static function store(UploadedFile $file, string $directory, string $disk = 'public'): string
     {
         $extension = self::EXTENSIONS[$file->getMimeType()] ?? ($file->guessExtension() ?: 'webm');
         $directory = trim($directory, '/');
         $filename = (string) Str::uuid7() . '.' . $extension;
 
-        return Storage::disk('public')->putFileAs($directory, $file, $filename);
+        return Storage::disk($disk)->putFileAs($directory, $file, $filename);
     }
 
     // null means the container's duration could not be read, not that it has none

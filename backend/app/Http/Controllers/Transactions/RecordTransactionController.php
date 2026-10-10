@@ -10,9 +10,13 @@ use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\LedgerAccount;
 use App\Models\TransactionTemplate;
+use App\Models\User;
 use App\Services\Ledger\CreditSettlementService;
 use App\Services\Ledger\PostingRequest;
+use App\Services\AccessControlService;
 use App\Services\Ledger\PostingService;
+use App\Services\RecordLock;
+use App\Services\SyncSubmissionService;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +35,9 @@ class RecordTransactionController extends Controller
         private readonly PostingService $posting,
         private readonly AccountStatementService $statements,
         private readonly CreditSettlementService $creditSettlements,
+        private readonly RecordLock $lock,
+        private readonly AccessControlService $access,
+        private readonly SyncSubmissionService $sync,
     ) {}
 
     public function index(Request $request, ?FarmerProfile $farmer = null): Response
@@ -81,13 +88,15 @@ class RecordTransactionController extends Controller
                 'total_expenditure' => $statement->totalExpenditureMinor,
                 'total_income' => $statement->totalIncomeMinor,
                 'total_liability' => $statement->totalLiabilityMinor,
-                'cancelled' => $statement->cancelledMinor,
+                'cancelled_in' => $statement->cancelledInMinor,
+                'cancelled_out' => $statement->cancelledOutMinor,
                 'provisional_held_back' => $statement->provisionalHeldBackMinor,
                 'total' => $statement->total,
                 'page' => $statement->page,
                 'last_page' => $statement->lastPage,
             ],
             'filters' => ['from' => $from, 'to' => $to, 'account' => $accountId],
+            'flagged' => $this->sync->flaggedFor($request->user(), $farmer),
             'accounts' => LedgerAccount::settlement()
                 ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
                 ->orderBy('name')
@@ -95,6 +104,8 @@ class RecordTransactionController extends Controller
             // unfiltered by date range - a credit sale from three months ago is still
             // owed today, so scoping it to "this month" would just hide it
             'creditRows' => $this->creditRows($farmer),
+            // the same permission the settle routes ask for, so the button never promises a 403
+            'canSettle' => $this->access->can($request->user(), 'transactions.create'),
             'creditSettlementAccounts' => LedgerAccount::settlement()
                 ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
                 ->orderBy('name')
@@ -109,6 +120,7 @@ class RecordTransactionController extends Controller
     private function creditRows(FarmerProfile $farmer): Collection
     {
         return Transaction::query()
+            ->notCancelled()
             ->where('farmer_profile_id', $farmer->id)
             ->where('is_credit', true)
             ->with('template')
@@ -164,10 +176,10 @@ class RecordTransactionController extends Controller
             $template = TransactionTemplate::findOrFail((int) $data['transaction_template_id']);
 
             $settlementAccountId = ($data['is_credit'] ?? false)
-                ? $this->creditSettlementAccountFor($template)
+                ? $template->creditSettlementAccountId()
                 : (isset($data['settlement_account_id']) ? (int) $data['settlement_account_id'] : null);
 
-            $transaction = $this->posting->post(new PostingRequest(
+            $posting = new PostingRequest(
                 farmerProfileId: $request->farmer()->id,
                 transactionTemplateId: $template->id,
                 amount: $data['amount'],
@@ -181,11 +193,17 @@ class RecordTransactionController extends Controller
                 quantitySold: $data['quantity_sold'] ?? null,
                 quantityPurchased: $data['quantity_purchased'] ?? null,
                 idempotencyKey: $data['idempotency_key'] ?? null,
-            ));
+            );
+
+            $transaction = $this->lock->around(
+                $request->user()->id,
+                $posting->idempotencyKey,
+                fn() => $this->syncTwin($request->user(), $posting) ?? $this->posting->post($posting),
+            );
         } catch (PostingFailed $failure) {
             // the offline sync engine has no page to redirect back to, so it needs a real HTTP error
             if ($request->wantsJson()) {
-                return response()->json(['message' => $failure->getMessage()], 422);
+                return response()->json(['message' => $failure->getMessage()], $failure->isSystem() ? 503 : 422);
             }
 
             return back()->withInput()->with('error', $failure->getMessage());
@@ -198,6 +216,27 @@ class RecordTransactionController extends Controller
         return back()
             ->with('success', 'Saved. Your record is in your book.')
             ->with('reference', $transaction->reference);
+    }
+
+    // the same record may already have arrived through sync, which keys it differently
+    private function syncTwin(User $user, PostingRequest $posting): ?Transaction
+    {
+        if ($posting->idempotencyKey === null) {
+            return null;
+        }
+
+        $twin = Transaction::where('idempotency_key', "sync.{$user->id}.{$posting->idempotencyKey}")->first();
+
+        if ($twin === null) {
+            return null;
+        }
+
+        if ((int) $twin->farmer_profile_id !== $posting->farmerProfileId
+            || ! Transaction::sameDetails($twin->transaction_template_id, Money::toDecimal($twin->amount_minor), $posting->transactionTemplateId, $posting->amount)) {
+            throw PostingFailed::because(Transaction::KEY_REUSED);
+        }
+
+        return $twin;
     }
 
     public function settle(
@@ -224,25 +263,6 @@ class RecordTransactionController extends Controller
         }
 
         return back()->with('success', 'Payment recorded.');
-    }
-
-    // the farmer never sees or chooses "Receivable"/"Payable" - which one applies
-    // follows straight from whether money is coming in or going out
-    private function creditSettlementAccountFor(TransactionTemplate $template): int
-    {
-        $name = match ($template->transaction_type) {
-            Transaction::INCOME => 'Accounts Receivable',
-            Transaction::EXPENSE => 'Accounts Payable',
-            default => throw PostingFailed::because('That kind of record cannot be put on credit.'),
-        };
-
-        $accountId = LedgerAccount::where('name', $name)->value('id');
-
-        if ($accountId === null) {
-            throw PostingFailed::because('Credit is not set up yet.');
-        }
-
-        return $accountId;
     }
 
     // the farmer's own page names nobody, the agent's page names the farmer
@@ -278,10 +298,15 @@ class RecordTransactionController extends Controller
             ->get(['id', 'name', 'transaction_type', 'settlement_side', 'requires_farm_unit', 'is_produce_sale', 'is_stock_purchase', 'allows_credit']);
     }
 
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix). The frontend only
+    // knows "farmer" | "agent" for this page (an admin viewing via
+    // /admin/farmers/{farmer}/records already fell into the "farmer" bucket before
+    // this fix too - unchanged, since that is a separate, non-security pre-existing
+    // gap in this page, not something this fix should guess a new behaviour for)
     private function frame(Request $request): array
     {
-        $name = $request->route()?->getName() ?? '';
-        $group = str_starts_with($name, 'agent.') ? 'agent' : 'farmer';
+        $group = $request->user()?->hasRole('agent') ? 'agent' : 'farmer';
 
         return [
             'layout' => $group,

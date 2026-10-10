@@ -25,15 +25,33 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'access' => \App\Http\Middleware\CheckPermission::class,
+            'marketplace' => \App\Http\Middleware\EnsureMarketplaceEnabled::class,
             'otp.pending' => \App\Http\Middleware\EnsureOtpPending::class,
             'verified.phone' => \App\Http\Middleware\EnsurePhoneIsVerified::class,
             'activation.pending' => \App\Http\Middleware\EnsureActivationPending::class,
         ]);
 
+        // the role and permission gates must run before route-model binding: otherwise a user
+        // who may not open a page still gets 404 for a missing record and 403 for an existing
+        // one, which lets them count records they have no business knowing about
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \Spatie\Permission\Middleware\RoleMiddleware::class,
+        );
+        $middleware->prependToPriorityList(
+            before: \Spatie\Permission\Middleware\RoleMiddleware::class,
+            prepend: \App\Http\Middleware\EnsureMarketplaceEnabled::class,
+        );
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \App\Http\Middleware\CheckPermission::class,
+        );
+
         $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn(Request $request) => $request->is('api/*'),
+            fn(Request $request) => $request->is('api/*')
+                || ($request->expectsJson() && $request->is('sync/*', 'admin/sync-submissions/*', 'pin-reset/*')),
         );
     })->create();

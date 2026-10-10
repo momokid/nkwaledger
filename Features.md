@@ -1,0 +1,5 @@
+Agronomic Advisory & AI Diagnostics
+WhatsApp / Voice-First Crop Diagnostic Bots: Most rural farmers won’t download a heavy app, but almost everyone uses WhatsApp or basic voice calls. Build an AI diagnostic tool where a farmer snaps a photo of a diseased leaf and gets instant treatment recommendations in their local language/dialect.
+Hyperlocal Micro-Weather & Action Alerts: General weather forecasts aren't accurate enough for farming. Build hyper-localized rain, humidity, and heat advisories delivered via SMS or push notification with actionable advice (e.g., "Heavy rain expected in 18 hours: delay spraying pesticide").
+
+Fertilizer & Soil Nutrition Calculators: A simple tool that inputs soil test results (or crop type and acreage) and outputs exact, cost-effective NPK and compost recommendations to stop farmers from wasting money on the wrong inputs.

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\KioskReportController;
+use App\Http\Controllers\DiseaseReportMediaController;
+use App\Http\Controllers\Sync\HealthReportUploadController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DiseaseReportQueueController;
 use App\Http\Controllers\Admin\FarmTypeCategoryController;
@@ -163,6 +165,14 @@ Route::middleware('auth')->group(function () {
         ->name('otp.phone.send');
     Route::post('verify-phone/confirm', [PhoneVerificationController::class, 'confirm'])
         ->name('otp.phone.confirm');
+
+    // a signed-in user who lost the PIN on this phone proves they hold their own number
+    Route::post('pin-reset/send', [\App\Http\Controllers\Auth\PinResetController::class, 'send'])
+        ->middleware('throttle:pin-reset')
+        ->name('pin-reset.send');
+    Route::post('pin-reset/confirm', [\App\Http\Controllers\Auth\PinResetController::class, 'confirm'])
+        ->middleware('throttle:pin-reset-confirm')
+        ->name('pin-reset.confirm');
 });
 
 // a vet's queue and the reports assigned to them
@@ -191,7 +201,7 @@ Route::middleware(['auth', 'role:adviser', 'verified.phone'])->prefix('adviser')
 
 // a farmer reporting a kiosk - marketplace browsing itself is not built yet, so this
 // has no page of its own, just the action a future kiosk-detail page will call
-Route::middleware(['auth', 'role:farmer', 'verified.phone'])->group(function () {
+Route::middleware(['marketplace', 'auth', 'role:farmer', 'verified.phone'])->group(function () {
     Route::post('/kiosks/{kiosk:uuid}/reports', [KioskReportController::class, 'store'])->name('kiosks.reports.store');
 });
 
@@ -199,6 +209,7 @@ Route::middleware(['auth', 'role:farmer', 'verified.phone'])->group(function () 
 Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-records.')->group(function () {
     Route::middleware('access:transactions.view')->group(function () {
         Route::get('/', [RecordTransactionController::class, 'index'])->name('index');
+        Route::post('/rejected/{submission}/dismiss', \App\Http\Controllers\Transactions\DismissRejectedRecordController::class)->name('dismiss-rejected');
     });
 
     Route::middleware('access:transactions.create')->group(function () {
@@ -240,10 +251,21 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-weather')->name('my-we
     });
 });
 
-// the farmer's own view onto the marketplace, with nobody named in the address
-Route::middleware(['auth', 'verified.phone'])->prefix('my-marketplace')->name('my-marketplace.')->group(function () {
+// offline records arriving as JSON, and the sender's own list of them
+Route::middleware(['auth', 'verified.phone'])->prefix('sync/submissions')->name('sync.submissions.')->group(function () {
+    Route::post('/', [\App\Http\Controllers\Sync\SyncSubmissionController::class, 'store'])->name('store');
+
+    Route::middleware('access:transactions.view')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Sync\SyncSubmissionController::class, 'index'])->name('index');
+    });
+});
+
+// Market Center replaced this as the browse destination (Step 8) - index just
+// redirects now, no permission gate needed for a redirect
+Route::middleware(['marketplace', 'auth', 'verified.phone'])->prefix('my-marketplace')->name('my-marketplace.')->group(function () {
+    Route::get('/', [MarketplaceController::class, 'index'])->name('index');
+
     Route::middleware('access:marketplace-browse.view')->group(function () {
-        Route::get('/', [MarketplaceController::class, 'index'])->name('index');
         Route::get('/kiosks/{kiosk:uuid}', [MarketplaceController::class, 'show'])->name('kiosks.show');
     });
 
@@ -256,7 +278,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-marketplace')->name('m
 });
 
 // the farmer's own produce for sale, with nobody named in the address
-Route::middleware(['auth', 'verified.phone'])->prefix('my-listings')->name('my-listings.')->group(function () {
+Route::middleware(['marketplace', 'auth', 'verified.phone'])->prefix('my-listings')->name('my-listings.')->group(function () {
     Route::middleware('access:produce-listings.view')->group(function () {
         Route::get('/', [\App\Http\Controllers\Farm\ProduceListingController::class, 'index'])->name('index');
     });
@@ -272,7 +294,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-listings')->name('my-l
 
 // browsing and buying a produce listing - any authenticated account, never gated by
 // the produce-listings permission that posting/managing one uses
-Route::middleware(['auth', 'verified.phone'])->prefix('produce-listings')->name('produce-listings.')->group(function () {
+Route::middleware(['marketplace', 'auth', 'verified.phone'])->prefix('produce-listings')->name('produce-listings.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'index'])->name('index');
     Route::get('/{listing:uuid}', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'show'])->name('show');
     Route::post('/{listing:uuid}/interest', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'interest'])->name('interest');
@@ -280,9 +302,30 @@ Route::middleware(['auth', 'verified.phone'])->prefix('produce-listings')->name(
     Route::post('/sales/{sale:uuid}/receive', [\App\Http\Controllers\Marketplace\ProduceSaleController::class, 'receive'])->name('sales.receive');
 });
 
+// the unified buyer-browsing homepage - every role reaches it here, open to any
+// authenticated account, same as produce-listings browsing already was
+Route::middleware(['marketplace', 'auth', 'verified.phone'])->prefix('market-center')->name('market-center.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\MarketCenterController::class, 'index'])->name('index');
+    Route::get('/{marketplaceCategory:slug}', [\App\Http\Controllers\MarketCenterController::class, 'category'])->name('category');
+});
+
+// a report's photo and voice note sent from the phone in chunks; the controller answers 404 to anyone but the report's own farmer
+Route::middleware(['auth', 'verified.phone', 'throttle:health-uploads'])->prefix('sync/health-reports')->name('sync.health-reports.')->group(function () {
+    Route::get('/{uuid}/{kind}', [HealthReportUploadController::class, 'show'])->name('show');
+    Route::post('/{uuid}/{kind}', [HealthReportUploadController::class, 'open'])->name('open');
+    Route::put('/{uuid}/{kind}', [HealthReportUploadController::class, 'chunk'])->name('chunk');
+});
+
+// private photos: the controller decides who may see each one and answers 404 to everyone else
+Route::middleware(['auth', 'verified.phone'])->group(function () {
+    Route::get('/disease-reports/{report:uuid}/media/{kind}', [DiseaseReportMediaController::class, 'show'])->whereIn('kind', ['photo', 'audio'])->name('disease-reports.media');
+    Route::get('/farmers/{farmer}/identity-photo', [FarmerController::class, 'identityPhoto'])->name('farmers.identity.photo');
+    Route::get('/farm-unit-photos/{image}', [FarmUnitController::class, 'photo'])->name('farm-units.photos.show');
+});
+
 // a reply to a contact request - reachable by whichever side needs it, never gated
 // by role since either a farmer or an agent can be the recipient
-Route::middleware(['auth', 'verified.phone'])->group(function () {
+Route::middleware(['marketplace', 'auth', 'verified.phone'])->group(function () {
     Route::post('/contact-requests/{contactRequest:uuid}/reply', [\App\Http\Controllers\Marketplace\ProduceListingController::class, 'reply'])->name('contact-requests.reply');
 });
 
@@ -323,7 +366,18 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
 
     Route::middleware('access:farmers.update')->group(function () {
         Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
+    });
+
+    // an agent submits a farmer's document for their own farmers only; there is deliberately no
+    // approve route in this group - approving is admin-only, on the admin.* routes
+    Route::middleware('access:farmers.kyc-submit')->group(function () {
         Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
+    });
+
+    // only groups holding one of this agent's assigned farmers, full details for their own farmers only
+    Route::middleware('access:farmer-groups.view-own')->group(function () {
+        Route::get('/farmer-groups', [\App\Http\Controllers\Agent\FarmerGroupLookupController::class, 'index'])->name('farmer-groups.index');
+        Route::get('/farmer-groups/{farmerGroup}', [\App\Http\Controllers\Agent\FarmerGroupLookupController::class, 'show'])->name('farmer-groups.show');
     });
 
     // every unit across the farmers this person can reach
@@ -409,24 +463,25 @@ Route::middleware(['auth', 'verified.phone'])->prefix('agent')->name('agent.')->
         Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
     });
 
-    Route::middleware('access:produce-listings.view')->group(function () {
+    Route::middleware(['marketplace', 'access:produce-listings.view'])->group(function () {
         Route::get('/farmers/{farmer}/listings', [\App\Http\Controllers\Farm\ProduceListingController::class, 'index'])->name('listings.index');
     });
 
-    Route::middleware('access:produce-listings.create')->group(function () {
+    Route::middleware(['marketplace', 'access:produce-listings.create'])->group(function () {
         Route::post('/farmers/{farmer}/listings', [\App\Http\Controllers\Farm\ProduceListingController::class, 'store'])->name('listings.store');
         Route::post('/farmers/{farmer}/listings/{listing:uuid}/withdraw', [\App\Http\Controllers\Farm\ProduceListingController::class, 'withdraw'])->name('listings.withdraw');
     });
 
-    Route::middleware('access:produce-listings.co-confirm')->group(function () {
+    Route::middleware(['marketplace', 'access:produce-listings.co-confirm'])->group(function () {
         Route::post('/produce-sales/{sale:uuid}/co-confirm', [\App\Http\Controllers\Agent\ProduceSaleController::class, 'coConfirm'])->name('produce-sales.co-confirm');
     });
 });
 
 // the supplier's own address, self-scoped like the farmer/agent groups above
-Route::middleware(['auth', 'role:supplier', 'verified.phone'])->prefix('supplier')->name('supplier.')->group(function () {
-    Route::get('/dashboard', [SupplierDashboardController::class, 'index'])->name('dashboard');
+// the home page stays reachable with the switch off, where it shows "coming soon"
+Route::middleware(['auth', 'role:supplier', 'verified.phone'])->get('/supplier/dashboard', [SupplierDashboardController::class, 'index'])->name('supplier.dashboard');
 
+Route::middleware(['marketplace', 'auth', 'role:supplier', 'verified.phone'])->prefix('supplier')->name('supplier.')->group(function () {
     Route::get('/profile/create', [SupplierProfileController::class, 'create'])->name('profile.create');
     Route::post('/profile', [SupplierProfileController::class, 'store'])->name('profile.store');
     Route::post('/profile/verify-email', [SupplierProfileController::class, 'verifyEmail'])->name('profile.verify-email');
@@ -480,7 +535,13 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
 });
 
 // permission-gated: any role can reach these if granted the specific permission, independent of role:admin
-Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
+// role:admin is the real boundary here, not just the access: permission on each route
+// below - several of those permissions (approvals.view, farmers.view, farm-units.view,
+// transactions.view, farm-type-categories.view, etc) are also legitimately held by
+// agent/farmer for their OWN differently-scoped routes elsewhere in this file, and
+// nothing about that combination should ever let a non-admin reach the admin-prefixed
+// duplicate of the same controller (Sept 2026 privilege-escalation fix)
+Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('access:farm-type-categories.view')->group(function () {
         Route::get('/farm-type-categories', [FarmTypeCategoryController::class, 'index'])
             ->name('farm-type-categories.index');
@@ -756,63 +817,103 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
         Route::delete('/staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
     });
 
+    Route::middleware(['access:staff.force-logout', 'throttle:force-logout'])->group(function () {
+        Route::post('/staff/{user:uuid}/force-logout', [StaffController::class, 'forceLogout'])->name('staff.force-logout');
+    });
+
     Route::middleware('access:audit.view')->group(function () {
         Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
     });
 
-    Route::middleware('access:marketplace-settings.view')->group(function () {
-        Route::get('/marketplace/settings', [MarketplaceSettingController::class, 'index'])->name('marketplace.settings.index');
-    });
-    Route::middleware('access:marketplace-settings.update')->group(function () {
-        Route::put('/marketplace/settings/{key}', [MarketplaceSettingController::class, 'update'])->name('marketplace.settings.update');
+    Route::middleware('marketplace')->group(function () {
+        Route::middleware('access:marketplace-settings.view')->group(function () {
+            Route::get('/marketplace/settings', [MarketplaceSettingController::class, 'index'])->name('marketplace.settings.index');
+        });
+        Route::middleware('access:marketplace-settings.update')->group(function () {
+            Route::put('/marketplace/settings/{key}', [MarketplaceSettingController::class, 'update'])->name('marketplace.settings.update');
+        });
+
+        Route::middleware('access:marketplace-suppliers.view')->group(function () {
+            Route::get('/marketplace/suppliers', [AdminSupplierController::class, 'index'])->name('marketplace.suppliers.index');
+        });
+        Route::middleware('access:marketplace-suppliers.suspend')->group(function () {
+            Route::patch('/marketplace/suppliers/{supplier:uuid}/suspend', [AdminSupplierController::class, 'suspend'])->name('marketplace.suppliers.suspend');
+            Route::patch('/marketplace/suppliers/{supplier:uuid}/restore', [AdminSupplierController::class, 'restore'])->name('marketplace.suppliers.restore');
+        });
+
+        Route::middleware('access:marketplace-kiosks.view')->group(function () {
+            Route::get('/marketplace/kiosks', [AdminKioskController::class, 'index'])->name('marketplace.kiosks.index');
+        });
+        Route::middleware('access:marketplace-kiosks.approve')->group(function () {
+            Route::patch('/marketplace/kiosks/{kiosk:uuid}/approve', [AdminKioskController::class, 'approve'])->name('marketplace.kiosks.approve');
+        });
+        Route::middleware('access:marketplace-kiosks.suspend')->group(function () {
+            Route::patch('/marketplace/kiosks/{kiosk:uuid}/suspend', [AdminKioskController::class, 'suspend'])->name('marketplace.kiosks.suspend');
+            Route::patch('/marketplace/kiosks/{kiosk:uuid}/restore', [AdminKioskController::class, 'restore'])->name('marketplace.kiosks.restore');
+        });
+
+        Route::middleware('access:marketplace-catalog.view')->group(function () {
+            Route::get('/marketplace/catalog', [AdminCatalogProductController::class, 'index'])->name('marketplace.catalog.index');
+            Route::get('/marketplace/suppliers/{supplier:uuid}/stock', [AdminSupplierController::class, 'stock'])->name('marketplace.suppliers.stock');
+        });
+        Route::middleware('access:marketplace-catalog.create')->group(function () {
+            Route::post('/marketplace/catalog', [AdminCatalogProductController::class, 'store'])->name('marketplace.catalog.store');
+        });
+        Route::middleware('access:marketplace-catalog.merge')->group(function () {
+            Route::patch('/marketplace/catalog/{catalogProduct:uuid}/merge', [AdminCatalogProductController::class, 'merge'])->name('marketplace.catalog.merge');
+        });
+        Route::middleware('access:marketplace-catalog.view')->group(function () {
+            Route::delete('/marketplace/kiosk-products/{kioskProduct:uuid}/images/{image}', [AdminCatalogProductController::class, 'destroyImage'])->name('marketplace.kiosk-products.images.destroy');
+        });
+
+        // reuses the kiosk-suspend permission rather than a new "reports" permission group,
+        // since resolving/extending a report is the same admin responsibility as suspending
+        Route::middleware('access:marketplace-kiosks.view')->group(function () {
+            Route::get('/marketplace/kiosk-reports', [\App\Http\Controllers\Admin\KioskReportController::class, 'index'])->name('marketplace.kiosk-reports.index');
+        });
+        Route::middleware('access:marketplace-kiosks.suspend')->group(function () {
+            Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/resolve', [\App\Http\Controllers\Admin\KioskReportController::class, 'resolve'])->name('marketplace.kiosk-reports.resolve');
+            Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/extend', [\App\Http\Controllers\Admin\KioskReportController::class, 'extend'])->name('marketplace.kiosk-reports.extend');
+        });
+
+        // visibility only - admin never approves a produce sale, see the Step 7 audit.
+        // its own dedicated permission - never produce-listings.view, which an agent/farmer
+        // legitimately hold for their own scoped listings and must never double as a key
+        // to this system-wide, unscoped page (Sept 2026 privilege-escalation fix)
+        Route::middleware('access:marketplace-produce-sales.view')->group(function () {
+            Route::get('/marketplace/produce-sales', [\App\Http\Controllers\Admin\ProduceSaleController::class, 'index'])->name('marketplace.produce-sales.index');
+        });
+
+        // Market Center's homepage rows
+        Route::middleware('access:marketplace-categories.view')->group(function () {
+            Route::get('/marketplace/categories', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'index'])->name('marketplace.categories.index');
+        });
+        Route::middleware('access:marketplace-categories.create')->group(function () {
+            Route::post('/marketplace/categories', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'store'])->name('marketplace.categories.store');
+            Route::post('/marketplace/categories/reorder', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'reorder'])->name('marketplace.categories.reorder');
+        });
+        Route::middleware('access:marketplace-categories.update')->group(function () {
+            Route::put('/marketplace/categories/{marketplaceCategory}', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'update'])->name('marketplace.categories.update');
+        });
+        Route::middleware('access:marketplace-categories.delete')->group(function () {
+            Route::delete('/marketplace/categories/{marketplaceCategory}', [\App\Http\Controllers\Admin\MarketplaceCategoryController::class, 'destroy'])->name('marketplace.categories.destroy');
+        });
+
+        // admin's own monitoring view - visibility, not the buyer-browsing homepage
+        Route::middleware('access:marketplace-kiosks.view')->group(function () {
+            Route::get('/marketplace/dashboard', [\App\Http\Controllers\Admin\MarketplaceDashboardController::class, 'index'])->name('marketplace.dashboard');
+        });
     });
 
-    Route::middleware('access:marketplace-suppliers.view')->group(function () {
-        Route::get('/marketplace/suppliers', [AdminSupplierController::class, 'index'])->name('marketplace.suppliers.index');
+    // records an offline device sent that need an admin's decision
+    Route::middleware('access:sync-submissions.view')->group(function () {
+        Route::get('/sync-submissions', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'index'])->name('sync-submissions.index');
     });
-    Route::middleware('access:marketplace-suppliers.suspend')->group(function () {
-        Route::patch('/marketplace/suppliers/{supplier:uuid}/suspend', [AdminSupplierController::class, 'suspend'])->name('marketplace.suppliers.suspend');
-        Route::patch('/marketplace/suppliers/{supplier:uuid}/restore', [AdminSupplierController::class, 'restore'])->name('marketplace.suppliers.restore');
+    Route::middleware('access:sync-submissions.approve')->group(function () {
+        Route::post('/sync-submissions/{submission}/approve', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'approve'])->name('sync-submissions.approve')->where('submission', '[0-9a-fA-F-]{36}');
     });
-
-    Route::middleware('access:marketplace-kiosks.view')->group(function () {
-        Route::get('/marketplace/kiosks', [AdminKioskController::class, 'index'])->name('marketplace.kiosks.index');
-    });
-    Route::middleware('access:marketplace-kiosks.approve')->group(function () {
-        Route::patch('/marketplace/kiosks/{kiosk:uuid}/approve', [AdminKioskController::class, 'approve'])->name('marketplace.kiosks.approve');
-    });
-    Route::middleware('access:marketplace-kiosks.suspend')->group(function () {
-        Route::patch('/marketplace/kiosks/{kiosk:uuid}/suspend', [AdminKioskController::class, 'suspend'])->name('marketplace.kiosks.suspend');
-        Route::patch('/marketplace/kiosks/{kiosk:uuid}/restore', [AdminKioskController::class, 'restore'])->name('marketplace.kiosks.restore');
-    });
-
-    Route::middleware('access:marketplace-catalog.view')->group(function () {
-        Route::get('/marketplace/catalog', [AdminCatalogProductController::class, 'index'])->name('marketplace.catalog.index');
-        Route::get('/marketplace/suppliers/{supplier:uuid}/stock', [AdminSupplierController::class, 'stock'])->name('marketplace.suppliers.stock');
-    });
-    Route::middleware('access:marketplace-catalog.create')->group(function () {
-        Route::post('/marketplace/catalog', [AdminCatalogProductController::class, 'store'])->name('marketplace.catalog.store');
-    });
-    Route::middleware('access:marketplace-catalog.merge')->group(function () {
-        Route::patch('/marketplace/catalog/{catalogProduct:uuid}/merge', [AdminCatalogProductController::class, 'merge'])->name('marketplace.catalog.merge');
-    });
-    Route::middleware('access:marketplace-catalog.view')->group(function () {
-        Route::delete('/marketplace/kiosk-products/{kioskProduct:uuid}/images/{image}', [AdminCatalogProductController::class, 'destroyImage'])->name('marketplace.kiosk-products.images.destroy');
-    });
-
-    // reuses the kiosk-suspend permission rather than a new "reports" permission group,
-    // since resolving/extending a report is the same admin responsibility as suspending
-    Route::middleware('access:marketplace-kiosks.view')->group(function () {
-        Route::get('/marketplace/kiosk-reports', [\App\Http\Controllers\Admin\KioskReportController::class, 'index'])->name('marketplace.kiosk-reports.index');
-    });
-    Route::middleware('access:marketplace-kiosks.suspend')->group(function () {
-        Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/resolve', [\App\Http\Controllers\Admin\KioskReportController::class, 'resolve'])->name('marketplace.kiosk-reports.resolve');
-        Route::post('/marketplace/kiosk-reports/{kioskReport:uuid}/extend', [\App\Http\Controllers\Admin\KioskReportController::class, 'extend'])->name('marketplace.kiosk-reports.extend');
-    });
-
-    // visibility only - admin never approves a produce sale, see the Step 7 audit
-    Route::middleware('access:produce-listings.view')->group(function () {
-        Route::get('/marketplace/produce-sales', [\App\Http\Controllers\Admin\ProduceSaleController::class, 'index'])->name('marketplace.produce-sales.index');
+    Route::middleware('access:sync-submissions.reject')->group(function () {
+        Route::post('/sync-submissions/{submission}/reject', [\App\Http\Controllers\Admin\SyncSubmissionReviewController::class, 'reject'])->name('sync-submissions.reject')->where('submission', '[0-9a-fA-F-]{36}');
     });
 
     Route::middleware('access:accounting-periods.view')->group(function () {
@@ -872,6 +973,18 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
         Route::get('/farmers/{farmer}', [FarmerController::class, 'show'])->name('farmers.show');
     });
 
+    Route::middleware(['access:farmers.force-logout', 'throttle:force-logout'])->group(function () {
+        Route::post('/farmers/{farmer}/force-logout', [FarmerController::class, 'forceLogout'])->name('farmers.force-logout');
+    });
+
+    Route::middleware(['access:farmers.lock', 'throttle:account-lock'])->group(function () {
+        Route::post('/farmers/{farmer}/lock', [FarmerController::class, 'lock'])->name('farmers.lock');
+    });
+
+    Route::middleware(['access:farmers.unlock', 'throttle:account-lock'])->group(function () {
+        Route::post('/farmers/{farmer}/unlock', [FarmerController::class, 'unlock'])->name('farmers.unlock');
+    });
+
     Route::middleware('access:farmers.update')->group(function () {
         Route::put('/farmers/{farmer}', [FarmerController::class, 'update'])->name('farmers.update');
         Route::post('/farmers/{farmer}/identity', [FarmerController::class, 'storeIdentity'])->name('farmers.identity.store');
@@ -880,6 +993,7 @@ Route::middleware(['auth', 'verified.phone'])->prefix('admin')->name('admin.')->
     // kept apart from editing, since verifying opens credit scoring and bank facing reports
     Route::middleware('access:farmers.verify')->group(function () {
         Route::patch('/farmers/{farmer}/identity/verify', [FarmerController::class, 'verifyIdentity'])->name('farmers.identity.verify');
+        Route::patch('/farmers/{farmer}/identity/reject', [FarmerController::class, 'rejectIdentity'])->name('farmers.identity.reject');
     });
 
     // every unit across the farmers this person can reach

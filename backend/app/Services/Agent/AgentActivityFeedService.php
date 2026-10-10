@@ -56,6 +56,7 @@ class AgentActivityFeedService
             ->whereIn('farmer_profile_id', $activeFarmers->keys())
             ->whereIn('transaction_type', [Transaction::INCOME, Transaction::EXPENSE, Transaction::LOSS])
             ->with('template:id,name')
+            ->withExists('reversedBy as is_cancelled')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit($limit)
@@ -71,6 +72,7 @@ class AgentActivityFeedService
                 'detail' => $transaction->template?->name,
                 'amount_minor' => $transaction->amount_minor,
                 'is_income' => $transaction->transaction_type === Transaction::INCOME,
+                'is_cancelled' => (bool) $transaction->is_cancelled,
                 'occurred_at' => $transaction->created_at->toIso8601String(),
                 'sort_at' => $transaction->created_at,
                 'sort_id' => $transaction->id,
@@ -80,7 +82,8 @@ class AgentActivityFeedService
     private function movementEntries(Collection $activeFarmers, int $limit): Collection
     {
         return FarmUnitStockMovement::query()
-            ->whereNull('rejected_at')
+            // sent back by a checker stays hidden; a cancelled record's movement is listed, marked cancelled
+            ->where(fn(Builder $query) => $query->whereNull('rejected_at')->orWhereNotNull('cancelled_at'))
             ->whereHas(
                 'stock.farmUnit',
                 fn(Builder $query) => $query->whereIn('farmer_profile_id', $activeFarmers->keys()),
@@ -97,6 +100,7 @@ class AgentActivityFeedService
                 'farm_unit' => $movement->stock?->farmUnit?->name,
                 'quantity' => $movement->quantity,
                 'is_increase' => $movement->is_increase,
+                'is_cancelled' => $movement->isCancelled(),
                 'occurred_at' => $movement->created_at->toIso8601String(),
                 'sort_at' => $movement->created_at,
                 'sort_id' => $movement->id,

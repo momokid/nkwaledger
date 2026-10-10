@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import {
     decrypt,
@@ -12,6 +12,8 @@ import {
     markSynced,
     remove,
 } from "./offlineStore";
+
+const USER = "7";
 
 beforeEach(async () => {
     indexedDB = new IDBFactory();
@@ -76,7 +78,7 @@ describe("queue", () => {
         const first = await enqueue({ narration: "first" });
         const second = await enqueue({ narration: "second" });
 
-        const pending = await listPending();
+        const pending = await listPending(USER);
 
         expect(pending.map((item) => item.id)).toEqual([first, second]);
         expect(pending.map((item) => item.payload)).toEqual([
@@ -90,7 +92,7 @@ describe("queue", () => {
 
         await markSynced(id);
 
-        expect(await listPending()).toEqual([]);
+        expect(await listPending(USER)).toEqual([]);
     });
 
     it("removes an item from the queue entirely", async () => {
@@ -98,7 +100,7 @@ describe("queue", () => {
 
         await remove(id);
 
-        expect(await listPending()).toEqual([]);
+        expect(await listPending(USER)).toEqual([]);
     });
 });
 
@@ -108,9 +110,9 @@ describe("needs-attention items", () => {
 
         await markNeedsAttention(id, "That is more than the farm has on record.");
 
-        expect(await listPending()).toEqual([]);
+        expect(await listPending(USER)).toEqual([]);
 
-        const attention = await listNeedsAttention();
+        const attention = await listNeedsAttention(USER);
         expect(attention).toEqual([
             {
                 id,
@@ -126,6 +128,168 @@ describe("needs-attention items", () => {
 
         await remove(id);
 
-        expect(await listNeedsAttention()).toEqual([]);
+        expect(await listNeedsAttention(USER)).toEqual([]);
+    });
+});
+
+describe("owners", () => {
+    it("lists only the current user's items and ownerless ones, and leaves the rest stored", async () => {
+        await enqueue({ n: "mine" }, USER);
+        await enqueue({ n: "theirs" }, "8");
+        await enqueue({ n: "old" });
+
+        const mine = await listPending<{ n: string }>(USER);
+
+        expect(mine.map((item) => item.payload.n)).toEqual(["mine", "old"]);
+        expect(await listPending("8")).toHaveLength(2);
+        expect(await listPending(null)).toEqual([]);
+    });
+
+    it("shows another user's needs-attention items to nobody but them", async () => {
+        const theirs = await enqueue({ n: "theirs" }, "8");
+        await markNeedsAttention(theirs, "Check this");
+
+        expect(await listNeedsAttention(USER)).toEqual([]);
+        expect(await listNeedsAttention("8")).toHaveLength(1);
+    });
+});
+
+describe("enqueue order within the same millisecond", () => {
+    const SAME_MOMENT = "2026-01-01T00:00:00.000Z";
+
+    beforeEach(() => {
+        vi.spyOn(Date.prototype, "toISOString").mockReturnValue(SAME_MOMENT);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    async function rawRows(): Promise<Array<{ id: string; seq?: number }>> {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open("nkwa-offline-store");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
+        const rows = await new Promise<Array<{ id: string; seq?: number }>>((resolve, reject) => {
+            const request = db.transaction("queue", "readonly").objectStore("queue").getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        db.close();
+
+        return rows;
+    }
+
+    it("returns two items in the order they were made", async () => {
+        for (const amount of ["first", "second"]) {
+            await enqueue({ amount }, USER);
+        }
+
+        const items = await listPending<{ amount: string }>(USER);
+
+        expect(items.map((item) => item.payload.amount)).toEqual(["first", "second"]);
+    });
+
+    it("returns five items in the order they were made", async () => {
+        const made = ["a", "b", "c", "d", "e"];
+
+        for (const amount of made) {
+            await enqueue({ amount }, USER);
+        }
+
+        const items = await listPending<{ amount: string }>(USER);
+
+        expect(items.map((item) => item.payload.amount)).toEqual(made);
+    });
+
+    it("gives two enqueues started at once different seq values", async () => {
+        await Promise.all([enqueue({ amount: "x" }, USER), enqueue({ amount: "y" }, USER)]);
+
+        const seqs = (await rawRows()).map((row) => row.seq);
+
+        expect(seqs.every((seq) => typeof seq === "number")).toBe(true);
+        expect(new Set(seqs).size).toBe(2);
+    });
+
+    it("sorts an old item stored without a seq before newer ones", async () => {
+        await remove(await enqueue({ amount: "warm-up" }, USER));
+        const key = await getOrCreateDeviceKey();
+        const envelope = await encrypt(key, { amount: "old" });
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open("nkwa-offline-store");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        const tx = db.transaction("queue", "readwrite");
+        tx.objectStore("queue").put({ id: "zzz-old", envelope, createdAt: SAME_MOMENT, synced: false, owner: USER });
+        await new Promise((resolve) => (tx.oncomplete = resolve));
+        db.close();
+
+        await enqueue({ amount: "new1" }, USER);
+        await enqueue({ amount: "new2" }, USER);
+
+        const items = await listPending<{ amount: string }>(USER);
+
+        expect(items.map((item) => item.payload.amount)).toEqual(["old", "new1", "new2"]);
+    });
+});
+
+describe("queue order follows the order saved, not the phone clock", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    function clockReads(...times: string[]) {
+        const spy = vi.spyOn(Date.prototype, "toISOString");
+        times.forEach((time) => spy.mockReturnValueOnce(time));
+    }
+
+    async function amounts() {
+        return (await listPending<{ amount: string }>(USER)).map((item) => item.payload.amount);
+    }
+
+    it("keeps A before B when the clock went backward between them", async () => {
+        clockReads("2026-01-01T10:00:00.000Z", "2026-01-01T09:00:00.000Z");
+
+        await enqueue({ amount: "A" }, USER);
+        await enqueue({ amount: "B" }, USER);
+
+        expect(await amounts()).toEqual(["A", "B"]);
+    });
+
+    it("keeps three items in saved order when the clock goes backward in the middle", async () => {
+        clockReads("2026-01-01T10:00:00.000Z", "2026-01-01T08:00:00.000Z", "2026-01-01T12:00:00.000Z");
+
+        for (const amount of ["first", "second", "third"]) {
+            await enqueue({ amount }, USER);
+        }
+
+        expect(await amounts()).toEqual(["first", "second", "third"]);
+    });
+
+    it("sorts old items without a seq by createdAt, and before new items", async () => {
+        await remove(await enqueue({ amount: "warm-up" }, USER));
+        const key = await getOrCreateDeviceKey();
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open("nkwa-offline-store");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        const olds = [
+            ["a-later", "old-later", "2026-01-01T11:00:00.000Z"],
+            ["z-earlier", "old-earlier", "2026-01-01T09:00:00.000Z"],
+        ];
+        const envelopes = await Promise.all(olds.map(([, amount]) => encrypt(key, { amount })));
+        const tx = db.transaction("queue", "readwrite");
+
+        olds.forEach(([id, , createdAt], i) => {
+            tx.objectStore("queue").put({ id, envelope: envelopes[i], createdAt, synced: false, owner: USER });
+        });
+
+        await new Promise((resolve) => (tx.oncomplete = resolve));
+        db.close();
+
+        clockReads("2026-01-01T01:00:00.000Z");
+        await enqueue({ amount: "new" }, USER);
+
+        expect(await amounts()).toEqual(["old-earlier", "old-later", "new"]);
     });
 });

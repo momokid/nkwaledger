@@ -54,6 +54,9 @@ class AccountStatementService
 
         $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
 
+        $classTotals = AccountStatement::classTotals($rows);
+        $moneyTotals = AccountStatement::moneyTotals($rows);
+
         return new AccountStatement(
             farmerProfileId: $farmerProfileId,
             from: $from,
@@ -64,6 +67,8 @@ class AccountStatementService
             openingBalanceMinor: $opening,
             generatedAt: now(),
             rows: $rows,
+            classTotals: $classTotals,
+            moneyTotals: $moneyTotals,
             total: $total,
             page: $page,
             perPage: $perPage,
@@ -76,14 +81,14 @@ class AccountStatementService
                 // the page number is in here, so two pages never sign the same
                 figures: [
                     'opening' => $opening,
-                    'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $rows)),
-                    'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
+                    'in' => $moneyTotals['in'],
+                    'out' => $moneyTotals['out'],
                     'closing' => $rows === [] ? $opening : $rows[array_key_last($rows)]->balanceMinor,
                     'page' => $page,
-                    'assets' => $this->sumByClass($rows, MoneyClass::Asset),
-                    'expenditure' => $this->sumByClass($rows, MoneyClass::Expenditure),
-                    'income' => $this->sumByClass($rows, MoneyClass::Income),
-                    'liability' => $this->sumByClass($rows, MoneyClass::Liability),
+                    'assets' => $classTotals[MoneyClass::Asset->value],
+                    'expenditure' => $classTotals[MoneyClass::Expenditure->value],
+                    'income' => $classTotals[MoneyClass::Income->value],
+                    'liability' => $classTotals[MoneyClass::Liability->value],
                 ],
             ),
         );
@@ -104,9 +109,21 @@ class AccountStatementService
             ->whereIn('settlement_transaction_id', $settlements->pluck('id'))
             ->pluck('transaction_id', 'settlement_transaction_id');
 
-        $originalIds = $corrections->pluck('reverses_transaction_id')
-            ->merge($settlementOriginalIds->values())
-            ->unique();
+        // the correction of a credit payment takes the class of the credit record that payment was for,
+        // the same class the payment itself shows
+        $correctedIds = $corrections->pluck('reverses_transaction_id');
+
+        $paymentRecordIds = $correctedIds->isEmpty()
+            ? collect()
+            : CreditSettlement::query()
+                ->whereIn('settlement_transaction_id', $correctedIds)
+                ->pluck('transaction_id', 'settlement_transaction_id');
+
+        $subjectId = fn(Transaction $adjustment) => $adjustment->reverses_transaction_id !== null
+            ? ($paymentRecordIds->get($adjustment->reverses_transaction_id) ?? $adjustment->reverses_transaction_id)
+            : $settlementOriginalIds->get($adjustment->id);
+
+        $originalIds = $adjustments->map($subjectId)->filter()->unique();
 
         if ($originalIds->isEmpty()) {
             return collect();
@@ -118,21 +135,11 @@ class AccountStatementService
             ->get()
             ->keyBy('id');
 
-        return $adjustments->mapWithKeys(function (Transaction $adjustment) use ($originalsById, $settlementOriginalIds) {
-            $originalId = $adjustment->reverses_transaction_id ?? $settlementOriginalIds->get($adjustment->id);
+        return $adjustments->mapWithKeys(function (Transaction $adjustment) use ($originalsById, $subjectId) {
+            $originalId = $subjectId($adjustment);
 
             return [$adjustment->id => $originalId !== null ? $originalsById->get($originalId) : null];
         })->filter();
-    }
-
-    // an original not found (should never happen, but the classifier still refuses to throw) is
-    // simply missing from this map, which classify() already treats the same as null
-    private function sumByClass(array $rows, MoneyClass $class): int
-    {
-        return array_sum(array_map(
-            fn($row) => $row->moneyClass === $class ? $row->moneyInMinor + $row->moneyOutMinor : 0,
-            $rows,
-        ));
     }
 
     private function cancelState(Transaction $transaction): string
@@ -275,6 +282,7 @@ class AccountStatementService
         Collection $settlementAccounts,
     ): int {
         $waiting = $this->scope($farmerProfileId, true, $accountId)
+            ->live()
             ->where('is_provisional', true)
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)

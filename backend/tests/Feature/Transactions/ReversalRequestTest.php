@@ -352,3 +352,21 @@ it('turns away somebody without the permission', function () {
         ->patch("/admin/reversals/" . ReversalRequest::first()->uuid . "/approve")
         ->assertForbidden();
 });
+
+it('reloads only the list, message and count after a cancellation is approved', function () {
+    $this->actingAs($this->farmerUser)->post("/my-records/{$this->record->uuid}/cancel", $this->reason);
+    $request = ReversalRequest::first();
+    $before = app(App\Services\ApprovalQueueService::class)->countFor($this->admin);
+
+    $this->actingAs($this->admin)->patch("/admin/reversals/{$request->uuid}/approve")->assertSessionDoesntHaveErrors();
+
+    $this->actingAs($this->admin)->get('/admin/approvals')
+        ->assertInertia(fn($page) => $page->reloadOnly(
+            ['items', 'flash', 'auth.pendingApprovals'],
+            fn($reload) => $reload
+                ->where('items.data', fn($items) => collect($items)->where('kind', 'reversal')->isEmpty())
+                ->where('auth.pendingApprovals', $before - 1)
+                ->missing('permissions')
+                ->missing('basePath'),
+        ));
+});

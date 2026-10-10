@@ -27,19 +27,25 @@ class ProduceListingService
         private readonly AuditService $audit,
     ) {}
 
+    // $photoPaths are already-stored paths (run through PhotoUpload::store() by the
+    // caller) - 1 to 3 of them, mirroring KioskProduct's own image requirement exactly
     public function create(
         FarmUnitStock $stock,
         FarmerProfile $farmer,
         User $postedBy,
         float $quantity,
         ?int $cropExpiryDays,
-        ?string $photo,
+        array $photoPaths,
     ): ProduceListing {
         if ($quantity <= 0) {
             throw new InvalidArgumentException('Please list at least some quantity.');
         }
 
-        return DB::transaction(function () use ($stock, $farmer, $postedBy, $quantity, $cropExpiryDays, $photo) {
+        if (count($photoPaths) < 1 || count($photoPaths) > 3) {
+            throw new InvalidArgumentException('A listing needs between 1 and 3 photos.');
+        }
+
+        return DB::transaction(function () use ($stock, $farmer, $postedBy, $quantity, $cropExpiryDays, $photoPaths) {
             // locked for the lifetime of this transaction - a second listing attempt on
             // the same batch has to wait here, so the two can never jointly oversell it
             $locked = FarmUnitStock::query()->lockForUpdate()->findOrFail($stock->id);
@@ -55,11 +61,14 @@ class ProduceListingService
                 'status' => $isAgentPosted ? ProduceListingStatus::Draft : ProduceListingStatus::Active,
                 'quantity_listed' => $quantity,
                 'quantity_remaining' => $quantity,
-                'photo' => $photo,
                 'crop_expiry_days' => $cropExpiryDays,
                 'expires_at' => $cropExpiryDays !== null ? now()->addDays($cropExpiryDays) : null,
                 'farmer_agreed_at' => $isAgentPosted ? null : now(),
             ]);
+
+            foreach ($photoPaths as $path) {
+                $listing->images()->create(['path' => $path]);
+            }
 
             if ($isAgentPosted && $farmer->user !== null) {
                 $this->notifications->send(

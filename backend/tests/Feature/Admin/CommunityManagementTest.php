@@ -4,10 +4,13 @@ use App\Models\Community;
 use App\Models\District;
 use App\Models\Region;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+
     foreach (['view', 'create', 'update', 'delete'] as $action) {
         Permission::firstOrCreate(['name' => "farmer-groups.{$action}", 'guard_name' => 'web']);
     }
@@ -43,6 +46,7 @@ test('a location suggestion returns a labelled list of candidates', function () 
     $region = Region::create(['name' => 'Northern']);
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farmer-groups.view');
 
     $response = $this->actingAs($user)
@@ -64,6 +68,7 @@ test('a location suggestion returns an empty candidate list gracefully when noth
     $region = Region::create(['name' => 'Northern']);
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farmer-groups.view');
 
     $response = $this->actingAs($user)
@@ -75,6 +80,7 @@ test('a location suggestion returns an empty candidate list gracefully when noth
 
 test('a location suggestion requires a name and a valid district', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farmer-groups.view');
 
     $this->actingAs($user)
@@ -96,6 +102,7 @@ test('listing communities filters by district_id', function () {
     Community::create(['name' => 'Zabzugu', 'district_id' => $districtTwo->id]);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farmer-groups.view');
 
     $response = $this->actingAs($user)->get("/admin/communities?district_id={$districtOne->id}");
@@ -121,6 +128,7 @@ test('a user with farmer-groups.create can create a community', function () {
     $region = Region::create(['name' => 'Northern']);
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/communities', [
@@ -135,6 +143,7 @@ test('a community can be created with coordinates confirmed on the map', functio
     $region = Region::create(['name' => 'Northern']);
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/communities', [
@@ -153,6 +162,7 @@ test('an out-of-range latitude fails validation', function () {
     $region = Region::create(['name' => 'Northern']);
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/communities', [
@@ -168,6 +178,7 @@ test('a community\'s coordinates can be updated', function () {
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $community = Community::create(['name' => 'Kalpohin', 'district_id' => $district->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.update']);
 
     $this->actingAs($user)->put("/admin/communities/{$community->id}", [
@@ -184,6 +195,7 @@ test('a community\'s coordinates can be updated', function () {
 
 test('creating a community with a non-existent district_id fails validation', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/communities', [
@@ -198,6 +210,7 @@ test('creating a community with a duplicate name in the same district fails vali
     Community::create(['name' => 'Central', 'district_id' => $district->id]);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/communities', [
@@ -213,6 +226,7 @@ test('the same community name is allowed in a different district', function () {
     Community::create(['name' => 'Central', 'district_id' => $districtOne->id]);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.create']);
 
     $this->actingAs($user)->post('/admin/communities', [
@@ -241,6 +255,7 @@ test('a user with farmer-groups.update can update a community', function () {
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $community = Community::create(['name' => 'Kalpohin', 'district_id' => $district->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.update']);
 
     $this->actingAs($user)->put("/admin/communities/{$community->id}", [
@@ -266,6 +281,7 @@ test('a user with farmer-groups.delete can soft delete a community', function ()
     $district = District::create(['name' => 'Tamale', 'region_id' => $region->id]);
     $community = Community::create(['name' => 'Vittin', 'district_id' => $district->id]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farmer-groups.view', 'farmer-groups.delete']);
 
     $this->actingAs($user)->delete("/admin/communities/{$community->id}")

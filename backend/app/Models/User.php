@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -28,6 +29,15 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles;
 
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if ($user->uuid === null) {
+                $user->uuid = (string) Str::uuid7();
+            }
+        });
+    }
+
     // the last gate before storage, so a number reaching the column from any direction has one spelling
     protected function phone(): Attribute
     {
@@ -43,11 +53,18 @@ class User extends Authenticatable
             'email_verified_at'            => 'datetime',
             'password'                     => 'hashed',
             'is_active'                    => 'boolean',
+            'locked_at'                    => 'datetime',
             'logins_since_verification'    => 'integer',
             'verification_login_threshold' => 'integer',
             // turns the stored text into a date object
             'next_verification_at'         => 'datetime',
         ];
+    }
+
+    // an admin has blocked this account from signing in until it is unlocked
+    public function isLocked(): bool
+    {
+        return $this->locked_at !== null;
     }
 
     // present only for accounts holding the farmer role

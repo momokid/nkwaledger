@@ -8,6 +8,8 @@ use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
+    \Illuminate\Support\Facades\Storage::fake('local');
+
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
 
@@ -99,6 +101,7 @@ test('an agent can capture a document here', function () {
     $this->actingAs($this->agent)->post("/agent/farmers/{$profile->uuid}/identity", [
         'identity_type' => 'ghana_card',
         'identity_number' => 'GHA-123456789-0',
+        'photo' => \Illuminate\Http\UploadedFile::fake()->image('f.jpg'),
     ])->assertSessionDoesntHaveErrors();
 
     expect($profile->fresh()->identity_number_hash)->not->toBeNull();

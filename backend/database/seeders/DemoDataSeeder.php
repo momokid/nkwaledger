@@ -124,6 +124,8 @@ class DemoDataSeeder extends Seeder
             $query->select('id')->from('journal_entries')->whereIn('transaction_id', $transactionIds);
         })->delete();
         DB::table('journal_entries')->whereIn('transaction_id', $transactionIds)->delete();
+        // a stock movement points at the transaction that made it, so those go before it too
+        DB::table('farm_unit_stock_movements')->whereIn('transaction_id', $transactionIds)->delete();
         Transaction::whereIn('id', $transactionIds)->delete();
 
         // produce_sales/produce_listings restrict-delete against farm_unit_stocks and
@@ -478,6 +480,7 @@ class DemoDataSeeder extends Seeder
         $categories = ProductCategory::all();
         $units = ProductUnit::all();
         $admin = $adminUsers->first();
+        $marketplaceCategories = \App\Models\MarketplaceCategory::all();
 
         // a shared pool of catalog products, some with a barcode - reused across several
         // kiosks' listings, the same way the real "first supplier scans it" rule works
@@ -549,6 +552,10 @@ class DemoDataSeeder extends Seeder
                         'path' => $this->placeholderImagePath("kiosk-products/catalog-{$catalogProduct->id}", $catalogProduct->name),
                     ]);
 
+                    if ($marketplaceCategories->isNotEmpty()) {
+                        $kioskProduct->marketplaceCategories()->attach($marketplaceCategories->random()->id);
+                    }
+
                     KioskProductPriceHistory::create([
                         'kiosk_product_id' => $kioskProduct->id,
                         'old_price' => null,
@@ -598,14 +605,19 @@ class DemoDataSeeder extends Seeder
                 // the agent-posted pair land as drafts automatically (create() checks
                 // postedBy's own role), demonstrating that path waiting on the farmer
                 // rather than the ordinary farmer-posts-their-own-listing path
-                $listings->create(
+                $listing = $listings->create(
                     $stock,
                     $farmer,
                     $postedBy,
                     $quantity,
                     $isCrop ? fake()->numberBetween(5, 21) : null,
-                    $this->placeholderImagePath("produce-listings/{$stock->id}", $farmType->name),
+                    [$this->placeholderImagePath("produce-listings/{$stock->id}", $farmType->name)],
                 );
+
+                $marketplaceCategories = \App\Models\MarketplaceCategory::all();
+                if ($marketplaceCategories->isNotEmpty()) {
+                    $listing->marketplaceCategories()->attach($marketplaceCategories->random()->id);
+                }
             } catch (\InvalidArgumentException) {
                 // another seeded listing already claimed this batch's remaining room -
                 // a real, expected outcome of the stock-cap check, not an error to hide

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\ApprovalQueueService;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class ApprovalController extends Controller
 
         return Inertia::render('Approvals/Index', [
             'items' => $items,
-            ...$this->frame($request),
+            ...$this->frame($user),
             'permissions' => [
                 'approve' => $this->access->can($user, 'farm-units.approve'),
                 'confirm' => $this->access->can($user, 'farm-units.confirm'),
@@ -45,10 +46,13 @@ class ApprovalController extends Controller
         ]);
     }
 
-    private function frame(Request $request): array
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit - a route reuse or permission-sharing mistake elsewhere must
+    // never be able to paint the admin chrome around a non-admin user again
+    // (Sept 2026 privilege-escalation fix)
+    private function frame(User $user): array
     {
-        $name = $request->route()?->getName() ?? '';
-        $group = str_starts_with($name, 'agent.') ? 'agent' : 'admin';
+        $group = $user->hasRole('admin') ? 'admin' : 'agent';
 
         return [
             'layout' => $group,

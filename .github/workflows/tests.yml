@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: ["*"]
 
+# One job, named "test" (the check the pull request waits for), on PostgreSQL: local development and
+# production use PostgreSQL. Actions are pinned to full commit SHAs.
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,19 +15,47 @@ jobs:
       run:
         working-directory: backend
 
+    # a throwaway database that exists only for this job; the credentials below are made up for it
+    # and open nothing else. The suite itself refuses any database not named *_test or not on 127.0.0.1.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_throwaway_password
+          POSTGRES_DB: nkwaledger_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d nkwaledger_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
+      ARKESEL_SENDER: NkwaLedger
+      REPORT_SECRET: base64:jV5e2oTqMJjzcYflr1E/sy9MgYt/DdhcbexDEX551P4=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: nkwaledger_test
+      DB_USERNAME: ci_user
+      DB_PASSWORD: ci_throwaway_password
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.5"
-          extensions: pdo, pdo_sqlite, redis
+          extensions: pdo, pdo_sqlite, pdo_pgsql, redis
           coverage: none
           ini-values: memory_limit=512M
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
           cache: "npm"
@@ -41,9 +71,10 @@ jobs:
       - name: Build assets
         run: npm run build
 
-      - name: Run tests
-        run: php artisan test
-        env:
-          APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
-          ARKESEL_SENDER: NkwaLedger
-          REPORT_SECRET: base64:jV5e2oTqMJjzcYflr1E/sy9MgYt/DdhcbexDEX551P4=
+      # parallel workers each get their own *_test_N database
+      - name: Run tests on PostgreSQL
+        run: php artisan test --parallel --exclude-group=sequential-pg
+
+      # the concurrency test starts real processes against one shared database, so it runs alone
+      - name: Run the concurrency test on PostgreSQL
+        run: php artisan test --group=sequential-pg

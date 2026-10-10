@@ -20,6 +20,7 @@ class OtpService
         'invitation',
         'supplier_email_verification',
         'kiosk_confirmation',
+        'pin_reset',
     ];
 
     private const CHANNELS = ['sms', 'email'];
@@ -65,6 +66,13 @@ class OtpService
 
     public function verify(string $identifier, string $code, string $type): bool
     {
+        return $this->check($identifier, $code, $type) === 'ok';
+    }
+
+    // the same check as verify, but says why it failed: none (no usable code), expired,
+    // exhausted (too many tries) or wrong
+    public function check(string $identifier, string $code, string $type): string
+    {
         $this->guardType($type);
 
         $otp = OtpCode::where('identifier', $identifier)
@@ -73,19 +81,38 @@ class OtpService
             ->latest()
             ->first();
 
-        if (! $otp || $otp->isExpired() || $otp->isExhausted()) {
-            return false;
+        if (! $otp) {
+            return 'none';
+        }
+
+        if ($otp->isExpired()) {
+            return 'expired';
+        }
+
+        if ($otp->isExhausted()) {
+            return 'exhausted';
         }
 
         $otp->increment('attempts');
 
         if (! Hash::check($code, $otp->code)) {
-            return false;
+            return 'wrong';
         }
 
         $this->markUsed($otp);
 
-        return true;
+        return 'ok';
+    }
+
+    // a code sent this recently is still on its way, so a new one is not sent for nothing
+    public function sentWithin(string $identifier, string $type, int $seconds): bool
+    {
+        $this->guardType($type);
+
+        return OtpCode::where('identifier', $identifier)
+            ->where('type', $type)
+            ->where('created_at', '>', now()->subSeconds($seconds))
+            ->exists();
     }
 
     // says whether a code already sent is still usable, so a second one is not sent for nothing

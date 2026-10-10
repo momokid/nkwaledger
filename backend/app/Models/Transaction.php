@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Support\Money;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 class Transaction extends Model
 {
@@ -91,6 +95,19 @@ class Transaction extends Model
         });
     }
 
+    public const KEY_REUSED = 'This record was already saved with different details.';
+
+    // a reused key only means "the same record again" when template and amount match;
+    // amounts compare by value, so 100 and 100.00 are one amount, and the date is left out
+    public static function sameDetails(int|string $templateA, string|int|float $amountA, int|string $templateB, string|int|float $amountB): bool
+    {
+        try {
+            return (int) $templateA === (int) $templateB && Money::toMinor($amountA) === Money::toMinor($amountB);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+    }
+
     public function getRouteKeyName(): string
     {
         return 'uuid';
@@ -138,9 +155,57 @@ class Transaction extends Model
         return $this->hasOne(self::class, 'reverses_transaction_id');
     }
 
+    // the one rule for a cancelled record: some correction points back at it. Works on a
+    // Transaction query, or on any query that has the transactions table joined in
+    public static function excludeCancelled(Builder|QueryBuilder $query, string $column = 'transactions.id'): Builder|QueryBuilder
+    {
+        return $query->whereNotExists(fn($sub) => $sub
+            ->select(DB::raw(1))
+            ->from('transactions as reversal')
+            ->whereColumn('reversal.reverses_transaction_id', $column));
+    }
+
+    // buying stock is an asset gained, not an expense: left out of every expense and net figure
+    public static function excludeStockPurchases(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
+    {
+        return $query->whereNotExists(fn($sub) => $sub
+            ->select(DB::raw(1))
+            ->from('transaction_templates')
+            ->whereColumn('transaction_templates.id', "{$table}.transaction_template_id")
+            ->where('transaction_templates.is_stock_purchase', true)
+            ->where("{$table}.transaction_type", self::EXPENSE));
+    }
+
+    public function scopeNotCancelled(Builder $query): Builder
+    {
+        return self::excludeCancelled($query, $this->qualifyColumn('id'));
+    }
+
+    // a record that really happened: not cancelled, and not the correction row that undoes another one
+    public static function onlyLive(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
+    {
+        return self::excludeCancelled($query, "{$table}.id")->whereNull("{$table}.reverses_transaction_id");
+    }
+
+    public function scopeLive(Builder $query): Builder
+    {
+        return self::onlyLive($query, $this->getTable());
+    }
+
     public function reversalRequests(): HasMany
     {
         return $this->hasMany(ReversalRequest::class);
+    }
+
+    // the link row that makes this ADJUSTMENT a payment against a credit record
+    public function settlementLink(): HasOne
+    {
+        return $this->hasOne(CreditSettlement::class, 'settlement_transaction_id');
+    }
+
+    public function isCreditSettlement(): bool
+    {
+        return $this->isAdjustment() && $this->settlementLink()->exists();
     }
 
     public function isAdjustment(): bool
@@ -192,8 +257,8 @@ class Transaction extends Model
             throw new InvalidArgumentException('The transaction being reversed does not exist.');
         }
 
-        // a correction of a correction hides the trail
-        if ($original->isAdjustment()) {
+        // a correction of a correction hides the trail; a credit payment is the one adjustment that may be cancelled
+        if ($original->isAdjustment() && ! $original->isCreditSettlement()) {
             throw new InvalidArgumentException('An adjustment cannot be adjusted.');
         }
     }

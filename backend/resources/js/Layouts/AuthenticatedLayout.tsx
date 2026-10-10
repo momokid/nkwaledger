@@ -1,7 +1,8 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import NotificationBell from "@/Components/NotificationBell";
 import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
-import { deleteDeviceKey } from "@/lib/offlineStore";
+import useSafeLogout from "@/hooks/useSafeLogout";
+import LogoutBlockedBanner from "@/Components/LogoutBlockedBanner";
 import {
     IconBell,
     IconChevronDown,
@@ -35,6 +36,7 @@ import {
     useState,
 } from "react";
 import FlashMessages from "@/Components/FlashMessages";
+import SessionEndedBanner from "@/Components/SessionEndedBanner";
 import { buildMarketplaceNavGroup, disabledPlaceholder } from "@/lib/navHelpers";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import VerificationGate from "@/Components/VerificationGate";
@@ -85,6 +87,8 @@ interface NavItem {
     // names which count this item wants beside its label
     badge?: string;
     count?: number;
+    // hidden when the marketplace switch is off
+    marketplace?: boolean;
     // one level only - a sub-item here never has children of its own
     children?: NavItem[];
 }
@@ -140,8 +144,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
         tools: [
             {
                 ...buildMarketplaceNavGroup<NavItem>([
-                    disabledPlaceholder("Market Center"),
-                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
+                    { label: "Market Center", href: "/market-center", ready: true },
                 ]),
                 href: "#",
                 ready: true,
@@ -207,10 +210,8 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             },
             {
                 ...buildMarketplaceNavGroup<NavItem>([
-                    disabledPlaceholder("Setup"),
-                    { label: "Market Center", href: "/my-marketplace", ready: true },
+                    { label: "Market Center", href: "/market-center", ready: true },
                     { label: "My Listings", href: "/my-listings", ready: true },
-                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
                 ]),
                 href: "#",
                 ready: true,
@@ -240,7 +241,15 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 ready: false,
             },
         ],
-        tools: [],
+        tools: [
+            {
+                ...buildMarketplaceNavGroup<NavItem>([
+                    { label: "Market Center", href: "/market-center", ready: true },
+                ]),
+                href: "#",
+                ready: true,
+            },
+        ],
         account: account(),
     }),
 
@@ -262,6 +271,13 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
         ],
         tools: [
             { label: "Weather", href: "#", icon: IconCloudRain, ready: false },
+            {
+                ...buildMarketplaceNavGroup<NavItem>([
+                    { label: "Market Center", href: "/market-center", ready: true },
+                ]),
+                href: "#",
+                ready: true,
+            },
         ],
         account: account(),
     }),
@@ -279,9 +295,8 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                     { label: "Setup", href: "/supplier/kiosks", ready: true },
                     // buying, as a buyer - distinct from Orders below, which is this
                     // supplier's own incoming-orders inbox as a seller
-                    { label: "Market Center", href: "/my-marketplace", ready: true },
+                    { label: "Market Center", href: "/market-center", ready: true },
                     { label: "Orders", href: "/supplier/orders", ready: true },
-                    { label: "Farmer Produce", href: "/produce-listings", ready: true },
                     disabledPlaceholder("Product Analysis"),
                     disabledPlaceholder("Finance"),
                 ]),
@@ -295,6 +310,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
 };
 
 interface PageProps {
+    features?: { marketplace?: boolean };
     auth: {
         user: {
             first_name?: string;
@@ -309,7 +325,7 @@ interface Props extends PropsWithChildren {
 }
 
 export default function AuthenticatedLayout({ children, title }: Props) {
-    const { auth } = usePage().props as unknown as PageProps;
+    const { auth, features } = usePage().props as unknown as PageProps;
     const user = auth?.user ?? null;
     const userRoles = user?.roles ?? ["farmer"];
     const firstName = user?.first_name ?? "Farmer";
@@ -319,7 +335,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const pendingApprovals =
         (auth as { pendingApprovals?: number })?.pendingApprovals ?? 0;
     const verified = useIsVerified();
-    useOfflineSync();
+    const authExpired = useOfflineSync();
 
     const [dark, setDark] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
@@ -390,18 +406,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
         });
     };
 
-    const logout = () => {
-        router.post(
-            route("logout"),
-            {},
-            {
-                onSuccess: () => {
-                    deleteDeviceKey();
-                    window.history.replaceState({ loggedOut: true }, "");
-                },
-            },
-        );
-    };
+    const { logout, blocked: logoutBlocked } = useSafeLogout(
+        (auth as { user?: { id?: number } | null })?.user?.id?.toString() ?? null,
+    );
 
     const pageBg = dark ? "#111827" : "#F9FAFB";
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -421,7 +428,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const built = (navSets[primaryRole] ?? navSets.farmer)(dashboardHref);
 
     const withCount = (items: NavItem[]) =>
-        items.map((item) =>
+        items
+            .filter((item) => features?.marketplace || !item.marketplace)
+            .map((item) =>
             item.badge === "approvals"
                 ? { ...item, count: pendingApprovals }
                 : item,
@@ -1099,6 +1108,8 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                     </header>
 
                     <main style={{ padding: "24px" }}>
+                        <SessionEndedBanner show={authExpired} />
+                        <LogoutBlockedBanner show={logoutBlocked} />
                         <VerificationGate>{children}</VerificationGate>
                     </main>
                 </div>

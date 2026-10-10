@@ -70,11 +70,24 @@ class LedgerAccount extends Model
         return $query->where('is_settlement', true)->where('is_active', true);
     }
 
+    public const CREDIT_NAMES = ['Accounts Receivable', 'Accounts Payable'];
+
+    public const NOT_PICKABLE = 'Please pick where the money went.';
+
+    // a farmer hand-picks Cash/MoMo/Bank, never Receivable/Payable - only is_credit uses those
+    public static function isPickableForSettlement(mixed $id): bool
+    {
+        $id = filter_var($id, FILTER_VALIDATE_INT);
+
+        return $id !== false
+            && static::settlement()->whereNotIn('name', self::CREDIT_NAMES)->whereKey($id)->exists();
+    }
+
     // settling against either of these, instead of Cash/MoMo/Bank, is what "on credit" means
     public static function creditSettlementAccountIds(): array
     {
         return static::query()
-            ->whereIn('name', ['Accounts Receivable', 'Accounts Payable'])
+            ->whereIn('name', self::CREDIT_NAMES)
             ->pluck('id')
             ->all();
     }

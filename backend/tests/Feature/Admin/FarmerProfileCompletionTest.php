@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Community;
+use App\Models\FarmerGroup;
 use App\Models\FarmerProfile;
 use App\Models\FarmType;
 use App\Models\User;
@@ -41,7 +42,7 @@ function completionPayload(array $overrides = []): array
 }
 
 test('a farmer without a profile appears as pending', function () {
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->has('pending', 1)
             ->where('pending.0.name', 'Asante Yaa'));
 });
@@ -49,12 +50,12 @@ test('a farmer without a profile appears as pending', function () {
 test('a farmer with a profile is not pending', function () {
     FarmerProfile::factory()->create(['user_id' => $this->selfRegistered->id]);
 
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->has('pending', 0));
 });
 
 test('a staff account is never pending', function () {
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->where('pending', fn($pending) => collect($pending)
             ->doesntContain(fn($row) => $row['name'] === "{$this->agent->surname} {$this->agent->first_name}")));
 });
@@ -63,12 +64,12 @@ test('a pending farmer is visible to every agent', function () {
     $otherAgent = User::factory()->create();
     $otherAgent->assignRole('agent');
 
-    $this->actingAs($otherAgent)->get('/admin/farmers')
+    $this->actingAs($otherAgent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->has('pending', 1));
 });
 
 test('the completion page prefills the account details', function () {
-    $this->actingAs($this->agent)->get("/admin/farmers/pending/{$this->selfRegistered->id}")
+    $this->actingAs($this->agent)->get("/agent/farmers/pending/{$this->selfRegistered->id}")
         ->assertOk()
         ->assertInertia(fn($page) => $page->component('Admin/Farmers/Complete')
             ->where('account.surname', 'Asante')
@@ -87,7 +88,7 @@ test('a user without the create permission cannot open the completion page', fun
 test('a farmer who already has a profile cannot be completed', function () {
     FarmerProfile::factory()->create(['user_id' => $this->selfRegistered->id]);
 
-    $this->actingAs($this->agent)->get("/admin/farmers/pending/{$this->selfRegistered->id}")->assertNotFound();
+    $this->actingAs($this->agent)->get("/agent/farmers/pending/{$this->selfRegistered->id}")->assertNotFound();
 });
 
 test('a staff account cannot be completed', function () {
@@ -95,20 +96,20 @@ test('a staff account cannot be completed', function () {
 });
 
 test('completing creates the profile', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload())
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload())
         ->assertSessionDoesntHaveErrors();
 
     expect($this->selfRegistered->fresh()->farmerProfile)->not->toBeNull();
 });
 
 test('completing records who did it', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload());
 
     expect($this->selfRegistered->fresh()->farmerProfile->registered_by)->toBe($this->agent->id);
 });
 
 test('completing stores the home address', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload());
 
     expect($this->selfRegistered->fresh()->farmerProfile->home_address)->toBe('House 12, Ayigya');
 });
@@ -116,7 +117,7 @@ test('completing stores the home address', function () {
 test('completing attaches the farm types', function () {
     $second = FarmType::factory()->withCategory()->create();
 
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload([
         'farm_type_ids' => [$this->farmType->id, $second->id],
     ]));
 
@@ -125,7 +126,7 @@ test('completing attaches the farm types', function () {
 
 // the account details belong to the farmer, an agent completing a profile must not be able to move them
 test('completing cannot change the account details', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload([
         'surname' => 'Boateng',
         'phone' => '0244445566',
     ]));
@@ -140,25 +141,25 @@ test('completing cannot change the account details', function () {
 test('completing does not send a code', function () {
     $this->selfRegistered->forceFill(['phone_verified_at' => now()])->save();
 
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload());
 
     expect(App\Models\OtpCode::where('identifier', '0277778899')->exists())->toBeFalse();
 });
 
 test('a community is required to complete', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload([
         'community_id' => null,
     ]))->assertSessionHasErrors('community_id');
 });
 
 test('at least one farm type is required to complete', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload([
         'farm_type_ids' => [],
     ]))->assertSessionHasErrors('farm_type_ids');
 });
 
 test('a farmer cannot be completed twice', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload());
 
     $this->actingAs($this->admin)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload())
         ->assertNotFound();
@@ -167,20 +168,33 @@ test('a farmer cannot be completed twice', function () {
 });
 
 test('a completed farmer leaves the pending list', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload());
 
-    $this->actingAs($this->agent)->get('/admin/farmers')
+    $this->actingAs($this->agent)->get('/agent/farmers')
         ->assertInertia(fn($page) => $page->has('pending', 0)->has('farmers.data', 1));
 });
 
 test('the home address is optional', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/pending/{$this->selfRegistered->id}", completionPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/pending/{$this->selfRegistered->id}", completionPayload([
         'home_address' => null,
     ]))->assertSessionDoesntHaveErrors();
 });
 
+// an agent looks groups up on their own /agent/ route (farmer-groups.view-own), and only
+// sees a group once one of their assigned farmers is in it
 test('groups can be listed for a community', function () {
-    $this->actingAs($this->agent)->get("/admin/farmer-groups/by-community/{$this->community->id}")
+    $this->actingAs($this->agent)->getJson("/agent/farmer-groups?community_id={$this->community->id}")
         ->assertOk()
-        ->assertJson([]);
+        ->assertJson(['data' => []]);
+
+    $group = FarmerGroup::factory()->create(['community_id' => $this->community->id]);
+    FarmerProfile::factory()->create([
+        'assigned_agent_id' => $this->agent->id,
+        'community_id' => $this->community->id,
+        'farmer_group_id' => $group->id,
+    ]);
+
+    $this->actingAs($this->agent)->getJson("/agent/farmer-groups?community_id={$this->community->id}")
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $group->id);
 });

@@ -13,6 +13,7 @@ use InvalidArgumentException;
 
 #[Fillable([
     'farm_unit_stock_id',
+    'transaction_id',
     'reason',
     'quantity',
     'is_increase',
@@ -39,6 +40,7 @@ class FarmUnitStockMovement extends Model
             'occurred_on' => 'date',
             'confirmed_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -82,8 +84,25 @@ class FarmUnitStockMovement extends Model
         return $this->recordedBy?->hasRole('agent') ?? false;
     }
 
+    // set when the record behind this movement was cancelled; it also stops counting, via rejected_at
+    public function isCancelled(): bool
+    {
+        return $this->cancelled_at !== null;
+    }
+
+    // sent back by someone checking it, as opposed to taken back with its cancelled record
+    public function isRejectedByChecker(): bool
+    {
+        return $this->isRejected() && ! $this->isCancelled();
+    }
+
     public function reject(int $userId, string $reason): void
     {
+        // a cancelled record's movement is already out of the count and keeps its own tag
+        if ($this->isCancelled()) {
+            return;
+        }
+
         if ($this->isConfirmed()) {
             throw new InvalidArgumentException('This change has already been checked.');
         }
@@ -103,6 +122,11 @@ class FarmUnitStockMovement extends Model
     public function stock(): BelongsTo
     {
         return $this->belongsTo(FarmUnitStock::class, 'farm_unit_stock_id');
+    }
+
+    public function transaction(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class);
     }
 
     public function recordedBy(): BelongsTo

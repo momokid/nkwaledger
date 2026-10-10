@@ -9,17 +9,22 @@ use App\Models\Community;
 use App\Models\FarmerProfile;
 use App\Models\FarmType;
 use App\Models\FarmUnit;
+use App\Models\FarmUnitImage;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Support\PhotoUpload;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class FarmUnitController extends Controller
 {
@@ -81,17 +86,46 @@ class FarmUnitController extends Controller
         $farmer = $request->farmer();
         $this->guardFarmer($request->user(), $farmer);
 
-        $data = $request->validated();
-        unset($data['farmer_uuid']);
+        $data = $request->safe()->except(['farmer_uuid', 'images']);
 
-        $unit = $farmer->farmUnits()->create([
-            ...$data,
-            'created_by' => $request->user()->id,
-        ]);
+        $unit = $this->createWithPhotos($farmer, $request->user(), $data, $request->file('images'));
 
         $this->notifyApprovers($unit, $request->user());
 
         return back()->with('success', 'The unit is added. It needs to be approved before it counts.');
+    }
+
+    // private disk, so this is the only way to a unit photo: the agent who holds the farmer, or an admin
+    public function photo(Request $request, FarmUnitImage $image): \Illuminate\Http\Response
+    {
+        $farmer = $image->farmUnit?->farmerProfile;
+
+        abort_if($farmer === null || ! $this->access->can($request->user(), 'farm-units.view'), 404);
+        $this->guardFarmer($request->user(), $farmer);
+
+        return response(Storage::disk(config('filesystems.photo_disk'))->get($image->path), 200, ['Content-Type' => 'image/webp']);
+    }
+
+    private function createWithPhotos(FarmerProfile $farmer, User $creator, array $data, array $photos): FarmUnit
+    {
+        $written = [];
+
+        try {
+            return DB::transaction(function () use ($farmer, $creator, $data, $photos, &$written) {
+                $unit = $farmer->farmUnits()->create([...$data, 'created_by' => $creator->id]);
+
+                foreach ($photos as $photo) {
+                    $written[] = PhotoUpload::store($photo, 'farm-units', config('filesystems.photo_disk'));
+                    $unit->images()->create(['path' => end($written)]);
+                }
+
+                return $unit;
+            });
+        } catch (Throwable $e) {
+            Storage::disk(config('filesystems.photo_disk'))->delete($written);
+
+            throw $e;
+        }
     }
 
     private function notifyApprovers(FarmUnit $unit, User $addedBy): void
@@ -100,7 +134,7 @@ class FarmUnitController extends Controller
             permission: 'farm-units.approve',
             kind: 'farm_unit.created',
             message: "A new farm unit \"{$unit->name}\" needs approval.",
-            link: '/admin/approvals',
+            linkFor: fn(User $recipient) => $recipient->hasRole('admin') ? '/admin/approvals' : '/agent/approvals',
             except: $addedBy,
         );
     }
@@ -118,7 +152,7 @@ class FarmUnitController extends Controller
                 'community_id' => $farmer->community_id,
             ],
             'units' => $farmer->farmUnits()
-                ->with(['farmType:id,name', 'community:id,name', 'approvedBy:id,surname'])
+                ->with(['farmType:id,name', 'community:id,name', 'approvedBy:id,surname', 'images'])
                 ->orderBy('name')
                 ->get()
                 ->map(fn(FarmUnit $unit) => [
@@ -130,6 +164,7 @@ class FarmUnitController extends Controller
                     'community' => $unit->community?->name,
                     'capacity' => $unit->capacity,
                     'capacity_unit' => $unit->capacity_unit,
+                    'photo_urls' => $unit->images->map(fn(FarmUnitImage $image) => route('farm-units.photos.show', $image, false))->all(),
                     'is_approved' => $unit->isApproved(),
                     'approved_by' => $unit->approvedBy?->surname,
                     // whoever set it up cannot be the one who says it exists, and an agent's
@@ -153,10 +188,7 @@ class FarmUnitController extends Controller
     {
         $this->guardFarmer($request->user(), $farmer);
 
-        $unit = $farmer->farmUnits()->create([
-            ...$request->validated(),
-            'created_by' => $request->user()->id,
-        ]);
+        $unit = $this->createWithPhotos($farmer, $request->user(), $request->safe()->except('images'), $request->file('images'));
 
         $this->notifyApprovers($unit, $request->user());
 
@@ -208,11 +240,11 @@ class FarmUnitController extends Controller
         return back()->with('success', 'The unit is approved.');
     }
 
-    // the frame and the address the current route group belongs to
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix)
     private function frame(Request $request, string $section): array
     {
-        $name = $request->route()?->getName() ?? '';
-        $group = str_starts_with($name, 'agent.') ? 'agent' : 'admin';
+        $group = $request->user()?->hasRole('admin') ? 'admin' : 'agent';
 
         return [
             'layout' => $group,

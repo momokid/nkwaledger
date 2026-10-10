@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Marketplace;
 use App\Http\Controllers\Controller;
 use App\Models\ContactRequest;
 use App\Models\ProduceListing;
+use App\Models\ProduceListingImage;
 use App\Services\ContactRequestService;
 use App\Support\Phone;
 use Illuminate\Http\RedirectResponse;
@@ -15,22 +16,18 @@ use Inertia\Response;
 use InvalidArgumentException;
 
 // the buyer-facing side of a produce listing - open to any authenticated account,
-// never gated by the produce-listings permission that farmer/agent posting uses
+// never gated by the produce-listings permission that farmer/agent posting uses.
+// the browse index lives at Market Center now (see MarketController) - this
+// controller keeps only the detail page and the actions taken from it
 class ProduceListingController extends Controller
 {
     public function __construct(private readonly ContactRequestService $contactRequests) {}
 
-    public function index(Request $request): Response
+    // the old standalone browse destination - Market Center replaced it (Step 8),
+    // so old links/bookmarks land somewhere real instead of 404ing
+    public function index(): RedirectResponse
     {
-        $listings = ProduceListing::active()
-            ->with('farmUnitStock.farmUnit.farmType')
-            ->latest()
-            ->paginate(24)
-            ->through(fn(ProduceListing $listing) => $this->summarize($listing));
-
-        return Inertia::render('ProduceListings/Index', [
-            'listings' => $listings,
-        ]);
+        return redirect()->route('market-center.index');
     }
 
     public function show(ProduceListing $listing): Response
@@ -38,7 +35,7 @@ class ProduceListingController extends Controller
         abort_unless($listing->isActive(), 404);
 
         return Inertia::render('ProduceListings/Show', [
-            'listing' => $this->summarize($listing->load('farmUnitStock.farmUnit.farmType')),
+            'listing' => $this->summarize($listing->load('farmUnitStock.farmUnit.farmType', 'images')),
         ]);
     }
 
@@ -89,7 +86,7 @@ class ProduceListingController extends Controller
             'product_name' => $listing->farmUnitStock?->farmUnit?->farmType?->name,
             'quantity_remaining' => (float) $listing->quantity_remaining,
             'unit_of_measure' => $listing->farmUnitStock?->unit_of_measure,
-            'photo_url' => $listing->photo !== null ? Storage::disk('public')->url($listing->photo) : null,
+            'photo_urls' => $listing->images->map(fn(ProduceListingImage $image) => Storage::disk('public')->url($image->path))->all(),
             'expires_at' => $listing->expires_at?->toDateString(),
         ];
     }

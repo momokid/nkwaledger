@@ -560,7 +560,9 @@ it('counts what was cancelled on its own', function () {
 
     cancel($purchase, $this->staff, $this->approver);
 
-    expect(($this->run)()->cancelledMinor)->toBe(10000);
+    $statement = ($this->run)();
+
+    expect([$statement->cancelledInMinor, $statement->cancelledOutMinor])->toBe([0, 10000]);
 });
 
 it('still leaves the farmer with the right balance', function () {
@@ -581,14 +583,16 @@ it('counts a cancelled sale on its own too', function () {
 
     expect($statement->totalInMinor)->toBe(25000);
     expect($statement->totalOutMinor)->toBe(0);
-    expect($statement->cancelledMinor)->toBe(25000);
+    expect([$statement->cancelledInMinor, $statement->cancelledOutMinor])->toBe([25000, 0]);
     expect($statement->closingBalanceMinor)->toBe(0);
 });
 
 it('counts nothing cancelled when nothing was', function () {
     ($this->sell)('250');
 
-    expect(($this->run)()->cancelledMinor)->toBe(0);
+    $statement = ($this->run)();
+
+    expect([$statement->cancelledInMinor, $statement->cancelledOutMinor])->toBe([0, 0]);
 });
 
 // a settlement is real cash moving, not a mistake being put right
@@ -602,7 +606,7 @@ it('does not treat a cash settlement as a correction', function () {
 
     expect($settlementRow->cancelState)->not->toBe('correction');
     expect($statement->totalInMinor)->toBe(25000);
-    expect($statement->cancelledMinor)->toBe(0);
+    expect([$statement->cancelledInMinor, $statement->cancelledOutMinor])->toBe([0, 0]);
 });
 
 // mirrors the receivable-side test above, on the payable/expense side
@@ -614,7 +618,7 @@ it('counts a cash settlement on a credit purchase in money out, not as a correct
     $statement = ($this->run)();
 
     expect($statement->totalOutMinor)->toBe(10000);
-    expect($statement->cancelledMinor)->toBe(0);
+    expect([$statement->cancelledInMinor, $statement->cancelledOutMinor])->toBe([0, 0]);
 });
 
 // --- Money In / Money Out split ---
@@ -705,7 +709,7 @@ it('classifies a correction by what it corrects, and keeps it out of the sub-tot
 
     expect($correctionRow->moneyClass)->toBe(MoneyClass::Asset);
     expect($statement->totalAssetsMinor)->toBe(200000);
-    expect($statement->cancelledMinor)->toBe(200000);
+    expect([$statement->cancelledInMinor, $statement->cancelledOutMinor])->toBe([0, 200000]);
 });
 
 it('keeps assets plus expenditure equal to money out, and income plus liability equal to money in', function () {

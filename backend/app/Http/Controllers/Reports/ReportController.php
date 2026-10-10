@@ -8,6 +8,7 @@ use App\Services\Ledger\Reports\AccountStatementService;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use App\Services\Ledger\Reports\ReportHeader;
 use App\Services\Ledger\Reports\TrialBalanceService;
+use App\Support\CsvCell;
 use App\Support\Money;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -120,7 +121,8 @@ class ReportController extends Controller
             'total_expenditure' => $report->totalExpenditureMinor,
             'total_income' => $report->totalIncomeMinor,
             'total_liability' => $report->totalLiabilityMinor,
-            'cancelled' => $report->cancelledMinor,
+            'cancelled_in' => $report->cancelledInMinor,
+            'cancelled_out' => $report->cancelledOutMinor,
             'provisional_held_back' => $report->provisionalHeldBackMinor,
         ];
     }
@@ -238,7 +240,7 @@ class ReportController extends Controller
             fputcsv($handle, [
                 $row['date'],
                 $row['reference'],
-                $row['description'],
+                CsvCell::text($row['description']),
                 $row['money_in'] > 0 ? Money::toDecimal($row['money_in']) : '',
                 $row['money_out'] > 0 ? Money::toDecimal($row['money_out']) : '',
                 Money::toDecimal($row['balance']),
@@ -331,13 +333,15 @@ class ReportController extends Controller
         return $farmer->load('user');
     }
 
+    // the acting user's real role decides the layout, never which URL/route name
+    // happened to be hit (Sept 2026 privilege-escalation fix)
     private function frame(Request $request): array
     {
-        $name = $request->route()?->getName() ?? '';
+        $user = $request->user();
 
         $group = match (true) {
-            str_starts_with($name, 'agent.') => 'agent',
-            str_starts_with($name, 'admin.') => 'admin',
+            $user?->hasRole('admin') => 'admin',
+            $user?->hasRole('agent') => 'agent',
             default => 'farmer',
         };
 

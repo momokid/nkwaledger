@@ -26,11 +26,13 @@ NkwaLedger is an agricultural fintech platform for Ghanaian smallholder farmers 
 
 **Future scope (architecture only, rules decided later):** autonomous in-app AI agent; cosmetic reward/credit system (points live outside the double-entry ledger, domain events + reward listener pattern, earning trigger is logging transactions).
 
+**MVP plan (Oct 2026) overrides the order above for now:** offline sync (PWA first), loans and repayments, USSD, crop and vet AI review with officer confirmation, fertilizer calculator, weather alerts, WhatsApp, then the legal close. The native mobile app comes later.
+
 ---
 
 ## Current State
 
-Active branch: `feature/phase-5-dashboard-reports`
+Active branch: named in each task prompt.
 
 ### Completed in Phase 5 so far
 
@@ -39,7 +41,7 @@ Active branch: `feature/phase-5-dashboard-reports`
 - **Loss recording**: `quantity_lost` on `transactions`, `MovementReason::Loss`, split **proportionally** across all active stock batches by their share of the current count (not FIFO — no assumption is made about which batch actually lost the animal). The last batch in the split absorbs any rounding remainder so the total always adds up exactly. No cost-per-batch or valuation figure is ever computed or shown — the farmer's typed cedi amount is the only money figure anywhere.
 - **Produce-sold tracking**: `is_produce_sale` on `transaction_templates`, `quantity_sold` on `transactions`. Same proportional-split logic as loss (shared via `PostingService::splitProportionally()`). Seeder marks `produce_sale`, `animal_sale`, `produce_of_animal_sale`, `fish_sale` as produce sales; `produce_sale` now **requires a farm unit** (previously didn't — this was the root cause of "Produce Sold" always showing 0 for crop farms). **Not yet re-seeded on Railway staging/production.**
 - Correction narration replaced with a purple "Corrected" tag (not green — green means income/positive elsewhere in the UI). Only done on the farmer's own records page (`Transactions/Index.tsx`); not yet added to the agent/admin `Reports/Index.tsx`.
-- Suite: 1568 tests passing, 9 skipped.
+- Suite: run the full suite for the current count.
 
 ### Immediate next target
 
@@ -148,7 +150,45 @@ Short and plain, simple enough for an 8-year-old. Answer, then stop.
 - **Backend:** Laravel 12, Pest, Spatie Permission, Inertia.js, `AccessControlService` + `CheckPermission` middleware
 - **Frontend:** React/TypeScript, Vite (oxc parser), Tailwind CSS (zero border-radius), Inter font, Tabler Icons React
 - **Brand colors:** `#1D9E75` (green, income/positive) / `#0F6E56` / `#B45309` (amber, expense/reduction) / `#B91C1C` (red, loss) / `#7C3AED` (purple, correction)
-- **Database:** PostgreSQL (production/staging), SQLite (tests); `php artisan migrate` required when adding columns (tests use fresh migrations each run, masking missing columns)
+- **Database:** PostgreSQL (production/staging), SQLite or PostgreSQL (tests locally; PostgreSQL in CI); `php artisan migrate` required when adding columns (tests use fresh migrations each run, masking missing columns)
+- **Tests on PostgreSQL (local):** needs a local server and an empty database named `*_test`; the suite refuses any other name or a non-local host. In `backend/` set `DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=nkwaledger_test DB_USERNAME=... DB_PASSWORD=...` (PowerShell: `$env:DB_CONNECTION='pgsql'` and so on), then `php artisan test --parallel --exclude-group=sequential-pg`.
+- **Concurrency test (PostgreSQL only):** with the same variables, `php artisan test --group=sequential-pg` (one process; it skips itself on SQLite). CI runs PostgreSQL only, in one job named `test` (the check a pull request waits for); local SQLite runs still work.
 - **Known gotcha:** Stale `public/hot` Vite file causes intermittent full-suite test failures on Windows.
 - **Known gotcha:** `php artisan db:table` fails without the `intl` PHP extension; use `Schema::getColumnListing('table_name')` in tinker instead.
 - **Known gotcha:** a Laravel `cast` without a matching `$fillable` entry silently drops the value on `create()` — check both together when adding a column.
+
+## Working rules (apply to every task)
+
+These rules override Workflow items 3, 4, 5 and 6 above. In Claude Code sessions, edit files and run commands directly, and read the real local files. Those four items apply only to chat sessions.
+
+### Task
+- One issue per task. If you find other problems, report them; do not fix them.
+- Ask before adding anything not in the prompt (packages, columns, routes, permissions, UI, wording).
+- Never invent user-facing text. Use only wording given in the prompt.
+- Minimal code. Very short comments, only where the logic is not obvious.
+
+### Tests
+- Write failing tests first and confirm red, then implement.
+- Run affected tests with paratest while working; run the full parallel suite once at the end.
+- For frontend changes also run the TypeScript check and the production build.
+
+### Git
+- At the start run git branch --show-current; it must match the branch named in the prompt, otherwise stop. Run git status --short; ignore the untracked ../Features.md; if anything else is uncommitted, stop.
+- After the full suite passes, commit locally. Stage only this task's files, by explicit path. Never git add . or -A.
+- Author and committer must be the owner. git config user.email must be anwar.rhsl@gmail.com. If it differs or is empty, stop. Never edit git config or override the identity on the command line.
+- Commit message: one short conventional line. No body. No Co-Authored-By line. No "Generated with" line. No mention of Claude, AI or Anthropic.
+- Never push, amend, tag, switch branch or skip hooks.
+- After committing, run and report: git log -1 --format="%h %an <%ae> | %cn <%ce>", git log -1 --format=%B, and git show --stat --format=%s HEAD.
+
+### UI
+- Admin approve, reject and save actions use AJAX and update the page in place, with no full page reload.
+- No numeric database id may reach a page prop, response, link or notification. Use public uuids.
+
+### Report
+- Max 15 lines, plain English, no code in the summary: what changed; files changed (count and list, from the commit output); tests passed/failed/skipped and time; decisions made on your own; what is not done; what to check by hand. Then the full production diff in the reply. No patch files.
+
+### Style
+- Keep every reply and report short and plain, like for an 8th grader.
+- Summarise. No long explanations.
+- Only go into detail when something is risky for money, security or user data. Say it clearly and early.
+- Reports still must include the three git outputs.

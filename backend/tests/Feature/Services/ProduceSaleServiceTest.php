@@ -59,6 +59,17 @@ test('a sale settles only after both taps land, confirm then receive', function 
         ->and($this->listing->fresh()->quantity_remaining)->toEqualWithDelta(7.0, 0.01);
 });
 
+test('a momo sale settles against the Momo A/C ledger account', function () {
+    $sale = $this->service->submit($this->listing, $this->buyer, '3', 'momo', '150');
+
+    $this->service->confirm($sale, $this->farmer->user);
+    $settled = $this->service->receive($sale->fresh(), $this->buyer);
+
+    $momoAccount = \App\Models\LedgerAccount::where('name', 'Momo A/C')->firstOrFail();
+
+    expect(Transaction::find($settled->ledger_transaction_id)->settlement_account_id)->toBe($momoAccount->id);
+});
+
 test('a sale settles only after both taps land, receive then confirm', function () {
     $sale = $this->service->submit($this->listing, $this->buyer, '3', 'bank', '150');
 

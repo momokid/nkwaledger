@@ -10,6 +10,7 @@ use App\Models\Region;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Agent\FarmerRosterService;
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use Illuminate\Support\Carbon;
 
 class AdminAnalyticsService
@@ -32,6 +33,7 @@ class AdminAnalyticsService
             ->groupBy(fn($farmer) => $farmer->community->district->region->id);
 
         $incomeByFarmer = Transaction::query()
+            ->notCancelled()
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
             ->where('transaction_type', 'INCOME')
@@ -40,9 +42,20 @@ class AdminAnalyticsService
             ->pluck('total', 'farmer_profile_id');
 
         $expenseByFarmer = Transaction::query()
+            ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeStockPurchases($query))
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
             ->where('transaction_type', 'EXPENSE')
+            ->selectRaw('farmer_profile_id, SUM(amount_minor) as total')
+            ->groupBy('farmer_profile_id')
+            ->pluck('total', 'farmer_profile_id');
+
+        $lossByFarmer = Transaction::query()
+            ->notCancelled()
+            ->whereDate('transaction_date', '>=', $from)
+            ->whereDate('transaction_date', '<=', $to)
+            ->where('transaction_type', 'LOSS')
             ->selectRaw('farmer_profile_id, SUM(amount_minor) as total')
             ->groupBy('farmer_profile_id')
             ->pluck('total', 'farmer_profile_id');
@@ -52,9 +65,10 @@ class AdminAnalyticsService
             ->groupBy('farmer_profile_id')
             ->pluck('total', 'farmer_profile_id');
 
-        return $farmerRegions->map(function ($farmers, $regionId) use ($incomeByFarmer, $expenseByFarmer, $farmUnitCounts) {
+        return $farmerRegions->map(function ($farmers, $regionId) use ($incomeByFarmer, $expenseByFarmer, $lossByFarmer, $farmUnitCounts) {
             $income = $farmers->sum(fn($farmer) => $incomeByFarmer[$farmer->id] ?? 0);
             $expense = $farmers->sum(fn($farmer) => $expenseByFarmer[$farmer->id] ?? 0);
+            $loss = $farmers->sum(fn($farmer) => $lossByFarmer[$farmer->id] ?? 0);
 
             return [
                 'region_id' => (int) $regionId,
@@ -63,7 +77,7 @@ class AdminAnalyticsService
                 'farm_unit_count' => $farmers->sum(fn($farmer) => $farmUnitCounts[$farmer->id] ?? 0),
                 'income' => (int) $income,
                 'expense' => (int) $expense,
-                'net' => (int) ($income - $expense),
+                'net' => IncomeAndExpenditure::netOf((int) $income, (int) $expense, (int) $loss),
             ];
         })->values()->all();
     }
@@ -97,6 +111,7 @@ class AdminAnalyticsService
         $activityTo = Carbon::now()->toDateString();
 
         $activeFarmerIds = Transaction::query()
+            ->live()
             ->whereDate('transaction_date', '>=', $activityFrom)
             ->whereDate('transaction_date', '<=', $activityTo)
             ->distinct()
@@ -108,7 +123,7 @@ class AdminAnalyticsService
             ->distinct()
             ->count('assigned_agent_id');
 
-        [$income, $expense] = $this->platformTotals($from, $to);
+        [$income, $expense, $loss] = $this->platformTotals($from, $to);
 
         return [
             'active_farmers' => $activeFarmerIds->count(),
@@ -117,7 +132,7 @@ class AdminAnalyticsService
             'total_agents' => User::role('agent')->count(),
             'total_income' => $income,
             'total_expense' => $expense,
-            'net' => $income - $expense,
+            'net' => IncomeAndExpenditure::netOf($income, $expense, $loss),
         ];
     }
 
@@ -137,6 +152,7 @@ class AdminAnalyticsService
         );
 
         $recordCounts = Transaction::query()
+            ->live()
             ->join('farmer_profiles', 'farmer_profiles.id', '=', 'transactions.farmer_profile_id')
             ->whereNotNull('farmer_profiles.assigned_agent_id')
             ->whereDate('transactions.transaction_date', '>=', $from)
@@ -146,7 +162,7 @@ class AdminAnalyticsService
             ->pluck('total', 'agent_id');
 
         $rows = $agents->map(function (User $agent) use ($from, $to, $farmerCounts, $newFarmerCounts, $recordCounts) {
-            [$income, $expense] = $this->roster->totalsFor($agent->id, $from, $to);
+            [$income, $expense, , , , , $loss] = $this->roster->totalsFor($agent->id, $from, $to);
 
             return [
                 'agent_id' => $agent->id,
@@ -156,7 +172,7 @@ class AdminAnalyticsService
                 'records_logged' => (int) ($recordCounts[$agent->id] ?? 0),
                 'income' => $income,
                 'expense' => $expense,
-                'net' => $income - $expense,
+                'net' => IncomeAndExpenditure::netOf($income, $expense, $loss),
             ];
         })->all();
 
@@ -173,15 +189,17 @@ class AdminAnalyticsService
             ->join('ledger_accounts', 'ledger_accounts.id', '=', 'journal_lines.ledger_account_id')
             ->whereDate('journal_lines.transaction_date', '>=', $from)
             ->whereDate('journal_lines.transaction_date', '<=', $to)
-            ->whereIn('transactions.transaction_type', [Transaction::INCOME, Transaction::EXPENSE])
+            ->whereIn('transactions.transaction_type', [Transaction::INCOME, Transaction::EXPENSE, Transaction::LOSS])
             ->where('ledger_accounts.is_settlement', false)
             ->where('transactions.is_provisional', false)
+            ->tap(fn($query) => Transaction::excludeCancelled($query))
+            ->tap(fn($query) => Transaction::excludeStockPurchases($query))
             ->where(fn($query) => $query
                 ->where(fn($income) => $income
                     ->where('transactions.transaction_type', Transaction::INCOME)
                     ->where('journal_lines.credit_minor', '>', 0))
                 ->orWhere(fn($outgoing) => $outgoing
-                    ->where('transactions.transaction_type', Transaction::EXPENSE)
+                    ->whereIn('transactions.transaction_type', [Transaction::EXPENSE, Transaction::LOSS])
                     ->where('journal_lines.debit_minor', '>', 0)))
             ->select('transactions.transaction_type')
             ->selectRaw('SUM(journal_lines.debit_minor + journal_lines.credit_minor) as amount_minor')
@@ -192,6 +210,7 @@ class AdminAnalyticsService
         return [
             (int) ($totals[Transaction::INCOME] ?? 0),
             (int) ($totals[Transaction::EXPENSE] ?? 0),
+            (int) ($totals[Transaction::LOSS] ?? 0),
         ];
     }
 

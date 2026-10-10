@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -34,6 +35,11 @@ class FarmerGroup extends Model
             'is_shared_liability' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function farmerProfiles(): HasMany
+    {
+        return $this->hasMany(FarmerProfile::class);
     }
 
     public function creator(): BelongsTo

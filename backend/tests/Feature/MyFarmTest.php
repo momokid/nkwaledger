@@ -281,6 +281,7 @@ test('shows profit and loss analysis per farm unit', function () {
             ->where('units.0.analysis.total_income', 50000)
             ->where('units.0.analysis.total_expense', 20000)
             ->where('units.0.analysis.total_loss', 5000)
-            ->where('units.0.analysis.net', 30000)
+            // net is income minus expense minus loss: 30000 minus the 5000 lost (it was 30000 before loss counted)
+            ->where('units.0.analysis.net', 25000)
             ->where('units.0.analysis.produce_quantity_sold', '15'));
 });

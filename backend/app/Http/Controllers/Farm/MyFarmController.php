@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Farm;
 
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Enums\MovementReason;
 use App\Enums\StockSource;
 use App\Http\Controllers\Controller;
@@ -42,7 +43,9 @@ class MyFarmController extends Controller
                 'is_approved' => $unit->isApproved(),
                 'analysis' => $this->analysisFor($farmer->id, $unit->id, $from, $to),
                 'timeline' => $this->timelineFor($unit),
+                // a batch that has ended is history: its movements stay in the timeline above
                 'stocks' => $unit->stocks
+                    ->whereNull('ended_on')
                     ->sortByDesc('started_on')
                     ->values()
                     ->map(fn(FarmUnitStock $stock) => [
@@ -79,7 +82,8 @@ class MyFarmController extends Controller
                                 'occurred_on' => $movement->occurred_on?->toDateString(),
                                 'recorded_by' => $movement->recordedBy?->surname,
                                 'is_confirmed' => $movement->isConfirmed(),
-                                'is_rejected' => $movement->isRejected(),
+                                'is_rejected' => $movement->isRejectedByChecker(),
+                                'is_cancelled' => $movement->isCancelled(),
                                 'rejection_reason' => $movement->rejection_reason,
                             ]),
                     ]),
@@ -98,6 +102,8 @@ class MyFarmController extends Controller
     private function analysisFor(int $farmerId, int $farmUnitId, string $from, string $to): array
     {
         $totals = Transaction::query()
+            ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeStockPurchases($query))
             ->where('farmer_profile_id', $farmerId)
             ->where('farm_unit_id', $farmUnitId)
             ->whereBetween('transaction_date', [$from, $to])
@@ -130,7 +136,7 @@ class MyFarmController extends Controller
             'total_income' => $income,
             'total_expense' => $expense,
             'total_loss' => $loss,
-            'net' => $income - $expense,
+            'net' => IncomeAndExpenditure::netOf($income, $expense, $loss),
             'produce_quantity_sold' => $this->trimmedQuantity((float) $quantitySold),
         ];
     }
@@ -173,7 +179,8 @@ class MyFarmController extends Controller
                 'expected_ready_on' => $isOpening ? $movement->stock?->expected_ready_on?->toDateString() : null,
                 'running_total' => $this->trimmedQuantity(max($runningTotal, 0)),
                 'is_confirmed' => $movement->isConfirmed(),
-                'is_rejected' => $movement->isRejected(),
+                'is_rejected' => $movement->isRejectedByChecker(),
+                'is_cancelled' => $movement->isCancelled(),
                 'rejection_reason' => $movement->rejection_reason,
             ];
         }

@@ -6,9 +6,11 @@ use App\Models\KioskProductImage;
 use App\Models\Supplier;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
     Storage::fake('public');
 });
@@ -21,6 +23,7 @@ test('an admin with catalog view can remove a product image', function () {
     $image = KioskProductImage::create(['kiosk_product_id' => $product->id, 'path' => 'kiosk-products/photo.webp']);
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-catalog.view');
 
     $this->actingAs($admin)->delete("/admin/marketplace/kiosk-products/{$product->uuid}/images/{$image->id}")

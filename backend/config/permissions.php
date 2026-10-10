@@ -19,6 +19,9 @@ return [
                 'create' => 'Add',
                 'update' => 'Edit',
                 'delete' => 'Delete',
+                // an agent's own narrower view: only groups that hold one of their assigned
+                // farmers, and full details only for those farmers - never the admin "view"
+                'view-own' => 'View groups with my farmers',
             ],
         ],
         'farm-type-categories' => [
@@ -39,6 +42,14 @@ return [
                 'update' => 'Edit',
                 // opens credit scoring and bank facing reports, so it stands apart from editing
                 'verify' => 'Verify identity',
+                // capture and approval are separate: an agent submits a farmer's document for
+                // their assigned farmers, only an admin (farmers.verify) ever approves it
+                'kyc-submit' => 'Submit identity documents',
+                // ends every session a farmer has, so it stands apart from the staff one
+                'force-logout' => 'Force logout',
+                // a lock also blocks the next sign-in; each way round has its own permission
+                'lock' => 'Lock account',
+                'unlock' => 'Unlock account',
             ],
         ],
         // pens, plots and ponds, plus what is in them
@@ -71,6 +82,7 @@ return [
                 'create' => 'Invite',
                 'update' => 'Enable or disable',
                 'delete' => 'Cancel invitation',
+                'force-logout' => 'Force logout',
             ],
         ],
         // reading the trail is its own privilege, separate from managing anything
@@ -115,6 +127,15 @@ return [
                 // asking and agreeing stay apart, so one person can never do both
                 'reverse-request' => 'Ask to cancel a record',
                 'reverse-approve' => 'Agree to a cancellation',
+            ],
+        ],
+        // offline records held back for an admin's decision
+        'sync-submissions' => [
+            'label' => 'Offline Records',
+            'actions' => [
+                'view' => 'View held records',
+                'approve' => 'Approve a held record',
+                'reject' => 'Reject a held record',
             ],
         ],
         // a health/disease issue on a farm unit, routed to a vet or adviser
@@ -189,6 +210,29 @@ return [
                 'co-confirm' => 'Co-confirm a sale',
             ],
         ],
+        // the curated Market Center homepage rows - spans kiosk products and produce
+        // listings both, admin-only, same shape as farm-type-categories
+        'marketplace-categories' => [
+            'label' => 'Marketplace Categories',
+            'actions' => [
+                'view' => 'View',
+                'create' => 'Add',
+                'update' => 'Edit',
+                'delete' => 'Delete',
+            ],
+        ],
+        // the admin-wide, unscoped visibility list of every produce sale in the system -
+        // deliberately its own permission, never produce-listings.view, which an agent
+        // and a farmer both legitimately hold for their own scoped listings/sales and
+        // must never double as a key to this system-wide page (see the Sept 2026
+        // privilege-escalation investigation: Admin\ProduceSaleController::index() has
+        // no per-farmer scoping at all, unlike the approvals/farmers admin pages)
+        'marketplace-produce-sales' => [
+            'label' => 'Marketplace Produce Sales (admin visibility)',
+            'actions' => [
+                'view' => 'View every produce sale',
+            ],
+        ],
     ],
 
     'standalone' => [
@@ -217,6 +261,9 @@ return [
             'farmers.create',
             'farmers.update',
             'farmers.verify',
+            'farmers.force-logout',
+            'farmers.lock',
+            'farmers.unlock',
             'farm-units.view',
             'farm-units.create',
             'farm-units.update',
@@ -226,6 +273,7 @@ return [
             'staff.create',
             'staff.update',
             'staff.delete',
+            'staff.force-logout',
             'audit.view',
             'accounting-periods.view',
             'accounting-periods.create',
@@ -239,6 +287,9 @@ return [
             'transactions.create',
             'transactions.reverse-request',
             'transactions.reverse-approve',
+            'sync-submissions.view',
+            'sync-submissions.approve',
+            'sync-submissions.reject',
             'approvals.view',
             'disease-reports.manage',
             'officer-assignments.view',
@@ -255,16 +306,26 @@ return [
             'marketplace-catalog.create',
             'marketplace-catalog.merge',
             'produce-listings.view',
+            'marketplace-categories.view',
+            'marketplace-categories.create',
+            'marketplace-categories.update',
+            'marketplace-categories.delete',
+            'marketplace-produce-sales.view',
         ],
+        // farm-type-categories.view, transaction-templates.view, ledger-accounts.view,
+        // farmer-groups.view and farmers.verify are deliberately NOT granted here: no
+        // agent-facing route reads them, and the admin pages they gate are additionally
+        // behind role:admin. farm-types.view IS an agent permission (decided Sept 2026);
+        // the admin-only farm-types.create/update/delete stay with the admin role. An
+        // agent instead gets farmers.kyc-submit (submit, never approve) and
+        // farmer-groups.view-own (only groups holding one of their assigned farmers)
         'agent' => [
             'farm-types.view',
-            'farmer-groups.view',
-            'ledger-accounts.view',
-            'farm-type-categories.view',
-            'transaction-templates.view',
             'farmers.view',
             'farmers.create',
             'farmers.update',
+            'farmers.kyc-submit',
+            'farmer-groups.view-own',
             // inspecting pens and counting stock is field work, so agents hold all of it
             'farm-units.view',
             'farm-units.create',
@@ -299,14 +360,19 @@ return [
             'produce-listings.view',
             'produce-listings.create',
         ],
-        // a vet only ever sees the reports routed to them, never anyone else's
+        // a vet only ever sees the reports routed to them, never anyone else's -
+        // marketplace-browse.view here only ever reaches a kiosk's own storefront
+        // page from Market Center; ordering is never granted, since neither role has
+        // a FarmerProfile to charge a purchase against
         'vet' => [
             'disease-reports.view',
             'disease-reports.respond',
+            'marketplace-browse.view',
         ],
         'adviser' => [
             'disease-reports.view',
             'disease-reports.respond',
+            'marketplace-browse.view',
         ],
         // suppliers are role-gated everywhere else in this app (role:supplier
         // middleware, never access:), but browsing the kiosk marketplace as a buyer

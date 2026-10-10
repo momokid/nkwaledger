@@ -7,6 +7,7 @@ import { FormEvent, useState } from "react";
 
 interface StaffData {
     id: number;
+    uuid: string;
     surname: string;
     first_name: string;
     other_name: string | null;
@@ -27,7 +28,12 @@ interface PaginationLink {
 interface Props extends PageProps {
     staff: { data: StaffData[]; links: PaginationLink[] };
     roles: string[];
-    permissions: { create: boolean; update: boolean; delete: boolean };
+    permissions: {
+        create: boolean;
+        update: boolean;
+        delete: boolean;
+        force_logout: boolean;
+    };
 }
 
 export default function Index(props: Props) {
@@ -46,6 +52,10 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
     const [loading, setLoading] = useState(false);
     const [busyId, setBusyId] = useState<number | null>(null);
     const [inviting, setInviting] = useState(false);
+    const [forcing, setForcing] = useState<string | null>(null);
+    const [signedOut, setSignedOut] = useState<string[]>([]);
+    const [confirming, setConfirming] = useState<StaffData | null>(null);
+    const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -59,7 +69,10 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
     const skeleton = dark ? "#374151" : "#E5E7EB";
 
     const hasActions =
-        permissions.create || permissions.update || permissions.delete;
+        permissions.create ||
+        permissions.update ||
+        permissions.delete ||
+        permissions.force_logout;
     const columns = hasActions ? 6 : 5;
     const cell = "px-4 py-3";
 
@@ -176,6 +189,30 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
         }
 
         act(member, "delete", route("admin.staff.destroy", member.id));
+    };
+
+    // a background request: the row turns into placeholders while it runs, then says what happened
+    const forceLogout = async (member: StaffData) => {
+        setConfirming(null);
+        setForcing(member.uuid);
+        setRowErrors(({ [member.uuid]: _cleared, ...rest }) => rest);
+
+        try {
+            await window.axios.post(
+                route("admin.staff.force-logout", member.uuid),
+            );
+            setSignedOut((done) => [...done, member.uuid]);
+        } catch (error) {
+            const message = (
+                error as { response?: { data?: { message?: string } } }
+            ).response?.data?.message;
+
+            if (message) {
+                setRowErrors((all) => ({ ...all, [member.uuid]: message }));
+            }
+        } finally {
+            setForcing(null);
+        }
     };
 
     const fullName = (member: StaffData) =>
@@ -306,6 +343,38 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
 
                         {!loading &&
                             staff.data.map((member, index) => {
+                                if (forcing === member.uuid) {
+                                    return (
+                                        <tr
+                                            key={member.id}
+                                            style={{
+                                                borderTop: `1px solid ${border}`,
+                                            }}
+                                        >
+                                            {Array.from({
+                                                length: columns,
+                                            }).map((__, column) => (
+                                                <td
+                                                    key={column}
+                                                    className={cell}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            height: "16px",
+                                                            width:
+                                                                column === 0
+                                                                    ? "70%"
+                                                                    : "50%",
+                                                            background:
+                                                                skeleton,
+                                                        }}
+                                                    />
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    );
+                                }
+
                                 const status = statusLabel(member);
                                 const busy = busyId === member.id;
                                 const isSelf = auth.user?.id === member.id;
@@ -447,6 +516,56 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                                                     : "Enable"}
                                                             </button>
                                                         )}
+
+                                                    {permissions.force_logout &&
+                                                        member.is_activated &&
+                                                        !isSelf &&
+                                                        (signedOut.includes(
+                                                            member.uuid,
+                                                        ) ? (
+                                                            <span
+                                                                style={{
+                                                                    color: "#1D9E75",
+                                                                    fontWeight: 600,
+                                                                    fontSize:
+                                                                        type.secondary,
+                                                                }}
+                                                            >
+                                                                User signed out.
+                                                            </span>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() =>
+                                                                    setConfirming(
+                                                                        member,
+                                                                    )
+                                                                }
+                                                                disabled={busy}
+                                                                style={actionStyle(
+                                                                    "#DC2626",
+                                                                    busy,
+                                                                )}
+                                                            >
+                                                                Force logout
+                                                            </button>
+                                                        ))}
+
+                                                    {rowErrors[member.uuid] && (
+                                                        <span
+                                                            role="alert"
+                                                            style={{
+                                                                color: "#DC2626",
+                                                                fontSize:
+                                                                    type.secondary,
+                                                            }}
+                                                        >
+                                                            {
+                                                                rowErrors[
+                                                                    member.uuid
+                                                                ]
+                                                            }
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
                                         )}
@@ -483,6 +602,76 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                     />
                 ))}
             </div>
+
+            {confirming && (
+                <div
+                    onClick={() => setConfirming(null)}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(17,24,39,0.55)",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "center",
+                        padding: "40px 20px",
+                        zIndex: 70,
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        onClick={(event) => event.stopPropagation()}
+                        style={{
+                            background: surface,
+                            border: `1px solid ${border}`,
+                            width: "100%",
+                            maxWidth: "420px",
+                            padding: "28px",
+                        }}
+                    >
+                        <p
+                            style={{
+                                margin: "0 0 20px",
+                                fontSize: type.body,
+                                color: text,
+                            }}
+                        >
+                            Sign this user out of all devices now?
+                        </p>
+                        <div style={{ display: "flex", gap: "12px" }}>
+                            <button
+                                onClick={() => forceLogout(confirming)}
+                                style={{
+                                    background: "#DC2626",
+                                    color: "#FFFFFF",
+                                    border: "none",
+                                    padding: "12px 20px",
+                                    fontWeight: 600,
+                                    fontSize: type.body,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                }}
+                            >
+                                Sign out
+                            </button>
+                            <button
+                                onClick={() => setConfirming(null)}
+                                style={{
+                                    background: "transparent",
+                                    color: text,
+                                    border: `1px solid ${inputBorder}`,
+                                    padding: "12px 20px",
+                                    fontWeight: 600,
+                                    fontSize: type.body,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {inviting && (
                 <div

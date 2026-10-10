@@ -8,8 +8,10 @@ use App\Models\OtpCode;
 use App\Models\User;
 use App\Services\AccessControlService;
 use App\Services\AuditService;
+use App\Services\ForcedLogoutService;
 use App\Services\OtpService;
 use App\Services\StaffInvitationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +41,7 @@ class StaffController extends Controller
                 ->paginate(15)
                 ->through(fn(User $staff) => [
                     'id'           => $staff->id,
+                    'uuid'         => $staff->uuid,
                     'surname'      => $staff->surname,
                     'first_name'   => $staff->first_name,
                     'other_name'   => $staff->other_name,
@@ -55,6 +58,7 @@ class StaffController extends Controller
                 'create' => $this->access->can($user, 'staff.create'),
                 'update' => $this->access->can($user, 'staff.update'),
                 'delete' => $this->access->can($user, 'staff.delete'),
+                'force_logout' => $this->access->can($user, 'staff.force-logout'),
             ],
         ]);
     }
@@ -131,6 +135,25 @@ class StaffController extends Controller
         });
 
         return back()->with('success', "The invitation to {$name} has been cancelled.");
+    }
+
+    // ends every session and remember-me token this person has, on every device
+    public function forceLogout(Request $request, User $user, ForcedLogoutService $logout): JsonResponse
+    {
+        $this->guardSelf($request, $user);
+        $this->guardManageable($user);
+
+        $logout->signOutEverywhere($user);
+
+        $this->audit->recordOn('staff.forced_logout', $user);
+
+        return response()->json(['status' => 'signed_out']);
+    }
+
+    // only the accounts this page lists are this page's to act on
+    private function guardManageable(User $user): void
+    {
+        abort_unless($user->hasAnyRole(StaffInvitationService::INVITABLE_ROLES), 403);
     }
 
     // locking yourself out is never the intent, and with one admin it cannot be undone

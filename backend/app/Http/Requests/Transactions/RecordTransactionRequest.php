@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Transactions;
 
 use App\Models\FarmerProfile;
+use App\Models\FarmUnit;
+use App\Models\LedgerAccount;
 use App\Models\TransactionTemplate;
 use App\Support\Money;
 use Illuminate\Foundation\Http\FormRequest;
@@ -18,23 +20,10 @@ class RecordTransactionRequest extends FormRequest
         $farmer = $this->farmer();
 
         return [
-            'transaction_template_id' => [
-                'required',
-                Rule::exists('transaction_templates', 'id')->where('is_active', true),
-                // a crop farmer has no animals to feed
-                Rule::in($this->allowedTemplateIds($farmer)),
-            ],
+            // whether this farmer may use it is checked in after(), from the shared model rule
+            'transaction_template_id' => ['required'],
             'amount' => ['required', 'string'],
-            // Receivable/Payable are is_settlement too (CreditSettlementService needs that),
-            // but a farmer never hand-picks them - only is_credit may use them, server-side
-            'settlement_account_id' => [
-                'nullable',
-                Rule::exists('ledger_accounts', 'id')
-                    ->where('is_settlement', true)
-                    ->where('is_active', true)
-                    ->where(fn($query) => $query
-                        ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])),
-            ],
+            'settlement_account_id' => ['nullable'],
             // "Credit (not paid yet)" - Receivable/Payable is resolved server-side,
             // never chosen directly, so this is the only thing the farmer submits
             'is_credit' => ['sometimes', 'boolean'],
@@ -56,6 +45,25 @@ class RecordTransactionRequest extends FormRequest
     public function after(): array
     {
         return [
+            // a crop farmer has no animals to feed; the rules live on the model, shared with sync
+            function (Validator $validator) {
+                if ($validator->errors()->has('transaction_template_id')) {
+                    return;
+                }
+
+                $refusal = TransactionTemplate::refusalFor($this->input('transaction_template_id'), $this->farmer());
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('transaction_template_id', $refusal);
+                }
+            },
+            function (Validator $validator) {
+                $account = $this->input('settlement_account_id');
+
+                if (filled($account) && ! LedgerAccount::isPickableForSettlement($account)) {
+                    $validator->errors()->add('settlement_account_id', LedgerAccount::NOT_PICKABLE);
+                }
+            },
             function (Validator $validator) {
                 if ($validator->errors()->has('amount')) {
                     return;
@@ -95,6 +103,14 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_lost', 'The number lost needs to be more than zero.');
+
+                    return;
+                }
+
+                $refusal = $this->wholeNumberRefusal($quantity);
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('quantity_lost', $refusal);
                 }
             },
             // a produce sale always says how many, so the stock the farmer has left stays accurate
@@ -119,6 +135,14 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_sold', 'The number sold needs to be more than zero.');
+
+                    return;
+                }
+
+                $refusal = $this->wholeNumberRefusal($quantity);
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('quantity_sold', $refusal);
                 }
             },
             // buying the tracked stock itself always says how many, so the count stays accurate
@@ -143,6 +167,14 @@ class RecordTransactionRequest extends FormRequest
 
                 if (! is_numeric($quantity) || (float) $quantity <= 0) {
                     $validator->errors()->add('quantity_purchased', 'The number bought needs to be more than zero.');
+
+                    return;
+                }
+
+                $refusal = $this->wholeNumberRefusal($quantity);
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('quantity_purchased', $refusal);
                 }
             },
             // a template that never allows credit cannot be forced into it by hand-crafting the request
@@ -153,19 +185,23 @@ class RecordTransactionRequest extends FormRequest
 
                 $template = TransactionTemplate::find($this->input('transaction_template_id'));
 
-                if ($template !== null && ! $template->allows_credit) {
-                    $validator->errors()->add('is_credit', 'That kind of record cannot be put on credit.');
+                if ($template?->creditRefusal() !== null) {
+                    $validator->errors()->add('is_credit', $template->creditRefusal());
                 }
             },
         ];
+    }
+
+    // the same whole-number rule posting applies, so the farmer sees it under the field
+    private function wholeNumberRefusal(mixed $quantity): ?string
+    {
+        return FarmUnit::query()->with('farmType')->find($this->input('farm_unit_id'))?->quantityRefusal($quantity);
     }
 
     public function messages(): array
     {
         return [
             'transaction_template_id.required' => 'Please choose what happened.',
-            'transaction_template_id.in' => 'That kind of record does not match your farm.',
-            'settlement_account_id.exists' => 'Please pick where the money went.',
             'transaction_date.before_or_equal' => 'That date has not happened yet.',
             'farm_unit_id.exists' => 'We could not find that part of the farm.',
         ];
@@ -190,19 +226,5 @@ class RecordTransactionRequest extends FormRequest
         abort_if($own === null, 403);
 
         return $own;
-    }
-
-    private function allowedTemplateIds(FarmerProfile $farmer): array
-    {
-        return TransactionTemplate::query()
-            ->where('is_active', true)
-            // a farmer never cancels their own record
-            ->where('transaction_type', '!=', Transaction::ADJUSTMENT)
-            ->where(fn($query) => $query
-                ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
-                // some things are true on every farm, so they belong to no category
-                ->orWhereNull('farm_type_category_id'))
-            ->pluck('id')
-            ->all();
     }
 }

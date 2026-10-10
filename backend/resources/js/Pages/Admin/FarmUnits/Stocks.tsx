@@ -29,6 +29,7 @@ interface MovementRow {
     recorded_by: string | null;
     is_confirmed: boolean;
     is_rejected: boolean;
+    is_cancelled: boolean;
     rejection_reason: string | null;
     can_confirm: boolean;
 }
@@ -918,7 +919,8 @@ function StocksContent({
                                                 borderTop: `1px solid ${border}`,
                                                 background: movement.is_rejected
                                                     ? rejectBg
-                                                    : movement.is_confirmed
+                                                    : movement.is_confirmed ||
+                                                        movement.is_cancelled
                                                       ? "transparent"
                                                       : warnBg,
                                             }}
@@ -965,7 +967,15 @@ function StocksContent({
                                                 {movement.note}
                                             </td>
                                             <td className="px-3 py-2">
-                                                {movement.is_rejected ? (
+                                                {movement.is_cancelled ? (
+                                                    <span
+                                                        style={{
+                                                            color: textSecondary,
+                                                        }}
+                                                    >
+                                                        Cancelled
+                                                    </span>
+                                                ) : movement.is_rejected ? (
                                                     <span
                                                         style={{
                                                             color: rejectColor,

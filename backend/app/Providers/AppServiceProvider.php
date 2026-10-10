@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
+use App\Auth\LockAwareSessionGuard;
+use App\Auth\LockAwareUserProvider;
 use App\Contracts\SmsProvider;
 use App\Models\User;
 use App\Services\Sms\ArkeselSmsProvider;
 use App\Services\Sms\LogSmsProvider;
 use App\Session\RoleAwareDatabaseSessionHandler;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -59,6 +62,28 @@ class AppServiceProvider extends ServiceProvider
 
         Vite::prefetch(concurrency: 3);
 
+        // the one place a locked account is turned away, for every sign-in and every later request
+        Auth::provider('eloquent', fn($app, array $config) => new LockAwareUserProvider($app['hash'], $config['model']));
+        Auth::extend('session', function ($app, string $name, array $config) {
+            $guard = new LockAwareSessionGuard(
+                $name,
+                Auth::createUserProvider($config['provider'] ?? null),
+                $app['session.store'],
+                rehashOnLogin: $app['config']->get('hashing.rehash_on_login', true),
+                timeboxDuration: $app['config']->get('auth.timebox_duration', 200000),
+                hashKey: $app['config']->get('app.key'),
+            );
+            $guard->setCookieJar($app['cookie']);
+            $guard->setDispatcher($app['events']);
+            $guard->setRequest($app->refresh('request', $guard, 'setRequest'));
+
+            if (isset($config['remember'])) {
+                $guard->setRememberDuration($config['remember']);
+            }
+
+            return $guard;
+        });
+
         // caps both the number being targeted and the machine doing the asking
         RateLimiter::for('otp-request', fn(Request $request) => [
             Limit::perHour(config('otp.throttle.login.per_phone'))
@@ -95,6 +120,23 @@ class AppServiceProvider extends ServiceProvider
                     ->by('resend-ip:' . $request->ip()),
             ];
         });
+
+        // signing someone out of every device is rare and decisive, so each admin gets a short leash
+        RateLimiter::for('force-logout', fn(Request $request) => Limit::perMinute(10)->by('force-logout:' . $request->user()?->id));
+
+        // locking and unlocking share one short leash per admin
+        RateLimiter::for('account-lock', fn(Request $request) => Limit::perMinute(10)->by('account-lock:' . $request->user()?->id));
+
+        RateLimiter::for('health-uploads', fn(Request $request) => Limit::perMinute(config('health_reports.requests_per_minute'))->by('health-uploads:' . $request->user()?->id));
+
+        RateLimiter::for('pin-reset', fn(Request $request) => [
+            Limit::perHour(config('otp.pin_reset.per_user'))->by('pin-reset-user:' . $request->user()?->id),
+            Limit::perHour(config('otp.pin_reset.per_ip'))->by('pin-reset-ip:' . $request->ip()),
+        ]);
+
+        RateLimiter::for('pin-reset-confirm', fn(Request $request) => [
+            Limit::perHour(config('otp.pin_reset.confirm_per_user'))->by('pin-reset-confirm-user:' . $request->user()?->id),
+        ]);
 
         Route::model('farmer', \App\Models\FarmerProfile::class);
         // anything that is not a uuid is not an address, so it never reaches the database

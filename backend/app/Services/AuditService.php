@@ -17,6 +17,12 @@ class AuditService
         $this->write($action, $subject::class, $subject->getKey(), $before, $after);
     }
 
+    // a decision the system made itself, so no person is named
+    public function recordOnBySystem(string $action, Model $subject, ?array $after = null): void
+    {
+        $this->write($action, $subject::class, $subject->getKey(), null, $after, system: true);
+    }
+
     // for things that touch no record, like a failed login
     public function record(string $action, ?array $details = null): void
     {
@@ -40,11 +46,12 @@ class AuditService
         ?array $before,
         ?array $after,
         ?int $userId = null,
+        bool $system = false,
     ): void {
         $request = request();
 
         AuditLog::create([
-            'user_id'        => $userId ?? auth()->id(),
+            'user_id'        => $system ? null : ($userId ?? auth()->id()),
             'action'         => $action,
             'auditable_type' => $type,
             'auditable_id'   => $id,

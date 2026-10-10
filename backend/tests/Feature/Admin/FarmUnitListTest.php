@@ -9,6 +9,8 @@ use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
+    \Illuminate\Support\Facades\Storage::fake('local');
+
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
 
@@ -35,6 +37,7 @@ function allUnitPayload(array $overrides = []): array
         'name' => 'Pen A',
         'capacity' => 250,
         'capacity_unit' => 'birds',
+        'images' => [\Illuminate\Http\UploadedFile::fake()->image('unit.jpg')],
     ], $overrides);
 }
 
