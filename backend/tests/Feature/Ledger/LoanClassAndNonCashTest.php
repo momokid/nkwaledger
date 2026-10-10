@@ -108,3 +108,8 @@ test('a farmer with no loan or non-cash records has zero for both new totals', f
 
     expect([$s->totalLoanRepaymentMinor, $s->nonCashMinor])->toBe([0, 0]);
 });
+
+test('the non-cash flag reads back as a real boolean, true on a non-cash template and false on a cash one', function () {
+    expect($this->goodsLoanTemplate->fresh()->is_non_cash)->toBeTrue()
+        ->and($this->saleTemplate->fresh()->is_non_cash)->toBeFalse();
+});

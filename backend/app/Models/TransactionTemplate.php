@@ -64,6 +64,7 @@ class TransactionTemplate extends Model
             'is_produce_sale' => 'boolean',
             'is_stock_purchase' => 'boolean',
             'is_liability' => 'boolean',
+            'is_non_cash' => 'boolean',
             'stock_source' => StockSource::class,
             'allows_credit' => 'boolean',
         ];
