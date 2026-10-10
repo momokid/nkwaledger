@@ -90,6 +90,7 @@ class IncomeAndExpenditureService
     {
         return (int) Transaction::query()
             ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeNonCash($query))
             ->where('farmer_profile_id', $farmerProfileId)
             ->where('transaction_type', $type)
             ->whereDate('transaction_date', '>=', $from)

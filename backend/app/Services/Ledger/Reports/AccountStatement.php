@@ -19,6 +19,10 @@ class AccountStatement
 
     public readonly int $totalLiabilityMinor;
 
+    public readonly int $totalLoanRepaymentMinor;
+
+    public readonly int $nonCashMinor;
+
     public readonly int $cancelledInMinor;
 
     public readonly int $cancelledOutMinor;
@@ -42,6 +46,7 @@ class AccountStatement
         array $classTotals,
         /** @var array{in: int, out: int, cancelled_in: int, cancelled_out: int} the one result of moneyTotals() that the page and the signed figures both read */
         array $moneyTotals,
+        int $nonCashMinor,
         public readonly int $total,
         public readonly int $page,
         public readonly int $perPage,
@@ -56,6 +61,8 @@ class AccountStatement
         $this->totalExpenditureMinor = $classTotals[MoneyClass::Expenditure->value];
         $this->totalIncomeMinor = $classTotals[MoneyClass::Income->value];
         $this->totalLiabilityMinor = $classTotals[MoneyClass::Liability->value];
+        $this->totalLoanRepaymentMinor = $classTotals[MoneyClass::LoanRepayment->value];
+        $this->nonCashMinor = $nonCashMinor;
 
         $this->cancelledInMinor = $moneyTotals['cancelled_in'];
         $this->cancelledOutMinor = $moneyTotals['cancelled_out'];
@@ -84,6 +91,16 @@ class AccountStatement
             'cancelled_in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $cancelled)),
             'cancelled_out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $cancelled)),
         ];
+    }
+
+    // the amount of the live non-cash records: a cancelled one and its correction row count zero
+    /** @param array<int, AccountStatementRow> $rows */
+    public static function nonCashTotal(array $rows): int
+    {
+        return array_sum(array_map(
+            fn($row) => in_array($row->cancelState, ['open', 'waiting'], true) ? $row->nonCashMinor : 0,
+            $rows,
+        ));
     }
 
     // money in plus money out per class, over every row except the correction rows - the

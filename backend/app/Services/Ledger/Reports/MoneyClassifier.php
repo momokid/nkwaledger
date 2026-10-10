@@ -35,6 +35,18 @@ class MoneyClassifier
             Transaction::EXPENSE => $subject->template?->is_stock_purchase
                 ? MoneyClass::Asset
                 : MoneyClass::Expenditure,
+            Transaction::LOAN => $this->loanClass($subject),
+            default => null,
+        };
+    }
+
+    // money received for a loan is a liability; principal paid back is its own class. The side the
+    // template settles on says which, so a correction of a loan record takes the class of that record
+    private function loanClass(Transaction $loan): ?MoneyClass
+    {
+        return match ($loan->template?->settlement_side) {
+            'debit' => MoneyClass::Liability,
+            'credit' => MoneyClass::LoanRepayment,
             default => null,
         };
     }

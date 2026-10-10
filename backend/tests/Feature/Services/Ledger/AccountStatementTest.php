@@ -712,7 +712,7 @@ it('classifies a correction by what it corrects, and keeps it out of the sub-tot
     expect([$statement->cancelledInMinor, $statement->cancelledOutMinor])->toBe([0, 200000]);
 });
 
-it('keeps assets plus expenditure equal to money out, and income plus liability equal to money in', function () {
+it('keeps assets plus expenditure plus loan repayment equal to money out, and income plus liability equal to money in', function () {
     ($this->sell)('250');
     ($this->sellLiability)('100');
     ($this->spend)('50');
@@ -720,7 +720,7 @@ it('keeps assets plus expenditure equal to money out, and income plus liability 
 
     $statement = ($this->run)();
 
-    expect($statement->totalAssetsMinor + $statement->totalExpenditureMinor)->toBe($statement->totalOutMinor);
+    expect($statement->totalAssetsMinor + $statement->totalExpenditureMinor + $statement->totalLoanRepaymentMinor)->toBe($statement->totalOutMinor);
     expect($statement->totalIncomeMinor + $statement->totalLiabilityMinor)->toBe($statement->totalInMinor);
 });
 
