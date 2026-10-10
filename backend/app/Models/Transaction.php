@@ -23,8 +23,16 @@ class Transaction extends Model
     public const EXPENSE = 'EXPENSE';
     public const LOSS = 'LOSS';
     public const ADJUSTMENT = 'ADJUSTMENT';
+    // loan entries: real books entries that are neither income, expense nor loss
+    public const LOAN = 'LOAN';
 
-    public const TYPES = [self::INCOME, self::EXPENSE, self::LOSS, self::ADJUSTMENT];
+    public const TYPES = [self::INCOME, self::EXPENSE, self::LOSS, self::ADJUSTMENT, self::LOAN];
+
+    // the records that count towards income, expense, loss and net
+    public const FIGURE_TYPES = [self::INCOME, self::EXPENSE, self::LOSS];
+
+    // what a farmer or the sync may never pick as a template
+    public const NOT_PICKABLE = [self::ADJUSTMENT, self::LOAN];
 
     public const CHANNELS = ['web', 'mobile', 'ussd'];
 
@@ -163,6 +171,22 @@ class Transaction extends Model
             ->select(DB::raw(1))
             ->from('transactions as reversal')
             ->whereColumn('reversal.reverses_transaction_id', $column));
+    }
+
+    // for counts that take every record whatever its type: a loan entry is not activity
+    public static function withoutLoanRecords(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
+    {
+        return $query->where("{$table}.transaction_type", '!=', self::LOAN);
+    }
+
+    // a non-cash record moved value, not money: never cash collected or paid out
+    public static function excludeNonCash(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
+    {
+        return $query->whereNotExists(fn($sub) => $sub
+            ->select(DB::raw(1))
+            ->from('transaction_templates')
+            ->whereColumn('transaction_templates.id', "{$table}.transaction_template_id")
+            ->where('transaction_templates.is_non_cash', true));
     }
 
     // buying stock is an asset gained, not an expense: left out of every expense and net figure

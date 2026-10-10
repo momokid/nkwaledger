@@ -90,6 +90,7 @@ class IncomeAndExpenditureService
     {
         return (int) Transaction::query()
             ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeNonCash($query))
             ->where('farmer_profile_id', $farmerProfileId)
             ->where('transaction_type', $type)
             ->whereDate('transaction_date', '>=', $from)
@@ -145,11 +146,7 @@ class IncomeAndExpenditureService
             ->where('journal_lines.farmer_profile_id', $farmerProfileId)
             ->whereDate('journal_lines.transaction_date', '>=', $from)
             ->whereDate('journal_lines.transaction_date', '<=', $to)
-            ->whereIn('transactions.transaction_type', [
-                Transaction::INCOME,
-                Transaction::EXPENSE,
-                Transaction::LOSS,
-            ])
+            ->whereIn('transactions.transaction_type', Transaction::FIGURE_TYPES)
             // the money the farmer holds is not earnings or spending, it is where it sits
             ->where('ledger_accounts.is_settlement', false)
             // an asset acquired distorts operating profit - pulled out of the expense total

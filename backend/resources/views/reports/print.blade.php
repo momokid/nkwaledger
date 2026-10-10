@@ -8,6 +8,7 @@
         'expenditure' => 'Expenditure',
         'income' => 'Income',
         'liability' => 'Liability',
+        'loan_repayment' => 'Loan repayment',
         default => null,
     };
     $subtotalCell = 'font-weight:400;color:#6B7280;font-size:9.5pt;border-top:none;';
@@ -272,6 +273,9 @@
                                 @if ($row['cancel_state'] === 'cancelled')
                                     <span class="muted">Cancelled</span>
                                 @endif
+                                @if ($row['is_non_cash'])
+                                    <span class="muted">Non-cash</span> {{ $cedis($row['non_cash']) }}
+                                @endif
                                 @if ($row['is_provisional'])
                                     <span class="muted">Not counted yet</span>
                                 @endif
@@ -328,6 +332,22 @@
                             <td class="right" style="{{ $subtotalCell }}">{{ $cedis($report['total_liability']) }}</td>
                             <td class="right" style="{{ $subtotalCell }}"></td>
                             <td class="right" style="{{ $subtotalCell }}"></td>
+                        </tr>
+                    @endif
+                    @if ($report['total_loan_repayment'] > 0)
+                        <tr>
+                            <td colspan="3" style="{{ $subtotalCell }}">Loan repayment</td>
+                            <td class="right" style="{{ $subtotalCell }}"></td>
+                            <td class="right" style="{{ $subtotalCell }}">{{ $cedis($report['total_loan_repayment']) }}</td>
+                            <td class="right" style="{{ $subtotalCell }}"></td>
+                        </tr>
+                    @endif
+                    @if ($report['non_cash'] > 0)
+                        <tr>
+                            <td colspan="3" style="{{ $subtotalCell }}">Non-cash</td>
+                            <td class="right" style="{{ $subtotalCell }}"></td>
+                            <td class="right" style="{{ $subtotalCell }}"></td>
+                            <td class="right" style="{{ $subtotalCell }}">{{ $cedis($report['non_cash']) }}</td>
                         </tr>
                     @endif
                 </tfoot>

@@ -79,6 +79,8 @@ class RecordTransactionController extends Controller
                     'account' => $row->accountName,
                     'value_lost' => $row->valueLostMinor,
                     'money_class' => $row->moneyClass?->value,
+                    'is_non_cash' => $row->isNonCash,
+                    'non_cash' => $row->nonCashMinor,
                 ]),
                 'opening_balance' => $statement->openingBalanceMinor,
                 'closing_balance' => $statement->closingBalanceMinor,
@@ -88,6 +90,8 @@ class RecordTransactionController extends Controller
                 'total_expenditure' => $statement->totalExpenditureMinor,
                 'total_income' => $statement->totalIncomeMinor,
                 'total_liability' => $statement->totalLiabilityMinor,
+                'total_loan_repayment' => $statement->totalLoanRepaymentMinor,
+                'non_cash' => $statement->nonCashMinor,
                 'cancelled_in' => $statement->cancelledInMinor,
                 'cancelled_out' => $statement->cancelledOutMinor,
                 'provisional_held_back' => $statement->provisionalHeldBackMinor,
@@ -289,7 +293,7 @@ class RecordTransactionController extends Controller
         return TransactionTemplate::query()
             ->where('is_active', true)
             // a farmer never cancels their own record
-            ->where('transaction_type', '!=', Transaction::ADJUSTMENT)
+            ->whereNotIn('transaction_type', Transaction::NOT_PICKABLE)
             ->where(fn($query) => $query
                 ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
                 // some things are true on every farm, so they belong to no category

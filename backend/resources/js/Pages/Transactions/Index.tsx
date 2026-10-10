@@ -5,7 +5,7 @@ import { PageProps } from "@/types";
 import { useState } from "react";
 import RecordsAttention, { FlaggedRow } from "@/Components/RecordsAttention";
 
-type MoneyClass = "asset" | "expenditure" | "income" | "liability";
+type MoneyClass = "asset" | "expenditure" | "income" | "liability" | "loan_repayment";
 
 interface Row {
     uuid: string;
@@ -21,6 +21,8 @@ interface Row {
     account: string | null;
     value_lost: number;
     money_class: MoneyClass | null;
+    is_non_cash: boolean;
+    non_cash: number;
 }
 
 const MONEY_CLASS_LABELS: Record<MoneyClass, string> = {
@@ -28,6 +30,7 @@ const MONEY_CLASS_LABELS: Record<MoneyClass, string> = {
     expenditure: "Expenditure",
     income: "Income",
     liability: "Liability",
+    loan_repayment: "Loan repayment",
 };
 
 interface AccountOption {
@@ -55,6 +58,8 @@ interface Statement {
     total_expenditure: number;
     total_income: number;
     total_liability: number;
+    total_loan_repayment: number;
+    non_cash: number;
     cancelled_in: number;
     cancelled_out: number;
     provisional_held_back: number;
@@ -331,6 +336,17 @@ function IndexContent({
                             Expenditure GHS{" "}
                             {cedis(statement.total_expenditure)}
                         </span>
+                        {statement.total_loan_repayment > 0 && (
+                            <span
+                                style={{
+                                    fontSize: "0.9375rem",
+                                    color: textSecondary,
+                                }}
+                            >
+                                Loan repayment GHS{" "}
+                                {cedis(statement.total_loan_repayment)}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div>
@@ -365,6 +381,13 @@ function IndexContent({
                         )}
                     </div>
                 </div>
+                {statement.non_cash > 0 && (
+                    <span
+                        style={{ fontSize: "0.9375rem", color: textSecondary }}
+                    >
+                        Non-cash GHS {cedis(statement.non_cash)}
+                    </span>
+                )}
             </div>
 
             {statement.provisional_held_back > 0 && (
@@ -621,6 +644,17 @@ function IndexContent({
                                                 }}
                                             >
                                                 Corrected
+                                            </span>
+                                        )}
+                                        {row.is_non_cash && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "0.9375rem",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                Non-cash {cedis(row.non_cash)}
                                             </span>
                                         )}
                                     </td>

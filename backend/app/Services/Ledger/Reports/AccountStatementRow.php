@@ -24,5 +24,8 @@ class AccountStatementRow
         public readonly int $valueLostMinor,
         // null when no cash moved - a credit sale/purchase, or a loss
         public readonly ?MoneyClass $moneyClass,
+        // no money moved but value did: the row carries its own amount, and is in no cash or class figure
+        public readonly bool $isNonCash = false,
+        public readonly int $nonCashMinor = 0,
     ) {}
 }
