@@ -6,53 +6,10 @@ on:
   pull_request:
     branches: ["*"]
 
-# Both jobs run the whole PHP suite and both must pass: SQLite is the quick local default,
-# PostgreSQL is what production runs. Actions are pinned to full commit SHAs.
+# One job, named "test" (the check the pull request waits for), on PostgreSQL: local development and
+# production use PostgreSQL. Actions are pinned to full commit SHAs.
 jobs:
-  test-sqlite:
-    name: PHP suite on SQLite
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: "8.5"
-          extensions: pdo, pdo_sqlite, pdo_pgsql, redis
-          coverage: none
-          ini-values: memory_limit=512M
-
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install Composer dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
-
-      - name: Install NPM dependencies
-        run: npm ci --legacy-peer-deps
-
-      # the pages have to exist on disk before Inertia's test page finder can see them
-      - name: Build assets
-        run: npm run build
-
-      - name: Run tests
-        run: php artisan test
-        env:
-          APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
-          ARKESEL_SENDER: NkwaLedger
-          REPORT_SECRET: base64:jV5e2oTqMJjzcYflr1E/sy9MgYt/DdhcbexDEX551P4=
-
-  test-postgres:
-    name: PHP suite on PostgreSQL 17
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -110,6 +67,7 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci --legacy-peer-deps
 
+      # the pages have to exist on disk before Inertia's test page finder can see them
       - name: Build assets
         run: npm run build
 

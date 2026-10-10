@@ -150,9 +150,9 @@ Short and plain, simple enough for an 8-year-old. Answer, then stop.
 - **Backend:** Laravel 12, Pest, Spatie Permission, Inertia.js, `AccessControlService` + `CheckPermission` middleware
 - **Frontend:** React/TypeScript, Vite (oxc parser), Tailwind CSS (zero border-radius), Inter font, Tabler Icons React
 - **Brand colors:** `#1D9E75` (green, income/positive) / `#0F6E56` / `#B45309` (amber, expense/reduction) / `#B91C1C` (red, loss) / `#7C3AED` (purple, correction)
-- **Database:** PostgreSQL (production/staging), SQLite and PostgreSQL (tests, both in CI); `php artisan migrate` required when adding columns (tests use fresh migrations each run, masking missing columns)
+- **Database:** PostgreSQL (production/staging), SQLite or PostgreSQL (tests locally; PostgreSQL in CI); `php artisan migrate` required when adding columns (tests use fresh migrations each run, masking missing columns)
 - **Tests on PostgreSQL (local):** needs a local server and an empty database named `*_test`; the suite refuses any other name or a non-local host. In `backend/` set `DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=nkwaledger_test DB_USERNAME=... DB_PASSWORD=...` (PowerShell: `$env:DB_CONNECTION='pgsql'` and so on), then `php artisan test --parallel --exclude-group=sequential-pg`.
-- **Concurrency test (PostgreSQL only):** with the same variables, `php artisan test --group=sequential-pg` (one process; it skips itself on SQLite). CI runs both databases; both must pass.
+- **Concurrency test (PostgreSQL only):** with the same variables, `php artisan test --group=sequential-pg` (one process; it skips itself on SQLite). CI runs PostgreSQL only, in one job named `test` (the check a pull request waits for); local SQLite runs still work.
 - **Known gotcha:** Stale `public/hot` Vite file causes intermittent full-suite test failures on Windows.
 - **Known gotcha:** `php artisan db:table` fails without the `intl` PHP extension; use `Schema::getColumnListing('table_name')` in tinker instead.
 - **Known gotcha:** a Laravel `cast` without a matching `$fillable` entry silently drops the value on `create()` — check both together when adding a column.
