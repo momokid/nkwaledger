@@ -91,6 +91,9 @@ class AccountStatementService
                     'expenditure' => $classTotals[MoneyClass::Expenditure->value],
                     'income' => $classTotals[MoneyClass::Income->value],
                     'liability' => $classTotals[MoneyClass::Liability->value],
+                    // signed only when there is something to sign, so a statement without them keeps its code
+                    ...($classTotals[MoneyClass::LoanRepayment->value] > 0 ? ['loan_repayment' => $classTotals[MoneyClass::LoanRepayment->value]] : []),
+                    ...($nonCashMinor > 0 ? ['non_cash' => $nonCashMinor] : []),
                 ],
             ),
         );

@@ -47,6 +47,8 @@ function props(canSettle: boolean, creditRows = [creditRow("owed", 50000)]) {
             total_expenditure: 0,
             total_income: 0,
             total_liability: 0,
+            total_loan_repayment: 0,
+            non_cash: 0,
             cancelled_in: 0,
             cancelled_out: 0,
             provisional_held_back: 0,
@@ -107,6 +109,60 @@ describe("Record payment on the credit tab", () => {
 
         expect(recordPaymentButtons()).toHaveLength(0);
         expect(container.textContent).toContain("Paid");
+    });
+});
+
+describe("Loan repayment and non-cash", () => {
+    const nonCashRow = {
+        uuid: "goods",
+        reference: "REF-GOODS",
+        date: "2026-03-01",
+        description: "Goods loan",
+        type: "LOAN",
+        money_in: 0,
+        money_out: 0,
+        balance: 0,
+        is_provisional: false,
+        cancel_state: "open",
+        account: null,
+        value_lost: 0,
+        money_class: null,
+        is_non_cash: true,
+        non_cash: 70000,
+    };
+
+    const render = async (loanRepayment: number, nonCash: number, rows: unknown[] = []) => {
+        const base = props(true) as unknown as { statement: Record<string, unknown> };
+        base.statement = { ...base.statement, total_loan_repayment: loanRepayment, non_cash: nonCash, rows };
+
+        await act(async () => root.render(<Index {...(base as unknown as ComponentProps<typeof Index>)} />));
+    };
+
+    it("shows the Loan repayment and Non-cash lines when their figures are above zero", async () => {
+        await render(28000, 94000);
+
+        expect(container.textContent).toContain("Loan repayment GHS");
+        expect(container.textContent).toContain("Non-cash GHS");
+    });
+
+    it("shows neither line when both figures are zero", async () => {
+        await render(0, 0);
+
+        expect(container.textContent).not.toContain("Loan repayment");
+        expect(container.textContent).not.toContain("Non-cash");
+    });
+
+    it("tags a non-cash row and shows its own amount", async () => {
+        await render(0, 70000, [nonCashRow]);
+
+        expect(container.textContent).toContain("Non-cash");
+        expect(container.textContent).toContain("700.00");
+    });
+
+    it("names the Loan repayment class on a money-out row", async () => {
+        await render(20000, 0, [{ ...nonCashRow, is_non_cash: false, non_cash: 0, money_out: 20000, money_class: "loan_repayment" }]);
+
+        expect(container.textContent).toContain("Loan repayment");
     });
 });
 
