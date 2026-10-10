@@ -38,6 +38,7 @@ class TransactionTemplate extends Model
         'is_produce_sale',
         'is_stock_purchase',
         'is_liability',
+        'is_non_cash',
         'stock_source',
         'allows_credit',
     ];
@@ -50,6 +51,7 @@ class TransactionTemplate extends Model
         'is_produce_sale' => false,
         'is_stock_purchase' => false,
         'is_liability' => false,
+        'is_non_cash' => false,
         'allows_credit' => false,
     ];
 

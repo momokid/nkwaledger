@@ -179,6 +179,16 @@ class Transaction extends Model
         return $query->where("{$table}.transaction_type", '!=', self::LOAN);
     }
 
+    // a non-cash record moved value, not money: never cash collected or paid out
+    public static function excludeNonCash(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
+    {
+        return $query->whereNotExists(fn($sub) => $sub
+            ->select(DB::raw(1))
+            ->from('transaction_templates')
+            ->whereColumn('transaction_templates.id', "{$table}.transaction_template_id")
+            ->where('transaction_templates.is_non_cash', true));
+    }
+
     // buying stock is an asset gained, not an expense: left out of every expense and net figure
     public static function excludeStockPurchases(Builder|QueryBuilder $query, string $table = 'transactions'): Builder|QueryBuilder
     {

@@ -319,7 +319,7 @@ test('signed figures: the same figures give the same code, and one changed figur
 
 // --- classes ---
 
-test('only the four classes exist: asset, expenditure, income and liability', function () {
+test('only the five classes exist: the four old ones and loan repayment', function () {
     expect(array_map(fn(MoneyClass $class) => $class->value, MoneyClass::cases()))
-        ->toBe(['asset', 'expenditure', 'income', 'liability']);
+        ->toBe(['asset', 'expenditure', 'income', 'liability', 'loan_repayment']);
 });

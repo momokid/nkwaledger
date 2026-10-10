@@ -115,3 +115,20 @@ function readFigures($t): array
             ->map(fn($row) => $row['details']['provisional_records'] ?? null)->all(),
     ];
 }
+
+// test-only templates for records where no money moves but value does
+function addNonCashTestTemplates($t): void
+{
+    $feed = LedgerAccount::where('name', 'Feed A/C')->first();
+    $sales = LedgerAccount::where('name', 'Sales A/C')->first();
+
+    $template = fn(string $name, string $kind, int $debit, int $credit) => TransactionTemplate::create([
+        'name' => $name, 'slug' => Str::slug($name), 'transaction_type' => $kind,
+        'debit_account_id' => $debit, 'credit_account_id' => $credit, 'settlement_side' => 'none',
+        'requires_farm_unit' => true, 'is_non_cash' => true,
+    ]);
+
+    $t->goodsLoanTemplate = $template('Goods loan received', 'LOAN', $t->goodsStock->id, $t->loanPayable->id);
+    $t->feedInKindTemplate = $template('Feed paid in kind', 'EXPENSE', $feed->id, $t->goodsStock->id);
+    $t->produceInKindTemplate = $template('Produce received in kind', 'INCOME', $t->goodsStock->id, $sales->id);
+}
