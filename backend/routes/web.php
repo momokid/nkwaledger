@@ -48,6 +48,7 @@ use App\Http\Controllers\Farm\DiseaseReportController;
 use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
 use App\Http\Controllers\Farm\MyFarmController;
+use App\Http\Controllers\Loans\LoanController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
@@ -221,6 +222,14 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
     Route::middleware('access:transactions.reverse-request')->group(function () {
         Route::post('/{transaction}/cancel', [ReversalController::class, 'store'])->name('cancel');
     });
+});
+
+// the farmer's own loans, with nobody named in the address
+Route::middleware(['auth', 'verified.phone', 'role:farmer'])->prefix('loans')->name('loans.')->group(function () {
+    Route::get('/', [LoanController::class, 'index'])->name('index');
+    Route::get('/create', [LoanController::class, 'create'])->name('create');
+    Route::get('/existing/create', [LoanController::class, 'createExisting'])->name('existing.create');
+    Route::post('/', [LoanController::class, 'store'])->name('store');
 });
 
 // the farmer's own farm, with nobody named in the address

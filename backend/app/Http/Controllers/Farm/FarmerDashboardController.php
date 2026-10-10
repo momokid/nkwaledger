@@ -8,6 +8,7 @@ use App\Models\FarmUnit;
 use App\Models\Transaction;
 use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
+use App\Services\Loans\LoanService;
 use App\Services\Weather\WeatherAdvisor;
 use App\Services\Weather\WeatherService;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ class FarmerDashboardController extends Controller
         private readonly IncomeAndExpenditureService $incomes,
         private readonly WeatherService $weather,
         private readonly WeatherAdvisor $advisor,
+        private readonly LoanService $loans,
     ) {}
 
     public function index(Request $request): Response
@@ -50,7 +52,7 @@ class FarmerDashboardController extends Controller
         $previousReport = $this->incomes->for($farmer->id, $previousFrom, $previousTo, includeProvisional: true);
 
         return Inertia::render('Dashboard', [
-            'summary' => $this->summaryFrom($report, $previousReport),
+            'summary' => $this->summaryFrom($report, $previousReport) + ['total_owed' => $this->loans->totalOwedMinor($farmer)],
             'farm_produce' => $this->farmProduceFor($farmer->id),
             'breakdown' => $this->breakdownFrom($report),
             'recent_transactions' => $this->recentTransactionsFor($farmer->id),
@@ -264,6 +266,7 @@ class FarmerDashboardController extends Controller
             'net' => 0,
             'cash_collected' => 0,
             'cash_paid_out' => 0,
+            'total_owed' => 0,
             'trends' => [
                 'income' => $flat,
                 'expense' => $flat,

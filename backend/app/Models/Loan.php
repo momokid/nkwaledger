@@ -106,4 +106,14 @@ class Loan extends Model
     {
         return $this->status === self::ACTIVE && $this->balanceMinor() === 0;
     }
+
+    // the word the list shows: active, repaid or cancelled
+    public function displayStatus(): string
+    {
+        if ($this->isCancelled()) {
+            return self::CANCELLED;
+        }
+
+        return $this->isRepaid() ? 'repaid' : self::ACTIVE;
+    }
 }

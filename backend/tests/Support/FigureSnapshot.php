@@ -89,6 +89,8 @@ function readFigures($t): array
     $range = "from={$t->from}&to={$t->to}";
     $agentDashboard = $props($t->agent, "/agent/dashboard?{$range}");
     $farmerDashboard = $props($t->farmerUser, '/farmer/dashboard');
+    // the one figure on the dashboard that loans are meant to move: the total owed on them
+    unset($farmerDashboard['summary']['total_owed']);
 
     return [
         'report_main' => $figures($report($t->profile)),
