@@ -1,0 +1,109 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
+
+class Loan extends Model
+{
+    public const KIND_MONEY = 'money';
+    public const KIND_EXISTING = 'existing';
+
+    public const ACTIVE = 'active';
+    public const CANCELLED = 'cancelled';
+
+    public const LENDER_TYPES = ['bank', 'microfinance', 'group', 'individual', 'other'];
+
+    protected $fillable = [
+        'uuid',
+        'farmer_profile_id',
+        'kind',
+        'status',
+        'lender_name',
+        'lender_type',
+        'principal_minor',
+        'agreed_interest_minor',
+        'loan_date',
+        'due_date',
+        'note',
+        'settlement_account_id',
+        'transaction_id',
+        'recorded_by',
+        'idempotency_key',
+    ];
+
+    protected $attributes = [
+        'status' => self::ACTIVE,
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'principal_minor' => 'integer',
+            'agreed_interest_minor' => 'integer',
+            'loan_date' => 'date',
+            'due_date' => 'date',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $loan) {
+            $loan->uuid ??= (string) Str::uuid7();
+        });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
+    public function farmerProfile(): BelongsTo
+    {
+        return $this->belongsTo(FarmerProfile::class);
+    }
+
+    public function transaction(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class);
+    }
+
+    public function settlementAccount(): BelongsTo
+    {
+        return $this->belongsTo(LedgerAccount::class, 'settlement_account_id');
+    }
+
+    public function recordedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::CANCELLED;
+    }
+
+    // the one place the balance is worked out: the principal less what has been paid back.
+    // No repayment exists yet, so the repayments step extends this and nothing else
+    public function balanceMinor(): int
+    {
+        if ($this->isCancelled()) {
+            return 0;
+        }
+
+        return max(0, $this->principal_minor - $this->principalRepaidMinor());
+    }
+
+    public function principalRepaidMinor(): int
+    {
+        return 0;
+    }
+
+    // "Repaid" is never stored: it is a loan that was in force and now owes nothing
+    public function isRepaid(): bool
+    {
+        return $this->status === self::ACTIVE && $this->balanceMinor() === 0;
+    }
+}
