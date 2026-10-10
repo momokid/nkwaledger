@@ -11,6 +11,7 @@ use App\Services\Loans\LoanService;
 use App\Services\RecordLock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,6 +26,8 @@ class LoanController extends Controller
 
     public function index(Request $request): Response
     {
+        Gate::authorize('viewAny', Loan::class);
+
         $farmer = $this->farmer($request);
 
         return Inertia::render('Loans/Index', [
@@ -45,16 +48,22 @@ class LoanController extends Controller
 
     public function create(Request $request): Response
     {
+        Gate::authorize('create', Loan::class);
+
         return $this->form(Loan::KIND_MONEY);
     }
 
     public function createExisting(Request $request): Response
     {
+        Gate::authorize('create', Loan::class);
+
         return $this->form(Loan::KIND_EXISTING);
     }
 
     public function store(StoreLoanRequest $request): RedirectResponse
     {
+        Gate::authorize('create', Loan::class);
+
         $farmer = $this->farmer($request);
         $data = $request->validated();
 

@@ -4,6 +4,7 @@ import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { compressImage } from "@/lib/compressImage";
 import { FormEvent, ReactNode, useMemo, useState } from "react";
+import FarmerLoans, { FarmerLoanRow } from "@/Components/FarmerLoans";
 
 interface Option {
     id: number;
@@ -55,6 +56,8 @@ interface Props extends PageProps {
     agents: AgentOption[];
     layout: "admin" | "agent";
     basePath: string;
+    // only an admin is sent these, and only to read
+    loans?: FarmerLoanRow[] | null;
     permissions: {
         update: boolean;
         capture_identity: boolean;
@@ -86,6 +89,7 @@ export default function Show(props: Props) {
     return (
         <Frame layout={props.layout} title={props.farmer.name}>
             <ShowContent {...props} />
+            {props.loans && <FarmerLoans loans={props.loans} />}
         </Frame>
     );
 }
