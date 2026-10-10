@@ -1,6 +1,6 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import Button from "@/Components/Button";
-import { useForm, usePage } from "@inertiajs/react";
+import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { FormEvent } from "react";
 
@@ -168,9 +168,14 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey }: ContentP
 
                 {text_("note", "note", "Note (optional)")}
 
-                <Button type="submit" busy={form.processing} busyLabel="Saving...">
-                    Save this record
-                </Button>
+                <div className="flex flex-wrap gap-3">
+                    <Button type="submit" busy={form.processing} busyLabel="Saving...">
+                        Save this record
+                    </Button>
+                    <Button type="button" look="secondary" onClick={() => router.visit("/loans")}>
+                        Cancel
+                    </Button>
+                </div>
             </form>
         </div>
     );

@@ -26,7 +26,8 @@ class StoreLoanRequest extends FormRequest
                 Rule::in(app(LoanService::class)->paidIntoOptions()->pluck('id')->all()),
             ],
             'interest' => ['nullable', 'string', 'regex:/^\d+(\.\d{1,2})?$/'],
-            'due_date' => ['nullable', 'date', 'after_or_equal:' . ($money ? 'date' : 'today')],
+            // only a loan received has a date received to compare it with; an opening entry may already be overdue
+            'due_date' => $money ? ['nullable', 'date', 'after_or_equal:date'] : ['nullable', 'date'],
             'note' => ['nullable', 'string', 'max:1000'],
             // client-generated, so a form sent twice makes one loan
             'idempotency_key' => ['nullable', 'string', 'max:64'],
@@ -40,8 +41,13 @@ class StoreLoanRequest extends FormRequest
             'amount.string' => LoanService::AMOUNT_REFUSAL,
             'amount.regex' => LoanService::AMOUNT_REFUSAL,
             'date.before_or_equal' => LoanService::FUTURE_REFUSAL,
-            // the form simply refuses a due date before the loan date; it has no words of its own
-            'due_date.after_or_equal' => '',
+            'due_date.after_or_equal' => 'The due date cannot be before the date received.',
+            'lender_name.required' => "Enter the lender's name.",
+            'lender_type.required' => 'Choose the lender type.',
+            'lender_type.in' => 'Choose the lender type.',
+            'paid_into.required' => 'Choose where the money was paid into.',
+            'paid_into.integer' => 'Choose where the money was paid into.',
+            'paid_into.in' => 'Choose where the money was paid into.',
         ];
     }
 

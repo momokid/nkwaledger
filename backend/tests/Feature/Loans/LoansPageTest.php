@@ -139,14 +139,53 @@ test('a date in the future shows the approved words beside the date field', func
         ->assertSessionHasErrors(['date' => 'This date is in the future.']);
 });
 
-test('a due date before the loan date is simply refused, with no text of its own', function () {
+test('a due date before the date received shows the approved words beside the due date field', function () {
     $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['due_date' => now()->subDay()->toDateString()]))
-        ->assertRedirect();
-
-    // the refusal is there, with an empty message: nothing is said, the form just does not go through
-    expect(data_get(json_decode(json_encode(session('errors')), true), 'default.messages.due_date'))->toBe(['']);
+        ->assertSessionHasErrors(['due_date' => 'The due date cannot be before the date received.']);
 
     expect(Loan::count())->toBe(0);
+});
+
+test('a missing lender name, lender type or paid-into account shows the approved words beside its field', function (string $field, string $words) {
+    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)([$field => '']))
+        ->assertSessionHasErrors([$field => $words]);
+
+    expect(Loan::count())->toBe(0);
+})->with([
+    ['lender_name', "Enter the lender's name."],
+    ['lender_type', 'Choose the lender type.'],
+    ['paid_into', 'Choose where the money was paid into.'],
+]);
+
+test('a lender type that is not on the list, or an account that is not cash, MoMo or bank, gets the same approved words', function () {
+    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['lender_type' => 'cousin']))
+        ->assertSessionHasErrors(['lender_type' => 'Choose the lender type.']);
+
+    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['paid_into' => $this->receivable->id]))
+        ->assertSessionHasErrors(['paid_into' => 'Choose where the money was paid into.']);
+});
+
+test('the loan I already had form shows the same words for a missing lender name or lender type, and asks for no account', function () {
+    $existing = fn(array $over = []) => array_merge([
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300', 'idempotency_key' => 'form-key-9',
+    ], $over);
+
+    $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender_name' => '']))
+        ->assertSessionHasErrors(['lender_name' => "Enter the lender's name."]);
+    $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender_type' => '']))
+        ->assertSessionHasErrors(['lender_type' => 'Choose the lender type.']);
+    $this->actingAs($this->farmerUser)->post('/loans', $existing())->assertSessionHasNoErrors();
+
+    expect(Loan::count())->toBe(1);
+});
+
+test('a loan I already had may have a due date that has already passed: there is no date received to compare it with', function () {
+    $this->actingAs($this->farmerUser)->post('/loans', [
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300',
+        'due_date' => now()->subDays(20)->toDateString(), 'idempotency_key' => 'form-key-10',
+    ])->assertSessionHasNoErrors()->assertRedirect('/loans');
+
+    expect(Loan::first()->due_date->toDateString())->toBe(now()->subDays(20)->toDateString());
 });
 
 test('a negative interest, a missing lender or a lender type that is not on the list is refused', function () {

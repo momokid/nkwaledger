@@ -167,6 +167,21 @@ test('a due date before the loan date is refused', function () {
         ->toThrow(InvalidArgumentException::class);
 });
 
+test('an opening entry may have a due date that has already passed, since it has no date received', function () {
+    $loan = ($this->record)(($this->existingLoan)(['due_date' => now()->subDays(20)->toDateString()]));
+
+    expect($loan->due_date->toDateString())->toBe(now()->subDays(20)->toDateString());
+});
+
+test('the statement shows the two template names on the loan rows', function () {
+    ($this->record)(($this->moneyLoan)());
+    ($this->record)(($this->existingLoan)());
+
+    $descriptions = collect(($this->statement)()->rows)->where('transactionType', 'LOAN')->pluck('description')->sort()->values()->all();
+
+    expect($descriptions)->toBe(['Loan already had', 'Loan received']);
+});
+
 test('a posting refusal shows the existing text unchanged, and leaves no loan behind', function () {
     $loansBefore = Loan::count();
 

@@ -171,7 +171,8 @@ class LoanService
 
         $due = ($data['due_date'] ?? null) === null || $data['due_date'] === '' ? null : $this->date($data['due_date']);
 
-        if ($due !== null && $due->isBefore($loanDate)) {
+        // an opening entry has no date received, so there is nothing to compare its due date with
+        if ($due !== null && $kind === Loan::KIND_MONEY && $due->isBefore($loanDate)) {
             throw new InvalidArgumentException('The due date cannot be before the loan date.');
         }
 

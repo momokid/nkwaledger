@@ -5,16 +5,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Create from "./Create";
 
 let mockErrors: Record<string, string> = {};
+let mockDark = false;
 const post = vi.fn();
+const visit = vi.fn();
 
 vi.mock("@/Layouts/AuthenticatedLayout", () => ({
     default: ({ children }: { children: unknown }) => children,
-    useTheme: () => ({ dark: false }),
+    useTheme: () => ({ dark: mockDark }),
 }));
 
 vi.mock("@inertiajs/react", () => ({
     usePage: () => ({ props: { errors: mockErrors, flash: {}, old: {} } }),
-    router: { visit: () => {} },
+    router: { visit: (...args: unknown[]) => visit(...args) },
     useForm: (initial: Record<string, string>) => ({
         data: initial,
         errors: {},
@@ -48,7 +50,9 @@ const labels = () => Array.from(container.querySelectorAll("label")).map((label)
 beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     mockErrors = {};
+    mockDark = false;
     post.mockClear();
+    visit.mockClear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -101,6 +105,29 @@ describe("The loan I already had form", () => {
             "Due date (optional)",
             "Note (optional)",
         ]);
+    });
+});
+
+describe("The Cancel button", () => {
+    const cancel = () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Cancel");
+
+    it.each(["money", "existing"] as const)("is on the %s form, and goes back to the Loans page without saving", async (kind) => {
+        await show(kind);
+
+        expect(cancel()).toBeDefined();
+        expect(cancel()?.getAttribute("type")).toBe("button");
+
+        await act(async () => cancel()!.click());
+
+        expect(visit).toHaveBeenCalledWith("/loans");
+        expect(post).not.toHaveBeenCalled();
+    });
+
+    it("is there in the dark theme too", async () => {
+        mockDark = true;
+        await show("money");
+
+        expect(cancel()).toBeDefined();
     });
 });
 
