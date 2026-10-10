@@ -122,17 +122,17 @@ class TransactionTemplate extends Model
 
     protected function guardAgainstUnknownType(): void
     {
-        if (! in_array($this->transaction_type, self::TYPES, true)) {
+        if (! in_array($this->transaction_type, Transaction::TYPES, true)) {
             throw new InvalidArgumentException('Unknown transaction type.');
         }
     }
 
-    // what a farmer may record: live, never an adjustment, and for a farm type theirs
+    // what a farmer may record: live, never an adjustment or a loan entry, and for a farm type theirs
     // (or for every farm, which is a template with no category)
     public function scopeAllowedFor(Builder $query, FarmerProfile $farmer): Builder
     {
         return $query->where('is_active', true)
-            ->where('transaction_type', '!=', Transaction::ADJUSTMENT)
+            ->whereNotIn('transaction_type', Transaction::NOT_PICKABLE)
             ->where(fn($inner) => $inner
                 ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
                 ->orWhereNull('farm_type_category_id'));

@@ -112,6 +112,7 @@ class AdminAnalyticsService
 
         $activeFarmerIds = Transaction::query()
             ->live()
+            ->tap(fn($query) => Transaction::withoutLoanRecords($query))
             ->whereDate('transaction_date', '>=', $activityFrom)
             ->whereDate('transaction_date', '<=', $activityTo)
             ->distinct()
@@ -153,6 +154,7 @@ class AdminAnalyticsService
 
         $recordCounts = Transaction::query()
             ->live()
+            ->tap(fn($query) => Transaction::withoutLoanRecords($query))
             ->join('farmer_profiles', 'farmer_profiles.id', '=', 'transactions.farmer_profile_id')
             ->whereNotNull('farmer_profiles.assigned_agent_id')
             ->whereDate('transactions.transaction_date', '>=', $from)
@@ -189,7 +191,7 @@ class AdminAnalyticsService
             ->join('ledger_accounts', 'ledger_accounts.id', '=', 'journal_lines.ledger_account_id')
             ->whereDate('journal_lines.transaction_date', '>=', $from)
             ->whereDate('journal_lines.transaction_date', '<=', $to)
-            ->whereIn('transactions.transaction_type', [Transaction::INCOME, Transaction::EXPENSE, Transaction::LOSS])
+            ->whereIn('transactions.transaction_type', Transaction::FIGURE_TYPES)
             ->where('ledger_accounts.is_settlement', false)
             ->where('transactions.is_provisional', false)
             ->tap(fn($query) => Transaction::excludeCancelled($query))

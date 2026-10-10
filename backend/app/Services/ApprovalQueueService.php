@@ -71,6 +71,7 @@ class ApprovalQueueService
                     // a unit with records piling up on it is the urgent one
                     'provisional_records' => Transaction::query()
                         ->live()
+                        ->tap(fn($query) => Transaction::withoutLoanRecords($query))
                         ->where('farm_unit_id', $unit->id)
                         ->where('is_provisional', true)
                         ->count(),

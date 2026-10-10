@@ -54,7 +54,7 @@ class AgentActivityFeedService
     {
         return Transaction::query()
             ->whereIn('farmer_profile_id', $activeFarmers->keys())
-            ->whereIn('transaction_type', [Transaction::INCOME, Transaction::EXPENSE, Transaction::LOSS])
+            ->whereIn('transaction_type', Transaction::FIGURE_TYPES)
             ->with('template:id,name')
             ->withExists('reversedBy as is_cancelled')
             ->orderByDesc('created_at')
