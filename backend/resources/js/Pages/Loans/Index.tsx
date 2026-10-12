@@ -3,6 +3,7 @@ import Button from "@/Components/Button";
 import { router } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { cedis } from "@/lib/format";
+import { useState } from "react";
 
 type Status = "active" | "repaid" | "cancelled";
 
@@ -14,8 +15,17 @@ interface LoanRow {
     status: Status;
 }
 
+interface PendingCard {
+    uuid: string;
+    lender: string;
+    amount: number;
+    date: string;
+    agent: string;
+}
+
 interface Props extends PageProps {
     loans: LoanRow[];
+    pending: PendingCard[];
 }
 
 const STATUS_LABELS: Record<Status, string> = {
@@ -32,16 +42,18 @@ export default function Index(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "loans">;
+type ContentProps = Pick<Props, "loans" | "pending">;
 
-function IndexContent({ loans }: ContentProps) {
+function IndexContent({ loans, pending }: ContentProps) {
     const { dark } = useTheme();
+    const [declining, setDeclining] = useState<string | null>(null);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
     const noticeBg = dark ? "rgba(180,83,9,0.15)" : "#FEF3C7";
+    const noticeBorder = "#B45309";
 
     const head = {
         textAlign: "left",
@@ -68,6 +80,50 @@ function IndexContent({ loans }: ContentProps) {
             >
                 You entered this loan yourself. It has not been checked with the lender.
             </div>
+
+            {pending.map((card) => (
+                <div
+                    key={card.uuid}
+                    className="mt-4 p-4"
+                    style={{ background: surface, border: `2px solid ${noticeBorder}` }}
+                >
+                    <p style={{ color: text, fontSize: "1.125rem", fontWeight: 700 }}>
+                        {card.lender} · GHS {cedis(card.amount)}
+                    </p>
+                    <p style={{ color: textSecondary, fontSize: "1rem" }}>{card.date}</p>
+                    <p style={{ color: textSecondary, fontSize: "1rem" }}>Recorded by {card.agent}</p>
+                    <p className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
+                        Your agent recorded a loan for you. It is not counted until you accept it.
+                    </p>
+
+                    {declining === card.uuid ? (
+                        <div className="mt-3" role="alertdialog" aria-label="Decline this loan?">
+                            <p style={{ color: text, fontSize: "1.0625rem" }}>Decline this loan?</p>
+                            <div className="mt-2 flex gap-3">
+                                <Button
+                                    type="button"
+                                    look="danger"
+                                    onClick={() => router.post(`/loans/entries/${card.uuid}/decline`)}
+                                >
+                                    Decline
+                                </Button>
+                                <Button type="button" look="secondary" onClick={() => setDeclining(null)}>
+                                    Keep
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="mt-3 flex gap-3">
+                            <Button type="button" onClick={() => router.post(`/loans/entries/${card.uuid}/accept`)}>
+                                Accept
+                            </Button>
+                            <Button type="button" look="secondary" onClick={() => setDeclining(card.uuid)}>
+                                Decline
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            ))}
 
             <div className="mt-4 flex flex-wrap gap-3">
                 <Button type="button" onClick={() => router.visit("/loans/create")}>

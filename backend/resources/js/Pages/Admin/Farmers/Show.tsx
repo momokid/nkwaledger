@@ -56,8 +56,9 @@ interface Props extends PageProps {
     agents: AgentOption[];
     layout: "admin" | "agent";
     basePath: string;
-    // only an admin is sent these, and only to read
+    // an admin and the farmer's current agent are sent these; only the agent also gets the actions
     loans?: FarmerLoanRow[] | null;
+    loan_actions?: boolean;
     permissions: {
         update: boolean;
         capture_identity: boolean;
@@ -89,7 +90,9 @@ export default function Show(props: Props) {
     return (
         <Frame layout={props.layout} title={props.farmer.name}>
             <ShowContent {...props} />
-            {props.loans && <FarmerLoans loans={props.loans} />}
+            {props.loans && (
+                <FarmerLoans loans={props.loans} farmerUuid={props.loan_actions ? String(props.farmer.id) : undefined} />
+            )}
         </Frame>
     );
 }

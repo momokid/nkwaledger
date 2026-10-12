@@ -27,8 +27,11 @@ vi.mock("@inertiajs/react", () => ({
     }),
 }));
 
-const props = (kind: "money" | "existing") => ({
+const props = (kind: "money" | "existing", over: Record<string, unknown> = {}) => ({
     kind,
+    agent: false,
+    postUrl: "/loans",
+    backUrl: "/loans",
     lenderTypes: ["bank", "microfinance", "group", "individual", "other"],
     paidInto: [
         { id: 1, label: "Cash" },
@@ -36,13 +39,14 @@ const props = (kind: "money" | "existing") => ({
         { id: 3, label: "Bank" },
     ],
     idempotencyKey: "key-1",
+    ...over,
 });
 
 let root: Root;
 let container: HTMLElement;
 
-async function show(kind: "money" | "existing") {
-    await act(async () => root.render(<Create {...(props(kind) as unknown as ComponentProps<typeof Create>)} />));
+async function show(kind: "money" | "existing", over: Record<string, unknown> = {}) {
+    await act(async () => root.render(<Create {...(props(kind, over) as unknown as ComponentProps<typeof Create>)} />));
 }
 
 const labels = () => Array.from(container.querySelectorAll("label")).map((label) => label.textContent);
@@ -128,6 +132,58 @@ describe("The Cancel button", () => {
         await show("money");
 
         expect(cancel()).toBeDefined();
+    });
+});
+
+describe("The agent's forms", () => {
+    const agentOver = { agent: true, postUrl: "/agent/farmers/f-1/loans", backUrl: "/agent/farmers/f-1" };
+
+    it("reuse the farmer's labels, and the existing loan amount reads Loan Amount", async () => {
+        await show("existing", agentOver);
+
+        expect(labels()).toEqual([
+            "Lender name",
+            "Lender type",
+            "Loan Amount",
+            "Interest still to pay (optional)",
+            "Due date (optional)",
+            "Note (optional)",
+        ]);
+    });
+
+    it("keep Amount received on the new loan form", async () => {
+        await show("money", agentOver);
+
+        expect(labels()).toContain("Amount received");
+        expect(labels()).not.toContain("Loan Amount");
+    });
+
+    it("post to the agent address, and Cancel goes back to the farmer page", async () => {
+        await show("money", agentOver);
+
+        const cancel = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Cancel");
+        await act(async () => cancel!.click());
+
+        expect(visit).toHaveBeenCalledWith("/agent/farmers/f-1");
+
+        const form = container.querySelector("form")!;
+        await act(async () => {
+            form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        });
+
+        expect(post).toHaveBeenCalledWith("/agent/farmers/f-1/loans");
+    });
+
+    it("the farmer's own form still posts to /loans", async () => {
+        await show("existing");
+
+        const form = container.querySelector("form")!;
+        await act(async () => {
+            form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        });
+
+        expect(post).toHaveBeenCalledWith("/loans");
+        expect(labels()).toContain("Amount you still owe");
     });
 });
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Loans\StoreLoanRequest;
 use App\Models\FarmerProfile;
 use App\Models\Loan;
+use App\Services\Loans\LoanListService;
 use App\Services\Loans\LoanService;
 use App\Services\RecordLock;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,7 @@ class LoanController extends Controller
     public function __construct(
         private readonly LoanService $loans,
         private readonly RecordLock $lock,
+        private readonly LoanListService $list,
     ) {}
 
     public function index(Request $request): Response
@@ -31,6 +33,8 @@ class LoanController extends Controller
         $farmer = $this->farmer($request);
 
         return Inertia::render('Loans/Index', [
+            // the entries an agent recorded for this farmer, waiting to be accepted
+            'pending' => $this->list->pendingFor($farmer),
             'loans' => Loan::query()
                 ->where('farmer_profile_id', $farmer->id)
                 ->orderByDesc('id')
@@ -87,6 +91,9 @@ class LoanController extends Controller
             'lenderTypes' => Loan::LENDER_TYPES,
             'paidInto' => $this->loans->paidIntoOptions(),
             'idempotencyKey' => (string) Str::uuid(),
+            'agent' => false,
+            'postUrl' => '/loans',
+            'backUrl' => '/loans',
         ]);
     }
 

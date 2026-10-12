@@ -12,6 +12,7 @@ use App\Models\Community;
 use App\Models\FarmerGroup;
 use App\Models\FarmerProfile;
 use App\Models\Loan;
+use App\Services\Loans\LoanListService;
 use Illuminate\Support\Facades\Gate;
 use App\Models\FarmType;
 use App\Models\User;
@@ -156,14 +157,10 @@ class FarmerController extends Controller
             'farmTypes' => FarmType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             // read-only, and only for an admin: the policy decides, not the page
             'loans' => Gate::forUser($request->user())->allows('viewForFarmer', [Loan::class, $farmer])
-                ? Loan::where('farmer_profile_id', $farmer->id)->orderByDesc('id')->get()->map(fn(Loan $loan) => [
-                    'uuid' => $loan->uuid,
-                    'lender' => $loan->lender_name,
-                    'amount' => $loan->principal_minor,
-                    'balance' => $loan->balanceMinor(),
-                    'status' => $loan->displayStatus(),
-                ])->values()
+                ? app(LoanListService::class)->forStaff($farmer)
                 : null,
+            // the buttons belong to the farmer's current agent alone; an admin only looks
+            'loan_actions' => app(LoanListService::class)->canAct($request->user(), $farmer),
         ]);
     }
 

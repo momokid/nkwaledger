@@ -14,6 +14,10 @@ interface Props extends PageProps {
     lenderTypes: string[];
     paidInto: PaidIntoOption[];
     idempotencyKey: string;
+    // an agent filling the form in for a farmer: another address to post to and to go back to
+    agent: boolean;
+    postUrl: string;
+    backUrl: string;
 }
 
 const capital = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
@@ -26,9 +30,9 @@ export default function Create(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "kind" | "lenderTypes" | "paidInto" | "idempotencyKey">;
+type ContentProps = Pick<Props, "kind" | "lenderTypes" | "paidInto" | "idempotencyKey" | "agent" | "postUrl" | "backUrl">;
 
-function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey }: ContentProps) {
+function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, postUrl, backUrl }: ContentProps) {
     const { errors, old } = usePage<Props>().props as unknown as {
         errors: Record<string, string>;
         old: Record<string, string>;
@@ -82,7 +86,7 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey }: ContentP
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        form.post("/loans");
+        form.post(postUrl);
     };
 
     const text_ = (name: keyof typeof form.data, id: string, title: string, type = "text", inputMode?: "decimal") => (
@@ -130,7 +134,7 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey }: ContentP
                     {errors.lender_type && <p style={errorText}>{errors.lender_type}</p>}
                 </div>
 
-                {text_("amount", "amount", isMoney ? "Amount received" : "Amount you still owe", "text", "decimal")}
+                {text_("amount", "amount", isMoney ? "Amount received" : agent ? "Loan Amount" : "Amount you still owe", "text", "decimal")}
 
                 {isMoney && text_("date", "date", "Date received", "date")}
 
@@ -172,7 +176,7 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey }: ContentP
                     <Button type="submit" busy={form.processing} busyLabel="Saving...">
                         Save this record
                     </Button>
-                    <Button type="button" look="secondary" onClick={() => router.visit("/loans")}>
+                    <Button type="button" look="secondary" onClick={() => router.visit(backUrl)}>
                         Cancel
                     </Button>
                 </div>
