@@ -30,6 +30,7 @@ class RepaymentService
     public const CONFIRMATION_NOT_NEEDED = 'repayment.confirmation_not_needed';
     public const LOAN_NOT_ACTIVE = 'repayment.loan_not_active';
     public const PAID_FROM_INVALID = 'repayment.paid_from_invalid';
+    public const DATE_BEFORE_LOAN = 'repayment.date_before_loan';
     public const CODE_NOT_ALLOWED = 'repayment.code_not_allowed';
 
     public function __construct(
@@ -103,6 +104,14 @@ class RepaymentService
         ];
     }
 
+    // money cannot be paid back before it was borrowed; the same day is fine
+    public function mustNotPrecede(Loan $loan, string $date): void
+    {
+        if (Carbon::parse($date)->startOfDay()->lt($loan->loan_date->copy()->startOfDay())) {
+            throw PostingFailed::because(self::DATE_BEFORE_LOAN);
+        }
+    }
+
     /**
      * @param array{amount: string, date: string, paid_from: int, confirm_excess?: bool, idempotency_key?: ?string} $data
      * @param array{remaining_principal: int, remaining_interest: int}|null $snapshot an agent's entry: the loan must still be exactly this
@@ -127,6 +136,8 @@ class RepaymentService
             if ($locked->isCancelled()) {
                 throw PostingFailed::because(self::LOAN_NOT_ACTIVE);
             }
+
+            $this->mustNotPrecede($locked, $checked['date']);
 
             if ($snapshot !== null && $snapshot != $this->snapshot($locked)) {
                 throw new RepaymentSnapshotChanged();

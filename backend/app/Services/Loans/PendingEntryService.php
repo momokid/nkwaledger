@@ -9,6 +9,7 @@ use App\Models\FarmerProfile;
 use App\Models\Loan;
 use App\Models\LoanRepayment;
 use App\Models\PendingEntry;
+use App\Models\PendingEntryCode;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Services\NotificationService;
@@ -69,6 +70,7 @@ class PendingEntryService
         }
 
         $checked = $this->repayments->validated($data);
+        $this->repayments->mustNotPrecede($loan, $checked['date']);
         $snapshot = $this->repayments->snapshot($loan);
 
         return DB::transaction(function () use ($loan, $agent, $checked, $snapshot) {
@@ -149,6 +151,46 @@ class PendingEntryService
 
             return $loan;
         });
+    }
+
+    // a cancelled loan cannot take a repayment, so every repayment still waiting on it is rejected here, in the
+    // same transaction as the cancellation, and its SMS code is switched off
+    public function rejectRepaymentsFor(Loan $loan, User $by): void
+    {
+        PendingEntry::query()
+            ->where('farmer_profile_id', $loan->farmer_profile_id)
+            ->where('entry_type', PendingEntry::LOAN_REPAYMENT)
+            ->where('status', PendingEntry::PENDING)
+            ->get()
+            ->filter(fn(PendingEntry $entry) => ($entry->payload['loan_uuid'] ?? null) === $loan->uuid)
+            ->each(function (PendingEntry $entry) use ($loan, $by) {
+                $locked = $this->lock($entry);
+
+                if (! $locked->isPending()) {
+                    return;
+                }
+
+                $locked->forceFill([
+                    'status' => PendingEntry::REJECTED,
+                    'decided_by' => $by->id,
+                    'decided_via' => PendingEntry::VIA_APP,
+                    'decided_at' => now(),
+                ])->save();
+
+                PendingEntryCode::where('pending_entry_id', $locked->id)->whereNull('used_at')->whereNull('cancelled_at')->update(['cancelled_at' => now()]);
+
+                $this->audit->recordOn('pending_entry.rejected', $locked, ['status' => PendingEntry::PENDING], [
+                    'status' => PendingEntry::REJECTED,
+                    'reason' => 'loan_cancelled',
+                ], $by);
+
+                $this->tellAgent($locked, 'loan.rejected', 'rejected');
+
+                // placeholder wording: the existing rejected key
+                if ($locked->farmerProfile->user !== null) {
+                    $this->notifications->send($locked->farmerProfile->user, 'loan.rejected', 'repayment.rejected', "/loans/{$loan->uuid}");
+                }
+            });
     }
 
     public function decline(PendingEntry $entry, User $farmerUser): void

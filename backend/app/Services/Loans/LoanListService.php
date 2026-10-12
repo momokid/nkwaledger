@@ -71,6 +71,19 @@ class LoanListService
             ->values();
     }
 
+    // the repayments an agent entered for this loan that were rejected, so the farmer can see what happened to them
+    public function rejectedRepayments(Loan $loan): Collection
+    {
+        return PendingEntry::where('farmer_profile_id', $loan->farmer_profile_id)
+            ->where('entry_type', PendingEntry::LOAN_REPAYMENT)
+            ->where('status', PendingEntry::REJECTED)
+            ->orderByDesc('id')
+            ->get()
+            ->filter(fn(PendingEntry $entry) => $entry->payload['loan_uuid'] === $loan->uuid)
+            ->map(fn(PendingEntry $entry) => ['uuid' => $entry->uuid, 'date' => $entry->payload['date'], 'amount' => $entry->payload['amount_minor']])
+            ->values();
+    }
+
     // whether this person sees the actions, not just the list
     public function canAct(User $user, FarmerProfile $farmer): bool
     {

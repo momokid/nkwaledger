@@ -8,6 +8,7 @@ use App\Http\Controllers\Loans\Concerns\PreviewsRepayment;
 use App\Http\Requests\Loans\StoreRepaymentRequest;
 use App\Models\Loan;
 use App\Models\LoanRepayment;
+use App\Services\Loans\LoanListService;
 use App\Services\Loans\RepaymentService;
 use App\Services\RecordLock;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +27,7 @@ class RepaymentController extends Controller
     public function __construct(
         private readonly RepaymentService $repayments,
         private readonly RecordLock $lock,
+        private readonly LoanListService $list,
     ) {}
 
     public function show(Loan $loan): Response
@@ -48,6 +50,7 @@ class RepaymentController extends Controller
                     'cancelled' => $repayment->principalTransaction?->reversedBy !== null || $repayment->interestTransaction?->reversedBy !== null,
                 ])
                 ->values(),
+            'rejected' => $this->list->rejectedRepayments($loan),
             'paidFrom' => $this->repayments->paidFromOptions(),
             'idempotencyKey' => (string) Str::uuid(),
             'previewUrl' => "/loans/{$loan->uuid}/repayments/preview",

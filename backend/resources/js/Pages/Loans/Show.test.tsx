@@ -23,6 +23,7 @@ vi.mock("@inertiajs/react", () => ({
 
 const props = {
     loan: { uuid: "9d2f0c0e-0000-4000-8000-000000000001", lender: "Sika Microfinance", amount: 100000, balance: 50000, status: "active" },
+    rejected: [{ uuid: "x1", date: "2026-10-09", amount: 5000 }],
     repayments: [
         { uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, cancelled: false },
         { uuid: "r2", date: "2026-10-11", amount: 1000, principal: 800, interest: 200, cancelled: false },
@@ -64,5 +65,12 @@ describe("The loan page", () => {
 
         expect(container.textContent).toContain("Repayments");
         expect(Array.from(container.querySelectorAll("button")).map((b) => b.textContent)).toContain("Record a repayment");
+    });
+
+    it("shows a repayment the agent entered that was rejected, with the existing rejected key", async () => {
+        await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
+
+        expect(container.textContent).toContain("repayment.rejected");
+        expect(container.textContent).toContain("50.00");
     });
 });

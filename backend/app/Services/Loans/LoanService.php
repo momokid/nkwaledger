@@ -119,17 +119,19 @@ class LoanService
     }
 
     // the loan follows its record: when the record is cancelled the loan is cancelled in the same step
-    public function cancelFor(Transaction $original): void
+    public function cancelFor(Transaction $original): ?Loan
     {
         $loan = Loan::where('transaction_id', $original->id)->where('status', Loan::ACTIVE)->first();
 
         if ($loan === null) {
-            return;
+            return null;
         }
 
         $loan->forceFill(['status' => Loan::CANCELLED])->save();
 
         $this->audit->recordOn('loan.cancelled', $loan, ['status' => Loan::ACTIVE], ['status' => Loan::CANCELLED]);
+
+        return $loan;
     }
 
     // principal still unpaid on the loans in force, in pesewas

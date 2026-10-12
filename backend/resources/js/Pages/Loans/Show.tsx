@@ -23,9 +23,16 @@ interface RepaymentRow {
     cancelled: boolean;
 }
 
+interface RejectedRow {
+    uuid: string;
+    date: string;
+    amount: number;
+}
+
 interface Props extends PageProps {
     loan: LoanSummary;
     repayments: RepaymentRow[];
+    rejected: RejectedRow[];
     paidFrom: PaidFromOption[];
     idempotencyKey: string;
     previewUrl: string;
@@ -41,9 +48,9 @@ export default function Show(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "loan" | "repayments" | "paidFrom" | "idempotencyKey" | "previewUrl" | "postUrl" | "today">;
+type ContentProps = Pick<Props, "loan" | "repayments" | "rejected" | "paidFrom" | "idempotencyKey" | "previewUrl" | "postUrl" | "today">;
 
-function ShowContent({ loan, repayments, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
+function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
     const { dark } = useTheme();
     const [open, setOpen] = useState(false);
 
@@ -88,6 +95,12 @@ function ShowContent({ loan, repayments, paidFrom, idempotencyKey, previewUrl, p
                     onCancel={() => setOpen(false)}
                 />
             )}
+
+            {rejected.map((row) => (
+                <p key={row.uuid} className="mt-3" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
+                    {shortDate(row.date)} · GHS {cedis(row.amount)} · repayment.rejected
+                </p>
+            ))}
 
             {repayments.length > 0 && (
                 <div className="mt-4" style={{ overflowX: "auto" }}>
