@@ -45,7 +45,7 @@ beforeEach(function () {
         return $this;
     };
     $this->form = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender_type' => 'microfinance', 'amount' => '200',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance', 'amount' => '200',
         'date' => now()->toDateString(), 'paid_into' => $this->cash->id, 'idempotency_key' => 'k-' . uniqid(),
     ], $over);
     $this->farmerUrl = "/agent/farmers/{$this->profile->uuid}";
@@ -177,9 +177,9 @@ test('a farmer own loan needs no acceptance', function () {
 
 test('the farmer sees pending entries as cards with the lender, amount, date and who recorded it', function () {
     ($this->pendingExisting)();
-    $withdrawn = ($this->pendingMoney)(['lender_name' => 'Gone Lender']);
+    $withdrawn = ($this->pendingMoney)(['lender_name' => 'Gone Lender', 'lender' => institutionNamed('Gone Lender')->uuid]);
     $this->entries->withdraw($withdrawn, $this->agent);
-    $declined = ($this->pendingMoney)(['lender_name' => 'Declined Lender']);
+    $declined = ($this->pendingMoney)(['lender_name' => 'Declined Lender', 'lender' => institutionNamed('Declined Lender')->uuid]);
     $this->entries->decline($declined, $this->farmerUser);
 
     $page = ($this->props)($this->farmerUser, '/loans')['props'];
@@ -227,9 +227,9 @@ test('accepting something that the checks refuse leaves it pending with the exis
 
 test('the agent sees the farmer loans and entries with status words, and can act', function () {
     ($this->pendingExisting)();
-    $this->entries->decline(($this->pendingMoney)(['lender_name' => 'Declined Lender']), $this->farmerUser);
-    $this->entries->withdraw(($this->pendingMoney)(['lender_name' => 'Gone Lender']), $this->agent);
-    $accepted = ($this->pendingMoney)(['lender_name' => 'Accepted Lender']);
+    $this->entries->decline(($this->pendingMoney)(['lender_name' => 'Declined Lender', 'lender' => institutionNamed('Declined Lender')->uuid]), $this->farmerUser);
+    $this->entries->withdraw(($this->pendingMoney)(['lender_name' => 'Gone Lender', 'lender' => institutionNamed('Gone Lender')->uuid]), $this->agent);
+    $accepted = ($this->pendingMoney)(['lender_name' => 'Accepted Lender', 'lender' => institutionNamed('Accepted Lender')->uuid]);
     $this->entries->accept($accepted, $this->farmerUser, 'app');
 
     $props = ($this->props)($this->agent, $this->farmerUrl)['props'];

@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             TransactionTemplateSeeder::class,
             LoanTemplateSeeder::class,
             RepaymentSeeder::class,
+            InstitutionSeeder::class,
             MarketplaceSettingSeeder::class,
             ProductCategorySeeder::class,
             ProductUnitSeeder::class,

@@ -32,7 +32,7 @@ const props = (kind: "money" | "existing", over: Record<string, unknown> = {}) =
     agent: false,
     postUrl: "/loans",
     backUrl: "/loans",
-    lenderTypes: ["bank", "microfinance", "group", "individual", "other"],
+    lenderTypes: ["bank", "microfinance", "credit_union", "other"],
     paidInto: [
         { id: 1, label: "Cash" },
         { id: 2, label: "MoMo" },
@@ -92,7 +92,7 @@ describe("The new loan form", () => {
                 .filter((text) => text !== ""),
         );
 
-        expect(options[0]).toEqual(["Bank", "Microfinance", "Group", "Individual", "Other"]);
+        expect(options[0]).toEqual(["Bank", "Microfinance", "lender.type.credit_union", "Other"]);
         expect(options[1]).toEqual(["Cash", "MoMo", "Bank"]);
     });
 });

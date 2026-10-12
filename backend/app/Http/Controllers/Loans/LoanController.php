@@ -37,6 +37,7 @@ class LoanController extends Controller
             'pending' => $this->list->pendingFor($farmer),
             'loans' => Loan::query()
                 ->where('farmer_profile_id', $farmer->id)
+                ->with('lender')
                 ->orderByDesc('id')
                 ->get()
                 ->map(fn(Loan $loan) => [

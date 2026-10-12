@@ -56,7 +56,7 @@ test('the farmer pressing Accept and the agent typing the code at the same momen
 
             expect(array_column($answers, 'status'))->each->toBe(302, "round {$round}: " . json_encode($answers));
 
-            $loans = Loan::where('lender_name', "Round {$round}")->count();
+            $loans = Loan::whereHas('lender', fn($q) => $q->where('name', "Round {$round}"))->count();
 
             if ($loans !== 1 || PendingEntry::find($entry->id)->status !== 'accepted') {
                 $doubled[] = $round;

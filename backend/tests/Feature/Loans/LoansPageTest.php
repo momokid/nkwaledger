@@ -2,6 +2,7 @@
 
 // Task 3.6a, part B: the farmer's Loans page, the two forms, the dashboard figure.
 
+require_once __DIR__ . '/../../Support/Institutions.php';
 require_once __DIR__ . '/../../Support/LockedFiguresFixture.php';
 require_once __DIR__ . '/../../Support/FigureSnapshot.php';
 
@@ -45,21 +46,21 @@ beforeEach(function () {
     };
 
     $this->newLoan = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
     ], $over);
 
     $this->form = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
         'idempotency_key' => 'form-key-1',
     ], $over);
 });
 
 test('the loans page lists the farmer own loans with lender, amount, balance and status, newest first', function () {
-    $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['lender_name' => 'First Lender', 'amount' => '200']));
-    $second = $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['lender_name' => 'Second Lender', 'amount' => '300']));
-    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '100']);
+    $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['lender_name' => 'First Lender', 'lender' => institutionNamed('First Lender')->uuid, 'amount' => '200']));
+    $second = $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['lender_name' => 'Second Lender', 'lender' => institutionNamed('Second Lender')->uuid, 'amount' => '300']));
+    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '100']);
 
     $page = ($this->props)($this->farmerUser, '/loans');
 
@@ -79,7 +80,7 @@ test('a cancelled loan stays in the list with balance zero and the cancelled sta
 });
 
 test('a farmer sees none of another farmer loans', function () {
-    $this->loans->record($this->clean, $this->clean->user ?? $this->farmerUser, ($this->newLoan)(['lender_name' => 'Not Yours']));
+    $this->loans->record($this->clean, $this->clean->user ?? $this->farmerUser, ($this->newLoan)(['lender_name' => 'Not Yours', 'lender' => institutionNamed('Not Yours')->uuid]));
 
     expect(($this->props)($this->farmerUser, '/loans')['props']['loans'])->toBe([]);
 });
@@ -102,7 +103,7 @@ test('the two forms open with their kind, the lender types, the paid-into choice
 
     expect([$money['component'], $money['props']['kind']])->toBe(['Loans/Create', 'money'])
         ->and([$existing['component'], $existing['props']['kind']])->toBe(['Loans/Create', 'existing'])
-        ->and($money['props']['lenderTypes'])->toBe(['bank', 'microfinance', 'group', 'individual', 'other'])
+        ->and($money['props']['lenderTypes'])->toBe(['bank', 'microfinance', 'credit_union', 'other'])
         ->and(collect($money['props']['paidInto'])->pluck('label')->all())->toBe(['Cash', 'MoMo', 'Bank'])
         ->and($money['props']['idempotencyKey'])->not->toBeEmpty();
 });
@@ -117,7 +118,7 @@ test('saving a money loan creates it for the signed-in farmer and goes back to t
 
 test('saving a loan I already had creates an opening entry', function () {
     $this->actingAs($this->farmerUser)->post('/loans', [
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
         'interest' => '20', 'idempotency_key' => 'form-key-2',
     ])->assertRedirect('/loans');
 
@@ -174,7 +175,7 @@ test('a lender type that is not on the list, or an account that is not cash, MoM
 
 test('the loan I already had form shows the same words for a missing lender name or lender type, and asks for no account', function () {
     $existing = fn(array $over = []) => array_merge([
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300', 'idempotency_key' => 'form-key-9',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300', 'idempotency_key' => 'form-key-9',
     ], $over);
 
     $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender_name' => '']))
@@ -188,7 +189,7 @@ test('the loan I already had form shows the same words for a missing lender name
 
 test('a loan I already had may have a due date that has already passed: there is no date received to compare it with', function () {
     $this->actingAs($this->farmerUser)->post('/loans', [
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
         'due_date' => now()->subDays(20)->toDateString(), 'idempotency_key' => 'form-key-10',
     ])->assertSessionHasNoErrors()->assertRedirect('/loans');
 
@@ -222,7 +223,7 @@ test('sending the same form twice makes one loan', function () {
 
 test('the dashboard shows the principal still owed on the active loans, and nothing from a cancelled one', function () {
     $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '500']));
-    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300', 'interest' => '99']);
+    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300', 'interest' => '99']);
     $cancelled = $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '90']));
     ($this->cancel)($cancelled->transaction);
 

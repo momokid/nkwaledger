@@ -3,13 +3,15 @@
 // The request class must not rely on the framework's global trim: it trims the lender name itself, so a name
 // made only of spaces (even no-break spaces) is a missing name wherever the request is used.
 
+require_once __DIR__ . '/../../Support/Institutions.php';
+
 use App\Http\Requests\Loans\StoreLoanRequest;
 use Illuminate\Validation\ValidationException;
 
 function loanRequest(array $over = []): StoreLoanRequest
 {
     $request = StoreLoanRequest::create('/loans', 'POST', array_merge([
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
     ], $over));
 
     return $request->setContainer(app())->setRedirector(app('redirect'));

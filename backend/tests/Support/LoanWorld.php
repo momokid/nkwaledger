@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/LockedFiguresFixture.php';
 require_once __DIR__ . '/FigureSnapshot.php';
+require_once __DIR__ . '/Institutions.php';
 
 use App\Models\FarmerProfile;
 use App\Models\LedgerAccount;
@@ -51,14 +52,29 @@ function buildLoanWorld($t): void
     $t->otherFarmerUser = $staff('farmer');
     $t->otherFarmer = FarmerProfile::factory()->create(['user_id' => $t->otherFarmerUser->id]);
 
-    $t->moneyEntry = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender_type' => 'microfinance',
-        'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $t->cash->id,
-    ], $over);
+    $t->institution = institutionNamed('Sika Microfinance');
 
-    $t->existingEntry = fn(array $over = []) => array_merge([
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300',
-    ], $over);
+    // a lender named in a test is an institution in the list, made on the spot, so a test can vary the name
+    $t->moneyEntry = function (array $over = []) use ($t) {
+        $entry = array_merge([
+            'kind' => 'money', 'lender_type' => 'microfinance', 'lender_name' => 'Sika Microfinance',
+            'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $t->cash->id,
+        ], $over);
+
+        $entry['lender'] ??= institutionNamed($entry['lender_name'], $entry['lender_type'])->uuid;
+
+        return $entry;
+    };
+
+    $t->existingEntry = function (array $over = []) {
+        $entry = array_merge([
+            'kind' => 'existing', 'lender_type' => 'other', 'lender_name' => 'Uncle Kofi', 'amount' => '300',
+        ], $over);
+
+        $entry['lender'] ??= institutionNamed($entry['lender_name'], $entry['lender_type'])->uuid;
+
+        return $entry;
+    };
 
     $t->entries = app(\App\Services\Loans\PendingEntryService::class);
     $t->codes = app(\App\Services\Loans\EntryCodeService::class);

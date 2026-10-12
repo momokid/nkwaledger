@@ -21,15 +21,14 @@ class Loan extends Model
     // shown with every loan: there is no lender check yet, so every loan is self-reported
     public const NOTICE = 'You entered this loan yourself. It has not been checked with the lender.';
 
-    public const LENDER_TYPES = ['bank', 'microfinance', 'group', 'individual', 'other'];
+    public const LENDER_TYPES = Lender::TYPES;
 
     protected $fillable = [
         'uuid',
         'farmer_profile_id',
         'kind',
         'status',
-        'lender_name',
-        'lender_type',
+        'lender_id',
         'principal_minor',
         'agreed_interest_minor',
         'loan_date',
@@ -71,6 +70,22 @@ class Loan extends Model
     public function farmerProfile(): BelongsTo
     {
         return $this->belongsTo(FarmerProfile::class);
+    }
+
+    public function lender(): BelongsTo
+    {
+        return $this->belongsTo(Lender::class);
+    }
+
+    // the name and type live on the shared lender record; these keep the many places that read them simple
+    public function getLenderNameAttribute(): string
+    {
+        return $this->lender?->name ?? '';
+    }
+
+    public function getLenderTypeAttribute(): string
+    {
+        return $this->lender?->type ?? '';
     }
 
     public function transaction(): BelongsTo

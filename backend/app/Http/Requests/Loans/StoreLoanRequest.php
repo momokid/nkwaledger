@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Loans;
 
 use App\Models\Loan;
+use App\Services\Loans\LenderService;
 use App\Services\Loans\LoanService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -28,8 +29,10 @@ class StoreLoanRequest extends FormRequest
 
         return [
             'kind' => ['required', Rule::in([Loan::KIND_MONEY, Loan::KIND_EXISTING])],
-            'lender_name' => ['required', 'string', 'max:255'],
             'lender_type' => ['required', Rule::in(Loan::LENDER_TYPES)],
+            // the lender is picked from the list by its public id; the name is only what the box showed
+            'lender' => ['required', 'uuid'],
+            'lender_name' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'string', 'regex:/^\d+(\.\d{1,2})?$/'],
             'date' => [$money ? 'required' : 'nullable', 'date', 'before_or_equal:today'],
             'paid_into' => [
@@ -57,6 +60,9 @@ class StoreLoanRequest extends FormRequest
             'lender_name.required' => "Enter the lender's name.",
             'lender_type.required' => 'Choose the lender type.',
             'lender_type.in' => 'Choose the lender type.',
+            // placeholder: the wording is not approved yet
+            'lender.required' => LenderService::NOT_IN_LIST,
+            'lender.uuid' => LenderService::NOT_IN_LIST,
             'paid_into.required' => 'Choose where the money was paid into.',
             'paid_into.integer' => 'Choose where the money was paid into.',
             'paid_into.in' => 'Choose where the money was paid into.',

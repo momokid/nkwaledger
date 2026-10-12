@@ -51,7 +51,7 @@ class AccountStatementService
 
         $originals = $this->loadOriginals($transactions);
 
-        $loanRecords = Loan::whereIn('transaction_id', $transactions->pluck('id'))->pluck('transaction_id')->all();
+        $loanRecords = Loan::with('lender')->whereIn('transaction_id', $transactions->pluck('id'))->get()->mapWithKeys(fn(Loan $loan) => [$loan->transaction_id => $loan->lender_name])->all();
 
         $rows = $this->rows($transactions, $opening, $settlementAccounts, $originals, $loanRecords);
 
@@ -202,7 +202,8 @@ class AccountStatementService
                 moneyClass: $this->classifier->classify($transaction, $in, $out, $originals->get($transaction->id)),
                 isNonCash: $this->isNonCash($transaction),
                 nonCashMinor: $this->isNonCash($transaction) ? (int) $transaction->amount_minor : 0,
-                isLoan: in_array($transaction->id, $loanRecords, true),
+                isLoan: array_key_exists($transaction->id, $loanRecords),
+                lenderName: $loanRecords[$transaction->id] ?? null,
             );
         }
 

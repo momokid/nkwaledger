@@ -4,6 +4,7 @@
 // see them read-only on the farmer page and can create none; agents, vets and advisers have no loan routes yet.
 // The rules live in LoanPolicy; hiding a menu item is not security.
 
+require_once __DIR__ . '/../../Support/Institutions.php';
 require_once __DIR__ . '/../../Support/LockedFiguresFixture.php';
 
 use App\Models\FarmerProfile;
@@ -55,12 +56,12 @@ beforeEach(function () {
     $this->otherFarmer = FarmerProfile::factory()->create(['user_id' => $this->otherFarmerUser->id]);
 
     $this->loan = app(LoanService::class)->record($this->profile, $this->farmerUser, [
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
     ]);
 
     $this->post = fn() => [
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
         'amount' => '100', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
         'idempotency_key' => 'k-' . uniqid(),
     ];
@@ -150,7 +151,7 @@ test('the policy: an admin and the farmer current agent read a farmer loans from
 
 test('the admin farmer page lists the farmer loans, read-only, with no ids', function () {
     $cancelled = app(LoanService::class)->record($this->profile, $this->farmerUser, [
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
     ]);
     ($this->cancel)($cancelled->transaction);
 

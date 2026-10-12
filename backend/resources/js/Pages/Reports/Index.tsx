@@ -46,6 +46,7 @@ interface StatementRow {
     is_non_cash: boolean;
     non_cash: number;
     is_loan?: boolean;
+    lender?: string | null;
 }
 
 interface IncomeRow {
@@ -688,6 +689,17 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                         }}
                                     >
                                         Non-cash {cedis(row.non_cash)}
+                                    </span>
+                                )}
+                                {row.lender && (
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.9375rem",
+                                            color: colours.textSecondary,
+                                        }}
+                                    >
+                                        {row.lender}
                                     </span>
                                 )}
                                 {row.is_loan && (

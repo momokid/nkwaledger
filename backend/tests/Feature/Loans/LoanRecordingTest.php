@@ -3,6 +3,7 @@
 // Task 3.6a, part A: loans received in money and opening entries, posted through PostingService by one
 // LoanService. The loan's money in is a Liability, never income, so no profit figure moves.
 
+require_once __DIR__ . '/../../Support/Institutions.php';
 require_once __DIR__ . '/../../Support/LockedFiguresFixture.php';
 require_once __DIR__ . '/../../Support/FigureSnapshot.php';
 
@@ -44,12 +45,12 @@ beforeEach(function () {
     $this->loans = app(LoanService::class);
 
     $this->moneyLoan = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
     ], $over);
 
     $this->existingLoan = fn(array $over = []) => array_merge([
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender_type' => 'individual', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
     ], $over);
 
     $this->record = fn(array $data, $farmer = null) => $this->loans->record($farmer ?? $this->profile, $this->farmerUser, $data);

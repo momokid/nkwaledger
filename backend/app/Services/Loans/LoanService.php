@@ -14,6 +14,7 @@ use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
 use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,9 @@ class LoanService
     public const AMOUNT_REFUSAL = 'Enter an amount above zero.';
     public const FUTURE_REFUSAL = 'This date is in the future.';
 
+    // what the form says about the lender; the loan itself keeps only a link to it
+    public const LENDER_INPUT = ['lender_type', 'lender', 'lender_name'];
+
     // the accounts a farmer may say the money was paid into, and the words the form shows for them
     public const PAID_INTO_LABELS = [
         'Cash A/C' => 'Cash',
@@ -35,6 +39,7 @@ class LoanService
     public function __construct(
         private readonly PostingService $posting,
         private readonly AuditService $audit,
+        private readonly LenderService $lenders,
     ) {}
 
     /** @return Collection<int, array{id: int, label: string}> */
@@ -86,8 +91,11 @@ class LoanService
                 idempotencyKey: $key === null || $key === '' ? null : 'loan.' . md5($farmer->id . '|' . $key),
             ));
 
+            $lender = $this->lenders->resolve($loan);
+
             try {
-                $record = Loan::create($loan + [
+                $record = Loan::create(Arr::except($loan, self::LENDER_INPUT) + [
+                    'lender_id' => $lender->id,
                     'farmer_profile_id' => $farmer->id,
                     'transaction_id' => $transaction->id,
                     'recorded_by' => $by->id,
@@ -142,11 +150,7 @@ class LoanService
             throw new InvalidArgumentException('Unknown kind of loan.');
         }
 
-        $lender = trim((string) ($data['lender_name'] ?? ''));
-
-        if ($lender === '' || ! in_array($data['lender_type'] ?? null, Loan::LENDER_TYPES, true)) {
-            throw new InvalidArgumentException('A loan needs a lender name and a lender type.');
-        }
+        $lender = $this->lenders->check($data);
 
         try {
             $principal = Money::toMinor((string) ($data['amount'] ?? ''));
@@ -192,8 +196,7 @@ class LoanService
 
         return [
             'kind' => $kind,
-            'lender_name' => $lender,
-            'lender_type' => $data['lender_type'],
+            ...$lender,
             'principal_minor' => $principal,
             'agreed_interest_minor' => $interest,
             'loan_date' => $loanDate->toDateString(),

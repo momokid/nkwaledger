@@ -50,7 +50,9 @@ use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReport
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Loans\AgentLoanController;
 use App\Http\Controllers\Loans\AgentRepaymentController;
+use App\Http\Controllers\Loans\LenderSearchController;
 use App\Http\Controllers\Loans\LoanController;
+use App\Http\Controllers\Admin\LenderController as AdminLenderController;
 use App\Http\Controllers\Loans\PendingEntryController;
 use App\Http\Controllers\Loans\RepaymentController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
@@ -249,6 +251,9 @@ Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->na
     Route::post('/loan-entries/{entry}/code', [AgentLoanController::class, 'enterCode'])->middleware('throttle:loan-code')->name('code');
     Route::post('/loan-entries/{entry}/withdraw', [AgentLoanController::class, 'withdraw'])->name('withdraw');
 });
+
+// finding an institution for a loan: a POST, so nothing typed lands in an address
+Route::middleware(['auth', 'verified.phone', 'throttle:lender-search'])->post('/lenders/search', LenderSearchController::class)->name('lenders.search');
 
 // repayments on one loan. Any signed-in person may knock; the policy answers 404 to everyone out of reach
 Route::middleware(['auth', 'verified.phone'])->group(function () {
@@ -547,6 +552,10 @@ Route::middleware(['marketplace', 'auth', 'role:supplier', 'verified.phone'])->p
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
 Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/lenders', [AdminLenderController::class, 'index'])->name('lenders.index');
+    Route::post('/lenders', [AdminLenderController::class, 'store'])->name('lenders.store');
+    Route::patch('/lenders/{lender}', [AdminLenderController::class, 'update'])->name('lenders.update');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 

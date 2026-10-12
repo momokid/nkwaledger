@@ -29,5 +29,6 @@ class AccountStatementRow
         public readonly int $nonCashMinor = 0,
         // the row is a loan's own record, so the loan notice goes with it
         public readonly bool $isLoan = false,
+        public readonly ?string $lenderName = null,
     ) {}
 }

@@ -2,7 +2,21 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import Button from "@/Components/Button";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { FormEvent } from "react";
+import { csrfToken } from "@/lib/syncHttp";
+import { FormEvent, useEffect, useState } from "react";
+
+// placeholder keys: the wording for these is not approved yet
+const LENDER_TEXT = { notInList: "lender.not_in_list" };
+
+// Bank, Microfinance and Other are the approved words; the credit union label is a placeholder key
+const TYPE_LABELS: Record<string, string> = { bank: "Bank", microfinance: "Microfinance", other: "Other" };
+const typeLabel = (type: string) => TYPE_LABELS[type] ?? `lender.type.${type}`;
+
+interface Found {
+    uuid: string;
+    name: string;
+    type: string;
+}
 
 interface PaidIntoOption {
     id: number;
@@ -19,8 +33,6 @@ interface Props extends PageProps {
     postUrl: string;
     backUrl: string;
 }
-
-const capital = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 export default function Create(props: Props) {
     return (
@@ -52,6 +64,7 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
         kind,
         lender_name: old?.lender_name ?? "",
         lender_type: old?.lender_type ?? "",
+        lender: old?.lender ?? "",
         amount: old?.amount ?? "",
         date: old?.date ?? today,
         paid_into: old?.paid_into ?? "",
@@ -60,6 +73,39 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
         note: old?.note ?? "",
         idempotency_key: idempotencyKey,
     });
+
+    const institution = form.data.lender_type !== "";
+    const [found, setFound] = useState<Found[] | null>(null);
+
+    // an institution is picked from the list: what is typed here only searches, it is never saved as a name
+    useEffect(() => {
+        setFound(null);
+
+        if (!institution || form.data.lender !== "" || form.data.lender_name.trim().length < 2) {
+            return;
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            try {
+                const response = await fetch("/lenders/search", {
+                    method: "POST",
+                    signal: controller.signal,
+                    headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken() },
+                    body: JSON.stringify({ q: form.data.lender_name, type: form.data.lender_type }),
+                });
+
+                setFound(response.ok ? await response.json() : null);
+            } catch {
+                setFound(null);
+            }
+        }, 250);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [institution, form.data.lender_name, form.data.lender, form.data.lender_type]);
 
     const field = {
         width: "100%",
@@ -112,7 +158,46 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
             style={{ background: surface, border: `1px solid ${border}`, maxWidth: "560px" }}
         >
             <form onSubmit={submit}>
-                {text_("lender_name", "lender_name", "Lender name")}
+                <div className="mb-4">
+                    <label htmlFor="lender_name" style={label}>
+                        Lender name
+                    </label>
+                    <input
+                        id="lender_name"
+                        type="text"
+                        autoComplete="off"
+                        style={field}
+                        value={form.data.lender_name}
+                        onChange={(event) => {
+                            form.setData("lender_name", event.target.value);
+                            form.setData("lender", "");
+                        }}
+                    />
+                    {institution && found !== null && found.length > 0 && (
+                        <ul role="listbox" style={{ border: `1px solid ${inputBorder}`, background: inputBg }}>
+                            {found.map((item) => (
+                                <li key={item.uuid}>
+                                    <button
+                                        type="button"
+                                        role="option"
+                                        aria-selected={false}
+                                        style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", color: text }}
+                                        onClick={() => {
+                                            form.setData("lender_name", item.name);
+                                            form.setData("lender", item.uuid);
+                                            setFound(null);
+                                        }}
+                                    >
+                                        {item.name}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {institution && found !== null && found.length === 0 && <p style={errorText}>{LENDER_TEXT.notInList}</p>}
+                    {errors.lender_name && <p style={errorText}>{errors.lender_name}</p>}
+                    {errors.lender && <p style={errorText}>{errors.lender}</p>}
+                </div>
 
                 <div className="mb-4">
                     <label htmlFor="lender_type" style={label}>
@@ -122,12 +207,15 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
                         id="lender_type"
                         style={field}
                         value={form.data.lender_type}
-                        onChange={(event) => form.setData("lender_type", event.target.value)}
+                        onChange={(event) => {
+                            form.setData("lender_type", event.target.value);
+                            form.setData("lender", "");
+                        }}
                     >
                         <option value=""></option>
                         {lenderTypes.map((type) => (
                             <option key={type} value={type}>
-                                {capital(type)}
+                                {typeLabel(type)}
                             </option>
                         ))}
                     </select>

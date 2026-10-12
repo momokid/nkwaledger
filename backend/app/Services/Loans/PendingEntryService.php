@@ -272,8 +272,9 @@ class PendingEntryService
 
         return [
             'kind' => $payload['kind'],
-            'lender_name' => $payload['lender_name'],
             'lender_type' => $payload['lender_type'],
+            'lender' => $payload['lender'],
+            'lender_name' => $payload['lender_name'],
             'amount' => Money::toDecimal($payload['principal_minor']),
             'interest' => $payload['agreed_interest_minor'] === null ? null : Money::toDecimal($payload['agreed_interest_minor']),
             // an opening entry is dated the day it is accepted: LoanService ignores this for it
