@@ -52,12 +52,12 @@ class LoanService
      * @param array{kind: string, lender_name: string, lender_type: string, amount: string, date?: ?string, interest?: ?string,
      *              due_date?: ?string, note?: ?string, paid_into?: ?int, idempotency_key?: ?string} $data
      */
-    public function record(FarmerProfile $farmer, User $by, array $data): Loan
+    public function record(FarmerProfile $farmer, User $by, array $data, ?string $idempotencyKey = null, ?string $via = null): Loan
     {
-        $loan = $this->checked($data);
+        $loan = $this->validated($data);
 
-        return DB::transaction(function () use ($farmer, $by, $loan, $data) {
-            $key = $data['idempotency_key'] ?? null;
+        return DB::transaction(function () use ($farmer, $by, $loan, $data, $idempotencyKey, $via) {
+            $key = $idempotencyKey ?? $data['idempotency_key'] ?? null;
 
             if ($key !== null && $key !== '') {
                 $twin = Loan::where('farmer_profile_id', $farmer->id)->where('idempotency_key', $key)->first();
@@ -91,6 +91,7 @@ class LoanService
                     'farmer_profile_id' => $farmer->id,
                     'transaction_id' => $transaction->id,
                     'recorded_by' => $by->id,
+                    'accepted_via' => $via,
                     'idempotency_key' => $key === '' ? null : $key,
                 ]);
             } catch (UniqueConstraintViolationException) {
@@ -102,7 +103,8 @@ class LoanService
                 'kind' => $record->kind,
                 'principal_minor' => $record->principal_minor,
                 'transaction_id' => $record->transaction_id,
-            ]);
+                'accepted_via' => $via,
+            ], $by);
 
             return $record;
         });
@@ -132,7 +134,7 @@ class LoanService
     }
 
     /** @return array<string, mixed> the loan's own columns, every rule checked */
-    private function checked(array $data): array
+    public function validated(array $data): array
     {
         $kind = $data['kind'] ?? null;
 

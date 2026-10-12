@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('farmer_profile_id')->constrained()->cascadeOnDelete();
             // money: received in cash, MoMo or bank; existing: a loan the farmer already had
             $table->string('kind', 20);
-            // active and cancelled today; pending, declined and withdrawn are kept for later
+            // active or cancelled. Waiting, declined and withdrawn live on the pending entry, not here
             $table->string('status', 20)->default('active');
             $table->string('lender_name');
             $table->string('lender_type', 20);

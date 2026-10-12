@@ -36,9 +36,10 @@ class LoanPolicy
         return $user->hasRole('farmer');
     }
 
-    // the read-only section on a farmer's page
+    // the section on a farmer's page: an admin reads it, and the farmer's current agent reads it and acts on it
     public function viewForFarmer(User $user, FarmerProfile $farmer): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin')
+            || ($user->hasRole('agent') && (int) $farmer->assigned_agent_id === $user->id);
     }
 }

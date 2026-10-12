@@ -134,6 +134,12 @@ class AppServiceProvider extends ServiceProvider
             Limit::perHour(config('otp.pin_reset.per_ip'))->by('pin-reset-ip:' . $request->ip()),
         ]);
 
+        // sending a loan code costs an sms, and entering one is a guessing game: both are capped
+        RateLimiter::for('loan-code', fn(Request $request) => [
+            Limit::perMinute(10)->by('loan-code-user:' . $request->user()?->id),
+            Limit::perHour(60)->by('loan-code-ip:' . $request->ip()),
+        ]);
+
         RateLimiter::for('pin-reset-confirm', fn(Request $request) => [
             Limit::perHour(config('otp.pin_reset.confirm_per_user'))->by('pin-reset-confirm-user:' . $request->user()?->id),
         ]);

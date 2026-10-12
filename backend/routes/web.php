@@ -48,7 +48,9 @@ use App\Http\Controllers\Farm\DiseaseReportController;
 use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
 use App\Http\Controllers\Farm\MyFarmController;
+use App\Http\Controllers\Loans\AgentLoanController;
 use App\Http\Controllers\Loans\LoanController;
+use App\Http\Controllers\Loans\PendingEntryController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
@@ -230,6 +232,20 @@ Route::middleware(['auth', 'verified.phone', 'role:farmer'])->prefix('loans')->n
     Route::get('/create', [LoanController::class, 'create'])->name('create');
     Route::get('/existing/create', [LoanController::class, 'createExisting'])->name('existing.create');
     Route::post('/', [LoanController::class, 'store'])->name('store');
+
+    // the farmer answers an agent's entry
+    Route::post('/entries/{entry}/accept', [PendingEntryController::class, 'accept'])->name('entries.accept');
+    Route::post('/entries/{entry}/decline', [PendingEntryController::class, 'decline'])->name('entries.decline');
+});
+
+// the farmer's current agent records loans for the farmer and sees them through to acceptance
+Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->name('agent.loans.')->group(function () {
+    Route::get('/farmers/{farmer}/loans/create', [AgentLoanController::class, 'create'])->name('create');
+    Route::get('/farmers/{farmer}/loans/existing/create', [AgentLoanController::class, 'createExisting'])->name('existing.create');
+    Route::post('/farmers/{farmer}/loans', [AgentLoanController::class, 'store'])->name('store');
+    Route::post('/loan-entries/{entry}/send-code', [AgentLoanController::class, 'sendCode'])->middleware('throttle:loan-code')->name('send-code');
+    Route::post('/loan-entries/{entry}/code', [AgentLoanController::class, 'enterCode'])->middleware('throttle:loan-code')->name('code');
+    Route::post('/loan-entries/{entry}/withdraw', [AgentLoanController::class, 'withdraw'])->name('withdraw');
 });
 
 // the farmer's own farm, with nobody named in the address

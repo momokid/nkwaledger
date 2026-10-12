@@ -11,6 +11,8 @@ class Loan extends Model
     public const KIND_MONEY = 'money';
     public const KIND_EXISTING = 'existing';
 
+    // the only two states a loan itself has. Waiting, declined and withdrawn belong to the
+    // pending entry that came before the loan, and are kept there and nowhere else
     public const ACTIVE = 'active';
     public const CANCELLED = 'cancelled';
 
@@ -31,6 +33,7 @@ class Loan extends Model
         'settlement_account_id',
         'transaction_id',
         'recorded_by',
+        'accepted_via',
         'idempotency_key',
     ];
 
