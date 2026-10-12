@@ -36,6 +36,16 @@ class LoanPolicy
         return $user->hasRole('farmer');
     }
 
+    // a repayment, and the page it is made from: only the farmer the loan belongs to
+    public function repay(User $user, Loan $loan): Response|bool
+    {
+        if ($user->hasRole('farmer') && (int) $loan->farmerProfile?->user_id === $user->id) {
+            return true;
+        }
+
+        return Response::denyAsNotFound();
+    }
+
     // the section on a farmer's page: an admin reads it, and the farmer's current agent reads it and acts on it
     public function viewForFarmer(User $user, FarmerProfile $farmer): bool
     {

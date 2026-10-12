@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Loan extends Model
@@ -88,20 +90,53 @@ class Loan extends Model
         return $this->status === self::CANCELLED;
     }
 
-    // the one place the balance is worked out: the principal less what has been paid back.
-    // No repayment exists yet, so the repayments step extends this and nothing else
+    // the one place the balance is worked out: the principal less what has been paid back
     public function balanceMinor(): int
     {
         if ($this->isCancelled()) {
             return 0;
         }
 
+        return $this->remainingPrincipalMinor();
+    }
+
+    public function remainingPrincipalMinor(): int
+    {
         return max(0, $this->principal_minor - $this->principalRepaidMinor());
     }
 
+    public function remainingInterestMinor(): int
+    {
+        return max(0, (int) $this->agreed_interest_minor - $this->interestPaidMinor());
+    }
+
+    public function repayments(): HasMany
+    {
+        return $this->hasMany(LoanRepayment::class);
+    }
+
+    // paid so far is read from the ledger records, never from a counter; a cancelled record is not counted
     public function principalRepaidMinor(): int
     {
-        return 0;
+        return $this->paidMinor('principal_transaction_id');
+    }
+
+    public function interestPaidMinor(): int
+    {
+        return $this->paidMinor('interest_transaction_id');
+    }
+
+    private function paidMinor(string $link): int
+    {
+        if ($this->id === null) {
+            return 0;
+        }
+
+        $query = DB::table('loan_repayments')
+            ->join('transactions', 'transactions.id', '=', "loan_repayments.{$link}")
+            ->where('loan_repayments.loan_id', $this->id);
+
+        return (int) Transaction::excludeCancelled($query)->sum('transactions.amount_minor');
     }
 
     // "Repaid" is never stored: it is a loan that was in force and now owes nothing

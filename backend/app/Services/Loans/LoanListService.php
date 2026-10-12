@@ -29,7 +29,7 @@ class LoanListService
         ]);
 
         $entries = PendingEntry::where('farmer_profile_id', $farmer->id)
-            ->whereIn('status', [PendingEntry::PENDING, PendingEntry::DECLINED, PendingEntry::WITHDRAWN])
+            ->whereIn('status', [PendingEntry::PENDING, PendingEntry::DECLINED, PendingEntry::WITHDRAWN, PendingEntry::REJECTED])
             ->get()
             ->map(fn(PendingEntry $entry) => [
                 'at' => $entry->created_at,
@@ -37,8 +37,9 @@ class LoanListService
                 'row' => [
                     'row' => 'entry',
                     'uuid' => $entry->uuid,
+                    'kind' => $entry->isRepayment() ? 'repayment' : 'loan',
                     'lender' => $entry->payload['lender_name'],
-                    'amount' => $entry->payload['principal_minor'],
+                    'amount' => $entry->payload['principal_minor'] ?? $entry->payload['amount_minor'],
                     'balance' => null,
                     'status' => $entry->status,
                 ],
@@ -57,10 +58,14 @@ class LoanListService
             ->get()
             ->map(fn(PendingEntry $entry) => [
                 'uuid' => $entry->uuid,
+                'kind' => $entry->isRepayment() ? 'repayment' : 'loan',
+                'excess' => $entry->isRepayment() && $entry->payload['excess'],
                 'lender' => $entry->payload['lender_name'],
-                'amount' => $entry->payload['principal_minor'],
+                'amount' => $entry->payload['principal_minor'] ?? $entry->payload['amount_minor'],
                 // an opening entry is dated the day it is accepted, so the card shows the day it was recorded
-                'date' => $entry->payload['kind'] === Loan::KIND_MONEY ? $entry->payload['loan_date'] : $entry->created_at->toDateString(),
+                'date' => $entry->isRepayment()
+                    ? $entry->payload['date']
+                    : ($entry->payload['kind'] === Loan::KIND_MONEY ? $entry->payload['loan_date'] : $entry->created_at->toDateString()),
                 'agent' => $entry->recordedBy ? trim("{$entry->recordedBy->surname} {$entry->recordedBy->first_name}") : '',
             ])
             ->values();

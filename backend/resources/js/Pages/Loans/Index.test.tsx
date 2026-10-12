@@ -14,6 +14,7 @@ vi.mock("@/Layouts/AuthenticatedLayout", () => ({
 
 vi.mock("@inertiajs/react", () => ({
     usePage: () => ({ props: { errors: {}, flash: {} } }),
+    Link: ({ children }: { children: unknown }) => children,
     router: { visit: (...args: unknown[]) => visit(...args), post: (...args: unknown[]) => post(...args) },
 }));
 

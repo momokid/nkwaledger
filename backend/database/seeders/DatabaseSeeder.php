@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             LedgerAccountSeeder::class,
             TransactionTemplateSeeder::class,
             LoanTemplateSeeder::class,
+            RepaymentSeeder::class,
             MarketplaceSettingSeeder::class,
             ProductCategorySeeder::class,
             ProductUnitSeeder::class,

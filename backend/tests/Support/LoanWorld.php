@@ -13,6 +13,7 @@ use App\Models\LedgerClass;
 use App\Models\LedgerSubcategory;
 use App\Models\User;
 use Database\Seeders\LoanTemplateSeeder;
+use Database\Seeders\RepaymentSeeder;
 
 function buildLoanWorld($t): void
 {
@@ -35,6 +36,7 @@ function buildLoanWorld($t): void
     $account('Stated Capital', $funds->id);
 
     (new LoanTemplateSeeder())->run();
+    (new RepaymentSeeder())->run();
 
     $staff = function (string $role) {
         $user = User::factory()->create();
@@ -72,4 +74,12 @@ function buildLoanWorld($t): void
 
         return $match[1];
     };
+
+    // repayments: a loan of 1000 with 200 agreed interest (P = 100000, I = 20000 pesewas), and a repayment form
+    $t->repayments = app(\App\Services\Loans\RepaymentService::class);
+    $t->openLoan = fn(array $over = []) => app(\App\Services\Loans\LoanService::class)->record($t->profile, $t->farmerUser, ($t->moneyEntry)(array_merge(['amount' => '1000', 'interest' => '200'], $over)));
+    $t->repayForm = fn(string $amount, array $over = []) => array_merge([
+        'amount' => $amount, 'date' => now()->toDateString(), 'paid_from' => $t->cash->id, 'idempotency_key' => 'r-' . uniqid(),
+    ], $over);
+    $t->repay = fn($loan, string $amount, array $over = [], $by = null) => $t->repayments->record($loan, $by ?? $t->farmerUser, ($t->repayForm)($amount, $over));
 }

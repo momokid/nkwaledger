@@ -49,8 +49,10 @@ use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Loans\AgentLoanController;
+use App\Http\Controllers\Loans\AgentRepaymentController;
 use App\Http\Controllers\Loans\LoanController;
 use App\Http\Controllers\Loans\PendingEntryController;
+use App\Http\Controllers\Loans\RepaymentController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
@@ -246,6 +248,21 @@ Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->na
     Route::post('/loan-entries/{entry}/send-code', [AgentLoanController::class, 'sendCode'])->middleware('throttle:loan-code')->name('send-code');
     Route::post('/loan-entries/{entry}/code', [AgentLoanController::class, 'enterCode'])->middleware('throttle:loan-code')->name('code');
     Route::post('/loan-entries/{entry}/withdraw', [AgentLoanController::class, 'withdraw'])->name('withdraw');
+});
+
+// repayments on one loan. Any signed-in person may knock; the policy answers 404 to everyone out of reach
+Route::middleware(['auth', 'verified.phone'])->group(function () {
+    Route::prefix('loans/{loan}')->name('loans.')->whereUuid('loan')->group(function () {
+        Route::get('/', [RepaymentController::class, 'show'])->name('show');
+        Route::post('/repayments/preview', [RepaymentController::class, 'preview'])->name('repayments.preview');
+        Route::post('/repayments', [RepaymentController::class, 'store'])->name('repayments.store');
+    });
+
+    Route::prefix('agent/loans/{loan}/repayments')->name('agent.loans.repayments.')->whereUuid('loan')->group(function () {
+        Route::get('/create', [AgentRepaymentController::class, 'create'])->name('create');
+        Route::post('/preview', [AgentRepaymentController::class, 'preview'])->name('preview');
+        Route::post('/', [AgentRepaymentController::class, 'store'])->name('store');
+    });
 });
 
 // the farmer's own farm, with nobody named in the address

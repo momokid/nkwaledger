@@ -75,14 +75,19 @@ class AgentLoanController extends Controller
         $code = (string) $request->input('code', '');
 
         try {
-            $this->codes->enter($entry, $request->user(), $code);
+            $result = $this->codes->enter($entry, $request->user(), $code);
         } catch (EntryRefused $refusal) {
             return back()->withErrors(['code' => $refusal->getMessage()]);
         } catch (PostingFailed $refusal) {
             return back()->with('error', $refusal->getMessage());
         }
 
-        return redirect("/agent/farmers/{$entry->farmerProfile->uuid}")->with('success', 'Loan accepted.');
+        // placeholders for a repayment: the wording is not approved yet
+        if ($result === null) {
+            return redirect("/agent/farmers/{$entry->farmerProfile->uuid}")->with('error', 'repayment.stale');
+        }
+
+        return redirect("/agent/farmers/{$entry->farmerProfile->uuid}")->with('success', $entry->isRepayment() ? 'repayment.accepted' : 'Loan accepted.');
     }
 
     public function withdraw(Request $request, PendingEntry $entry): RedirectResponse

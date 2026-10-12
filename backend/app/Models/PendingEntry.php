@@ -16,9 +16,12 @@ class PendingEntry extends Model
     public const ACCEPTED = 'accepted';
     public const DECLINED = 'declined';
     public const WITHDRAWN = 'withdrawn';
+    // the loan was no longer as the agent saw it, so the agent has to record it again
+    public const REJECTED = 'rejected';
 
     public const LOAN_MONEY = 'loan.money';
     public const LOAN_EXISTING = 'loan.existing';
+    public const LOAN_REPAYMENT = 'loan.repayment';
 
     public const VIA_APP = 'app';
     public const VIA_CODE = 'code';
@@ -78,6 +81,11 @@ class PendingEntry extends Model
     public function codes(): HasMany
     {
         return $this->hasMany(PendingEntryCode::class);
+    }
+
+    public function isRepayment(): bool
+    {
+        return $this->entry_type === self::LOAN_REPAYMENT;
     }
 
     public function isPending(): bool

@@ -21,12 +21,17 @@ class PendingEntryController extends Controller
         Gate::authorize('respond', $entry);
 
         try {
-            $this->entries->accept($entry, $request->user(), PendingEntry::VIA_APP);
+            $result = $this->entries->accept($entry, $request->user(), PendingEntry::VIA_APP, $request->boolean('confirm_excess'));
         } catch (PostingFailed|EntryRefused $refusal) {
             return redirect('/loans')->with('error', $refusal->getMessage());
         }
 
-        return redirect('/loans')->with('success', 'Loan accepted.');
+        // placeholders for a repayment: the wording is not approved yet
+        if ($result === null) {
+            return redirect('/loans')->with('error', 'repayment.stale');
+        }
+
+        return redirect('/loans')->with('success', $entry->isRepayment() ? 'repayment.accepted' : 'Loan accepted.');
     }
 
     public function decline(Request $request, PendingEntry $entry): RedirectResponse

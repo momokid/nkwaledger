@@ -2,9 +2,12 @@
 
 namespace App\Services\Loans;
 
+use App\Exceptions\Ledger\PostingFailed;
 use App\Exceptions\Loans\EntryRefused;
+use App\Exceptions\Loans\RepaymentSnapshotChanged;
 use App\Models\FarmerProfile;
 use App\Models\Loan;
+use App\Models\LoanRepayment;
 use App\Models\PendingEntry;
 use App\Models\User;
 use App\Services\AuditService;
@@ -21,8 +24,12 @@ class PendingEntryService
 
     public const FARMER_NOTICE = 'Your agent recorded a loan for you. It is not counted until you accept it.';
 
+    // placeholder: the wording is not approved yet
+    public const REPAYMENT_NOTICE = 'repayment.pending_notice';
+
     public function __construct(
         private readonly LoanService $loans,
+        private readonly RepaymentService $repayments,
         private readonly AuditService $audit,
         private readonly NotificationService $notifications,
     ) {}
@@ -54,17 +61,67 @@ class PendingEntryService
         });
     }
 
-    // by either route: one lock, every check again, one loan, or nothing at all
-    public function accept(PendingEntry $entry, User $actor, string $via): Loan
+    /** @param array<string, mixed> $data the same input the farmer's own repayment form takes */
+    public function recordRepayment(Loan $loan, User $agent, array $data): PendingEntry
     {
-        return DB::transaction(function () use ($entry, $actor, $via) {
+        if ($loan->isCancelled()) {
+            throw PostingFailed::because(RepaymentService::LOAN_NOT_ACTIVE);
+        }
+
+        $checked = $this->repayments->validated($data);
+        $snapshot = $this->repayments->snapshot($loan);
+
+        return DB::transaction(function () use ($loan, $agent, $checked, $snapshot) {
+            $payload = [
+                'loan_uuid' => $loan->uuid,
+                'lender_name' => $loan->lender_name,
+                'amount_minor' => $checked['amount_minor'],
+                'date' => $checked['date'],
+                'paid_from' => $checked['paid_from'],
+                'snapshot' => $snapshot,
+                'excess' => $checked['amount_minor'] > $snapshot['remaining_principal'] + $snapshot['remaining_interest'],
+            ];
+
+            $entry = PendingEntry::create([
+                'farmer_profile_id' => $loan->farmer_profile_id,
+                'entry_type' => PendingEntry::LOAN_REPAYMENT,
+                'payload' => $payload,
+                'recorded_by' => $agent->id,
+            ]);
+
+            $this->audit->recordOn('pending_entry.recorded', $entry, null, [
+                'uuid' => $entry->uuid,
+                'entry_type' => $entry->entry_type,
+                'loan_uuid' => $loan->uuid,
+                'amount_minor' => $payload['amount_minor'],
+            ], $agent);
+
+            $user = $loan->farmerProfile->user;
+
+            if ($user !== null) {
+                $this->notifications->send($user, 'loan.pending', self::REPAYMENT_NOTICE, '/loans');
+            }
+
+            return $entry;
+        });
+    }
+
+    // by either route: one lock, every check again, one loan or repayment, or nothing at all.
+    // Null means a repayment was rejected because the loan is no longer as the agent saw it
+    public function accept(PendingEntry $entry, User $actor, string $via, bool $confirmExcess = false): Loan|LoanRepayment|null
+    {
+        return DB::transaction(function () use ($entry, $actor, $via, $confirmExcess) {
             $locked = $this->lock($entry);
 
             if ($locked->status === PendingEntry::ACCEPTED) {
-                return Loan::findOrFail($locked->result_id);
+                return $locked->isRepayment() ? LoanRepayment::findOrFail($locked->result_id) : Loan::findOrFail($locked->result_id);
             }
 
             $this->mustBePending($locked);
+
+            if ($locked->isRepayment()) {
+                return $this->acceptRepayment($locked, $actor, $via, $confirmExcess);
+            }
 
             $farmer = $locked->farmerProfile;
             $recorder = $locked->recordedBy ?? $actor;
@@ -148,6 +205,66 @@ class PendingEntryService
         }
     }
 
+    // an agent's repayment at the moment of acceptance: the loan must still be exactly as the agent saw it
+    private function acceptRepayment(PendingEntry $locked, User $actor, string $via, bool $confirmExcess): ?LoanRepayment
+    {
+        $payload = $locked->payload;
+
+        if ($via === PendingEntry::VIA_CODE && $payload['excess']) {
+            throw EntryRefused::because(RepaymentService::CODE_NOT_ALLOWED);
+        }
+
+        $loan = Loan::where('uuid', $payload['loan_uuid'])->firstOrFail();
+
+        try {
+            $repayment = $this->repayments->record($loan, $locked->recordedBy ?? $actor, [
+                'amount' => Money::toDecimal($payload['amount_minor']),
+                'date' => $payload['date'],
+                'paid_from' => $payload['paid_from'],
+                // a code can never carry the farmer's yes to an extra amount
+                'confirm_excess' => $via === PendingEntry::VIA_APP && $confirmExcess,
+                'idempotency_key' => 'entry.' . $locked->uuid,
+            ], $via, $payload['snapshot']);
+        } catch (RepaymentSnapshotChanged) {
+            $locked->forceFill([
+                'status' => PendingEntry::REJECTED,
+                'decided_by' => $actor->id,
+                'decided_via' => $via,
+                'decided_at' => now(),
+            ])->save();
+
+            $this->audit->recordOn('pending_entry.rejected', $locked, ['status' => PendingEntry::PENDING], [
+                'status' => PendingEntry::REJECTED,
+                'via' => $via,
+            ], $actor);
+
+            $this->tellAgent($locked, 'loan.rejected', 'rejected');
+
+            return null;
+        }
+
+        $locked->forceFill([
+            'status' => PendingEntry::ACCEPTED,
+            'decided_by' => $actor->id,
+            'decided_via' => $via,
+            'decided_at' => now(),
+            'result_type' => 'loan_repayment',
+            'result_id' => $repayment->id,
+        ])->save();
+
+        $this->audit->recordOn('pending_entry.accepted', $locked, ['status' => PendingEntry::PENDING], [
+            'status' => PendingEntry::ACCEPTED,
+            'via' => $via,
+            'repayment_uuid' => $repayment->uuid,
+        ], $actor);
+
+        if ($via === PendingEntry::VIA_APP) {
+            $this->tellAgent($locked, 'loan.accepted', 'accepted');
+        }
+
+        return $repayment;
+    }
+
     // the stored payload back into the form's own input, so the checks that run are the same ones
     private function inputFrom(PendingEntry $entry): array
     {
@@ -176,6 +293,9 @@ class PendingEntryService
             return;
         }
 
-        $this->notifications->send($agent, $kind, trim("{$user->surname} {$user->first_name}") . " {$word} the loan.", "/agent/farmers/{$entry->farmerProfile->uuid}");
+        // placeholder wording for a repayment: not approved yet
+        $words = $entry->isRepayment() ? "repayment.{$word}" : "{$word} the loan.";
+
+        $this->notifications->send($agent, $kind, trim("{$user->surname} {$user->first_name}") . " {$words}", "/agent/farmers/{$entry->farmerProfile->uuid}");
     }
 }

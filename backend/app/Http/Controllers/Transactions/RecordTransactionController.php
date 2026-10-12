@@ -292,6 +292,7 @@ class RecordTransactionController extends Controller
     {
         return TransactionTemplate::query()
             ->where('is_active', true)
+            ->where('is_hidden', false)
             // a farmer never cancels their own record
             ->whereNotIn('transaction_type', Transaction::NOT_PICKABLE)
             ->where(fn($query) => $query

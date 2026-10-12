@@ -1,8 +1,9 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import Button from "@/Components/Button";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { cedis } from "@/lib/format";
+import { REPAYMENT_TEXT } from "@/Components/RepaymentForm";
 import { useState } from "react";
 
 type Status = "active" | "repaid" | "cancelled";
@@ -16,6 +17,8 @@ interface LoanRow {
 }
 
 interface PendingCard {
+    kind: "loan" | "repayment";
+    excess: boolean;
     uuid: string;
     lender: string;
     amount: number;
@@ -47,6 +50,7 @@ type ContentProps = Pick<Props, "loans" | "pending">;
 function IndexContent({ loans, pending }: ContentProps) {
     const { dark } = useTheme();
     const [declining, setDeclining] = useState<string | null>(null);
+    const [confirming, setConfirming] = useState<string | null>(null);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -93,7 +97,9 @@ function IndexContent({ loans, pending }: ContentProps) {
                     <p style={{ color: textSecondary, fontSize: "1rem" }}>{card.date}</p>
                     <p style={{ color: textSecondary, fontSize: "1rem" }}>Recorded by {card.agent}</p>
                     <p className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
-                        Your agent recorded a loan for you. It is not counted until you accept it.
+                        {card.kind === "repayment"
+                            ? "repayment.pending_notice"
+                            : "Your agent recorded a loan for you. It is not counted until you accept it."}
                     </p>
 
                     {declining === card.uuid ? (
@@ -112,9 +118,27 @@ function IndexContent({ loans, pending }: ContentProps) {
                                 </Button>
                             </div>
                         </div>
+                    ) : confirming === card.uuid ? (
+                        <div className="mt-3" role="alertdialog" aria-label={REPAYMENT_TEXT.prompt}>
+                            <p style={{ color: text, fontSize: "1.0625rem" }}>{REPAYMENT_TEXT.prompt}</p>
+                            <div className="mt-2 flex gap-3">
+                                <Button
+                                    type="button"
+                                    onClick={() => router.post(`/loans/entries/${card.uuid}/accept`, { confirm_excess: true })}
+                                >
+                                    {REPAYMENT_TEXT.yes}
+                                </Button>
+                                <Button type="button" look="secondary" onClick={() => setConfirming(null)}>
+                                    {REPAYMENT_TEXT.no}
+                                </Button>
+                            </div>
+                        </div>
                     ) : (
                         <div className="mt-3 flex gap-3">
-                            <Button type="button" onClick={() => router.post(`/loans/entries/${card.uuid}/accept`)}>
+                            <Button
+                                type="button"
+                                onClick={() => (card.excess ? setConfirming(card.uuid) : router.post(`/loans/entries/${card.uuid}/accept`))}
+                            >
                                 Accept
                             </Button>
                             <Button type="button" look="secondary" onClick={() => setDeclining(card.uuid)}>
@@ -157,7 +181,9 @@ function IndexContent({ loans, pending }: ContentProps) {
                             {loans.map((loan) => (
                                 <tr key={loan.uuid} style={{ borderBottom: `1px solid ${border}` }}>
                                     <td className="px-4 py-3" style={{ color: text }}>
-                                        {loan.lender}
+                                        <Link href={`/loans/${loan.uuid}`} style={{ color: text, textDecoration: "underline" }}>
+                                            {loan.lender}
+                                        </Link>
                                     </td>
                                     <td className="px-4 py-3" style={{ color: text }}>
                                         GHS {cedis(loan.amount)}

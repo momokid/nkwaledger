@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\FarmerProfile;
+use App\Models\Loan;
 use App\Models\PendingEntry;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -19,6 +20,16 @@ class PendingEntryPolicy
         }
 
         return (int) $farmer->assigned_agent_id === $user->id ? true : Response::denyAsNotFound();
+    }
+
+    // record a repayment for a loan: only the farmer's current agent; everyone else meets a 404
+    public function recordRepayment(User $user, Loan $loan): Response|bool
+    {
+        if ($user->hasRole('agent') && (int) $loan->farmerProfile?->assigned_agent_id === $user->id) {
+            return true;
+        }
+
+        return Response::denyAsNotFound();
     }
 
     // send a code, enter a code, withdraw

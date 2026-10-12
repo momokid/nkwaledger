@@ -6,6 +6,7 @@ use App\Contracts\SmsProvider;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Exceptions\Loans\EntryRefused;
 use App\Models\Loan;
+use App\Models\LoanRepayment;
 use App\Models\PendingEntry;
 use App\Models\PendingEntryCode;
 use App\Models\User;
@@ -42,6 +43,10 @@ class EntryCodeService
         DB::transaction(function () use ($entry, $agent) {
             $locked = $this->entries->lock($entry);
             $this->entries->mustBePending($locked);
+
+            if ($locked->isRepayment() && $locked->payload['excess']) {
+                throw EntryRefused::because(RepaymentService::CODE_NOT_ALLOWED);
+            }
 
             $phone = trim((string) $locked->farmerProfile->user?->phone);
 
@@ -93,7 +98,7 @@ class EntryCodeService
     }
 
     // the agent types the code the farmer read out: right means accepted, in one transaction with the code being used
-    public function enter(PendingEntry $entry, User $agent, string $code): Loan
+    public function enter(PendingEntry $entry, User $agent, string $code): Loan|LoanRepayment|null
     {
         [$verdict, $row] = $this->verify($entry, $code);
 
@@ -163,6 +168,11 @@ class EntryCodeService
 
     private function message(PendingEntry $entry, string $code): string
     {
+        if ($entry->isRepayment()) {
+            // placeholder wording for a repayment: not approved yet
+            return 'repayment.sms GHS ' . Money::toDecimal($entry->payload['amount_minor']) . " {$entry->payload['lender_name']} code {$code}";
+        }
+
         $amount = Money::toDecimal($entry->payload['principal_minor']);
         $lender = $entry->payload['lender_name'];
 
