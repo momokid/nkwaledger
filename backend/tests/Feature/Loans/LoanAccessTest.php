@@ -138,10 +138,12 @@ test('the policy: only a farmer creates, and an admin gets a plain refusal', fun
         ->and(Gate::forUser($this->adviser)->allows('create', Loan::class))->toBeFalse();
 });
 
-test('the policy: only an admin reads a farmer loans from the farmer page', function () {
+test('the policy: an admin and the farmer current agent read a farmer loans from the farmer page, nobody else', function () {
     expect(Gate::forUser($this->admin)->allows('viewForFarmer', [Loan::class, $this->profile]))->toBeTrue()
-        ->and(Gate::forUser($this->agent)->allows('viewForFarmer', [Loan::class, $this->profile]))->toBeFalse()
-        ->and(Gate::forUser($this->farmerUser)->allows('viewForFarmer', [Loan::class, $this->profile]))->toBeFalse();
+        ->and(Gate::forUser($this->agent)->allows('viewForFarmer', [Loan::class, $this->profile]))->toBeTrue()
+        ->and(Gate::forUser($this->otherAgent ?? User::factory()->create()->assignRole('agent'))->allows('viewForFarmer', [Loan::class, $this->profile]))->toBeFalse()
+        ->and(Gate::forUser($this->farmerUser)->allows('viewForFarmer', [Loan::class, $this->profile]))->toBeFalse()
+        ->and(Gate::forUser($this->vet)->allows('viewForFarmer', [Loan::class, $this->profile]))->toBeFalse();
 });
 
 // --- the admin's read-only section ---
@@ -162,13 +164,14 @@ test('the admin farmer page lists the farmer loans, read-only, with no ids', fun
         ->and(collect($loans)->every(fn($row) => isset($row['uuid']) && ! array_key_exists('id', $row)))->toBeTrue();
 });
 
-test('the farmer page shows an agent no loans in this task', function () {
+test('the farmer page shows the assigned agent the loans, with the actions, and an admin the loans without them', function () {
     $props = null;
     $this->actingAs($this->agent)->get("/agent/farmers/{$this->profile->uuid}")->assertOk()->assertInertia(function ($inertia) use (&$props) {
         $props = $inertia->toArray()['props'];
     });
 
-    expect($props['loans'] ?? null)->toBeNull();
+    expect(collect($props['loans'])->pluck('lender')->all())->toBe(['Sika Microfinance'])
+        ->and($props['loan_actions'])->toBeTrue();
 });
 
 test('the admin page has no way to create a loan: the create routes stay 403 for the admin session', function () {
