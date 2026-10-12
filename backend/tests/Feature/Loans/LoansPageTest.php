@@ -157,6 +157,13 @@ test('a missing lender name, lender type or paid-into account shows the approved
     ['paid_into', 'Choose where the money was paid into.'],
 ]);
 
+test('a lender name made only of spaces shows the approved words beside the lender name field', function (string $spaces) {
+    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['lender_name' => $spaces]))
+        ->assertSessionHasErrors(['lender_name' => "Enter the lender's name."]);
+
+    expect(Loan::count())->toBe(0);
+})->with(['three spaces' => '   ', 'a tab' => "\t", 'spaces and a no-break space' => "  \u{00A0} "]);
+
 test('a lender type that is not on the list, or an account that is not cash, MoMo or bank, gets the same approved words', function () {
     $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['lender_type' => 'cousin']))
         ->assertSessionHasErrors(['lender_type' => 'Choose the lender type.']);

@@ -5,11 +5,23 @@ namespace App\Http\Requests\Loans;
 use App\Models\Loan;
 use App\Services\Loans\LoanService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreLoanRequest extends FormRequest
 {
+    // a name of only spaces is a missing name, whatever middleware did or did not run before this
+    protected function prepareForValidation(): void
+    {
+        $name = $this->input('lender_name');
+
+        if (is_string($name)) {
+            $name = Str::trim($name);
+            $this->merge(['lender_name' => $name === '' ? null : $name]);
+        }
+    }
+
     public function rules(): array
     {
         $money = $this->input('kind') === Loan::KIND_MONEY;
