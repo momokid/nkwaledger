@@ -27,5 +27,7 @@ class AccountStatementRow
         // no money moved but value did: the row carries its own amount, and is in no cash or class figure
         public readonly bool $isNonCash = false,
         public readonly int $nonCashMinor = 0,
+        // the row is a loan's own record, so the loan notice goes with it
+        public readonly bool $isLoan = false,
     ) {}
 }

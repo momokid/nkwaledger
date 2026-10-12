@@ -114,6 +114,7 @@ class ReportController extends Controller
                 'money_class' => $row->moneyClass?->value,
                 'is_non_cash' => $row->isNonCash,
                 'non_cash' => $row->nonCashMinor,
+                'is_loan' => $row->isLoan,
             ]),
             'opening_balance' => $report->openingBalanceMinor,
             'closing_balance' => $report->closingBalanceMinor,

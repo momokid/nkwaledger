@@ -126,12 +126,28 @@ describe("Pending entries from an agent", () => {
 });
 
 describe("The loans page", () => {
-    it("has the two buttons and the notice about self-reported loans", async () => {
+    it("has the two buttons and no notice when there are no loans", async () => {
         await show([]);
 
         expect(buttons()).toContain("Add a loan");
         expect(buttons()).toContain("Add a loan I already had");
-        expect(container.textContent).toContain("You entered this loan yourself. It has not been checked with the lender.");
+        expect(container.textContent).not.toContain("not been checked with the lender");
+    });
+
+    it("shows the notice once on each loan row", async () => {
+        await show([loan()]);
+        expect(container.textContent?.split("not been checked with the lender").length).toBe(2);
+
+        await show([loan(), loan({ uuid: "9d2f0c0e-0000-4000-8000-000000000002", lender: "Uncle Kofi" })]);
+        expect(container.textContent?.split("not been checked with the lender").length).toBe(3);
+        expect(container.querySelectorAll("tbody tr [role='note']").length).toBe(2);
+        expect(container.querySelector("[role='note']")?.textContent).toBe("You entered this loan yourself. It has not been checked with the lender.");
+    });
+
+    it("gives a waiting entry that is not a loan yet no notice", async () => {
+        await show([], [card()]);
+
+        expect(container.textContent).not.toContain("not been checked with the lender");
     });
 
     it("says there are no loans when there are none", async () => {
@@ -148,7 +164,7 @@ describe("The loans page", () => {
         const cells = Array.from(container.querySelectorAll("tbody td")).map((cell) => cell.textContent);
 
         expect(headers).toEqual(["Lender", "Amount", "Loan Balance", "Status"]);
-        expect(cells[0]).toBe("Sika Microfinance");
+        expect(cells[0].startsWith("Sika Microfinance")).toBe(true);
         expect(cells[1]).toContain("500.00");
         expect(cells[2]).toContain("500.00");
         expect(cells[3]).toBe("Active");

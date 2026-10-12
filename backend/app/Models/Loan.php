@@ -18,6 +18,9 @@ class Loan extends Model
     public const ACTIVE = 'active';
     public const CANCELLED = 'cancelled';
 
+    // shown with every loan: there is no lender check yet, so every loan is self-reported
+    public const NOTICE = 'You entered this loan yourself. It has not been checked with the lender.';
+
     public const LENDER_TYPES = ['bank', 'microfinance', 'group', 'individual', 'other'];
 
     protected $fillable = [

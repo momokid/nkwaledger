@@ -6,6 +6,7 @@ use App\Enums\MoneyClass;
 use App\Models\CreditSettlement;
 use App\Models\FarmerProfile;
 use App\Models\LedgerAccount;
+use App\Models\Loan;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -50,7 +51,9 @@ class AccountStatementService
 
         $originals = $this->loadOriginals($transactions);
 
-        $rows = $this->rows($transactions, $opening, $settlementAccounts, $originals);
+        $loanRecords = Loan::whereIn('transaction_id', $transactions->pluck('id'))->pluck('transaction_id')->all();
+
+        $rows = $this->rows($transactions, $opening, $settlementAccounts, $originals, $loanRecords);
 
         $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
 
@@ -168,7 +171,7 @@ class AccountStatementService
     }
 
     /** @return array<int, AccountStatementRow> */
-    private function rows(Collection $transactions, int $opening, Collection $settlementAccounts, Collection $originals): array
+    private function rows(Collection $transactions, int $opening, Collection $settlementAccounts, Collection $originals, array $loanRecords = []): array
     {
         $balance = $opening;
         $rows = [];
@@ -199,6 +202,7 @@ class AccountStatementService
                 moneyClass: $this->classifier->classify($transaction, $in, $out, $originals->get($transaction->id)),
                 isNonCash: $this->isNonCash($transaction),
                 nonCashMinor: $this->isNonCash($transaction) ? (int) $transaction->amount_minor : 0,
+                isLoan: in_array($transaction->id, $loanRecords, true),
             );
         }
 

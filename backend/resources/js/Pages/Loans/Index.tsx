@@ -3,6 +3,7 @@ import Button from "@/Components/Button";
 import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { cedis } from "@/lib/format";
+import { LOAN_NOTICE } from "@/lib/loanNotice";
 import { REPAYMENT_TEXT } from "@/Components/RepaymentForm";
 import { useState } from "react";
 
@@ -56,7 +57,6 @@ function IndexContent({ loans, pending }: ContentProps) {
     const border = dark ? "#374151" : "#E5E7EB";
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
-    const noticeBg = dark ? "rgba(180,83,9,0.15)" : "#FEF3C7";
     const noticeBorder = "#B45309";
 
     const head = {
@@ -76,14 +76,6 @@ function IndexContent({ loans, pending }: ContentProps) {
             <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
                 Loans
             </h2>
-
-            <div
-                className="mt-4 p-3"
-                role="note"
-                style={{ background: noticeBg, color: "#B45309", fontSize: "1rem" }}
-            >
-                You entered this loan yourself. It has not been checked with the lender.
-            </div>
 
             {pending.map((card) => (
                 <div
@@ -184,6 +176,9 @@ function IndexContent({ loans, pending }: ContentProps) {
                                         <Link href={`/loans/${loan.uuid}`} style={{ color: text, textDecoration: "underline" }}>
                                             {loan.lender}
                                         </Link>
+                                        <p role="note" style={{ color: "#B45309", fontSize: "0.9375rem" }}>
+                                            {LOAN_NOTICE}
+                                        </p>
                                     </td>
                                     <td className="px-4 py-3" style={{ color: text }}>
                                         GHS {cedis(loan.amount)}

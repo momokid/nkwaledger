@@ -3,6 +3,7 @@ import Button from "@/Components/Button";
 import RepaymentForm, { PaidFromOption } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
 import { cedis, shortDate } from "@/lib/format";
+import { LOAN_NOTICE } from "@/lib/loanNotice";
 import { useState } from "react";
 
 interface LoanSummary {
@@ -58,6 +59,10 @@ function ShowContent({ loan, repayments, paidFrom, idempotencyKey, previewUrl, p
             <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>{loan.lender}</h2>
             <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
                 GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)}
+            </p>
+
+            <p role="note" className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
+                {LOAN_NOTICE}
             </p>
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>

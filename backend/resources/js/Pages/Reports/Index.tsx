@@ -1,6 +1,7 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import Button from "@/Components/Button";
+import { LOAN_NOTICE } from "@/lib/loanNotice";
 import { cedis, shortDate } from "@/lib/format";
 import { router } from "@inertiajs/react";
 import { PageProps } from "@/types";
@@ -44,6 +45,7 @@ interface StatementRow {
     money_class: MoneyClass | null;
     is_non_cash: boolean;
     non_cash: number;
+    is_loan?: boolean;
 }
 
 interface IncomeRow {
@@ -686,6 +688,17 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                         }}
                                     >
                                         Non-cash {cedis(row.non_cash)}
+                                    </span>
+                                )}
+                                {row.is_loan && (
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.9375rem",
+                                            color: colours.textSecondary,
+                                        }}
+                                    >
+                                        {LOAN_NOTICE}
                                     </span>
                                 )}
                             </td>

@@ -276,6 +276,9 @@
                                 @if ($row['is_non_cash'])
                                     <span class="muted">Non-cash</span> {{ $cedis($row['non_cash']) }}
                                 @endif
+                                @if ($row['is_loan'])
+                                    <span class="muted">{{ \App\Models\Loan::NOTICE }}</span>
+                                @endif
                                 @if ($row['is_provisional'])
                                     <span class="muted">Not counted yet</span>
                                 @endif
