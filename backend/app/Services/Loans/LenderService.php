@@ -7,6 +7,7 @@ use App\Models\Lender;
 use App\Models\Loan;
 use App\Models\User;
 use App\Services\AuditService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -21,22 +22,33 @@ class LenderService
 
     // placeholders: the wording for these is not approved yet
     public const NOT_IN_LIST = 'lender.not_in_list';
+    public const NAME_CHARACTERS = 'lender.name_characters';
+    public const NAME_TAKEN = 'lender.institution_exists';
 
     public function __construct(private readonly AuditService $audit) {}
 
-    /** @return Collection<int, array{uuid: string, name: string, type: string}> */
+    /**
+     * Found and ordered by sort_key, compared by bytes, so the order is the same on every database: names that start
+     * with the typed text first, then the rest A to Z, then name_key so no two rows ever tie.
+     *
+     * @return Collection<int, array{uuid: string, name: string, type: string}>
+     */
     public function search(string $term): Collection
     {
-        $key = Lender::keyOf($term);
+        $key = Lender::sortKeyOf($term);
 
         if (mb_strlen($key) < self::SEARCH_MIN) {
             return collect();
         }
 
-        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $key) . '%';
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $key);
+        // the byte-order clause is one of two fixed strings chosen by the driver, never anything typed
+        $bytes = DB::getDriverName() === 'pgsql' ? 'collate "C"' : 'collate binary';
 
-        return Lender::whereRaw("name_key like ? escape '\\'", [$like])
-            ->orderBy('name')
+        return Lender::whereRaw("sort_key like ? escape '\\'", ['%' . $escaped . '%'])
+            ->orderByRaw("case when sort_key like ? escape '\\' then 0 else 1 end", [$escaped . '%'])
+            ->orderByRaw("sort_key {$bytes}")
+            ->orderByRaw("name_key {$bytes}")
             ->limit(self::SEARCH_LIMIT)
             ->get(['uuid', 'name', 'type'])
             ->map(fn(Lender $lender) => ['uuid' => $lender->uuid, 'name' => $lender->name, 'type' => $lender->type]);
@@ -68,13 +80,20 @@ class LenderService
             throw ValidationException::withMessages(['type' => 'lender.type_invalid']);
         }
 
-        $this->mustBeNew($name, null);
+        // two admins adding twins at once both pass the check; the unique index on sort_key lets only one in
+        try {
+            return DB::transaction(function () use ($type, $name, $by) {
+                $this->mustBeNew($name, null);
 
-        $lender = Lender::create(['type' => $type, 'name' => $name, 'created_by' => $by->id]);
+                $lender = Lender::create(['type' => $type, 'name' => $name, 'created_by' => $by->id]);
 
-        $this->audit->recordOn('lender.created', $lender, null, ['uuid' => $lender->uuid, 'type' => $lender->type, 'name' => $lender->name], $by);
+                $this->audit->recordOn('lender.created', $lender, null, ['uuid' => $lender->uuid, 'type' => $lender->type, 'name' => $lender->name], $by);
 
-        return $lender;
+                return $lender;
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['name' => self::NAME_TAKEN]);
+        }
     }
 
     /**
@@ -87,6 +106,15 @@ class LenderService
             throw ValidationException::withMessages(['type' => 'lender.type_invalid']);
         }
 
+        try {
+            return $this->updateLocked($lender, $name, $type, $by);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['name' => self::NAME_TAKEN]);
+        }
+    }
+
+    private function updateLocked(Lender $lender, ?string $name, ?string $type, User $by): Lender
+    {
         return DB::transaction(function () use ($lender, $name, $type, $by) {
             $locked = Lender::whereKey($lender->id)->lockForUpdate()->firstOrFail();
             $before = [];
@@ -131,10 +159,17 @@ class LenderService
             throw ValidationException::withMessages(['name' => 'lender.name_required']);
         }
 
-        $clash = Lender::where('name_key', Lender::keyOf($name))->when($except, fn($q) => $q->whereKeyNot($except->id))->exists();
+        // placeholder: a name with a letter that has no plain form cannot be matched or sorted
+        if (Lender::hasUnfoldable($name)) {
+            throw ValidationException::withMessages(['name' => self::NAME_CHARACTERS]);
+        }
+
+        $clash = Lender::where(fn($q) => $q->where('name_key', Lender::keyOf($name))->orWhere('sort_key', Lender::sortKeyOf($name)))
+            ->when($except, fn($q) => $q->whereKeyNot($except->id))
+            ->exists();
 
         if ($clash) {
-            throw ValidationException::withMessages(['name' => 'lender.institution_exists']);
+            throw ValidationException::withMessages(['name' => self::NAME_TAKEN]);
         }
     }
 }

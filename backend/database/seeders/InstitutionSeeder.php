@@ -10,7 +10,8 @@ use RuntimeException;
 
 // the institutions a farmer can pick as a lender, from a file the owner supplies (columns: type, name, source). The
 // source decides the type. Safe to run again: it only adds a name that is missing and never changes a row that is
-// there, so an admin's correction to a name or type survives
+// there, so an admin's correction to a name or type survives. A name that only differs by accents from one already
+// there is the same lender, so it is left out and reported
 class InstitutionSeeder extends Seeder
 {
     public const SOURCE_TYPES = [
@@ -20,10 +21,14 @@ class InstitutionSeeder extends Seeder
         'deposit-taking microfinance' => 'microfinance',
     ];
 
+    /** @var list<string> names left out because a different spelling of them is already in the list */
+    public array $skipped = [];
+
     public function __construct(private readonly ?string $path = null) {}
 
     public function run(): void
     {
+        $this->skipped = [];
         $path = $this->path ?? database_path('seeders/data/institutions.csv');
 
         if (! is_file($path)) {
@@ -49,13 +54,25 @@ class InstitutionSeeder extends Seeder
                     $source = mb_strtolower(trim((string) ($row[2] ?? '')));
                     $type = self::SOURCE_TYPES[$source] ?? throw new RuntimeException("The institution list has a source this seeder does not know: \"{$source}\" for \"{$name}\".");
 
-                    if (! Lender::where('name_key', Lender::keyOf($name))->exists()) {
-                        (new Lender())->forceFill(['uuid' => (string) Str::uuid7(), 'type' => $type] + Lender::derived($name))->save();
+                    if (Lender::where('name_key', Lender::keyOf($name))->exists()) {
+                        continue;
                     }
+
+                    if (Lender::where('sort_key', Lender::sortKeyOf($name))->exists()) {
+                        $this->skipped[] = $name;
+
+                        continue;
+                    }
+
+                    (new Lender())->forceFill(['uuid' => (string) Str::uuid7(), 'type' => $type] + Lender::derived($name))->save();
                 }
             });
         } finally {
             fclose($handle);
+        }
+
+        if ($this->skipped !== []) {
+            $this->command?->warn('Left out, a different spelling is already in the list: ' . implode(', ', $this->skipped));
         }
     }
 }

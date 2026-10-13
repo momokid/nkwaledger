@@ -49,7 +49,7 @@ function institutionFile(): array
 function oldLender(string $name, string $type): void
 {
     DB::table('lenders')->insert([
-        'uuid' => (string) Str::uuid7(), 'type' => $type, 'name' => $name, 'name_key' => Lender::keyOf($name),
+        'uuid' => (string) Str::uuid7(), 'type' => $type, 'name' => $name, 'name_key' => Lender::keyOf($name), 'sort_key' => Lender::sortKeyOf($name),
         'created_at' => now(), 'updated_at' => now(),
     ]);
 }
@@ -261,4 +261,32 @@ test('the column holds the longest type key', function () {
     if (DB::getDriverName() === 'pgsql') {
         expect((int) DB::selectOne("select character_maximum_length as n from information_schema.columns where table_name = 'lenders' and column_name = 'type'")->n)->toBe(40);
     }
+});
+
+// --- accent twins and the seeder ---
+
+test('the seeder skips a name whose accent twin is already there, reports it, and never fails the run', function () {
+    Lender::create(['type' => 'bank', 'name' => 'Societe']);
+
+    $path = seedFile("type,name,source\nbank,\"Société\",commercial bank\nbank,\"Alpha Zed\",commercial bank\nbank,\"Alpha Zéd\",commercial bank\nbank,\"Plain Bank\",commercial bank\n");
+    $seeder = new InstitutionSeeder($path);
+    $seeder->run();
+
+    expect($seeder->skipped)->toBe(['Société', 'Alpha Zéd'])
+        ->and(Lender::orderBy('name')->pluck('name')->all())->toBe(['Alpha Zed', 'Plain Bank', 'Societe']);
+
+    $again = new InstitutionSeeder($path);
+    $again->run();
+
+    expect($again->skipped)->toBe(['Société', 'Alpha Zéd']);
+});
+
+test('a normal re-run of the seeder reports nothing', function () {
+    $path = seedFile("type,name,source\nbank,\"Alpha Bank\",commercial bank\n");
+    (new InstitutionSeeder($path))->run();
+
+    $again = new InstitutionSeeder($path);
+    $again->run();
+
+    expect($again->skipped)->toBe([]);
 });

@@ -27,16 +27,16 @@ class Lender extends Model
     }
 
     /**
-     * What a name decides: its tidy spelling and the key two spellings share. A plain method, not only a model
-     * event, so the seeder (which runs with events off) can set them too.
+     * What a name decides: its tidy spelling, the key two spellings share, and the key it is searched and sorted by.
+     * A plain method, not only a model event, so the seeder (which runs with events off) can set them too.
      *
-     * @return array{name: string, name_key: string}
+     * @return array{name: string, name_key: string, sort_key: string}
      */
     public static function derived(string $name): array
     {
         $name = self::squish($name);
 
-        return ['name' => $name, 'name_key' => self::keyOf($name)];
+        return ['name' => $name, 'name_key' => self::keyOf($name), 'sort_key' => self::sortKeyOf($name)];
     }
 
     public function getRouteKeyName(): string
@@ -47,6 +47,32 @@ class Lender extends Model
     public static function squish(string $name): string
     {
         return (string) Str::of($name)->squish();
+    }
+
+    // the key a name is searched and sorted by: lower case, one space between words, accents folded to plain letters.
+    // A character with no plain letter is kept as it is (the folding library alone would drop it)
+    public static function sortKeyOf(string $name): string
+    {
+        $key = self::keyOf($name);
+
+        if (! preg_match('/[^[:ascii:]]/', $key)) {
+            return $key;
+        }
+
+        $folded = '';
+
+        foreach (mb_str_split($key) as $char) {
+            $plain = Str::ascii($char);
+            $folded .= $plain === '' ? $char : $plain;
+        }
+
+        return self::squish($folded);
+    }
+
+    // true when a character is left that has no plain-letter form: such a name is not accepted from an admin
+    public static function hasUnfoldable(string $name): bool
+    {
+        return (bool) preg_match('/[^[:ascii:]]/', self::sortKeyOf($name));
     }
 
     // one spelling for comparing names: case and extra spaces do not matter

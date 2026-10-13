@@ -156,7 +156,7 @@ test('the types are the five, and a person or group is not one', function () {
 });
 
 test('a lender has no phone, no note and no phone-based identity anywhere', function () {
-    expect(Schema::getColumnListing('lenders'))->toEqualCanonicalizing(['id', 'uuid', 'type', 'name', 'name_key', 'created_by', 'created_at', 'updated_at']);
+    expect(Schema::getColumnListing('lenders'))->toEqualCanonicalizing(['id', 'uuid', 'type', 'name', 'name_key', 'sort_key', 'created_by', 'created_at', 'updated_at']);
 
     $entry = $this->entries->recordLoan($this->profile, $this->agent, ($this->moneyEntry)());
 

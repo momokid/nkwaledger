@@ -213,3 +213,74 @@ test('the admin page lists type and name with no id of a row and no phone, and o
     expect(array_keys($props['lenders'][0]))->toEqualCanonicalizing(['uuid', 'type', 'name'])
         ->and($props['types'])->toBe(['bank', 'rural_bank', 'credit_financial_institution', 'microfinance', 'other']);
 });
+
+// --- accent twins: names that fold to the same key are one lender ---
+
+test('adding an accent twin of an existing name is refused with the existing duplicate key', function () {
+    Lender::create(['type' => 'bank', 'name' => 'Societe Generale']);
+
+    $this->actingAs($this->admin)->postJson('/admin/lenders', ['type' => 'bank', 'name' => 'Société Générale'])
+        ->assertStatus(422)->assertJsonValidationErrors(['name'])->assertJsonPath('errors.name.0', 'lender.institution_exists');
+
+    expect(Lender::where('sort_key', 'societe generale')->count())->toBe(1);
+});
+
+test('renaming into the accent twin of another lender is refused and nothing changes', function () {
+    Lender::create(['type' => 'bank', 'name' => 'Societe Generale']);
+    $other = Lender::create(['type' => 'bank', 'name' => 'Other Place']);
+    $before = $other->fresh()->toJson();
+
+    ($this->patch)($other, ['name' => 'Société Générale'])->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.institution_exists');
+
+    expect($other->fresh()->toJson())->toBe($before)->and(($this->logs)($other)->count())->toBe(0);
+});
+
+test('a lender may be renamed to an accent variant of itself, and keeps its id and loans', function () {
+    $lender = Lender::create(['type' => 'bank', 'name' => 'Societe']);
+    $loan = ($this->openLoan)(['lender_name' => 'Societe', 'lender' => $lender->uuid]);
+    $id = $lender->id;
+
+    ($this->patch)($lender, ['name' => 'Société'])->assertOk()->assertJsonPath('name', 'Société');
+
+    $after = $lender->fresh();
+
+    expect([$after->id, $after->name, $after->name_key, $after->sort_key])->toBe([$id, 'Société', 'société', 'societe'])
+        ->and($loan->fresh()->lender_id)->toBe($id);
+});
+
+test('a clash that only the unique index sees gives the same duplicate error', function () {
+    $fired = false;
+    Lender::creating(function () use (&$fired) {
+        if (! $fired) {
+            $fired = true;
+            DB::table('lenders')->insert(['uuid' => (string) \Illuminate\Support\Str::uuid7(), 'type' => 'bank', 'name' => 'Societe', 'name_key' => 'societe', 'sort_key' => 'societe', 'created_at' => now(), 'updated_at' => now()]);
+        }
+    });
+
+    $this->actingAs($this->admin)->postJson('/admin/lenders', ['type' => 'bank', 'name' => 'Société'])
+        ->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.institution_exists');
+
+    expect(Lender::where('name', 'Société')->exists())->toBeFalse();
+});
+
+test('a name with a character that cannot be folded to plain letters is refused on add and on rename', function (string $name) {
+    $lender = Lender::create(['type' => 'bank', 'name' => 'Plain Bank']);
+
+    $this->actingAs($this->admin)->postJson('/admin/lenders', ['type' => 'bank', 'name' => $name])
+        ->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.name_characters');
+    ($this->patch)($lender, ['name' => $name])->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.name_characters');
+
+    expect($lender->fresh()->name)->toBe('Plain Bank')->and(Lender::count())->toBe(2);
+})->with(['open e' => 'Ɛ Rural Bank', 'open o' => 'Bank ɔ', 'chinese' => '名前 Bank', 'emoji' => 'Cafe ☕']);
+
+test('a rename updates sort_key and a type edit does not change it', function () {
+    $lender = Lender::create(['type' => 'bank', 'name' => 'Cafe Bank']);
+
+    ($this->patch)($lender, ['name' => 'Café Rural'])->assertOk();
+    expect($lender->fresh()->only(['name_key', 'sort_key']))->toBe(['name_key' => 'café rural', 'sort_key' => 'cafe rural']);
+
+    DB::table('lenders')->where('id', $lender->id)->update(['sort_key' => 'kept as stored']);
+    ($this->patch)($lender, ['type' => 'other'])->assertOk();
+
+    expect($lender->fresh()->only(['name', 'name_key', 'sort_key', 'type']))->toBe(['name' => 'Café Rural', 'name_key' => 'café rural', 'sort_key' => 'kept as stored', 'type' => 'other']);
+});
