@@ -8,29 +8,15 @@ on:
 
 # One job, named "test" (the check the pull request waits for), on PostgreSQL: local development and
 # production use PostgreSQL. Actions are pinned to full commit SHAs.
+#
+# PostgreSQL is started by a step, not a service container, because a service container cannot take server
+# flags and max_locks_per_transaction is only read when the server starts.
 jobs:
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-
-    # a throwaway database that exists only for this job; the credentials below are made up for it
-    # and open nothing else. The suite itself refuses any database not named *_test or not on 127.0.0.1.
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: ci_user
-          POSTGRES_PASSWORD: ci_throwaway_password
-          POSTGRES_DB: nkwaledger_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ci_user -d nkwaledger_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
 
     env:
       APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
@@ -45,6 +31,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # a throwaway database that exists only for this job; the credentials below are made up for it and open
+      # nothing else. The suite itself refuses any database not named *_test or not on 127.0.0.1.
+      # 256 locks per transaction (the default is 64): many parallel workers each drop every table at the start.
+      # Readiness is checked over TCP, because during first-time setup the image answers only on its socket.
+      - name: Start PostgreSQL 17
+        run: |
+          docker run -d --name postgres -p 127.0.0.1:5432:5432 \
+            -e POSTGRES_USER=ci_user \
+            -e POSTGRES_PASSWORD=ci_throwaway_password \
+            -e POSTGRES_DB=nkwaledger_test \
+            postgres:17 -c max_locks_per_transaction=256
+          for i in $(seq 1 24); do
+            if docker exec postgres pg_isready -h 127.0.0.1 -U ci_user -d nkwaledger_test; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs postgres
+          exit 1
+
+      - name: Show the live PostgreSQL lock setting
+        run: docker exec postgres psql -U ci_user -d nkwaledger_test -c "show max_locks_per_transaction"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
