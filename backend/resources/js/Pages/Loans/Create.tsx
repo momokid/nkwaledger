@@ -3,14 +3,12 @@ import Button from "@/Components/Button";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { csrfToken } from "@/lib/syncHttp";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 // placeholder keys: the wording for these is not approved yet
 const LENDER_TEXT = { notInList: "lender.not_in_list" };
 
-// Bank, Microfinance and Other are the approved words; the credit union label is a placeholder key
-const TYPE_LABELS: Record<string, string> = { bank: "Bank", microfinance: "Microfinance", other: "Other" };
-const typeLabel = (type: string) => TYPE_LABELS[type] ?? `lender.type.${type}`;
+const typeLabel = (type: string) => `lender.type.${type}`;
 
 interface Found {
     uuid: string;
@@ -25,7 +23,6 @@ interface PaidIntoOption {
 
 interface Props extends PageProps {
     kind: "money" | "existing";
-    lenderTypes: string[];
     paidInto: PaidIntoOption[];
     idempotencyKey: string;
     // an agent filling the form in for a farmer: another address to post to and to go back to
@@ -42,9 +39,9 @@ export default function Create(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "kind" | "lenderTypes" | "paidInto" | "idempotencyKey" | "agent" | "postUrl" | "backUrl">;
+type ContentProps = Pick<Props, "kind" | "paidInto" | "idempotencyKey" | "agent" | "postUrl" | "backUrl">;
 
-function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, postUrl, backUrl }: ContentProps) {
+function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl }: ContentProps) {
     const { errors, old } = usePage<Props>().props as unknown as {
         errors: Record<string, string>;
         old: Record<string, string>;
@@ -63,7 +60,6 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
     const form = useForm({
         kind,
         lender_name: old?.lender_name ?? "",
-        lender_type: old?.lender_type ?? "",
         lender: old?.lender ?? "",
         amount: old?.amount ?? "",
         date: old?.date ?? today,
@@ -74,14 +70,15 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
         idempotency_key: idempotencyKey,
     });
 
-    const institution = form.data.lender_type !== "";
     const [found, setFound] = useState<Found[] | null>(null);
+    const [pickedType, setPickedType] = useState("");
+    const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-    // an institution is picked from the list: what is typed here only searches, it is never saved as a name
+    // a lender is picked from the list: what is typed here only searches, and only the picked id is sent
     useEffect(() => {
         setFound(null);
 
-        if (!institution || form.data.lender !== "" || form.data.lender_name.trim().length < 2) {
+        if (form.data.lender !== "" || form.data.lender_name.trim().length < 2) {
             return;
         }
 
@@ -92,7 +89,7 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
                     method: "POST",
                     signal: controller.signal,
                     headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken() },
-                    body: JSON.stringify({ q: form.data.lender_name, type: form.data.lender_type }),
+                    body: JSON.stringify({ q: form.data.lender_name }),
                 });
 
                 setFound(response.ok ? await response.json() : null);
@@ -105,7 +102,7 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
             clearTimeout(timer);
             controller.abort();
         };
-    }, [institution, form.data.lender_name, form.data.lender, form.data.lender_type]);
+    }, [form.data.lender_name, form.data.lender]);
 
     const field = {
         width: "100%",
@@ -132,6 +129,11 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        if (form.data.lender === "") {
+            return;
+        }
+
         form.post(postUrl);
     };
 
@@ -165,61 +167,85 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
                     <input
                         id="lender_name"
                         type="text"
+                        role="combobox"
+                        aria-expanded={found !== null && found.length > 0}
+                        aria-controls="lender_results"
+                        aria-autocomplete="list"
                         autoComplete="off"
                         style={field}
                         value={form.data.lender_name}
                         onChange={(event) => {
                             form.setData("lender_name", event.target.value);
                             form.setData("lender", "");
+                            setPickedType("");
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === "ArrowDown" && found !== null && found.length > 0) {
+                                event.preventDefault();
+                                optionRefs.current[0]?.focus();
+                            }
+
+                            if (event.key === "Escape") {
+                                setFound(null);
+                            }
                         }}
                     />
-                    {institution && found !== null && found.length > 0 && (
-                        <ul role="listbox" style={{ border: `1px solid ${inputBorder}`, background: inputBg }}>
-                            {found.map((item) => (
+                    {found !== null && found.length > 0 && (
+                        <ul id="lender_results" role="listbox" style={{ border: `1px solid ${inputBorder}`, background: inputBg }}>
+                            {found.map((item, index) => (
                                 <li key={item.uuid}>
                                     <button
                                         type="button"
                                         role="option"
                                         aria-selected={false}
-                                        style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", color: text }}
+                                        ref={(node) => {
+                                            optionRefs.current[index] = node;
+                                        }}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            gap: "12px",
+                                            width: "100%",
+                                            minHeight: "48px",
+                                            textAlign: "left",
+                                            padding: "12px 16px",
+                                            fontSize: "1.0625rem",
+                                            color: text,
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "ArrowDown") {
+                                                event.preventDefault();
+                                                optionRefs.current[index + 1]?.focus();
+                                            }
+
+                                            if (event.key === "ArrowUp") {
+                                                event.preventDefault();
+                                                (optionRefs.current[index - 1] ?? document.getElementById("lender_name"))?.focus();
+                                            }
+
+                                            if (event.key === "Escape") {
+                                                setFound(null);
+                                                document.getElementById("lender_name")?.focus();
+                                            }
+                                        }}
                                         onClick={() => {
                                             form.setData("lender_name", item.name);
                                             form.setData("lender", item.uuid);
+                                            setPickedType(item.type);
                                             setFound(null);
                                         }}
                                     >
-                                        {item.name}
+                                        <span>{item.name}</span>
+                                        <span style={{ fontSize: "0.9375rem", opacity: 0.75 }}>{typeLabel(item.type)}</span>
                                     </button>
                                 </li>
                             ))}
                         </ul>
                     )}
-                    {institution && found !== null && found.length === 0 && <p style={errorText}>{LENDER_TEXT.notInList}</p>}
-                    {errors.lender_name && <p style={errorText}>{errors.lender_name}</p>}
+                    {pickedType !== "" && form.data.lender !== "" && <p style={{ fontSize: "0.9375rem", marginTop: "4px", color: text }}>{typeLabel(pickedType)}</p>}
+                    {found !== null && found.length === 0 && <p style={errorText}>{LENDER_TEXT.notInList}</p>}
                     {errors.lender && <p style={errorText}>{errors.lender}</p>}
-                </div>
-
-                <div className="mb-4">
-                    <label htmlFor="lender_type" style={label}>
-                        Lender type
-                    </label>
-                    <select
-                        id="lender_type"
-                        style={field}
-                        value={form.data.lender_type}
-                        onChange={(event) => {
-                            form.setData("lender_type", event.target.value);
-                            form.setData("lender", "");
-                        }}
-                    >
-                        <option value=""></option>
-                        {lenderTypes.map((type) => (
-                            <option key={type} value={type}>
-                                {typeLabel(type)}
-                            </option>
-                        ))}
-                    </select>
-                    {errors.lender_type && <p style={errorText}>{errors.lender_type}</p>}
                 </div>
 
                 {text_("amount", "amount", isMoney ? "Amount received" : agent ? "Loan Amount" : "Amount you still owe", "text", "decimal")}
@@ -261,7 +287,7 @@ function CreateContent({ kind, lenderTypes, paidInto, idempotencyKey, agent, pos
                 {text_("note", "note", "Note (optional)")}
 
                 <div className="flex flex-wrap gap-3">
-                    <Button type="submit" busy={form.processing} busyLabel="Saving...">
+                    <Button type="submit" busy={form.processing} busyLabel="Saving..." disabled={form.data.lender === ""}>
                         Save this record
                     </Button>
                     <Button type="button" look="secondary" onClick={() => router.visit(backUrl)}>

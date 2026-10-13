@@ -170,11 +170,11 @@ class EntryCodeService
     {
         if ($entry->isRepayment()) {
             // placeholder wording for a repayment: not approved yet
-            return 'repayment.sms GHS ' . Money::toDecimal($entry->payload['amount_minor']) . " {$entry->payload['lender_name']} code {$code}";
+            return 'repayment.sms GHS ' . Money::toDecimal($entry->payload['amount_minor']) . " {$entry->lenderName()} code {$code}";
         }
 
         $amount = Money::toDecimal($entry->payload['principal_minor']);
-        $lender = $entry->payload['lender_name'];
+        $lender = $entry->lenderName();
 
         return "NkwaLedger: Your agent recorded a loan of GHS {$amount} from {$lender}. Give the code {$code} to your agent only if you agree. It works for 10 minutes.";
     }

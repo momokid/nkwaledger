@@ -62,6 +62,7 @@ function buildLoanWorld($t): void
         ], $over);
 
         $entry['lender'] ??= institutionNamed($entry['lender_name'], $entry['lender_type'])->uuid;
+        unset($entry['lender_type']);
 
         return $entry;
     };
@@ -72,6 +73,7 @@ function buildLoanWorld($t): void
         ], $over);
 
         $entry['lender'] ??= institutionNamed($entry['lender_name'], $entry['lender_type'])->uuid;
+        unset($entry['lender_type']);
 
         return $entry;
     };

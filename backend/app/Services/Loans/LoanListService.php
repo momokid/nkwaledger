@@ -38,7 +38,7 @@ class LoanListService
                     'row' => 'entry',
                     'uuid' => $entry->uuid,
                     'kind' => $entry->isRepayment() ? 'repayment' : 'loan',
-                    'lender' => $entry->payload['lender_name'],
+                    'lender' => $entry->lenderName(),
                     'amount' => $entry->payload['principal_minor'] ?? $entry->payload['amount_minor'],
                     'balance' => null,
                     'status' => $entry->status,
@@ -60,7 +60,7 @@ class LoanListService
                 'uuid' => $entry->uuid,
                 'kind' => $entry->isRepayment() ? 'repayment' : 'loan',
                 'excess' => $entry->isRepayment() && $entry->payload['excess'],
-                'lender' => $entry->payload['lender_name'],
+                'lender' => $entry->lenderName(),
                 'amount' => $entry->payload['principal_minor'] ?? $entry->payload['amount_minor'],
                 // an opening entry is dated the day it is accepted, so the card shows the day it was recorded
                 'date' => $entry->isRepayment()

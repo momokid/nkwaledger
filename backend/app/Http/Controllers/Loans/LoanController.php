@@ -89,7 +89,6 @@ class LoanController extends Controller
     {
         return Inertia::render('Loans/Create', [
             'kind' => $kind,
-            'lenderTypes' => Loan::LENDER_TYPES,
             'paidInto' => $this->loans->paidIntoOptions(),
             'idempotencyKey' => (string) Str::uuid(),
             'agent' => false,

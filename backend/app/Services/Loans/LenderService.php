@@ -8,9 +8,9 @@ use App\Models\Loan;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use InvalidArgumentException;
 
 // who a loan was borrowed from. A lender is an institution picked from the list an admin keeps: a farmer or an agent
 // can search it and pick from it, and can never add to it
@@ -25,7 +25,7 @@ class LenderService
     public function __construct(private readonly AuditService $audit) {}
 
     /** @return Collection<int, array{uuid: string, name: string, type: string}> */
-    public function search(string $term, ?string $type = null): Collection
+    public function search(string $term): Collection
     {
         $key = Lender::keyOf($term);
 
@@ -35,8 +35,7 @@ class LenderService
 
         $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $key) . '%';
 
-        return Lender::ofType($type)
-            ->whereRaw("name_key like ? escape '\\'", [$like])
+        return Lender::whereRaw("name_key like ? escape '\\'", [$like])
             ->orderBy('name')
             ->limit(self::SEARCH_LIMIT)
             ->get(['uuid', 'name', 'type'])
@@ -45,31 +44,20 @@ class LenderService
 
     /**
      * Every lender rule, with nothing written. The same call runs when an agent records a loan and again when it is
-     * accepted, so what was fine at entry can still be refused later.
+     * accepted, so what was fine at entry can still be refused later. Only the picked id counts: a typed name or type
+     * is never read.
      *
-     * @return array{lender_type: string, lender: string, lender_name: string} the name is the list's, not the typed one
+     * @return array{lender: string}
      */
     public function check(array $input): array
     {
-        $type = $input['lender_type'] ?? null;
-
-        if (! in_array($type, Loan::LENDER_TYPES, true)) {
-            throw new InvalidArgumentException('A loan needs a lender name and a lender type.');
-        }
-
-        if (Lender::squish((string) ($input['lender_name'] ?? '')) === '') {
-            throw new InvalidArgumentException('A loan needs a lender name and a lender type.');
-        }
-
-        $lender = $this->picked($input['lender'] ?? null, $type);
-
-        return ['lender_type' => $lender->type, 'lender' => $lender->uuid, 'lender_name' => $lender->name];
+        return ['lender' => $this->picked($input['lender'] ?? null)->uuid];
     }
 
     // the lender record a checked loan links to
     public function resolve(array $checked): Lender
     {
-        return $this->picked($checked['lender'] ?? null, $checked['lender_type']);
+        return $this->picked($checked['lender'] ?? null);
     }
 
     public function addInstitution(string $type, string $name, User $by): Lender
@@ -89,24 +77,46 @@ class LenderService
         return $lender;
     }
 
-    public function rename(Lender $lender, string $name, User $by): Lender
+    /**
+     * A new name, a new type, or both. The row is locked and read again first, so two admins at once cannot log a
+     * wrong "before". A type change never touches the name or any loan.
+     */
+    public function update(Lender $lender, ?string $name, ?string $type, User $by): Lender
     {
-        $name = Lender::squish($name);
+        if ($type !== null && ! in_array($type, Lender::TYPES, true)) {
+            throw ValidationException::withMessages(['type' => 'lender.type_invalid']);
+        }
 
-        $this->mustBeNew($name, $lender);
+        return DB::transaction(function () use ($lender, $name, $type, $by) {
+            $locked = Lender::whereKey($lender->id)->lockForUpdate()->firstOrFail();
+            $before = [];
+            $after = [];
 
-        $before = $lender->name;
-        $lender->forceFill(['name' => $name])->save();
+            if ($name !== null && Lender::squish($name) !== $locked->name) {
+                $name = Lender::squish($name);
+                $this->mustBeNew($name, $locked);
+                $before['name'] = $locked->name;
+                $after['name'] = $name;
+            }
 
-        $this->audit->recordOn('lender.updated', $lender, ['name' => $before], ['name' => $lender->name], $by);
+            if ($type !== null && $type !== $locked->type) {
+                $before['type'] = $locked->type;
+                $after['type'] = $type;
+            }
 
-        return $lender;
+            if ($after !== []) {
+                $locked->forceFill($after)->save();
+                $this->audit->recordOn('lender.updated', $locked, $before, $after, $by);
+            }
+
+            return $locked;
+        });
     }
 
-    // a lender is only ever found by its public id, and only if it is of the type the farmer chose
-    private function picked(mixed $uuid, string $type): Lender
+    // a lender is only ever found by its public id; its type is whatever the list says
+    private function picked(mixed $uuid): Lender
     {
-        $lender = is_string($uuid) && Str::isUuid($uuid) ? Lender::ofType($type)->where('uuid', $uuid)->first() : null;
+        $lender = is_string($uuid) && Str::isUuid($uuid) ? Lender::where('uuid', $uuid)->first() : null;
 
         if ($lender === null) {
             throw PostingFailed::because(self::NOT_IN_LIST);

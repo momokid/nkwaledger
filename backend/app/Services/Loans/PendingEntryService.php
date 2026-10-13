@@ -76,7 +76,6 @@ class PendingEntryService
         return DB::transaction(function () use ($loan, $agent, $checked, $snapshot) {
             $payload = [
                 'loan_uuid' => $loan->uuid,
-                'lender_name' => $loan->lender_name,
                 'amount_minor' => $checked['amount_minor'],
                 'date' => $checked['date'],
                 'paid_from' => $checked['paid_from'],
@@ -314,9 +313,7 @@ class PendingEntryService
 
         return [
             'kind' => $payload['kind'],
-            'lender_type' => $payload['lender_type'],
             'lender' => $payload['lender'],
-            'lender_name' => $payload['lender_name'],
             'amount' => Money::toDecimal($payload['principal_minor']),
             'interest' => $payload['agreed_interest_minor'] === null ? null : Money::toDecimal($payload['agreed_interest_minor']),
             // an opening entry is dated the day it is accepted: LoanService ignores this for it

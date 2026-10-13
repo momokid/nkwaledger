@@ -1,7 +1,6 @@
 <?php
 
-// The request class must not rely on the framework's global trim: it trims the lender name itself, so a name
-// made only of spaces (even no-break spaces) is a missing name wherever the request is used.
+// The loan form sends the picked lender's public id. A typed name or type beside it is never part of what is validated.
 
 require_once __DIR__ . '/../../Support/Institutions.php';
 
@@ -11,26 +10,26 @@ use Illuminate\Validation\ValidationException;
 function loanRequest(array $over = []): StoreLoanRequest
 {
     $request = StoreLoanRequest::create('/loans', 'POST', array_merge([
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300',
     ], $over));
 
     return $request->setContainer(app())->setRedirector(app('redirect'));
 }
 
-test('a lender name of only spaces, tabs or no-break spaces gets the approved words', function (string $name) {
+test('a missing or unpicked lender gets the lender placeholder, whatever name was typed', function (mixed $lender) {
     try {
-        loanRequest(['lender_name' => $name])->validateResolved();
+        loanRequest(['lender' => $lender, 'lender_name' => 'Uncle Kofi'])->validateResolved();
         $errors = [];
     } catch (ValidationException $failure) {
         $errors = $failure->errors();
     }
 
-    expect($errors['lender_name'] ?? null)->toBe(["Enter the lender's name."]);
-})->with(['spaces' => '   ', 'a tab' => "\t", 'a no-break space' => "\u{00A0}", 'mixed' => " \u{00A0}\t "]);
+    expect($errors['lender'] ?? null)->toBe(['lender.not_in_list']);
+})->with(['empty' => '', 'null' => null, 'not an id' => 'Uncle Kofi']);
 
-test('a good lender name is trimmed and kept', function () {
-    $request = loanRequest(['lender_name' => "  \u{00A0}Uncle Kofi \t"]);
+test('a name or type typed beside the picked lender is not part of what is validated', function () {
+    $request = loanRequest(['lender_name' => 'Anything At All', 'lender_type' => 'bank']);
     $request->validateResolved();
 
-    expect($request->validated()['lender_name'])->toBe('Uncle Kofi');
+    expect($request->validated())->toHaveKey('lender')->not->toHaveKey('lender_name')->not->toHaveKey('lender_type');
 });

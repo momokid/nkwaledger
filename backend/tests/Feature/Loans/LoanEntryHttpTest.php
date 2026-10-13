@@ -45,7 +45,7 @@ beforeEach(function () {
         return $this;
     };
     $this->form = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance', 'amount' => '200',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'amount' => '200',
         'date' => now()->toDateString(), 'paid_into' => $this->cash->id, 'idempotency_key' => 'k-' . uniqid(),
     ], $over);
     $this->farmerUrl = "/agent/farmers/{$this->profile->uuid}";
@@ -155,8 +155,8 @@ test('the agent form is the farmer form with the farmer address, and the existin
 test('the agent records an entry with the same rules and the same words as the farmer form', function () {
     ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)(['amount' => '0']))
         ->assertSessionHasErrors(['amount' => 'Enter an amount above zero.']);
-    ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)(['lender_name' => '  ']))
-        ->assertSessionHasErrors(['lender_name' => "Enter the lender's name."]);
+    ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)(['lender' => '']))
+        ->assertSessionHasErrors(['lender' => 'lender.not_in_list']);
     ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)(['date' => now()->addDay()->toDateString()]))
         ->assertSessionHasErrors(['date' => 'This date is in the future.']);
 

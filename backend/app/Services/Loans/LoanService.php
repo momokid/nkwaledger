@@ -27,7 +27,7 @@ class LoanService
     public const FUTURE_REFUSAL = 'This date is in the future.';
 
     // what the form says about the lender; the loan itself keeps only a link to it
-    public const LENDER_INPUT = ['lender_type', 'lender', 'lender_name'];
+    public const LENDER_INPUT = ['lender', 'lender_type', 'lender_name'];
 
     // the accounts a farmer may say the money was paid into, and the words the form shows for them
     public const PAID_INTO_LABELS = [
@@ -54,7 +54,7 @@ class LoanService
     }
 
     /**
-     * @param array{kind: string, lender_name: string, lender_type: string, amount: string, date?: ?string, interest?: ?string,
+     * @param array{kind: string, lender: string, amount: string, date?: ?string, interest?: ?string,
      *              due_date?: ?string, note?: ?string, paid_into?: ?int, idempotency_key?: ?string} $data
      */
     public function record(FarmerProfile $farmer, User $by, array $data, ?string $idempotencyKey = null, ?string $via = null): Loan

@@ -6,6 +6,7 @@ import Create from "./Create";
 
 let mockErrors: Record<string, string> = {};
 let mockDark = false;
+let mockOld: Record<string, string> = { lender: "u-1", lender_name: "Sika Microfinance" };
 const post = vi.fn();
 const visit = vi.fn();
 
@@ -15,7 +16,7 @@ vi.mock("@/Layouts/AuthenticatedLayout", () => ({
 }));
 
 vi.mock("@inertiajs/react", () => ({
-    usePage: () => ({ props: { errors: mockErrors, flash: {}, old: {} } }),
+    usePage: () => ({ props: { errors: mockErrors, flash: {}, old: mockOld } }),
     router: { visit: (...args: unknown[]) => visit(...args) },
     useForm: (initial: Record<string, string>) => ({
         data: initial,
@@ -32,7 +33,6 @@ const props = (kind: "money" | "existing", over: Record<string, unknown> = {}) =
     agent: false,
     postUrl: "/loans",
     backUrl: "/loans",
-    lenderTypes: ["bank", "microfinance", "credit_union", "other"],
     paidInto: [
         { id: 1, label: "Cash" },
         { id: 2, label: "MoMo" },
@@ -55,6 +55,7 @@ beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     mockErrors = {};
     mockDark = false;
+    mockOld = { lender: "u-1", lender_name: "Sika Microfinance" };
     post.mockClear();
     visit.mockClear();
     container = document.createElement("div");
@@ -73,7 +74,6 @@ describe("The new loan form", () => {
 
         expect(labels()).toEqual([
             "Lender name",
-            "Lender type",
             "Amount received",
             "Date received",
             "Paid into",
@@ -83,7 +83,7 @@ describe("The new loan form", () => {
         ]);
     });
 
-    it("offers the approved lender types and paid-into choices", async () => {
+    it("has no lender type select, and offers the paid-into choices", async () => {
         await show("money");
 
         const options = Array.from(container.querySelectorAll("select")).map((select) =>
@@ -92,8 +92,22 @@ describe("The new loan form", () => {
                 .filter((text) => text !== ""),
         );
 
-        expect(options[0]).toEqual(["Bank", "Microfinance", "lender.type.credit_union", "Other"]);
-        expect(options[1]).toEqual(["Cash", "MoMo", "Bank"]);
+        expect(container.querySelector("#lender_type")).toBeNull();
+        expect(options).toEqual([["Cash", "MoMo", "Bank"]]);
+    });
+
+    it("keeps Save blocked, and posts nothing, until a lender is picked", async () => {
+        mockOld = {};
+        await show("money");
+
+        const save = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Save this record")!;
+        expect(save.disabled).toBe(true);
+
+        await act(async () => {
+            container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        });
+
+        expect(post).not.toHaveBeenCalled();
     });
 });
 
@@ -103,7 +117,6 @@ describe("The loan I already had form", () => {
 
         expect(labels()).toEqual([
             "Lender name",
-            "Lender type",
             "Amount you still owe",
             "Interest still to pay (optional)",
             "Due date (optional)",
@@ -143,7 +156,6 @@ describe("The agent's forms", () => {
 
         expect(labels()).toEqual([
             "Lender name",
-            "Lender type",
             "Loan Amount",
             "Interest still to pay (optional)",
             "Due date (optional)",

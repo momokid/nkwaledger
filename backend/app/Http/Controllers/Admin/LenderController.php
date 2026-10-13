@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-// the only place an institution is added or a lender's name corrected. Admin only; every change is audit-logged
+// the only place an institution is added or a lender's name or type corrected. Admin only; every change is audit-logged
 class LenderController extends Controller
 {
     private const PER_PAGE = 50;
@@ -40,9 +40,12 @@ class LenderController extends Controller
 
     public function update(Request $request, Lender $lender): JsonResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:255']], ['name.required' => 'lender.name_required']);
+        $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:255', 'required_without:type'],
+            'type' => ['nullable', 'string', 'in:' . implode(',', Lender::TYPES), 'required_without:name'],
+        ], ['name.required_without' => 'lender.name_required', 'type.required_without' => 'lender.type_invalid', 'type.in' => 'lender.type_invalid']);
 
-        return response()->json($this->row($this->lenders->rename($lender, $data['name'], $request->user())));
+        return response()->json($this->row($this->lenders->update($lender, $data['name'] ?? null, $data['type'] ?? null, $request->user())));
     }
 
     /** @return array<string, mixed> */

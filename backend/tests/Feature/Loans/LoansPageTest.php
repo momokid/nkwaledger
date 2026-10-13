@@ -46,12 +46,12 @@ beforeEach(function () {
     };
 
     $this->newLoan = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid,
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
     ], $over);
 
     $this->form = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid,
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
         'idempotency_key' => 'form-key-1',
     ], $over);
@@ -60,7 +60,7 @@ beforeEach(function () {
 test('the loans page lists the farmer own loans with lender, amount, balance and status, newest first', function () {
     $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['lender_name' => 'First Lender', 'lender' => institutionNamed('First Lender')->uuid, 'amount' => '200']));
     $second = $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['lender_name' => 'Second Lender', 'lender' => institutionNamed('Second Lender')->uuid, 'amount' => '300']));
-    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '100']);
+    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '100']);
 
     $page = ($this->props)($this->farmerUser, '/loans');
 
@@ -97,13 +97,13 @@ test('the status shown is Repaid only when a loan in force owes nothing', functi
     expect([$repaid->displayStatus(), $cancelled->displayStatus(), $owing->displayStatus()])->toBe(['repaid', 'cancelled', 'active']);
 });
 
-test('the two forms open with their kind, the lender types, the paid-into choices and a fresh key', function () {
+test('the two forms open with their kind, the paid-into choices and a fresh key, and no list of lender types', function () {
     $money = ($this->props)($this->farmerUser, '/loans/create');
     $existing = ($this->props)($this->farmerUser, '/loans/existing/create');
 
     expect([$money['component'], $money['props']['kind']])->toBe(['Loans/Create', 'money'])
         ->and([$existing['component'], $existing['props']['kind']])->toBe(['Loans/Create', 'existing'])
-        ->and($money['props']['lenderTypes'])->toBe(['bank', 'microfinance', 'credit_union', 'other'])
+        ->and($money['props'])->not->toHaveKey('lenderTypes')
         ->and(collect($money['props']['paidInto'])->pluck('label')->all())->toBe(['Cash', 'MoMo', 'Bank'])
         ->and($money['props']['idempotencyKey'])->not->toBeEmpty();
 });
@@ -118,7 +118,7 @@ test('saving a money loan creates it for the signed-in farmer and goes back to t
 
 test('saving a loan I already had creates an opening entry', function () {
     $this->actingAs($this->farmerUser)->post('/loans', [
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300',
         'interest' => '20', 'idempotency_key' => 'form-key-2',
     ])->assertRedirect('/loans');
 
@@ -147,41 +147,34 @@ test('a due date before the date received shows the approved words beside the du
     expect(Loan::count())->toBe(0);
 });
 
-test('a missing lender name, lender type or paid-into account shows the approved words beside its field', function (string $field, string $words) {
+test('a missing lender shows the lender placeholder, and a missing paid-into account its approved words, beside the field', function (string $field, string $words) {
     $this->actingAs($this->farmerUser)->post('/loans', ($this->form)([$field => '']))
         ->assertSessionHasErrors([$field => $words]);
 
     expect(Loan::count())->toBe(0);
 })->with([
-    ['lender_name', "Enter the lender's name."],
-    ['lender_type', 'Choose the lender type.'],
+    ['lender', 'lender.not_in_list'],
     ['paid_into', 'Choose where the money was paid into.'],
 ]);
 
-test('a lender name made only of spaces shows the approved words beside the lender name field', function (string $spaces) {
-    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['lender_name' => $spaces]))
-        ->assertSessionHasErrors(['lender_name' => "Enter the lender's name."]);
+test('a name typed beside the picked lender, even only spaces, is ignored', function (string $spaces) {
+    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['lender_name' => $spaces]))->assertSessionHasNoErrors();
 
-    expect(Loan::count())->toBe(0);
+    expect(Loan::count())->toBe(1)->and(Loan::first()->lender_name)->toBe('Sika Microfinance');
 })->with(['three spaces' => '   ', 'a tab' => "\t", 'spaces and a no-break space' => "  \u{00A0} "]);
 
-test('a lender type that is not on the list, or an account that is not cash, MoMo or bank, gets the same approved words', function () {
-    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['lender_type' => 'cousin']))
-        ->assertSessionHasErrors(['lender_type' => 'Choose the lender type.']);
-
+test('an account that is not cash, MoMo or bank gets the approved words', function () {
     $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['paid_into' => $this->receivable->id]))
         ->assertSessionHasErrors(['paid_into' => 'Choose where the money was paid into.']);
 });
 
-test('the loan I already had form shows the same words for a missing lender name or lender type, and asks for no account', function () {
+test('the loan I already had form shows the lender placeholder for a missing lender, and asks for no account', function () {
     $existing = fn(array $over = []) => array_merge([
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300', 'idempotency_key' => 'form-key-9',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300', 'idempotency_key' => 'form-key-9',
     ], $over);
 
-    $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender_name' => '']))
-        ->assertSessionHasErrors(['lender_name' => "Enter the lender's name."]);
-    $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender_type' => '']))
-        ->assertSessionHasErrors(['lender_type' => 'Choose the lender type.']);
+    $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender' => '']))
+        ->assertSessionHasErrors(['lender' => 'lender.not_in_list']);
     $this->actingAs($this->farmerUser)->post('/loans', $existing())->assertSessionHasNoErrors();
 
     expect(Loan::count())->toBe(1);
@@ -189,15 +182,15 @@ test('the loan I already had form shows the same words for a missing lender name
 
 test('a loan I already had may have a due date that has already passed: there is no date received to compare it with', function () {
     $this->actingAs($this->farmerUser)->post('/loans', [
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300',
         'due_date' => now()->subDays(20)->toDateString(), 'idempotency_key' => 'form-key-10',
     ])->assertSessionHasNoErrors()->assertRedirect('/loans');
 
     expect(Loan::first()->due_date->toDateString())->toBe(now()->subDays(20)->toDateString());
 });
 
-test('a negative interest, a missing lender or a lender type that is not on the list is refused', function () {
-    foreach ([['interest' => '-1', 'f' => 'interest'], ['lender_name' => '', 'f' => 'lender_name'], ['lender_type' => 'cousin', 'f' => 'lender_type'], ['paid_into' => $this->receivable->id, 'f' => 'paid_into']] as $case) {
+test('a negative interest, a missing lender or a wrong paid-into account is refused', function () {
+    foreach ([['interest' => '-1', 'f' => 'interest'], ['lender' => '', 'f' => 'lender'], ['paid_into' => $this->receivable->id, 'f' => 'paid_into']] as $case) {
         $field = $case['f'];
         unset($case['f']);
 
@@ -223,7 +216,7 @@ test('sending the same form twice makes one loan', function () {
 
 test('the dashboard shows the principal still owed on the active loans, and nothing from a cancelled one', function () {
     $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '500']));
-    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300', 'interest' => '99']);
+    $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300', 'interest' => '99']);
     $cancelled = $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '90']));
     ($this->cancel)($cancelled->transaction);
 

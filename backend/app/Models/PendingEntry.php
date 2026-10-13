@@ -83,6 +83,16 @@ class PendingEntry extends Model
         return $this->hasMany(PendingEntryCode::class);
     }
 
+    // the lender's name as the list has it now, never the name a payload was saved with
+    public function lenderName(): string
+    {
+        $lender = $this->isRepayment()
+            ? Loan::where('uuid', $this->payload['loan_uuid'])->first()?->lender
+            : Lender::where('uuid', $this->payload['lender'])->first();
+
+        return $lender?->name ?? '';
+    }
+
     public function isRepayment(): bool
     {
         return $this->entry_type === self::LOAN_REPAYMENT;

@@ -45,12 +45,12 @@ beforeEach(function () {
     $this->loans = app(LoanService::class);
 
     $this->moneyLoan = fn(array $over = []) => array_merge([
-        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'lender_type' => 'microfinance',
+        'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid,
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
     ], $over);
 
     $this->existingLoan = fn(array $over = []) => array_merge([
-        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'lender_type' => 'other', 'amount' => '300',
+        'kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300',
     ], $over);
 
     $this->record = fn(array $data, $farmer = null) => $this->loans->record($farmer ?? $this->profile, $this->farmerUser, $data);

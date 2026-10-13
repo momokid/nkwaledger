@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -10,7 +9,7 @@ use Illuminate\Support\Str;
 // farmers, so nothing here may ever show one farmer another's loans
 class Lender extends Model
 {
-    public const TYPES = ['bank', 'microfinance', 'credit_union', 'other'];
+    public const TYPES = ['bank', 'rural_bank', 'credit_financial_institution', 'microfinance', 'other'];
 
     protected $fillable = ['uuid', 'type', 'name', 'created_by'];
 
@@ -21,7 +20,9 @@ class Lender extends Model
         });
 
         static::saving(function (self $lender) {
-            $lender->forceFill(self::derived($lender->name));
+            if (! $lender->exists || $lender->isDirty('name')) {
+                $lender->forceFill(self::derived($lender->name));
+            }
         });
     }
 
@@ -41,11 +42,6 @@ class Lender extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
-    }
-
-    public function scopeOfType(Builder $query, ?string $type): Builder
-    {
-        return $type === null ? $query : $query->where('type', $type);
     }
 
     public static function squish(string $name): string

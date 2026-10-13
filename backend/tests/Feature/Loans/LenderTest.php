@@ -1,7 +1,7 @@
 <?php
 
-// Lenders are institutions only: a bank, a microfinance, a credit union or another institution, kept in one shared
-// list that only an admin adds to. A loan links to a lender by public id and never carries a typed lender name.
+// Lenders are institutions only, kept in one shared list that only an admin adds to. A loan links to a lender by
+// public id: no typed name and no type from the browser is ever saved or trusted.
 
 require_once __DIR__ . '/../../Support/LoanWorld.php';
 
@@ -10,8 +10,10 @@ use App\Models\Lender;
 use App\Models\Loan;
 use App\Models\PendingEntry;
 use App\Services\Loans\LenderService;
+use App\Services\Loans\LoanListService;
 use App\Services\Loans\LoanService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
@@ -19,13 +21,16 @@ beforeEach(function () {
 
     $this->borrow = fn(array $over = [], $farmer = null, $by = null) => app(LoanService::class)->record($farmer ?? $this->profile, $by ?? $this->farmerUser, ($this->moneyEntry)($over));
     $this->search = fn($who, string $q, array $extra = []) => $this->actingAs($who)->postJson('/lenders/search', ['q' => $q] + $extra);
+    $this->postLoan = fn(array $over = []) => $this->actingAs($this->farmerUser)->post('/loans', array_merge([
+        'kind' => 'money', 'lender' => $this->institution->uuid, 'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
+    ], $over));
 });
 
 // --- search ---
 
 test('search finds institutions by name, and shows only their public id, name and type', function () {
     Lender::create(['type' => 'bank', 'name' => 'Sikaman Bank']);
-    Lender::create(['type' => 'credit_union', 'name' => 'Teachers Credit Union']);
+    Lender::create(['type' => 'credit_financial_institution', 'name' => 'Teachers Savings and Loans']);
 
     $found = ($this->search)($this->farmerUser, 'sika')->assertOk()->json();
 
@@ -33,12 +38,24 @@ test('search finds institutions by name, and shows only their public id, name an
         ->and(array_keys($found[0]))->toEqualCanonicalizing(['uuid', 'name', 'type']);
 });
 
-test('search can be limited to one type', function () {
+test('search covers all five types, by name only', function () {
+    foreach (['bank', 'rural_bank', 'credit_financial_institution', 'microfinance', 'other'] as $type) {
+        Lender::create(['type' => $type, 'name' => "Zeta {$type} place"]);
+    }
+
+    $found = ($this->search)($this->farmerUser, 'zeta')->assertOk()->json();
+
+    expect(collect($found)->pluck('type')->sort()->values()->all())->toBe(['bank', 'credit_financial_institution', 'microfinance', 'other', 'rural_bank']);
+});
+
+test('search ignores a type sent by the browser', function () {
     Lender::create(['type' => 'bank', 'name' => 'Sikaman Bank']);
 
-    $found = ($this->search)($this->farmerUser, 'sika', ['type' => 'bank'])->assertOk()->json();
+    $plain = ($this->search)($this->farmerUser, 'sika')->assertOk()->json();
+    $sent = ($this->search)($this->farmerUser, 'sika', ['type' => 'bank'])->assertOk()->json();
+    $bogus = ($this->search)($this->farmerUser, 'sika', ['type' => 'cousin'])->assertOk()->json();
 
-    expect(collect($found)->pluck('name')->all())->toBe(['Sikaman Bank']);
+    expect($sent)->toBe($plain)->and($bogus)->toBe($plain);
 });
 
 test('search needs a login, two characters, and returns at most ten', function () {
@@ -91,7 +108,7 @@ test('a typed name that was not picked from the list is refused, and nothing is 
         ['lender' => '00000000-0000-4000-8000-000000000000', 'lender_name' => 'Sika Microfinance'],
     ] as $input) {
         expect(fn() => app(LoanService::class)->record($this->profile, $this->farmerUser, array_merge(
-            ['kind' => 'money', 'lender_type' => 'bank', 'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id],
+            ['kind' => 'money', 'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id],
             $input,
         )))->toThrow(PostingFailed::class, LenderService::NOT_IN_LIST);
     }
@@ -99,19 +116,43 @@ test('a typed name that was not picked from the list is refused, and nothing is 
     expect(Lender::count())->toBe($count)->and(Loan::count())->toBe(0);
 });
 
-test('the lender picked must be of the type chosen', function () {
-    expect(fn() => ($this->borrow)(['lender_type' => 'bank', 'lender' => $this->institution->uuid]))->toThrow(PostingFailed::class, LenderService::NOT_IN_LIST);
+test('a name typed beside a picked lender is never saved or used, and the name comes from the list', function () {
+    $count = Lender::count();
+
+    ($this->postLoan)(['lender_name' => 'Something Else Typed'])->assertRedirect('/loans');
+
+    $loan = Loan::firstOrFail();
+
+    expect($loan->lender_name)->toBe('Sika Microfinance')->and(Lender::count())->toBe($count)
+        ->and(Lender::where('name', 'Something Else Typed')->exists())->toBeFalse();
 });
 
-test('the name saved is the one in the list, whatever name was posted', function () {
-    $loan = ($this->borrow)(['lender' => $this->institution->uuid, 'lender_name' => 'Something Else Typed']);
+test('a typed name that matches another lender does not find that lender', function () {
+    $other = Lender::create(['type' => 'bank', 'name' => 'Other Bank']);
 
-    expect($loan->lender_name)->toBe('Sika Microfinance');
+    ($this->postLoan)(['lender_name' => 'Other Bank'])->assertRedirect('/loans');
+
+    expect(Loan::firstOrFail()->lender_id)->toBe($this->institution->id)->and(Loan::where('lender_id', $other->id)->count())->toBe(0);
 });
 
-test('a person or group is not a lender type any more', function () {
-    expect(Loan::LENDER_TYPES)->toBe(['bank', 'microfinance', 'credit_union', 'other'])
-        ->and(fn() => ($this->borrow)(['lender_type' => 'individual', 'lender' => $this->institution->uuid]))->toThrow(InvalidArgumentException::class);
+test('a type sent by the browser is ignored: the type is read from the lender', function () {
+    ($this->postLoan)(['lender_type' => 'bank'])->assertRedirect('/loans');
+    ($this->postLoan)(['lender_type' => 'cousin'])->assertRedirect('/loans');
+
+    expect(Loan::count())->toBe(2)->and(Loan::all()->pluck('lender_type')->unique()->all())->toBe(['microfinance'])
+        ->and(Lender::find($this->institution->id)->type)->toBe('microfinance');
+});
+
+test('a loan form needs only the lender id', function () {
+    $this->actingAs($this->farmerUser)->post('/loans', [
+        'kind' => 'money', 'lender' => $this->institution->uuid, 'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
+    ])->assertSessionHasNoErrors()->assertRedirect('/loans');
+
+    expect(Loan::count())->toBe(1);
+});
+
+test('the types are the five, and a person or group is not one', function () {
+    expect(Loan::LENDER_TYPES)->toBe(['bank', 'rural_bank', 'credit_financial_institution', 'microfinance', 'other']);
 });
 
 test('a lender has no phone, no note and no phone-based identity anywhere', function () {
@@ -176,7 +217,7 @@ test('an agent\'s entry follows the institution rule when recorded and again whe
     $entry = $this->entries->recordLoan($this->profile, $this->agent, ($this->moneyEntry)(['lender_name' => 'Gone Bank', 'lender_type' => 'bank']));
     expect(Lender::where('name', 'Gone Bank')->exists())->toBeTrue();
 
-    // at acceptance the lender is looked up again; it is gone, so the entry is refused and stays waiting
+    // lenders have no delete in the app, but the database allows it for a lender no loan uses: the entry is refused and stays waiting
     Lender::where('name', 'Gone Bank')->delete();
 
     expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app'))->toThrow(PostingFailed::class, LenderService::NOT_IN_LIST)
@@ -191,36 +232,40 @@ test('an accepted agent entry links to the shared lender', function () {
     expect($loan->lender_id)->toBe($this->institution->id);
 });
 
-// --- the seeder ---
+test('a new pending entry keeps the lender id and no type and no name', function () {
+    $loanEntry = $this->entries->recordLoan($this->profile, $this->agent, array_merge(($this->moneyEntry)(), ['lender_type' => 'bank', 'lender_name' => 'Typed Name']));
+    $repaymentEntry = $this->entries->recordRepayment(($this->openLoan)(), $this->agent, ($this->repayForm)('100'));
 
-test('the institution seeder runs twice with no duplicates, skips any row that is not an institution, and never invents names', function () {
-    $path = tempnam(sys_get_temp_dir(), 'inst');
-    file_put_contents($path, "type,name,source\nbank,\"Alpha Bank\",x\nmicrofinance,\"Beta Micro\",x\ncredit_union,\"Gamma Union\",x\nbank,\"alpha  bank\",x\nindividual,\"Some Person\",x\n");
-
-    (new \Database\Seeders\InstitutionSeeder($path))->run();
-    (new \Database\Seeders\InstitutionSeeder($path))->run();
-
-    expect(Lender::whereIn('name', ['Alpha Bank', 'Beta Micro', 'Gamma Union'])->count())->toBe(3)
-        ->and(Lender::where('name', 'Some Person')->exists())->toBeFalse();
-
-    expect(fn() => (new \Database\Seeders\InstitutionSeeder('/no/such/file.csv'))->run())->toThrow(RuntimeException::class);
+    expect($loanEntry->payload)->toHaveKey('lender')->not->toHaveKey('lender_type')->not->toHaveKey('lender_name')
+        ->and($repaymentEntry->payload)->not->toHaveKey('lender_name')->not->toHaveKey('lender_type');
 });
 
-test('the seeder works with model events off, as it does under the database seeder', function () {
-    $path = tempnam(sys_get_temp_dir(), 'inst');
-    file_put_contents($path, "type,name,source\nbank,\"Gamma Bank\",x\n");
+test('accepting reads the lender\'s type from the lender at that moment', function () {
+    $entry = $this->entries->recordLoan($this->profile, $this->agent, ($this->moneyEntry)());
+    DB::table('lenders')->where('id', $this->institution->id)->update(['type' => 'rural_bank']);
 
-    Lender::withoutEvents(fn() => (new \Database\Seeders\InstitutionSeeder($path))->run());
+    $loan = $this->entries->accept($entry, $this->farmerUser, 'app');
 
-    $lender = Lender::where('name', 'Gamma Bank')->first();
-
-    expect($lender->uuid)->not->toBeEmpty()->and($lender->name_key)->toBe('gamma bank');
+    expect($loan->lender_type)->toBe('rural_bank');
 });
 
-test('the real institution file seeds cleanly twice', function () {
-    (new \Database\Seeders\InstitutionSeeder())->run();
-    $count = Lender::count();
-    (new \Database\Seeders\InstitutionSeeder())->run();
+test('pending cards, the staff list and the sms read the lender name from the lender, not from the payload', function () {
+    $loanEntry = $this->entries->recordLoan($this->profile, $this->agent, ($this->moneyEntry)());
+    $repaymentEntry = $this->entries->recordRepayment(($this->openLoan)(), $this->agent, ($this->repayForm)('100'));
 
-    expect(Lender::count())->toBe($count)->and($count)->toBeGreaterThan(300);
+    // an older waiting entry that still holds the name it was saved with
+    DB::table('pending_entries')->where('id', $loanEntry->id)->update(['payload' => json_encode($loanEntry->payload + ['lender_name' => 'Stale Name'])]);
+    DB::table('pending_entries')->where('id', $repaymentEntry->id)->update(['payload' => json_encode($repaymentEntry->payload + ['lender_name' => 'Stale Name'])]);
+    DB::table('lenders')->where('id', $this->institution->id)->update(['name' => 'Sika Renamed', 'name_key' => 'sika renamed']);
+
+    $lists = app(LoanListService::class);
+    $cards = $lists->pendingFor($this->profile)->pluck('lender')->unique()->all();
+    $rows = $lists->forStaff($this->profile)->where('row', 'entry')->pluck('lender')->unique()->all();
+
+    $this->codes->send($loanEntry->fresh(), $this->agent);
+    $sent = app(\App\Contracts\SmsProvider::class)->sent;
+    $sms = end($sent)['message'];
+
+    expect($cards)->toBe(['Sika Renamed'])->and($rows)->toBe(['Sika Renamed'])
+        ->and($sms)->toContain('from Sika Renamed')->and($sms)->not->toContain('Stale Name');
 });
