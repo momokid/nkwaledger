@@ -24,6 +24,7 @@ class EntryCodeService
     public const LIFETIME_MINUTES = 10;
     public const MAX_TRIES = 3;
     public const MAX_SENDS_PER_HOUR = 3;
+    public const SMS_LENGTH = 160;
 
     public const WRONG = 'The code is not correct.';
     public const EXPIRED = 'The code has expired. Send a new code.';
@@ -167,10 +168,21 @@ class EntryCodeService
         return hash_hmac('sha256', $entry->uuid . '|' . $code, (string) config('app.key'));
     }
 
+    // one SMS holds 160 characters: only the name is cut (with ...), so the amount and the code stay whole and the code stays last.
+    // This is for the SMS only; the name on screen and in the database is never cut
+    private function fitLender(string $name, string $amount, string $code): string
+    {
+        $room = self::SMS_LENGTH - mb_strlen(Wording::get('repayment.sms', ['amount' => $amount, 'lender' => '', 'code' => $code]));
+
+        return mb_strlen($name) <= $room ? $name : rtrim(mb_substr($name, 0, $room - 3)) . '...';
+    }
+
     private function message(PendingEntry $entry, string $code): string
     {
         if ($entry->isRepayment()) {
-            return Wording::get('repayment.sms', ['amount' => Money::toDecimal($entry->payload['amount_minor']), 'lender' => $entry->lenderName(), 'code' => $code]);
+            $amount = Money::toDecimal($entry->payload['amount_minor']);
+
+            return Wording::get('repayment.sms', ['amount' => $amount, 'lender' => $this->fitLender($entry->lenderName(), $amount, $code), 'code' => $code]);
         }
 
         $amount = Money::toDecimal($entry->payload['principal_minor']);

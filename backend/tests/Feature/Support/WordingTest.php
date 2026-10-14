@@ -98,3 +98,25 @@ test('every repayment or lender key named in the code has approved wording', fun
 
     expect($found)->toBe([]);
 });
+
+test('in production a missing key gives the plain sentence and logs once, and never throws', function () {
+    app()['env'] = 'production';
+    Cache::flush();
+    Log::spy();
+
+    expect(Wording::get('repayment.nope'))->toBe('Something went wrong. Please try again.')
+        ->and(Wording::get('repayment.nope', ['amount' => '1']))->toBe('Something went wrong. Please try again.')
+        ->and(Wording::resolve('repayment.nope'))->toBe('Something went wrong. Please try again.')
+        ->and(Wording::resolve('Enter an amount above zero.'))->toBe('Enter an amount above zero.');
+
+    Log::shouldHaveReceived('error')->once();
+});
+
+test('in local and testing a missing key still throws, from get and from resolve', function () {
+    expect(fn() => Wording::get('lender.nope'))->toThrow(InvalidArgumentException::class)
+        ->and(fn() => Wording::resolve('lender.nope'))->toThrow(InvalidArgumentException::class);
+
+    app()['env'] = 'local';
+
+    expect(fn() => Wording::get('lender.nope'))->toThrow(InvalidArgumentException::class);
+});
