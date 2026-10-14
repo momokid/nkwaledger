@@ -113,6 +113,9 @@ class EntryCodeService
         }
 
         return DB::transaction(function () use ($entry, $agent, $row) {
+            // the entry first, then its code, the same order as everything else, so two requests never wait for each other
+            $this->entries->lock($entry);
+
             $fresh = PendingEntryCode::query()->whereKey($row->id)->lockForUpdate()->firstOrFail();
 
             if ($fresh->used_at !== null || $fresh->cancelled_at !== null) {
