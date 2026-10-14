@@ -25,7 +25,6 @@ class RepaymentService
 {
     public const EXCESS_PROMPT = 'This is more than you still owe on this loan. Is the extra amount interest or fees?';
 
-    // placeholders: the wording for these is not approved yet
     public const EXCESS_NOT_CONFIRMED = 'repayment.excess_not_confirmed';
     public const CONFIRMATION_NOT_NEEDED = 'repayment.confirmation_not_needed';
     public const LOAN_NOT_ACTIVE = 'repayment.loan_not_active';

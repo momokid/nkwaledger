@@ -51,6 +51,19 @@ afterEach(async () => {
 });
 
 describe("The loan page", () => {
+    it("shows the four approved table headers and no raw key", async () => {
+        await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
+
+        expect(Array.from(container.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
+            "Repayment Date",
+            "Repayment Amount",
+            "Principal on Repayment",
+            "Interest on Repayment",
+        ]);
+        expect(container.textContent).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
+    });
+
+
     it("shows the notice once, whatever the number of repayments", async () => {
         await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
 
@@ -67,10 +80,10 @@ describe("The loan page", () => {
         expect(Array.from(container.querySelectorAll("button")).map((b) => b.textContent)).toContain("Record a repayment");
     });
 
-    it("shows a repayment the agent entered that was rejected, with the existing rejected key", async () => {
+    it("shows a repayment the agent entered that was rejected, with the approved words", async () => {
         await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
 
-        expect(container.textContent).toContain("repayment.rejected");
+        expect(container.textContent).toContain("Repayment rejected");
         expect(container.textContent).toContain("50.00");
     });
 });

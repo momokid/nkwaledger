@@ -1,4 +1,5 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import RepaymentForm, { PaidFromOption } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
@@ -98,7 +99,7 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
 
             {rejected.map((row) => (
                 <p key={row.uuid} className="mt-3" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
-                    {shortDate(row.date)} · GHS {cedis(row.amount)} · repayment.rejected
+                    {shortDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
                 </p>
             ))}
 
@@ -107,10 +108,10 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                             <tr>
-                                <th style={head}>repayment.date</th>
-                                <th style={head}>repayment.amount</th>
-                                <th style={head}>repayment.principal_part</th>
-                                <th style={head}>repayment.interest_part</th>
+                                <th style={head}>{wording("repayment.date")}</th>
+                                <th style={head}>{wording("repayment.amount")}</th>
+                                <th style={head}>{wording("repayment.principal_part")}</th>
+                                <th style={head}>{wording("repayment.interest_part")}</th>
                             </tr>
                         </thead>
                         <tbody>

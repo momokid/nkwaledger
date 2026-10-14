@@ -81,6 +81,16 @@ describe("The admin's read-only loans section", () => {
         expect(container.querySelectorAll("button, input")).toHaveLength(0);
     });
 
+    it("marks a repayment entry and a rejected repayment in the approved words, with no raw key", async () => {
+        await show([entry({ kind: "repayment" }), entry({ uuid: "e-4", kind: "repayment", status: "rejected" })]);
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("Sika Microfinance - Repayment");
+        expect(text).toContain("Repayment rejected");
+        expect(text).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
+    });
+
     it("shows nothing when the farmer has no loans", async () => {
         await show([]);
 

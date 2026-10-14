@@ -77,6 +77,17 @@ describe("The repayment form", () => {
         expect(container.querySelector('[aria-label="split"] input')).toBeNull();
     });
 
+    it("shows the approved labels and buttons, and no raw key", async () => {
+        await show(false, { principal: 100000, interest: 30000, excess: 0 });
+
+        const text = container.textContent ?? "";
+
+        for (const words of ["Repayment Amount", "Repayment Date", "Paid From", "Principal on Repayment", "Interest on Repayment", "Save Repayment", "Cancel"]) {
+            expect(text).toContain(words);
+        }
+        expect(text).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
+    });
+
     it("asks the exact question before saving more than is owed, and Yes saves with the confirmation", async () => {
         await show(false, { principal: 100000, interest: 30000, excess: 10000 });
         await save();

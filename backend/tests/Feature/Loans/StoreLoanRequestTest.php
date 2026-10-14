@@ -24,7 +24,7 @@ test('a missing or unpicked lender gets the lender placeholder, whatever name wa
         $errors = $failure->errors();
     }
 
-    expect($errors['lender'] ?? null)->toBe(['lender.not_in_list']);
+    expect($errors['lender'] ?? null)->toBe(['Lender is not listed']);
 })->with(['empty' => '', 'null' => null, 'not an id' => 'Uncle Kofi']);
 
 test('a name or type typed beside the picked lender is not part of what is validated', function () {

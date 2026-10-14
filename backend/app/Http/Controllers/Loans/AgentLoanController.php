@@ -13,6 +13,7 @@ use App\Services\Loans\EntryCodeService;
 use App\Services\Loans\LoanService;
 use App\Services\Loans\PendingEntryService;
 use Illuminate\Http\RedirectResponse;
+use App\Support\Wording;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -82,12 +83,11 @@ class AgentLoanController extends Controller
             return back()->with('error', $refusal->getMessage());
         }
 
-        // placeholders for a repayment: the wording is not approved yet
         if ($result === null) {
-            return redirect("/agent/farmers/{$entry->farmerProfile->uuid}")->with('error', 'repayment.stale');
+            return redirect("/agent/farmers/{$entry->farmerProfile->uuid}")->with('error', Wording::get('repayment.stale'));
         }
 
-        return redirect("/agent/farmers/{$entry->farmerProfile->uuid}")->with('success', $entry->isRepayment() ? 'repayment.accepted' : 'Loan accepted.');
+        return redirect("/agent/farmers/{$entry->farmerProfile->uuid}")->with('success', $entry->isRepayment() ? Wording::get('repayment.accepted') : 'Loan accepted.');
     }
 
     public function withdraw(Request $request, PendingEntry $entry): RedirectResponse

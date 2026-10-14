@@ -1,4 +1,5 @@
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { csrfToken } from "@/lib/syncHttp";
 import { cedis } from "@/lib/format";
@@ -27,17 +28,16 @@ interface Props {
     onCancel: () => void;
 }
 
-// placeholder keys: the real wording for each is not approved yet. The prompt and its two buttons are approved
 export const REPAYMENT_TEXT = {
-    amount: "repayment.amount",
-    date: "repayment.date",
-    paidFrom: "repayment.paid_from",
-    principalPart: "repayment.principal_part",
-    interestPart: "repayment.interest_part",
-    extraPart: "repayment.extra_part",
-    save: "repayment.save",
-    saving: "repayment.saving",
-    cancel: "repayment.cancel",
+    amount: wording("repayment.amount"),
+    date: wording("repayment.date"),
+    paidFrom: wording("repayment.paid_from"),
+    principalPart: wording("repayment.principal_part"),
+    interestPart: wording("repayment.interest_part"),
+    extraPart: wording("repayment.extra_part"),
+    save: wording("repayment.save"),
+    saving: wording("repayment.saving"),
+    cancel: wording("repayment.cancel"),
     prompt: "This is more than you still owe on this loan. Is the extra amount interest or fees?",
     yes: "Yes",
     no: "No, change the amount",

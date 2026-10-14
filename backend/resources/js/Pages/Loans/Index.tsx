@@ -1,4 +1,5 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
@@ -90,7 +91,7 @@ function IndexContent({ loans, pending }: ContentProps) {
                     <p style={{ color: textSecondary, fontSize: "1rem" }}>Recorded by {card.agent}</p>
                     <p className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
                         {card.kind === "repayment"
-                            ? "repayment.pending_notice"
+                            ? wording("repayment.pending_notice")
                             : "Your agent recorded a loan for you. It is not counted until you accept it."}
                     </p>
 

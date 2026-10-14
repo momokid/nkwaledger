@@ -1,14 +1,14 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { csrfToken } from "@/lib/syncHttp";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-// placeholder keys: the wording for these is not approved yet
-const LENDER_TEXT = { notInList: "lender.not_in_list" };
+const LENDER_TEXT = { notInList: wording("lender.not_in_list") };
 
-const typeLabel = (type: string) => `lender.type.${type}`;
+const typeLabel = (type: string) => wording(`lender.type.${type}`);
 
 interface Found {
     uuid: string;

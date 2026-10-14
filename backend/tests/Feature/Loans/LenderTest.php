@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../../Support/LoanWorld.php';
 
+use App\Support\Wording;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Models\Lender;
 use App\Models\Loan;
@@ -110,7 +111,7 @@ test('a typed name that was not picked from the list is refused, and nothing is 
         expect(fn() => app(LoanService::class)->record($this->profile, $this->farmerUser, array_merge(
             ['kind' => 'money', 'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id],
             $input,
-        )))->toThrow(PostingFailed::class, LenderService::NOT_IN_LIST);
+        )))->toThrow(PostingFailed::class, Wording::get(LenderService::NOT_IN_LIST));
     }
 
     expect(Lender::count())->toBe($count)->and(Loan::count())->toBe(0);
@@ -211,7 +212,7 @@ test('a vet or an adviser sees no lender data, and an agent who is not assigned 
 test('an agent\'s entry follows the institution rule when recorded and again when accepted', function () {
     // at entry: an unpicked name stores nothing
     expect(fn() => $this->entries->recordLoan($this->profile, $this->agent, ($this->moneyEntry)(['lender' => '', 'lender_name' => 'Typed Only'])))
-        ->toThrow(PostingFailed::class, LenderService::NOT_IN_LIST)
+        ->toThrow(PostingFailed::class, Wording::get(LenderService::NOT_IN_LIST))
         ->and(PendingEntry::count())->toBe(0);
 
     $entry = $this->entries->recordLoan($this->profile, $this->agent, ($this->moneyEntry)(['lender_name' => 'Gone Bank', 'lender_type' => 'bank']));
@@ -220,7 +221,7 @@ test('an agent\'s entry follows the institution rule when recorded and again whe
     // lenders have no delete in the app, but the database allows it for a lender no loan uses: the entry is refused and stays waiting
     Lender::where('name', 'Gone Bank')->delete();
 
-    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app'))->toThrow(PostingFailed::class, LenderService::NOT_IN_LIST)
+    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app'))->toThrow(PostingFailed::class, Wording::get(LenderService::NOT_IN_LIST))
         ->and($entry->fresh()->status)->toBe('pending')
         ->and(Loan::count())->toBe(0);
 });
