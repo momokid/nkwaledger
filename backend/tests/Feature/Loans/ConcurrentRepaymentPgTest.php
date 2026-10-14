@@ -24,7 +24,7 @@ function finishRepayChild(array $child): array
     $err = stream_get_contents($pipes[2]);
     proc_close($process);
 
-    return json_decode($out, true) ?? ['status' => 0, 'body' => $out . $err];
+    return childAnswer($out, $err);
 }
 
 test('two repayments at the same moment cannot overpay the loan', function () {

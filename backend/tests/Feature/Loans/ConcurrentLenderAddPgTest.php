@@ -24,7 +24,7 @@ function finishAddChild(array $child): array
     $err = stream_get_contents($pipes[2]);
     proc_close($process);
 
-    return json_decode($out, true) ?? ['status' => 0, 'body' => $out . $err];
+    return childAnswer($out, $err);
 }
 
 test('two admins adding Societe and Société at the same moment make exactly one lender', function () {

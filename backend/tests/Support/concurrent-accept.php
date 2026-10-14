@@ -2,13 +2,25 @@
 
 // child process for ConcurrentAcceptPgTest: boots the app, waits for the shared start time, then sends one real
 // request that accepts a pending loan entry - the farmer's Accept button, or the agent typing the code
-[, $mode, $userId, $entryUuid, $code, $startAt] = $argv;
+$boot = ($argv[1] ?? '') === 'boot';
+
+if (! $boot) {
+    [, $mode, $userId, $entryUuid, $code, $startAt] = $argv;
+}
 
 require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require __DIR__ . '/../../bootstrap/app.php';
 $http = $app->make(Illuminate\Contracts\Http\Kernel::class);
 $http->bootstrap();
+
+if ($boot) {
+    // builds what both requests need, so a missing setting fails here
+    $app->make(App\Http\Controllers\Loans\PendingEntryController::class);
+    $app->make(App\Http\Controllers\Loans\AgentLoanController::class);
+    echo json_encode(['status' => 200, 'body' => 'ok']);
+    exit;
+}
 
 $request = $mode === 'app'
     ? Illuminate\Http\Request::create("/loans/entries/{$entryUuid}/accept", 'POST')
