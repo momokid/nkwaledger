@@ -168,26 +168,24 @@ class EntryCodeService
         return hash_hmac('sha256', $entry->uuid . '|' . $code, (string) config('app.key'));
     }
 
-    // one SMS holds 160 characters: only the name is cut (with ...), so the amount and the code stay whole and the code stays last.
+    // one SMS holds 160 characters: only the name is cut (with ...), so the amount, the code and the rest of the words stay whole.
     // This is for the SMS only; the name on screen and in the database is never cut
-    private function fitLender(string $name, string $amount, string $code): string
+    private function fitLender(string $name, int $otherLength): string
     {
-        $room = self::SMS_LENGTH - mb_strlen(Wording::get('repayment.sms', ['amount' => $amount, 'lender' => '', 'code' => $code]));
+        $room = self::SMS_LENGTH - $otherLength;
 
         return mb_strlen($name) <= $room ? $name : rtrim(mb_substr($name, 0, $room - 3)) . '...';
     }
 
     private function message(PendingEntry $entry, string $code): string
     {
-        if ($entry->isRepayment()) {
-            $amount = Money::toDecimal($entry->payload['amount_minor']);
+        $repayment = $entry->isRepayment();
+        $amount = Money::toDecimal($entry->payload[$repayment ? 'amount_minor' : 'principal_minor']);
 
-            return Wording::get('repayment.sms', ['amount' => $amount, 'lender' => $this->fitLender($entry->lenderName(), $amount, $code), 'code' => $code]);
-        }
+        $build = fn(string $lender) => $repayment
+            ? Wording::get('repayment.sms', ['amount' => $amount, 'lender' => $lender, 'code' => $code])
+            : "NkwaLedger: Your agent recorded a loan of GHS {$amount} from {$lender}. Give the code {$code} to your agent only if you agree. It works for 10 minutes.";
 
-        $amount = Money::toDecimal($entry->payload['principal_minor']);
-        $lender = $entry->lenderName();
-
-        return "NkwaLedger: Your agent recorded a loan of GHS {$amount} from {$lender}. Give the code {$code} to your agent only if you agree. It works for 10 minutes.";
+        return $build($this->fitLender($entry->lenderName(), mb_strlen($build(''))));
     }
 }
