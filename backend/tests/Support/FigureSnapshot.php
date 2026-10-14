@@ -58,17 +58,19 @@ function withoutGeneratedAt(mixed $value): mixed
         return $value;
     }
 
-    unset($value['generated_at']);
+    unset($value['generated_at'], $value['generatedAt']);
 
     return array_map('withoutGeneratedAt', $value);
 }
 
-function figureSnapshot($t): array
+// $withLoanFigures also reads what loans are meant to move (the total owed, the loans list) and the
+// cash-book views, so a test can prove that something which must touch nothing really touched nothing
+function figureSnapshot($t, bool $withLoanFigures = false): array
 {
-    return withoutGeneratedAt(readFigures($t));
+    return withoutGeneratedAt(readFigures($t, $withLoanFigures));
 }
 
-function readFigures($t): array
+function readFigures($t, bool $withLoanFigures = false): array
 {
     $props = function ($user, string $url) {
         $props = null;
@@ -89,8 +91,19 @@ function readFigures($t): array
     $range = "from={$t->from}&to={$t->to}";
     $agentDashboard = $props($t->agent, "/agent/dashboard?{$range}");
     $farmerDashboard = $props($t->farmerUser, '/farmer/dashboard');
+    // the one figure on the dashboard that loans are meant to move: the total owed on them
+    $totalOwed = $farmerDashboard['summary']['total_owed'];
+    unset($farmerDashboard['summary']['total_owed']);
 
-    return [
+    $loanFigures = ! $withLoanFigures ? [] : [
+        'total_owed' => $totalOwed,
+        'loans_list' => $props($t->farmerUser, '/loans')['loans'],
+        'my_records' => $props($t->farmerUser, "/my-records?{$range}&per_page=50")['statement'],
+        'reports_statement' => $props($t->farmerUser, "/my-reports?kind=statement&{$range}")['report'],
+        'trial_balance' => (array) json_decode(json_encode(app(\App\Services\Ledger\Reports\TrialBalanceService::class)->for($t->profile->id, $t->from, $t->to)), true),
+    ];
+
+    return $loanFigures + [
         'report_main' => $figures($report($t->profile)),
         'report_clean' => $figures($report($t->clean)),
         'farmer_dashboard' => [$farmerDashboard['summary'], $farmerDashboard['breakdown'], $farmerDashboard['recent_transactions']],

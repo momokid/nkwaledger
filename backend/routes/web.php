@@ -48,6 +48,13 @@ use App\Http\Controllers\Farm\DiseaseReportController;
 use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
 use App\Http\Controllers\Farm\MyFarmController;
+use App\Http\Controllers\Loans\AgentLoanController;
+use App\Http\Controllers\Loans\AgentRepaymentController;
+use App\Http\Controllers\Loans\LenderSearchController;
+use App\Http\Controllers\Loans\LoanController;
+use App\Http\Controllers\Admin\LenderController as AdminLenderController;
+use App\Http\Controllers\Loans\PendingEntryController;
+use App\Http\Controllers\Loans\RepaymentController;
 use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
@@ -220,6 +227,46 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-records')->name('my-re
 
     Route::middleware('access:transactions.reverse-request')->group(function () {
         Route::post('/{transaction}/cancel', [ReversalController::class, 'store'])->name('cancel');
+    });
+});
+
+// the farmer's own loans, with nobody named in the address
+Route::middleware(['auth', 'verified.phone', 'role:farmer'])->prefix('loans')->name('loans.')->group(function () {
+    Route::get('/', [LoanController::class, 'index'])->name('index');
+    Route::get('/create', [LoanController::class, 'create'])->name('create');
+    Route::get('/existing/create', [LoanController::class, 'createExisting'])->name('existing.create');
+    Route::post('/', [LoanController::class, 'store'])->name('store');
+
+    // the farmer answers an agent's entry
+    Route::post('/entries/{entry}/accept', [PendingEntryController::class, 'accept'])->name('entries.accept');
+    Route::post('/entries/{entry}/decline', [PendingEntryController::class, 'decline'])->name('entries.decline');
+});
+
+// the farmer's current agent records loans for the farmer and sees them through to acceptance
+Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->name('agent.loans.')->group(function () {
+    Route::get('/farmers/{farmer}/loans/create', [AgentLoanController::class, 'create'])->name('create');
+    Route::get('/farmers/{farmer}/loans/existing/create', [AgentLoanController::class, 'createExisting'])->name('existing.create');
+    Route::post('/farmers/{farmer}/loans', [AgentLoanController::class, 'store'])->name('store');
+    Route::post('/loan-entries/{entry}/send-code', [AgentLoanController::class, 'sendCode'])->middleware('throttle:loan-code')->name('send-code');
+    Route::post('/loan-entries/{entry}/code', [AgentLoanController::class, 'enterCode'])->middleware('throttle:loan-code')->name('code');
+    Route::post('/loan-entries/{entry}/withdraw', [AgentLoanController::class, 'withdraw'])->name('withdraw');
+});
+
+// finding an institution for a loan: a POST, so nothing typed lands in an address
+Route::middleware(['auth', 'verified.phone', 'throttle:lender-search'])->post('/lenders/search', LenderSearchController::class)->name('lenders.search');
+
+// repayments on one loan. Any signed-in person may knock; the policy answers 404 to everyone out of reach
+Route::middleware(['auth', 'verified.phone'])->group(function () {
+    Route::prefix('loans/{loan}')->name('loans.')->whereUuid('loan')->group(function () {
+        Route::get('/', [RepaymentController::class, 'show'])->name('show');
+        Route::post('/repayments/preview', [RepaymentController::class, 'preview'])->name('repayments.preview');
+        Route::post('/repayments', [RepaymentController::class, 'store'])->name('repayments.store');
+    });
+
+    Route::prefix('agent/loans/{loan}/repayments')->name('agent.loans.repayments.')->whereUuid('loan')->group(function () {
+        Route::get('/create', [AgentRepaymentController::class, 'create'])->name('create');
+        Route::post('/preview', [AgentRepaymentController::class, 'preview'])->name('preview');
+        Route::post('/', [AgentRepaymentController::class, 'store'])->name('store');
     });
 });
 
@@ -505,6 +552,10 @@ Route::middleware(['marketplace', 'auth', 'role:supplier', 'verified.phone'])->p
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
 Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/lenders', [AdminLenderController::class, 'index'])->name('lenders.index');
+    Route::post('/lenders', [AdminLenderController::class, 'store'])->name('lenders.store');
+    Route::patch('/lenders/{lender}', [AdminLenderController::class, 'update'])->name('lenders.update');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 

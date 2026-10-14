@@ -12,9 +12,10 @@ class AuditService
     private const TRACKED_ROLES = ['admin', 'agent', 'vet', 'adviser', 'supplier'];
 
     // for things that happen to a record, like an account being disabled
-    public function recordOn(string $action, Model $subject, ?array $before = null, ?array $after = null): void
+    // $actor names who did it when the request itself carries no signed-in person
+    public function recordOn(string $action, Model $subject, ?array $before = null, ?array $after = null, ?User $actor = null): void
     {
-        $this->write($action, $subject::class, $subject->getKey(), $before, $after);
+        $this->write($action, $subject::class, $subject->getKey(), $before, $after, $actor?->id);
     }
 
     // a decision the system made itself, so no person is named

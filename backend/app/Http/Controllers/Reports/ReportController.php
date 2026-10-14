@@ -114,6 +114,8 @@ class ReportController extends Controller
                 'money_class' => $row->moneyClass?->value,
                 'is_non_cash' => $row->isNonCash,
                 'non_cash' => $row->nonCashMinor,
+                'is_loan' => $row->isLoan,
+                'lender' => $row->lenderName,
             ]),
             'opening_balance' => $report->openingBalanceMinor,
             'closing_balance' => $report->closingBalanceMinor,
@@ -248,7 +250,7 @@ class ReportController extends Controller
             fputcsv($handle, $cells([
                 $row['date'],
                 $row['reference'],
-                CsvCell::text($row['description']),
+                CsvCell::text($row['description'] . ($row['lender'] ? " ({$row['lender']})" : '')),
                 $row['money_in'] > 0 ? Money::toDecimal($row['money_in']) : '',
                 $row['money_out'] > 0 ? Money::toDecimal($row['money_out']) : '',
                 Money::toDecimal($row['balance']),

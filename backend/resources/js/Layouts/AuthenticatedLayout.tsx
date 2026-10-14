@@ -198,7 +198,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconStethoscope,
                 ready: true,
             },
-            { label: "Credit", href: "#", icon: IconCreditCard, ready: false },
+            { label: "Credit", href: "/loans", icon: IconCreditCard, ready: true },
         ],
         tools: [
             { label: "Help", href: "#", icon: IconHelpCircle, ready: false },

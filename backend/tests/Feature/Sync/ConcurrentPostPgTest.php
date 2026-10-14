@@ -35,7 +35,7 @@ function finishChild(array $child): array
     $err = stream_get_contents($pipes[2]);
     proc_close($process);
 
-    return json_decode($out, true) ?? ['status' => 0, 'body' => $out . $err];
+    return childAnswer($out, $err);
 }
 
 test('a web post and a sync post of the same record, at the same moment, leave one ledger entry', function () {

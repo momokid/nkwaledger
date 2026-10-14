@@ -52,6 +52,20 @@ expect()->extend('toBeOne', function () {
 |
 */
 
+// a child that gave no answer, or a 500, never booted properly: say so, so it cannot pass for a lost race
+function childAnswer(string $out, string $err): array
+{
+    $answer = json_decode($out, true);
+
+    if (! is_array($answer) || ($answer['status'] ?? 0) === 0 || $answer['status'] >= 500) {
+        $reason = trim(strip_tags((string) ($answer['body'] ?? '') . ' ' . $err . ' ' . ($answer === null ? $out : '')));
+
+        test()->fail('the child could not start: ' . substr($reason, 0, 300));
+    }
+
+    return $answer;
+}
+
 function something()
 {
     // ..

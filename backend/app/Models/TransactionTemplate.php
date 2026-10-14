@@ -35,6 +35,7 @@ class TransactionTemplate extends Model
         'farm_type_category_id',
         'is_system',
         'is_active',
+        'is_hidden',
         'is_produce_sale',
         'is_stock_purchase',
         'is_liability',
@@ -48,6 +49,7 @@ class TransactionTemplate extends Model
         'requires_farm_unit' => false,
         'is_system' => false,
         'is_active' => true,
+        'is_hidden' => false,
         'is_produce_sale' => false,
         'is_stock_purchase' => false,
         'is_liability' => false,
@@ -61,9 +63,11 @@ class TransactionTemplate extends Model
             'requires_farm_unit' => 'boolean',
             'is_system' => 'boolean',
             'is_active' => 'boolean',
+            'is_hidden' => 'boolean',
             'is_produce_sale' => 'boolean',
             'is_stock_purchase' => 'boolean',
             'is_liability' => 'boolean',
+            'is_non_cash' => 'boolean',
             'stock_source' => StockSource::class,
             'allows_credit' => 'boolean',
         ];
@@ -129,11 +133,12 @@ class TransactionTemplate extends Model
         }
     }
 
-    // what a farmer may record: live, never an adjustment or a loan entry, and for a farm type theirs
+    // what a farmer may record: live, never hidden, never an adjustment or a loan entry, and for a farm type theirs
     // (or for every farm, which is a template with no category)
     public function scopeAllowedFor(Builder $query, FarmerProfile $farmer): Builder
     {
         return $query->where('is_active', true)
+            ->where('is_hidden', false)
             ->whereNotIn('transaction_type', Transaction::NOT_PICKABLE)
             ->where(fn($inner) => $inner
                 ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))

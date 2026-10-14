@@ -12,6 +12,8 @@ use App\Models\TransactionTemplate;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use App\Services\Loans\LoanService;
+use App\Services\Loans\PendingEntryService;
 use App\Services\NotificationService;
 
 class ReversalService
@@ -21,6 +23,8 @@ class ReversalService
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly StockReversal $stock,
+        private readonly LoanService $loans,
+        private readonly PendingEntryService $pendingEntries,
         private readonly CreditSettlementService $settlements,
     ) {}
 
@@ -64,6 +68,11 @@ class ReversalService
         return DB::transaction(function () use ($request, $original, $approvedBy) {
             $reversal = $this->post($original, $request, $approvedBy);
             $this->stock->release($original, $approvedBy);
+            $loan = $this->loans->cancelFor($original);
+
+            if ($loan !== null) {
+                $this->pendingEntries->rejectRepaymentsFor($loan, $approvedBy);
+            }
 
             $request->forceFill([
                 'status' => ReversalRequest::APPROVED,

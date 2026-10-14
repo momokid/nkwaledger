@@ -192,3 +192,19 @@ These rules override Workflow items 3, 4, 5 and 6 above. In Claude Code sessions
 - Summarise. No long explanations.
 - Only go into detail when something is risky for money, security or user data. Say it clearly and early.
 - Reports still must include the three git outputs.
+
+## Working style
+
+- No over-engineering.
+- Never compromise security or sound software engineering principles for the sake of the other style rules (short replies, plain words, minimal code). Those rules are already in "Style" and "Task" above.
+
+## Report format
+
+Every task ends with a report that has:
+- Raw output of: git status, git log origin/develop..HEAD --oneline, git show --stat for each commit.
+- Full output of any failing run, and repeat runs of anything flaky.
+- Full-suite results for SQLite, JS and PostgreSQL.
+- Every placeholder wording key used.
+- Every decision the owner did not settle.
+
+The 15-line limit under "Report" applies to the written summary only. The raw outputs above go below it.

@@ -1,0 +1,328 @@
+type,name,source
+bank,"Absa Bank Ghana LTD",commercial bank
+bank,"Access Bank (Ghana) Plc",commercial bank
+bank,"Agricultural Development Bank Plc",commercial bank
+bank,"Bank of Africa Ghana Limited",commercial bank
+bank,"CalBank PLC",commercial bank
+bank,"Consolidated Bank Ghana Limited",commercial bank
+bank,"Ecobank Ghana Plc",commercial bank
+bank,"Fidelity Bank (Ghana) LTD",commercial bank
+bank,"First Atlantic Bank PLC",commercial bank
+bank,"First Bank (Ghana) LTD",commercial bank
+bank,"First National Bank (Ghana) Limited",commercial bank
+bank,"GCB Bank Plc",commercial bank
+bank,"Guaranty Trust Bank (Ghana) LTD",commercial bank
+bank,"National Investment Bank PLC",commercial bank
+bank,"OmniBSIC Bank Ghana LTD",commercial bank
+bank,"Prudential Bank Limited",commercial bank
+bank,"Republic Bank (Ghana) PLC",commercial bank
+bank,"Societe General Ghana Plc",commercial bank
+bank,"Stanbic Bank Ghana Limited",commercial bank
+bank,"Standard Chartered Bank Ghana Plc",commercial bank
+bank,"United Bank for Africa (Ghana) Limited",commercial bank
+bank,"Universal Merchant Bank Ghana LTD",commercial bank
+bank,"Zenith Bank (Ghana) Limited",commercial bank
+microfinance,"ABii National Savings and Loans Ltd",savings and loans
+microfinance,"Adehyeman Savings and Loans Company Ltd.",savings and loans
+microfinance,"Advans Ghana Savings and Loans Ltd.",savings and loans
+microfinance,"Affinity Ghana Savings and Loans Limited",savings and loans
+microfinance,"Asa Savings and Loans Company Limited",savings and loans
+microfinance,"Bayport Savings and Loans Plc",savings and loans
+microfinance,"Best Point Savings and Loans Ltd",savings and loans
+microfinance,"Bond Savings and Loans Ltd",savings and loans
+microfinance,"BRAC Ghana Savings and Loans Limited",savings and loans
+microfinance,"Direct Savings and Loans Limited",savings and loans
+microfinance,"Equity Savings and Loans Ltd.",savings and loans
+microfinance,"Golden Link Savings & Loans Ltd",savings and loans
+microfinance,"Golden Pride Savings and Loans Ltd",savings and loans
+microfinance,"Izwe Savings and Loans PLC",savings and loans
+microfinance,"Jins Savings and Loans Ltd.",savings and loans
+microfinance,"Letshego Savings and Loans Plc",savings and loans
+microfinance,"Multi Credit Savings & Loans Co. Ltd.",savings and loans
+microfinance,"Opportunity International Savings and Loans Co. Ltd",savings and loans
+microfinance,"Pacific Savings & Loans Co. Ltd.",savings and loans
+microfinance,"Pan - African Savings and Loans Company LTD",savings and loans
+microfinance,"Progress Savings and Loans Limited",savings and loans
+microfinance,"Services Integrity Savings and Loans Ltd.",savings and loans
+microfinance,"SIC Life Savings and Loans Ltd.",savings and loans
+microfinance,"Sinapi Aba Savings and Loans Company Ltd",savings and loans
+microfinance,"The Seed Funds Savings and Loans Ltd",savings and loans
+microfinance,"Utrak Savings and Loans Ltd",savings and loans
+bank,"Abokobi Area Rural Bank Limited",community bank
+bank,"Ada Rural Bank Limited",community bank
+bank,"Adansi Rural Bank Limited",community bank
+bank,"Adonten Community Bank Limited",community bank
+bank,"Afram Rural Bank Limited",community bank
+bank,"Agave Rural Bank Limited",community bank
+bank,"Agona Rural Bank Limited",community bank
+bank,"Ahafo Ano Premier Rural Bank Limited",community bank
+bank,"Ahafo Community Bank Limited",community bank
+bank,"Ahantaman Rural Bank Limited",community bank
+bank,"Akatakyiman Rural Bank Limited",community bank
+bank,"Akim Bosome Rural Bank Limited",community bank
+bank,"Akoti Rural Bank Limited",community bank
+bank,"Akrofuom Rural Bank Limited",community bank
+bank,"Akuapem Rural Bank Limited",community bank
+bank,"Akumadan Rural Bank Limited",community bank
+bank,"Akyem Mansa Rural Bank Limited",community bank
+bank,"Akyempim Rural Bank Limited",community bank
+bank,"Amanano Rural Bank Limited",community bank
+bank,"Amansie West Rural Bank Limited",community bank
+bank,"Amantin & Kasei Community Bank Limited",community bank
+bank,"Amenfiman Rural Bank Limited",community bank
+bank,"Amuga Rural Bank Limited",community bank
+bank,"Ankobra West Rural Bank Limited",community bank
+bank,"Anlo Rural Bank Limited",community bank
+bank,"Anum Rural Bank Limited",community bank
+bank,"Asante Akyem Rural Bank Limited",community bank
+bank,"Asawinso Rural Bank Limited",community bank
+bank,"Asokore Mampong Rural Bank Limited",community bank
+bank,"Asokore Rural Bank Limited",community bank
+bank,"Assinman Rural Bank Limited",community bank
+bank,"Asubonten Rural Bank Limited",community bank
+bank,"Asuogyaman Rural Bank Limited",community bank
+bank,"Asutifi Rural Bank Limited",community bank
+bank,"Atiwa Rural Bank Limited",community bank
+bank,"Atweaban Rural Bank Limited",community bank
+bank,"Atwima Kwanwoma Rural Bank Limited",community bank
+bank,"Atwima Mponua Rural Bank Limited",community bank
+bank,"Atwima Rural Bank Limited",community bank
+bank,"Avenor Rural Bank Limited",community bank
+bank,"Awutu Emasa Rural Bank Limited",community bank
+bank,"Baduman Rural Bank Limited",community bank
+bank,"Bangmarigu Community Bank Limited",community bank
+bank,"Bawjiase Area Rural Bank Limited",community bank
+bank,"Bessfa Rural Bank Limited",community bank
+bank,"Bia-Torya Community Bank Limited",community bank
+bank,"Bomaa Area Rural Bank Limited",community bank
+bank,"Bomosadu Rural Bank Limited",community bank
+bank,"Maltaaba Community Bank",community bank
+bank,"Bonzali Rural Bank Limited",community bank
+bank,"Borimanga Rural Bank Limited",community bank
+bank,"Bosome Freho Rural Bank Limited",community bank
+bank,"Bosomtwe Rural Bank Limited",community bank
+bank,"Brakwa Breman Rural Bank Limited",community bank
+bank,"Builsa Community Bank Limited",community bank
+bank,"Butawu Rural Bank Limited",community bank
+bank,"Buuwulonso Last Stop Rural Bank Limited",community bank
+bank,"Capital Rural Bank Limited",community bank
+bank,"Citizens Rural Bank Limited",community bank
+bank,"Dangme Rural Bank Limited",community bank
+bank,"Denkyiriman Rural Bank Limited",community bank
+bank,"Derma Area Rural Bank Limited",community bank
+bank,"Drobo Community Bank Limited",community bank
+bank,"Dumpong Rural Bank Limited",community bank
+bank,"East Akim Rural Bank Limited",community bank
+bank,"Ejuraman Rural Bank Limited",community bank
+bank,"Ekumfiman Rural Bank Limited",community bank
+bank,"Enyan Denkyira Rural Bank Limited",community bank
+bank,"Fanteakwa Rural Bank Limited",community bank
+bank,"Fiagya Rural Bank Limited",community bank
+bank,"Fiaseman Rural Bank Limited",community bank
+bank,"Frerol Rural Bank Limited",community bank
+bank,"Ga Rural Bank Limited",community bank
+bank,"Gbi Rural Bank Limited",community bank
+bank,"Gomoa Community Bank Limited",community bank
+bank,"Jomoro Rural Bank Limited",community bank
+bank,"Juaben Rural Bank Limited",community bank
+bank,"Kaakye Rural Bank Limited",community bank
+bank,"Kaaseman Rural Bank Limited",community bank
+bank,"Kakum Rural Bank Limited",community bank
+bank,"Kintampo Rural Bank Limited",community bank
+bank,"Kpassa Rural Bank Limited",community bank
+bank,"Kumawuman Rural Bank Limited",community bank
+bank,"Kwaebibirem Rural Bank Limited",community bank
+bank,"Kwahu Praso Rural Bank Limited",community bank
+bank,"Kwahu Rural Bank Limited",community bank
+bank,"Kwamanman Rural Bank Limited",community bank
+bank,"La Community Bank Limited",community bank
+bank,"Lawra Area Rural Bank Limited",community bank
+bank,"Lower Pra Rural Bank Limited",community bank
+bank,"Lower Amenfi Rural Bank Limited",community bank
+bank,"Manya Krobo Rural Bank Limited",community bank
+bank,"Mepe Area Rural Bank Limited",community bank
+bank,"Mfantseman Community Bank Limited",community bank
+bank,"Microfin Rural Bank Limited",community bank
+bank,"Mponua Rural Bank Limited",community bank
+bank,"Mumuadu Rural Bank Limited",community bank
+bank,"Naara Rural Bank Limited",community bank
+bank,"Nafana Rural Bank Limited",community bank
+bank,"Nandom Rural Bank Limited",community bank
+bank,"Nkoranman Rural Bank Limited",community bank
+bank,"Nkoranza Kwabre Rural Bank Limited",community bank
+bank,"Nkrankwanta Area Rural Bank Limited",community bank
+bank,"North Birim Rural Bank Limited",community bank
+bank,"North Volta Rural Bank Limited",community bank
+bank,"Nsoatreman Rural Bank Limited",community bank
+bank,"Nsutaman Rural Bank Limited",community bank
+bank,"Nwabiagya Rural Bank Limited",community bank
+bank,"Nyakrom Rural Bank Limited",community bank
+bank,"Nyankumasi Ahenkro Rural Bank Limited",community bank
+bank,"Nzema Manle Rural Bank Limited",community bank
+bank,"Odotobri Rural Bank Limited",community bank
+bank,"Odupongkpehe Rural Bank Limited",community bank
+bank,"Odwen Anoma Rural Bank Limited",community bank
+bank,"Offinso Rural Bank Limited",community bank
+bank,"Okomfo Anokye Rural Bank Limited",community bank
+bank,"Otuasekan Rural Bank Limited",community bank
+bank,"Oyibi Area Rural Bank Limited",community bank
+bank,"Sefwiman Rural Bank Limited",community bank
+bank,"Sekyedumase Rural Bank Limited",community bank
+bank,"Sekyere Rural Bank Limited",community bank
+bank,"Shai Rural Bank Limited",community bank
+bank,"Sissala Rural Bank Limited",community bank
+bank,"Sonzele Rural Bank Limited",community bank
+bank,"South Akim Rural Bank Limited",community bank
+bank,"South Birim Rural Bank Limited",community bank
+bank,"Suhum Rural Bank Limited",community bank
+bank,"Suma Rural Bank Limited",community bank
+bank,"Tepaman Rural Bank Limited",community bank
+bank,"Tisungtaaba Community Bank Limited",community bank
+bank,"Tizaa Rural Bank Limited",community bank
+bank,"Toende Rural Bank Limited",community bank
+bank,"Twifo Rural Bank Limited",community bank
+bank,"Union Rural Bank Limited",community bank
+bank,"Unity Rural Bank Limited",community bank
+bank,"Upper Amenfi Rural Bank Limited",community bank
+bank,"Upper Manya Kro Rural Bank Limited",community bank
+bank,"Wamfie Rural Bank Limited",community bank
+bank,"Wenchi Rural Bank Limited",community bank
+bank,"Western Rural Bank Limited",community bank
+bank,"Weto Rural Bank Limited",community bank
+bank,"Yaa Asantewaa Rural Bank Limited",community bank
+bank,"Yapra Rural Bank Limited",community bank
+bank,"Zabzugu Rural Bank Limited",community bank
+bank,"Effiduase Rural Bank Limited",community bank
+bank,"Subin Akwaboso Rural Bank Limited",community bank
+bank,"Kwabre Area Rural Bank Limited",community bank
+microfinance,"3AS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ADIPA MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ADOM BOAFO MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"AFRO-ARAB MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ALBRIM MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ALPHAMAGA MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"APA MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ASANKRAMAN MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"BAF MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"BAOBAB MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"BENEFICIAL MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"BESWORTH MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"BI MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"BIDVEST MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"BJ CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"BOSTON PREMIER MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CAGL MICROFINANCE SERVICES LIMITED",deposit-taking microfinance
+microfinance,"CAPITALNET MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CASHBACK CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CASHPOINT MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CEDI CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CENTRAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CIDAN CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CLASSIC MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"COASTAL COMMERCE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CRAN MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"CREDIT NEST MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"DCI MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"DELTA MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"DUNIA MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"EAZY CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"EDDIEVYN MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"EMAN CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"EQUITY FOCUS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"EV MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"EXPERT LINK MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"FAMILY TRUST CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"FAST LINK MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"FAST TRACK MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"FED MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"FIRST RATE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"FORBES MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"FWF MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"GAEWORNU MICROFINANCE SERVICES LIMITED",deposit-taking microfinance
+microfinance,"GAP MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"GEEM MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"GEM CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"GIFS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"GLOBAFIN MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"GOLDEN FOUNDATION MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"HIGH AGES MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"HM PLUS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"HOB CAPITAL MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"HOPELINE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"IMPACT CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"IMPACT MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"INDEPENDENT MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"INNOVATIVE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"INTEGRITY INFINITY MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"INTERZEN MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"JACKFAUS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"JADEL PLUS MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"JALLY MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"JIREH MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"JITA CREDIT PARTNERS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"KASDAF MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"KENSTEP MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"KESINOR MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"KINGSBAN CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"LEVERAGE MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"LITTLE ROCK MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"LOAN LINE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"LOVE MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"MABIA MICROFINANCE SERVICES LIMITED",deposit-taking microfinance
+microfinance,"MAROON CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"MEDI GHANA MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"MGI MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"MID-COUNTY MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"MONICAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"MWINTUUR MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"NAATOA MICROFINANCE SERVICES LIMITED",deposit-taking microfinance
+microfinance,"NEEDS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"NEIGHBOURHOOD MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"NOBLE TRUST MICROFINANCE SERVICES LIMITED",deposit-taking microfinance
+microfinance,"OCEAN CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ONTIME MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"OPTIONS MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"OSACS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"PAK MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"PRIME INVEST MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"PRINCIPAL CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"PURE EDEN MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"Q CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"QUALITY MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"QUICK CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"QUICKEN MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"RAPID LINK MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ROGAI MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"ROYALE MIKRI MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SAFE MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"SECURE CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SHEEDY MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SHIELD MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"SKILIMIT MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SOLIDARIO MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SOLIS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SPEED MICROFINANCE COMPANY GHANA LIMITED",deposit-taking microfinance
+microfinance,"SPRINGBOARD MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"STEGENOR MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SUCCESS FOR PEOPLE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"SUMMIT VISION MICROFINANCE SERVICES LIMITED",deposit-taking microfinance
+microfinance,"SURGE MICROFINANCE LTD",deposit-taking microfinance
+microfinance,"TAILORED SOLUTIONS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"TALENT MICROFINANCE SERVICES LIMITED",deposit-taking microfinance
+microfinance,"THE MINT MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"TIGER FORCE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"TRUSTWELL CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"UBUNTU CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"UDF MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"UNI CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"UNIMAS MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"UNIVERSAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"UPTIMA CREDIT & MICROFINANCE HOUSE LIMITED",deposit-taking microfinance
+microfinance,"USAVE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"VIVANTTI MICROFINANCE COMPANY LIMITED",deposit-taking microfinance
+microfinance,"WALLSTREET MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"WEMA MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"WEST ONE MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"WESTLAKE CAPITAL MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"YAALEX MICROFINANCE LIMITED",deposit-taking microfinance
+microfinance,"YILO STAR MICROFINANCE LIMITED",deposit-taking microfinance
