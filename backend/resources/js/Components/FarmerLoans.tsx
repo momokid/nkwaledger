@@ -1,4 +1,5 @@
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { cedis } from "@/lib/format";
 import { router, usePage } from "@inertiajs/react";
@@ -23,7 +24,7 @@ const STATUS_LABELS: Record<Status, string> = {
     pending: "Waiting for the farmer to accept",
     declined: "Declined by the farmer",
     withdrawn: "Withdrawn",
-    rejected: "repayment.rejected",
+    rejected: wording("repayment.rejected"),
 };
 
 interface Props {
@@ -121,7 +122,7 @@ export default function FarmerLoans({ loans, farmerUuid }: Props) {
                 <tr style={{ borderBottom: waiting ? "none" : `1px solid ${border}` }}>
                     <td className="px-4 py-3" style={{ color: text }}>
                         {loan.lender}
-                        {loan.kind === "repayment" && <span style={{ color: textSecondary }}> - repayment.entry</span>}
+                        {loan.kind === "repayment" && <span style={{ color: textSecondary }}> - {wording("repayment.entry")}</span>}
                         {acting && loan.row === "loan" && loan.status === "active" && (
                             <Button
                                 type="button"

@@ -12,6 +12,7 @@ use App\Models\PendingEntryCode;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Support\Money;
+use App\Support\Wording;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -169,8 +170,7 @@ class EntryCodeService
     private function message(PendingEntry $entry, string $code): string
     {
         if ($entry->isRepayment()) {
-            // placeholder wording for a repayment: not approved yet
-            return 'repayment.sms GHS ' . Money::toDecimal($entry->payload['amount_minor']) . " {$entry->lenderName()} code {$code}";
+            return Wording::get('repayment.sms', ['amount' => Money::toDecimal($entry->payload['amount_minor']), 'lender' => $entry->lenderName(), 'code' => $code]);
         }
 
         $amount = Money::toDecimal($entry->payload['principal_minor']);

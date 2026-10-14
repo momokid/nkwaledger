@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\AuditService;
 use App\Services\NotificationService;
 use App\Support\Money;
+use App\Support\Wording;
 use Illuminate\Support\Facades\DB;
 
 // an agent's entry for a farmer: recorded, then accepted, declined or withdrawn. Nothing here touches the books
@@ -25,7 +26,6 @@ class PendingEntryService
 
     public const FARMER_NOTICE = 'Your agent recorded a loan for you. It is not counted until you accept it.';
 
-    // placeholder: the wording is not approved yet
     public const REPAYMENT_NOTICE = 'repayment.pending_notice';
 
     public function __construct(
@@ -100,7 +100,7 @@ class PendingEntryService
             $user = $loan->farmerProfile->user;
 
             if ($user !== null) {
-                $this->notifications->send($user, 'loan.pending', self::REPAYMENT_NOTICE, '/loans');
+                $this->notifications->send($user, 'loan.pending', Wording::get(self::REPAYMENT_NOTICE), '/loans');
             }
 
             return $entry;
@@ -185,9 +185,8 @@ class PendingEntryService
 
                 $this->tellAgent($locked, 'loan.rejected', 'rejected');
 
-                // placeholder wording: the existing rejected key
                 if ($locked->farmerProfile->user !== null) {
-                    $this->notifications->send($locked->farmerProfile->user, 'loan.rejected', 'repayment.rejected', "/loans/{$loan->uuid}");
+                    $this->notifications->send($locked->farmerProfile->user, 'loan.rejected', Wording::get('repayment.rejected'), "/loans/{$loan->uuid}");
                 }
             });
     }
@@ -333,9 +332,9 @@ class PendingEntryService
             return;
         }
 
-        // placeholder wording for a repayment: not approved yet
-        $words = $entry->isRepayment() ? "repayment.{$word}" : "{$word} the loan.";
+        $name = trim("{$user->surname} {$user->first_name}");
+        $message = $entry->isRepayment() ? "{$name}: " . Wording::get("repayment.{$word}") : "{$name} {$word} the loan.";
 
-        $this->notifications->send($agent, $kind, trim("{$user->surname} {$user->first_name}") . " {$words}", "/agent/farmers/{$entry->farmerProfile->uuid}");
+        $this->notifications->send($agent, $kind, $message, "/agent/farmers/{$entry->farmerProfile->uuid}");
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Loans;
 use App\Models\PendingEntry;
 use App\Services\Loans\LoanService;
 use App\Services\Loans\RepaymentService;
+use App\Support\Wording;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
@@ -42,9 +43,8 @@ class StoreRepaymentRequest extends FormRequest
             'amount.string' => LoanService::AMOUNT_REFUSAL,
             'amount.regex' => LoanService::AMOUNT_REFUSAL,
             'date.before_or_equal' => LoanService::FUTURE_REFUSAL,
-            // placeholder: the wording is not approved yet
-            'paid_from.required' => RepaymentService::PAID_FROM_INVALID,
-            'paid_from.in' => RepaymentService::PAID_FROM_INVALID,
+            'paid_from.required' => Wording::get(RepaymentService::PAID_FROM_INVALID),
+            'paid_from.in' => Wording::get(RepaymentService::PAID_FROM_INVALID),
         ];
     }
 

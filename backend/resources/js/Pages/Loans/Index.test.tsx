@@ -79,6 +79,13 @@ describe("Pending entries from an agent", () => {
         expect(buttons()).toContain("Decline");
     });
 
+    it("tells the farmer about a waiting repayment in the approved words", async () => {
+        await show([], [card({ kind: "repayment" })]);
+
+        expect(container.textContent).toContain("Your agent recorded a repayment for you. It is not counted until you accept it.");
+        expect(container.textContent).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
+    });
+
     it("sits above the list of loans", async () => {
         await show([loan({ lender: "Listed Lender" })], [card()]);
 

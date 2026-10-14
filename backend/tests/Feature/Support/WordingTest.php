@@ -1,0 +1,100 @@
+<?php
+
+// The approved wording lives in one file, resources/wording.json. Every key must have exactly the approved text,
+// and no raw key may be left in the code.
+
+use App\Support\Wording;
+
+const APPROVED_WORDING = [
+    'repayment.date' => 'Repayment Date',
+    'repayment.amount' => 'Repayment Amount',
+    'repayment.paid_from' => 'Paid From',
+    'repayment.principal_part' => 'Principal on Repayment',
+    'repayment.interest_part' => 'Interest on Repayment',
+    'repayment.extra_part' => 'Extra Amount',
+    'repayment.save' => 'Save Repayment',
+    'repayment.saving' => 'Saving...',
+    'repayment.cancel' => 'Cancel',
+    'repayment.pending_notice' => 'Your agent recorded a repayment for you. It is not counted until you accept it.',
+    'repayment.rejected' => 'Repayment rejected',
+    'repayment.accepted' => 'Repayment accepted.',
+    'repayment.declined' => 'The farmer declined the repayment.',
+    'repayment.stale' => 'The loan changed, so this repayment was not accepted.',
+    'repayment.excess_not_confirmed' => 'Please confirm the extra amount.',
+    'repayment.confirmation_not_needed' => 'No confirmation is needed for this amount.',
+    'repayment.loan_not_active' => 'This loan is not active, so it cannot take a repayment.',
+    'repayment.paid_from_invalid' => 'Choose cash, MoMo or bank.',
+    'repayment.date_before_loan' => 'Repayment date cannot be before the loan date',
+    'repayment.code_not_allowed' => 'This repayment cannot be accepted with a code. The farmer must accept it in the app.',
+    'repayment.sms' => 'Your agent recorded a repayment of GHS {amount} to {lender}. Code: {code}',
+    'repayment.entry' => 'Repayment',
+    'lender.name' => 'Lender Name',
+    'lender.type' => 'Lender Type',
+    'lender.add' => 'Add Lender',
+    'lender.edit' => 'Edit',
+    'lender.save' => 'Save',
+    'lender.cancel' => 'Cancel',
+    'lender.saved' => 'Lender details saved',
+    'lender.save_failed' => 'Failed to save lender details',
+    'lender.not_in_list' => 'Lender is not listed',
+    'lender.name_required' => 'Enter the Lender\'s name',
+    'lender.type_invalid' => 'Invalid lender details',
+    'lender.institution_exists' => 'Lender already exists',
+    'lender.name_characters' => 'Use only letters, numbers and common symbols in the Lender\'s name',
+    'lender.type.bank' => 'Bank',
+    'lender.type.rural_bank' => 'Rural Bank',
+    'lender.type.credit_financial_institution' => 'Credit Financial Institution',
+    'lender.type.microfinance' => 'Microfinance',
+    'lender.type.other' => 'Other',
+];
+
+test('every approved key has exactly the approved wording and nothing else is in the file', function () {
+    $file = json_decode(file_get_contents(resource_path('wording.json')), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($file)->toBe(APPROVED_WORDING);
+});
+
+test('the reader gives the wording and fills the placeholders in one pass', function () {
+    expect(Wording::get('repayment.date'))->toBe('Repayment Date')
+        ->and(Wording::get('repayment.sms', ['amount' => '250.00', 'lender' => 'Asante {code}', 'code' => '483920']))
+        ->toBe('Your agent recorded a repayment of GHS 250.00 to Asante {code}. Code: 483920');
+});
+
+test('the reader refuses a key with no wording, and resolve leaves other text alone', function () {
+    expect(fn() => Wording::get('repayment.nope'))->toThrow(InvalidArgumentException::class)
+        ->and(Wording::resolve('repayment.stale'))->toBe('The loan changed, so this repayment was not accepted.')
+        ->and(Wording::resolve('Enter an amount above zero.'))->toBe('Enter an amount above zero.');
+});
+
+test('every repayment or lender key named in the code has approved wording', function () {
+    $audit = ['lender.created', 'lender.updated'];
+    $files = [];
+
+    foreach (['app', 'resources/js'] as $dir) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(base_path($dir))) as $file) {
+            if (preg_match('/\.(php|tsx?)$/', $file->getFilename()) && ! preg_match('/\.test\.tsx?$/', $file->getFilename())) {
+                $files[] = $file->getPathname();
+            }
+        }
+    }
+
+    $found = [];
+
+    foreach ($files as $path) {
+        preg_match_all('/[\'"`]((?:repayment|lender)\.[a-z_.${}]+)/', file_get_contents($path), $matches);
+
+        foreach ($matches[1] as $literal) {
+            $cut = strcspn($literal, '${');
+            $prefix = $cut < strlen($literal) ? substr($literal, 0, $cut) : false;
+            $known = $prefix !== false
+                ? array_filter(array_keys(APPROVED_WORDING), fn($key) => str_starts_with($key, $prefix))
+                : array_filter([$literal], fn($key) => array_key_exists($key, APPROVED_WORDING));
+
+            if ($known === [] && ! in_array($literal, $audit, true) && ! in_array($literal, ['lender.required', 'lender.uuid'], true)) {
+                $found[] = basename($path) . ': ' . $literal;
+            }
+        }
+    }
+
+    expect($found)->toBe([]);
+});

@@ -153,7 +153,7 @@ test('a missing lender shows the lender placeholder, and a missing paid-into acc
 
     expect(Loan::count())->toBe(0);
 })->with([
-    ['lender', 'lender.not_in_list'],
+    ['lender', 'Lender is not listed'],
     ['paid_into', 'Choose where the money was paid into.'],
 ]);
 
@@ -174,7 +174,7 @@ test('the loan I already had form shows the lender placeholder for a missing len
     ], $over);
 
     $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender' => '']))
-        ->assertSessionHasErrors(['lender' => 'lender.not_in_list']);
+        ->assertSessionHasErrors(['lender' => 'Lender is not listed']);
     $this->actingAs($this->farmerUser)->post('/loans', $existing())->assertSessionHasNoErrors();
 
     expect(Loan::count())->toBe(1);

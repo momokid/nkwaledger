@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../Support/LoanWorld.php';
 
+use App\Support\Wording;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Exceptions\Loans\EntryRefused;
 use App\Models\AuditLog;
@@ -115,7 +116,7 @@ test('an amount above what is owed is flagged, and the SMS code is refused for i
 
     expect($entry->payload['excess'])->toBeTrue();
 
-    expect(fn() => $this->codes->send($entry, $this->agent))->toThrow(EntryRefused::class, RepaymentService::CODE_NOT_ALLOWED);
+    expect(fn() => $this->codes->send($entry, $this->agent))->toThrow(EntryRefused::class, Wording::get(RepaymentService::CODE_NOT_ALLOWED));
 
     // even with a code in hand, the server refuses on entry
     \App\Models\PendingEntryCode::create([
@@ -125,7 +126,7 @@ test('an amount above what is owed is flagged, and the SMS code is refused for i
         'created_at' => now(),
     ]);
 
-    expect(fn() => $this->codes->enter($entry, $this->agent, '123456'))->toThrow(EntryRefused::class, RepaymentService::CODE_NOT_ALLOWED)
+    expect(fn() => $this->codes->enter($entry, $this->agent, '123456'))->toThrow(EntryRefused::class, Wording::get(RepaymentService::CODE_NOT_ALLOWED))
         ->and($entry->fresh()->status)->toBe('pending')
         ->and(LoanRepayment::count())->toBe(0)
         ->and(Transaction::where('transaction_type', 'LOAN')->count())->toBe(1);
@@ -134,7 +135,7 @@ test('an amount above what is owed is flagged, and the SMS code is refused for i
 test('an amount above what is owed is accepted in the app only with the farmer confirming', function () {
     $entry = ($this->pendingRepay)('1300');
 
-    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app'))->toThrow(PostingFailed::class, RepaymentService::EXCESS_NOT_CONFIRMED)
+    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::EXCESS_NOT_CONFIRMED))
         ->and($entry->fresh()->status)->toBe('pending');
 
     $repayment = $this->entries->accept($entry, $this->farmerUser, 'app', true);
@@ -146,7 +147,7 @@ test('an amount above what is owed is accepted in the app only with the farmer c
 test('a forged confirmation on an entry with no excess is refused', function () {
     $entry = ($this->pendingRepay)('600');
 
-    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app', true))->toThrow(PostingFailed::class, RepaymentService::CONFIRMATION_NOT_NEEDED)
+    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app', true))->toThrow(PostingFailed::class, Wording::get(RepaymentService::CONFIRMATION_NOT_NEEDED))
         ->and($entry->fresh()->status)->toBe('pending');
 });
 

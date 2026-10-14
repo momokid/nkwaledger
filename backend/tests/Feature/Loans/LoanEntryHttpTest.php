@@ -156,7 +156,7 @@ test('the agent records an entry with the same rules and the same words as the f
     ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)(['amount' => '0']))
         ->assertSessionHasErrors(['amount' => 'Enter an amount above zero.']);
     ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)(['lender' => '']))
-        ->assertSessionHasErrors(['lender' => 'lender.not_in_list']);
+        ->assertSessionHasErrors(['lender' => 'Lender is not listed']);
     ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)(['date' => now()->addDay()->toDateString()]))
         ->assertSessionHasErrors(['date' => 'This date is in the future.']);
 

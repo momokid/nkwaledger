@@ -2,6 +2,7 @@
 
 namespace App\Exceptions\Ledger;
 
+use App\Support\Wording;
 use RuntimeException;
 
 class PostingFailed extends RuntimeException
@@ -11,7 +12,7 @@ class PostingFailed extends RuntimeException
     // every refusal wears the same face, so one catch block covers them all
     public static function because(string $reason): self
     {
-        return new self($reason);
+        return new self(Wording::resolve($reason));
     }
 
     // not the record's fault (a database failure), so the same record may be tried again

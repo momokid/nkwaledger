@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../../Support/LoanWorld.php';
 
+use App\Support\Wording;
 use App\Enums\MoneyClass;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Models\AuditLog;
@@ -156,7 +157,7 @@ test('every repayment is audit-logged with the person who made it', function () 
 test('more than what remains is refused without the farmer confirming, and nothing is written', function () {
     $before = [Transaction::count(), LoanRepayment::count()];
 
-    expect(fn() => ($this->repay)($this->loan, '1300'))->toThrow(PostingFailed::class, RepaymentService::EXCESS_NOT_CONFIRMED)
+    expect(fn() => ($this->repay)($this->loan, '1300'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::EXCESS_NOT_CONFIRMED))
         ->and([Transaction::count(), LoanRepayment::count()])->toBe($before);
 });
 
@@ -170,7 +171,7 @@ test('a confirmed excess pays off both parts and the extra is interest, and the 
 test('a confirmation is refused when the server finds no excess', function () {
     $before = Transaction::count();
 
-    expect(fn() => ($this->repay)($this->loan, '600', ['confirm_excess' => true]))->toThrow(PostingFailed::class, RepaymentService::CONFIRMATION_NOT_NEEDED)
+    expect(fn() => ($this->repay)($this->loan, '600', ['confirm_excess' => true]))->toThrow(PostingFailed::class, Wording::get(RepaymentService::CONFIRMATION_NOT_NEEDED))
         ->and(Transaction::count())->toBe($before);
 });
 
@@ -219,7 +220,7 @@ test('the amount, the date, the account, the period and the loan are all checked
 test('a cancelled loan cannot be repaid', function () {
     $this->loan->forceFill(['status' => Loan::CANCELLED])->save();
 
-    expect(fn() => ($this->repay)($this->loan, '10'))->toThrow(PostingFailed::class, RepaymentService::LOAN_NOT_ACTIVE);
+    expect(fn() => ($this->repay)($this->loan, '10'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::LOAN_NOT_ACTIVE));
 });
 
 test('MoMo and Bank are allowed, and an existing loan can be repaid', function () {
