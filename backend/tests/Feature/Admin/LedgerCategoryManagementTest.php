@@ -11,6 +11,7 @@ beforeEach(function () {
     $this->seed(PermissionsSeeder::class);
 
     $this->admin = User::factory()->create();
+    $this->admin->assignRole('admin');
     $this->admin->givePermissionTo([
         'ledger-accounts.view',
         'ledger-accounts.create',

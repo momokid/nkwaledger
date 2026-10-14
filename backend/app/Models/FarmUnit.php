@@ -50,6 +50,18 @@ class FarmUnit extends Model
         });
     }
 
+    public const WHOLE_NUMBERS_ONLY = 'Please enter a whole number. This kind of farm is counted in whole numbers.';
+
+    // a farm type that counts heads cannot take half an animal; one that counts weight or area can
+    public function quantityRefusal(string|int|float $quantity): ?string
+    {
+        if ($this->farmType?->quantity_is_decimal) {
+            return null;
+        }
+
+        return (float) $quantity !== floor((float) $quantity) ? self::WHOLE_NUMBERS_ONLY : null;
+    }
+
     public function isApproved(): bool
     {
         return $this->approved_at !== null;
@@ -75,6 +87,11 @@ class FarmUnit extends Model
     public function stocks(): HasMany
     {
         return $this->hasMany(FarmUnitStock::class);
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(FarmUnitImage::class);
     }
 
     public function farmerProfile(): BelongsTo

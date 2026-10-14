@@ -7,7 +7,9 @@ use App\Models\FarmerProfile;
 use App\Models\FarmUnitStock;
 use App\Models\LedgerAccount;
 use App\Models\ProduceListing;
+use App\Models\ProduceListingImage;
 use App\Services\ProduceListingService;
+use App\Support\PhotoUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -27,7 +29,7 @@ class ProduceListingController extends Controller
         return Inertia::render('MyListings/Index', [
             'farmer' => ['id' => $farmer->uuid],
             'listings' => $farmer->produceListings()
-                ->with('farmUnitStock.farmUnit.farmType')
+                ->with('farmUnitStock.farmUnit.farmType', 'images')
                 ->latest()
                 ->get()
                 ->map(fn(ProduceListing $listing) => $this->present($listing)),
@@ -58,16 +60,18 @@ class ProduceListingController extends Controller
             'farm_unit_stock_id' => ['required', 'integer'],
             'quantity' => ['required', 'numeric', 'gt:0'],
             'crop_expiry_days' => ['nullable', 'integer', 'min:1'],
-            'photo' => ['nullable', 'image', 'max:4096'],
+            'photos' => ['required', 'array', 'min:1', 'max:3'],
+            'photos.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
         ]);
 
         $stock = FarmUnitStock::query()
             ->whereHas('farmUnit', fn($query) => $query->where('farmer_profile_id', $farmer->id))
             ->findOrFail($data['farm_unit_stock_id']);
 
-        $photoPath = $request->hasFile('photo')
-            ? $request->file('photo')->store('produce-listings', 'public')
-            : null;
+        $photoPaths = array_map(
+            fn($photo) => PhotoUpload::store($photo, 'produce-listings'),
+            $request->file('photos'),
+        );
 
         try {
             $this->listings->create(
@@ -76,7 +80,7 @@ class ProduceListingController extends Controller
                 $request->user(),
                 (float) $data['quantity'],
                 $data['crop_expiry_days'] ?? null,
-                $photoPath,
+                $photoPaths,
             );
         } catch (\InvalidArgumentException $failure) {
             return back()->withInput()->with('error', $failure->getMessage());
@@ -137,7 +141,7 @@ class ProduceListingController extends Controller
             'quantity_listed' => (float) $listing->quantity_listed,
             'quantity_remaining' => (float) $listing->quantity_remaining,
             'unit_of_measure' => $listing->farmUnitStock?->unit_of_measure,
-            'photo_url' => $listing->photo !== null ? Storage::disk('public')->url($listing->photo) : null,
+            'photo_urls' => $listing->images->map(fn(ProduceListingImage $image) => Storage::disk('public')->url($image->path))->all(),
             'expires_at' => $listing->expires_at?->toDateString(),
             'farmer_agreed_at' => $listing->farmer_agreed_at?->toDateTimeString(),
             'is_agent_posted_draft' => $listing->isDraft(),

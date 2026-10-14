@@ -2,6 +2,7 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
+import { compressImage } from "@/lib/compressImage";
 import { FormEvent, ReactNode, useState } from "react";
 
 interface Option {
@@ -27,6 +28,7 @@ interface UnitRow {
     is_approved: boolean;
     approved_by: string | null;
     can_approve: boolean;
+    photo_urls: string[];
     is_active: boolean;
 }
 
@@ -109,6 +111,7 @@ function IndexContent({
         capacity: "",
         capacity_unit: "",
         is_active: true,
+        images: [] as File[],
     });
 
     const startAdd = () => {
@@ -120,6 +123,7 @@ function IndexContent({
             capacity: "",
             capacity_unit: "",
             is_active: true,
+            images: [],
         });
         setShowForm(true);
     };
@@ -133,6 +137,7 @@ function IndexContent({
             capacity: unit.capacity ?? "",
             capacity_unit: unit.capacity_unit ?? "",
             is_active: unit.is_active,
+            images: [],
         });
         setShowForm(true);
     };
@@ -354,6 +359,39 @@ function IndexContent({
                         </div>
                     </div>
 
+                    {editing === null && (
+                    <div>
+                        <label style={labelStyle}>
+                            Photos of the unit (1 to 3)
+                        </label>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={async (event) =>
+                                form.setData(
+                                    "images",
+                                    await Promise.all(
+                                        Array.from(
+                                            event.target.files ?? [],
+                                        ).map(compressImage),
+                                    ),
+                                )
+                            }
+                            style={fieldStyle}
+                        />
+                        {(form.errors.images ||
+                            errors.images ||
+                            errors["images.0"]) && (
+                            <p style={errorStyle}>
+                                {form.errors.images ||
+                                    errors.images ||
+                                    errors["images.0"]}
+                            </p>
+                        )}
+                    </div>
+                    )}
+
                     {editing !== null && (
                         <label
                             style={{
@@ -449,6 +487,28 @@ function IndexContent({
                                             : "#B45309",
                                     }}
                                 >
+                                    {unit.photo_urls.map((url, index) => (
+                                        <a
+                                            key={url}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <img
+                                                src={url}
+                                                alt={`${unit.name} - ${farmer.name}, photo ${index + 1}`}
+                                                loading="lazy"
+                                                style={{
+                                                    width: "64px",
+                                                    height: "64px",
+                                                    objectFit: "cover",
+                                                    display: "inline-block",
+                                                    marginRight: "8px",
+                                                    verticalAlign: "middle",
+                                                }}
+                                            />
+                                        </a>
+                                    ))}
                                     {unit.name}
                                     {!unit.is_active && (
                                         <span

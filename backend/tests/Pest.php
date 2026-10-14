@@ -2,11 +2,21 @@
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function () {
+        // RefreshDatabase rolls back each test's transaction, but Spatie's permission
+        // cache is a plain in-memory/cache-store collection that survives the rollback -
+        // without this, a permission created (and cached) in one test can leave stale
+        // role/permission data behind for a later test in the same process, causing
+        // spurious 403s that don't reproduce when the failing test is run alone
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        config(['features.marketplace' => true]);
+
         Role::firstOrCreate(['name' => 'farmer', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'agent', 'guard_name' => 'web']);
@@ -41,6 +51,20 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+// a child that gave no answer, or a 500, never booted properly: say so, so it cannot pass for a lost race
+function childAnswer(string $out, string $err): array
+{
+    $answer = json_decode($out, true);
+
+    if (! is_array($answer) || ($answer['status'] ?? 0) === 0 || $answer['status'] >= 500) {
+        $reason = trim(strip_tags((string) ($answer['body'] ?? '') . ' ' . $err . ' ' . ($answer === null ? $out : '')));
+
+        test()->fail('the child could not start: ' . substr($reason, 0, 300));
+    }
+
+    return $answer;
+}
 
 function something()
 {

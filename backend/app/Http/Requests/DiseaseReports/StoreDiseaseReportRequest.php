@@ -15,6 +15,7 @@ class StoreDiseaseReportRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'idempotency_key' => ['nullable', 'uuid'],
             'description' => ['required', 'string', 'max:1000'],
             // compressed on the way in, so the size ceiling here is about the
             // original phone photo, not what ends up stored

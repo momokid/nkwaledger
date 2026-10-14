@@ -4,8 +4,10 @@ use App\Enums\KioskReportStatus;
 use App\Models\KioskReport;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
+use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
 });
 
@@ -23,6 +25,7 @@ test('a user with marketplace-kiosks.view can view the list, with the reporter\'
     $report = KioskReport::factory()->create();
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('marketplace-kiosks.view');
 
     $this->actingAs($user)->get('/admin/marketplace/kiosk-reports')
@@ -40,6 +43,7 @@ test('the list can be filtered down to a single status', function () {
     $withAdmin = KioskReport::factory()->withAdmin()->create();
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('marketplace-kiosks.view');
 
     $this->actingAs($user)->get('/admin/marketplace/kiosk-reports?status=with_admin')
@@ -52,6 +56,7 @@ test('resolving a report marks it resolved and records who resolved it', functio
     $report = KioskReport::factory()->withAdmin()->create();
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-kiosks.suspend');
 
     $this->actingAs($admin)->post("/admin/marketplace/kiosk-reports/{$report->uuid}/resolve")
@@ -78,6 +83,7 @@ test('extending a with-admin report pushes admin_due_at out', function () {
     $originalDueAt = $report->admin_due_at;
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-kiosks.suspend');
 
     $this->actingAs($admin)->post("/admin/marketplace/kiosk-reports/{$report->uuid}/extend")

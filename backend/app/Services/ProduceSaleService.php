@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\OrderPaymentMethod;
 use App\Models\LedgerAccount;
 use App\Models\ProduceListing;
 use App\Models\ProduceSale;
@@ -173,7 +174,11 @@ class ProduceSaleService
 
         $template = TransactionTemplate::query()->where('slug', $slug)->firstOrFail();
 
-        $settlementAccountName = $sale->payment_method->value === 'bank' ? 'Bank A/C' : 'Cash A/C';
+        $settlementAccountName = match ($sale->payment_method) {
+            OrderPaymentMethod::Bank => 'Bank A/C',
+            OrderPaymentMethod::Momo => 'Momo A/C',
+            OrderPaymentMethod::CashOnDelivery => 'Cash A/C',
+        };
         $settlementAccount = LedgerAccount::query()->where('name', $settlementAccountName)->firstOrFail();
 
         $transaction = $this->posting->post(new PostingRequest(

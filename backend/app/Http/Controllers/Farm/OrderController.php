@@ -55,7 +55,7 @@ class OrderController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.kiosk_product_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'payment_method' => ['required', 'string', 'in:bank,cod'],
+            'payment_method' => ['required', 'string', 'in:bank,momo,cod'],
             // the farmer chooses which part of the farm this purchase is for right here
             // at checkout - the input_purchase ledger template requires one, and the
             // spec never says where to ask, so this is the simplest reasonable point

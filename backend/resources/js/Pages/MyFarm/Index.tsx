@@ -13,6 +13,7 @@ interface Movement {
     recorded_by: string | null;
     is_confirmed: boolean;
     is_rejected: boolean;
+    is_cancelled: boolean;
     rejection_reason: string | null;
 }
 
@@ -41,6 +42,7 @@ interface TimelineEntry {
     running_total: string;
     is_confirmed: boolean;
     is_rejected: boolean;
+    is_cancelled: boolean;
     rejection_reason: string | null;
 }
 
@@ -116,13 +118,23 @@ function IndexContent({ units, filters }: ContentProps) {
     const warnBg = dark ? "rgba(180,83,9,0.15)" : "#FEF3C7";
     const rejectBg = dark ? "rgba(185,28,28,0.15)" : "#FEE2E2";
 
-    const statusLabel = (confirmed: boolean, rejected: boolean) => {
+    const statusLabel = (
+        confirmed: boolean,
+        rejected: boolean,
+        cancelled: boolean,
+    ) => {
+        if (cancelled) return "Cancelled";
         if (rejected) return "Rejected";
         if (confirmed) return "Confirmed";
         return "Pending for approval";
     };
 
-    const statusBg = (confirmed: boolean, rejected: boolean) => {
+    const statusBg = (
+        confirmed: boolean,
+        rejected: boolean,
+        cancelled: boolean,
+    ) => {
+        if (cancelled) return "transparent";
         if (rejected) return rejectBg;
         if (!confirmed) return warnBg;
         return "transparent";
@@ -375,6 +387,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                         background: statusBg(
                                             entry.is_confirmed,
                                             entry.is_rejected,
+                                            entry.is_cancelled,
                                         ),
                                     }}
                                 >
@@ -412,6 +425,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                             {statusLabel(
                                                 entry.is_confirmed,
                                                 entry.is_rejected,
+                                                entry.is_cancelled,
                                             )}
                                         </span>
                                     </div>
@@ -456,6 +470,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                                 background: statusBg(
                                                     stock.is_confirmed,
                                                     stock.is_rejected,
+                                                    false,
                                                 ),
                                             }}
                                         >
@@ -473,6 +488,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                                     {statusLabel(
                                                         stock.is_confirmed,
                                                         stock.is_rejected,
+                                                        false,
                                                     )}
                                                 </span>
                                             </div>
@@ -553,6 +569,7 @@ function IndexContent({ units, filters }: ContentProps) {
                                                                     {statusLabel(
                                                                         movement.is_confirmed,
                                                                         movement.is_rejected,
+                                                                        movement.is_cancelled,
                                                                     )}
                                                                 </span>
                                                             </div>

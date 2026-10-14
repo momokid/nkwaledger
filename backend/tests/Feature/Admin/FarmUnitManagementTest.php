@@ -10,6 +10,8 @@ use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 beforeEach(function () {
+    \Illuminate\Support\Facades\Storage::fake('local');
+
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
 
@@ -35,6 +37,7 @@ function unitPayload(array $overrides = []): array
         'name' => 'Pen A',
         'capacity' => 250,
         'capacity_unit' => 'birds',
+        'images' => [\Illuminate\Http\UploadedFile::fake()->image('unit.jpg')],
     ], $overrides);
 }
 
@@ -81,26 +84,26 @@ test('the page is told which frame to wear', function () {
 });
 
 test('a unit can be added', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload())
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload())
         ->assertSessionDoesntHaveErrors();
 
     expect($this->farmer->fresh()->farmUnits)->toHaveCount(1);
 });
 
 test('adding a unit records who did it', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload());
 
     expect($this->farmer->fresh()->farmUnits->first()->created_by)->toBe($this->agent->id);
 });
 
 test('a new unit is not approved', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload());
 
     expect($this->farmer->fresh()->farmUnits->first()->isApproved())->toBeFalse();
 });
 
 test('adding a unit notifies people who can approve it, except the person who added it', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload());
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload());
 
     expect(\App\Models\Notification::where('user_id', $this->admin->id)
         ->where('kind', 'farm_unit.created')
@@ -119,7 +122,7 @@ test('adding a unit notifies people who can approve it, except the person who ad
 test('a unit can sit in a different community from the farmer', function () {
     $elsewhere = Community::factory()->create();
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload([
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload([
         'community_id' => $elsewhere->id,
     ]));
 
@@ -127,34 +130,34 @@ test('a unit can sit in a different community from the farmer', function () {
 });
 
 test('a name is required', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload(['name' => null]))
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload(['name' => null]))
         ->assertSessionHasErrors('name');
 });
 
 test('a farm type is required', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload(['farm_type_id' => null]))
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload(['farm_type_id' => null]))
         ->assertSessionHasErrors('farm_type_id');
 });
 
 test('a community is required', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload(['community_id' => null]))
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload(['community_id' => null]))
         ->assertSessionHasErrors('community_id');
 });
 
 test('two units on one farm cannot share a name', function () {
     FarmUnit::factory()->create(['farmer_profile_id' => $this->farmer->id, 'name' => 'Pen A']);
 
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload(['name' => 'Pen A']))
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload(['name' => 'Pen A']))
         ->assertSessionHasErrors('name');
 });
 
 test('a capacity below zero is refused', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload(['capacity' => -5]))
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload(['capacity' => -5]))
         ->assertSessionHasErrors('capacity');
 });
 
 test('a unit with no capacity is allowed', function () {
-    $this->actingAs($this->agent)->post("/admin/farmers/{$this->farmer->uuid}/units", unitPayload(['capacity' => null]))
+    $this->actingAs($this->agent)->post("/agent/farmers/{$this->farmer->uuid}/units", unitPayload(['capacity' => null]))
         ->assertSessionDoesntHaveErrors();
 });
 
@@ -169,7 +172,7 @@ test('a user without the create permission cannot add a unit', function () {
 test('a unit can be edited', function () {
     $unit = FarmUnit::factory()->create(['farmer_profile_id' => $this->farmer->id]);
 
-    $this->actingAs($this->agent)->put("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}", unitPayload([
+    $this->actingAs($this->agent)->put("/agent/farmers/{$this->farmer->uuid}/units/{$unit->id}", unitPayload([
         'name' => 'Pen B',
         'is_active' => true,
     ]))->assertSessionDoesntHaveErrors();
@@ -180,7 +183,7 @@ test('a unit can be edited', function () {
 test('a unit can be put on hold', function () {
     $unit = FarmUnit::factory()->create(['farmer_profile_id' => $this->farmer->id]);
 
-    $this->actingAs($this->agent)->put("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}", unitPayload([
+    $this->actingAs($this->agent)->put("/agent/farmers/{$this->farmer->uuid}/units/{$unit->id}", unitPayload([
         'is_active' => false,
     ]));
 
@@ -198,7 +201,7 @@ test('a unit belonging to another farmer cannot be edited here', function () {
     $other = FarmerProfile::factory()->create(['assigned_agent_id' => $this->agent->id]);
     $unit = FarmUnit::factory()->create(['farmer_profile_id' => $other->id]);
 
-    $this->actingAs($this->agent)->put("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}", unitPayload())
+    $this->actingAs($this->agent)->put("/agent/farmers/{$this->farmer->uuid}/units/{$unit->id}", unitPayload())
         ->assertNotFound();
 });
 
@@ -268,7 +271,7 @@ test('an agent cannot approve a unit created by another agent', function () {
         'created_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
         ->assertSessionHas('error');
 
     expect($unit->fresh()->isApproved())->toBeFalse();
@@ -284,7 +287,7 @@ test('an agent can approve a unit created by the farmer', function () {
         'created_by' => $farmerUser->id,
     ]);
 
-    $this->actingAs($this->agent)->patch("/admin/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
+    $this->actingAs($this->agent)->patch("/agent/farmers/{$this->farmer->uuid}/units/{$unit->id}/approve")
         ->assertSessionDoesntHaveErrors();
 
     expect($unit->fresh()->isApproved())->toBeTrue();
@@ -318,7 +321,7 @@ test('approving records the farmer and agent for the admin audit trail', functio
 });
 
 test('the page says what this user may do', function () {
-    $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units")
+    $this->actingAs($this->agent)->get("/agent/farmers/{$this->farmer->uuid}/units")
         ->assertInertia(fn($page) => $page->where('permissions.create', true)
             ->where('permissions.approve', true));
 });
@@ -330,6 +333,6 @@ test('an agent is not offered approve on a colleague-created unit', function () 
         'created_by' => $this->otherAgent->id,
     ]);
 
-    $this->actingAs($this->agent)->get("/admin/farmers/{$this->farmer->uuid}/units")
+    $this->actingAs($this->agent)->get("/agent/farmers/{$this->farmer->uuid}/units")
         ->assertInertia(fn($page) => $page->where('units.0.can_approve', false));
 });

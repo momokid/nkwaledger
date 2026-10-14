@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\IdentityType;
 use App\Models\FarmerProfile;
+use App\Services\FarmerKycService;
 use App\Support\IdentityDocument;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,8 +12,12 @@ use Illuminate\Validation\Validator;
 
 class StoreFarmerIdentityRequest extends FormRequest
 {
+    // checked before validation, so an agent probing a farmer who is not theirs learns nothing
+    // from "this document is already on another account"; a farmer out of scope is simply not there
     public function authorize(): bool
     {
+        abort_unless(app(FarmerKycService::class)->maySubmitFor($this->route('farmer'), $this->user()), 404);
+
         return true;
     }
 
@@ -21,6 +26,7 @@ class StoreFarmerIdentityRequest extends FormRequest
         return [
             'identity_type' => ['required', Rule::enum(IdentityType::class)],
             'identity_number' => ['required', 'string', 'min:6', 'max:30'],
+            'photo' => ['required', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
         ];
     }
 
@@ -54,6 +60,7 @@ class StoreFarmerIdentityRequest extends FormRequest
         return [
             'identity_type.required' => 'Please choose which document this is.',
             'identity_number.required' => 'Please enter the number on the document.',
+            'photo.required' => 'Please add a photo of the farmer.',
         ];
     }
 }

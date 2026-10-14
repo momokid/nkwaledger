@@ -3,6 +3,7 @@
 namespace App\Services\Agent;
 
 use App\Models\FarmerProfile;
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use App\Services\Ledger\Reports\IncomeLine;
 
@@ -24,12 +25,14 @@ class AgentIncomeSummaryService
         $expenseByAccount = [];
         $totalIncome = 0;
         $totalExpense = 0;
+        $totalLoss = 0;
 
         foreach ($farmerIds as $farmerId) {
             $report = $this->incomes->for(farmerProfileId: $farmerId, from: $from, to: $to);
 
             $totalIncome += $report->totalIncomeMinor;
             $totalExpense += $report->totalExpenseMinor;
+            $totalLoss += $report->totalLossMinor;
 
             $this->accumulate($incomeByAccount, $report->incomeRows);
             $this->accumulate($expenseByAccount, $report->expenseRows);
@@ -38,7 +41,8 @@ class AgentIncomeSummaryService
         return [
             'total_income' => $totalIncome,
             'total_expense' => $totalExpense,
-            'net' => $totalIncome - $totalExpense,
+            'total_loss' => $totalLoss,
+            'net' => IncomeAndExpenditure::netOf($totalIncome, $totalExpense, $totalLoss),
             'income_by_account' => $this->sorted($incomeByAccount),
             'expense_by_account' => $this->sorted($expenseByAccount),
         ];

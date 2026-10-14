@@ -24,6 +24,7 @@ test('a user without farm-types.view cannot view the list', function () {
 
 test('a user with farm-types.view granted directly can view the list', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farm-types.view');
 
     $this->actingAs($user)->get('/admin/farm-types')->assertOk();
@@ -58,6 +59,7 @@ test('a user without farm-types.create cannot create a farm type', function () {
 test('a user with farm-types.create can create a farm type', function () {
     $category = FarmTypeCategory::create(['name' => 'Crop']);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
 
     $this->actingAs($user)->post('/admin/farm-types', [
@@ -73,6 +75,7 @@ test('a user with farm-types.create can create a farm type', function () {
 
 test('a farm type can be created without a category', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
 
     $this->actingAs($user)->post('/admin/farm-types', [
@@ -87,6 +90,7 @@ test('a farm type can be created without a category', function () {
 
 test('a farm type can be created with decimal quantities allowed', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
 
     $this->actingAs($user)->post('/admin/farm-types', [
@@ -102,6 +106,7 @@ test('a farm type can be created with decimal quantities allowed', function () {
 
 test('a farm type defaults to whole-number quantities when not specified', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
 
     $this->actingAs($user)->post('/admin/farm-types', [
@@ -118,6 +123,7 @@ test('creating a farm type with a duplicate name fails validation', function () 
     FarmType::factory()->create(['name' => 'Maize']);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
 
     $this->actingAs($user)->post('/admin/farm-types', [
@@ -127,6 +133,7 @@ test('creating a farm type with a duplicate name fails validation', function () 
 
 test('creating a farm type with a non-existent category_id fails validation', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.create']);
 
     $this->actingAs($user)->post('/admin/farm-types', [
@@ -150,6 +157,7 @@ test('a user with farm-types.update can update a farm type, including toggling i
     $category = FarmTypeCategory::create(['name' => 'Livestock']);
     $farmType = FarmType::factory()->create(['is_active' => true]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.update']);
 
     $this->actingAs($user)->put("/admin/farm-types/{$farmType->id}", [
@@ -177,6 +185,7 @@ test('a user without farm-types.delete cannot delete a farm type', function () {
 test('a user with farm-types.delete can soft delete a farm type', function () {
     $farmType = FarmType::factory()->create();
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-types.view', 'farm-types.delete']);
 
     $this->actingAs($user)->delete("/admin/farm-types/{$farmType->id}")
@@ -192,6 +201,7 @@ test('a soft-deleted farm type is excluded from the default index', function () 
     $deleted->delete();
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farm-types.view');
 
     $response = $this->actingAs($user)->get('/admin/farm-types');

@@ -226,7 +226,7 @@ test('a deleted movement is soft deleted', function () {
 test('a movement can be rejected', function () {
     $movement = FarmUnitStockMovement::factory()->create();
 
-    $movement->reject(2, 'Wrong reason chosen');
+    $movement->reject(User::factory()->create()->id, 'Wrong reason chosen');
 
     expect($movement->fresh()->isRejected())->toBeTrue();
 });
@@ -239,7 +239,7 @@ test('a rejected movement stops counting toward the stock total', function () {
         'quantity' => 20,
     ]);
 
-    $movement->reject(2, 'Never happened');
+    $movement->reject(User::factory()->create()->id, 'Never happened');
 
     expect($stock->fresh()->current_quantity)->toBe('100.00');
 });
@@ -247,5 +247,5 @@ test('a rejected movement stops counting toward the stock total', function () {
 test('a confirmed movement cannot be rejected', function () {
     $movement = FarmUnitStockMovement::factory()->confirmed()->create();
 
-    expect(fn() => $movement->reject(2, 'Too late'))->toThrow(InvalidArgumentException::class);
+    expect(fn() => $movement->reject(User::factory()->create()->id, 'Too late'))->toThrow(InvalidArgumentException::class);
 });

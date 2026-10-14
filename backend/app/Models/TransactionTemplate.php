@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\StockSource;
+use App\Exceptions\Ledger\PostingFailed;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,6 +19,11 @@ class TransactionTemplate extends Model
 
     public const SETTLEMENT_SIDES = ['debit', 'credit', 'none'];
 
+    // what the web form says for each refusal; sync reuses the same words
+    public const NOT_FOUND = 'The selected transaction template id is invalid.';
+    public const NOT_FOR_FARM = 'That kind of record does not match your farm.';
+    public const NO_CREDIT = 'That kind of record cannot be put on credit.';
+
     protected $fillable = [
         'name',
         'slug',
@@ -28,9 +35,11 @@ class TransactionTemplate extends Model
         'farm_type_category_id',
         'is_system',
         'is_active',
+        'is_hidden',
         'is_produce_sale',
         'is_stock_purchase',
         'is_liability',
+        'is_non_cash',
         'stock_source',
         'allows_credit',
     ];
@@ -40,9 +49,11 @@ class TransactionTemplate extends Model
         'requires_farm_unit' => false,
         'is_system' => false,
         'is_active' => true,
+        'is_hidden' => false,
         'is_produce_sale' => false,
         'is_stock_purchase' => false,
         'is_liability' => false,
+        'is_non_cash' => false,
         'allows_credit' => false,
     ];
 
@@ -52,9 +63,11 @@ class TransactionTemplate extends Model
             'requires_farm_unit' => 'boolean',
             'is_system' => 'boolean',
             'is_active' => 'boolean',
+            'is_hidden' => 'boolean',
             'is_produce_sale' => 'boolean',
             'is_stock_purchase' => 'boolean',
             'is_liability' => 'boolean',
+            'is_non_cash' => 'boolean',
             'stock_source' => StockSource::class,
             'allows_credit' => 'boolean',
         ];
@@ -115,9 +128,58 @@ class TransactionTemplate extends Model
 
     protected function guardAgainstUnknownType(): void
     {
-        if (! in_array($this->transaction_type, self::TYPES, true)) {
+        if (! in_array($this->transaction_type, Transaction::TYPES, true)) {
             throw new InvalidArgumentException('Unknown transaction type.');
         }
+    }
+
+    // what a farmer may record: live, never hidden, never an adjustment or a loan entry, and for a farm type theirs
+    // (or for every farm, which is a template with no category)
+    public function scopeAllowedFor(Builder $query, FarmerProfile $farmer): Builder
+    {
+        return $query->where('is_active', true)
+            ->where('is_hidden', false)
+            ->whereNotIn('transaction_type', Transaction::NOT_PICKABLE)
+            ->where(fn($inner) => $inner
+                ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
+                ->orWhereNull('farm_type_category_id'));
+    }
+
+    // why this farmer may not record against this template, or null when they may
+    public static function refusalFor(mixed $id, FarmerProfile $farmer): ?string
+    {
+        $id = filter_var($id, FILTER_VALIDATE_INT);
+
+        // withTrashed mirrors the plain table lookup the web form always did
+        if ($id === false || ! static::withTrashed()->whereKey($id)->where('is_active', true)->exists()) {
+            return self::NOT_FOUND;
+        }
+
+        return static::allowedFor($farmer)->whereKey($id)->exists() ? null : self::NOT_FOR_FARM;
+    }
+
+    public function creditRefusal(): ?string
+    {
+        return $this->allows_credit ? null : self::NO_CREDIT;
+    }
+
+    // the farmer never sees or chooses "Receivable"/"Payable" - which one applies
+    // follows straight from whether money is coming in or going out
+    public function creditSettlementAccountId(): int
+    {
+        $name = match ($this->transaction_type) {
+            Transaction::INCOME => 'Accounts Receivable',
+            Transaction::EXPENSE => 'Accounts Payable',
+            default => throw PostingFailed::because(self::NO_CREDIT),
+        };
+
+        $accountId = LedgerAccount::where('name', $name)->value('id');
+
+        if ($accountId === null) {
+            throw PostingFailed::because('Credit is not set up yet.');
+        }
+
+        return $accountId;
     }
 
     protected function guardAgainstUnknownSettlementSide(): void

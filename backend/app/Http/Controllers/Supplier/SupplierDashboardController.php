@@ -11,6 +11,10 @@ class SupplierDashboardController extends Controller
 {
     public function index(Request $request): Response
     {
+        if (! config('features.marketplace')) {
+            return Inertia::render('Supplier/ComingSoon');
+        }
+
         $supplier = $request->user()->supplier;
 
         return Inertia::render('Supplier/Dashboard', [

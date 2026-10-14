@@ -93,6 +93,7 @@ This replaces showing any phone number directly, anywhere in the marketplace. It
 - A driver's profile shows his delivery history ("runs"): visible to other drivers in the same union for coordination, and to farmers and buyers as a track record, the same way a kiosk shows its sales count. A delivery only joins that history once both the driver and the farmer or buyer confirm it, the same two-sided tap used for kiosk orders.
 - Transport is contacted through the same Contact requests flow. Payment for transport is outside the app, by cash or any other means the two sides agree, the same as kiosk purchases.
 - This sits alongside, not instead of, agent-arranged pickup: agent-arranged pickup is the small-scale option, transport unions are for bigger loads and longer distances.
+- TODO (Step 8 note, not yet built): when this step is implemented, a driver/vehicle listing needs the same required 1-3 photos rule as kiosk products and produce listings (see `KioskProductImage`/`ProduceListingImage`) - do not launch Step 9 without it.
 
 ### Fraud monitoring
 

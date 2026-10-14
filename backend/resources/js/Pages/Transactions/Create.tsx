@@ -6,10 +6,15 @@ import Button from "@/Components/Button";
 import {
     enqueue,
     listNeedsAttention,
+    listStuck,
     NeedsAttentionItem,
+    QueueItem,
     remove,
 } from "@/lib/offlineStore";
-import { QueuedSubmission } from "@/types/offlineQueue";
+import { buildBatchRecord } from "@/lib/batchRecord";
+import { shortDate } from "@/lib/format";
+import { createRecordKey } from "@/lib/recordKey";
+import { isHealthReport, QueuedBatchRecord, QueuedHealthReport, QueuedSubmission } from "@/types/offlineQueue";
 import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
 interface Template {
@@ -73,7 +78,8 @@ function CreateContent({
     layout,
     basePath,
 }: ContentProps) {
-    const { errors, flash, old } = usePage<Props>().props as ContentProps & {
+    const { auth, errors, flash, old } = usePage<Props>().props as ContentProps & {
+        auth: { user: { id: number } };
         errors: Record<string, string>;
         flash: { success?: string; reference?: string };
         old: Record<string, string>;
@@ -131,13 +137,21 @@ function CreateContent({
             ? `/agent/farmers/${farmer.id}/records`
             : "/my-records";
 
+    const [recordKey] = useState(createRecordKey);
     const [savedOffline, setSavedOffline] = useState(false);
     const [attentionItems, setAttentionItems] = useState<
         NeedsAttentionItem<QueuedSubmission>[]
     >([]);
 
+    const [stuckItems, setStuckItems] = useState<QueueItem<QueuedBatchRecord>[]>([]);
+
+    const currentUser = String(auth.user.id);
+
     const refreshAttentionItems = () => {
-        void listNeedsAttention<QueuedSubmission>().then(setAttentionItems);
+        void listNeedsAttention<QueuedSubmission>(currentUser).then(setAttentionItems);
+        void listStuck<QueuedBatchRecord | QueuedHealthReport>(currentUser).then((items) =>
+            setStuckItems(items.filter((item): item is QueueItem<QueuedBatchRecord> => !isHealthReport(item.payload))),
+        );
     };
 
     useEffect(() => {
@@ -159,7 +173,8 @@ function CreateContent({
         refreshAttentionItems();
     };
 
-    const resetEnteredFields = () =>
+    const resetEnteredFields = () => {
+        recordKey.renew();
         form.reset(
             "amount",
             "quantity_lost",
@@ -167,11 +182,18 @@ function CreateContent({
             "quantity_purchased",
             "narration",
         );
+    };
 
     const queueOffline = async (data: Record<string, string>) => {
-        const submission: QueuedSubmission = { url: postUrl, data };
+        const quantity = needsQuantityLost
+            ? data.quantity_lost
+            : needsQuantitySold
+              ? data.quantity_sold
+              : needsQuantityPurchased
+                ? data.quantity_purchased
+                : "";
 
-        await enqueue(submission);
+        await enqueue(buildBatchRecord(farmer.id, data, quantity, data.idempotency_key), currentUser);
 
         setSavedOffline(true);
         resetEnteredFields();
@@ -190,7 +212,7 @@ function CreateContent({
             // never sent as a real account id
             settlement_account_id: isCredit ? "" : form.data.settlement_account_id,
             is_credit: isCredit ? "1" : "0",
-            idempotency_key: crypto.randomUUID(),
+            idempotency_key: recordKey.current(),
         };
 
         if (!navigator.onLine) {
@@ -210,6 +232,8 @@ function CreateContent({
                 // server with a proper response, not that validation failed
                 if (Object.keys(errors).length === 0) {
                     void queueOffline(dataWithIdempotencyKey);
+                } else {
+                    recordKey.renew();
                 }
             },
         });
@@ -344,6 +368,36 @@ function CreateContent({
                             </button>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {stuckItems.length > 0 && (
+                <div className="mt-4">
+                    {stuckItems.map((item) => {
+                        const templateName = templates.find((template) => template.id === item.payload.template)?.name;
+
+                        return (
+                            <div
+                                key={item.id}
+                                className="p-3 mb-2"
+                                style={{ background: warnBg, fontSize: "1.0625rem" }}
+                            >
+                                <p style={{ color: "#B45309", margin: 0 }}>
+                                    Not sent yet. Your record is saved on this phone.
+                                </p>
+                                <p
+                                    style={{
+                                        color: textSecondary,
+                                        fontSize: "0.9375rem",
+                                        marginTop: "4px",
+                                    }}
+                                >
+                                    {templateName ? `${templateName} · ` : ""}
+                                    Amount: {item.payload.amount} · {shortDate(item.payload.event_date)}
+                                </p>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 

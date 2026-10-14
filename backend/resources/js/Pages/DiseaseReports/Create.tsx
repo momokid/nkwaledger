@@ -3,9 +3,16 @@ import { useForm, usePage } from "@inertiajs/react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { IconMicrophone, IconPlayerStop, IconTrash } from "@tabler/icons-react";
 import Button from "@/Components/Button";
+import { enqueue, listStuck, QueueItem } from "@/lib/offlineStore";
+import { buildHealthReport, GENERIC_ERROR, healthReportErrors } from "@/lib/healthReport";
+import { shortDate } from "@/lib/format";
+import { createRecordKey } from "@/lib/recordKey";
+import { isHealthReport, QueuedHealthReport } from "@/types/offlineQueue";
+import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
 
 interface Props {
     farmUnit: { id: number; name: string };
+    farmer: { id: string };
 }
 
 type RecordingState = "idle" | "requesting" | "recording" | "recorded";
@@ -40,8 +47,9 @@ export default function Create(props: Props) {
     );
 }
 
-function CreateContent({ farmUnit }: Props) {
-    const { errors } = usePage().props as unknown as {
+function CreateContent({ farmUnit, farmer }: Props) {
+    const { auth, errors: serverErrors } = usePage().props as unknown as {
+        auth: { user: { id: number } };
         errors: Record<string, string>;
     };
     const { dark } = useTheme();
@@ -53,6 +61,7 @@ function CreateContent({ farmUnit }: Props) {
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
     const danger = "#B91C1C";
+    const warnBg = dark ? "rgba(180,83,9,0.15)" : "#FEF3C7";
 
     const [preview, setPreview] = useState<string | null>(null);
     const photoInputRef = useRef<HTMLInputElement>(null);
@@ -67,11 +76,91 @@ function CreateContent({ farmUnit }: Props) {
         audio: null,
     });
 
+    const currentUser = String(auth.user.id);
+    const [recordKey] = useState(createRecordKey);
+    const [savedOffline, setSavedOffline] = useState(false);
+    const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+    const [saveError, setSaveError] = useState(false);
+    const [stuckItems, setStuckItems] = useState<QueueItem<QueuedHealthReport>[]>([]);
+    const errors = { ...serverErrors, ...localErrors };
+
+    const refreshStuck = () => {
+        void listStuck<unknown>(currentUser).then((items) =>
+            setStuckItems(items.filter((item): item is QueueItem<QueuedHealthReport> => isHealthReport(item.payload))),
+        );
+    };
+
+    useEffect(() => {
+        refreshStuck();
+
+        // the sync engine runs from the layout, so this page only learns of its results through this event
+        window.addEventListener(OFFLINE_SYNC_RAN_EVENT, refreshStuck);
+
+        return () => window.removeEventListener(OFFLINE_SYNC_RAN_EVENT, refreshStuck);
+    }, []);
+
+    // same checks as the online form; a phone with no room saves nothing and says so
+    const queueOffline = async (uuid: string) => {
+        const found = healthReportErrors(form.data.description, form.data.photo, form.data.audio);
+
+        setLocalErrors(found);
+        setSaveError(false);
+
+        if (Object.keys(found).length > 0) {
+            return;
+        }
+
+        try {
+            await enqueue(
+                await buildHealthReport({
+                    farmer: farmer.id,
+                    farmUnitId: farmUnit.id,
+                    description: form.data.description,
+                    photo: form.data.photo as File,
+                    audio: form.data.audio,
+                    uuid,
+                }),
+                currentUser,
+            );
+        } catch {
+            setSaveError(true);
+
+            return;
+        }
+
+        discardRecording();
+        form.reset("description", "photo", "audio");
+        setPreview(null);
+        setSavedOffline(true);
+        recordKey.renew();
+    };
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
+        setSavedOffline(false);
+        setLocalErrors({});
+
+        const uuid = recordKey.current();
+
+        if (!navigator.onLine) {
+            void queueOffline(uuid);
+
+            return;
+        }
+
+        form.transform((data) => ({ ...data, idempotency_key: uuid }));
+
         form.post(`/my-farm/${farmUnit.id}/report-problem`, {
             forceFormData: true,
+            onError: (errs) => {
+                // an empty errors object means no proper reply came back, not that validation failed
+                if (Object.keys(errs).length === 0) {
+                    void queueOffline(uuid);
+                } else {
+                    recordKey.renew();
+                }
+            },
         });
     };
 
@@ -236,6 +325,24 @@ function CreateContent({ farmUnit }: Props) {
                 {farmUnit.name}. Tell us what you are seeing, and add one
                 photo. We will send this to the right person to help.
             </p>
+
+            {savedOffline && (
+                <div className="mt-4 p-3" style={{ background: warnBg, color: "#B45309", fontSize: "1.0625rem" }}>
+                    Saved on your phone. It has not reached the server yet — it will send itself as soon as you are
+                    back online.
+                </div>
+            )}
+
+            {saveError && <p style={errorText}>{GENERIC_ERROR}</p>}
+
+            {stuckItems.map((item) => (
+                <div key={item.id} className="mt-4 p-3" style={{ background: warnBg, fontSize: "1.0625rem" }}>
+                    <p style={{ color: "#B45309", margin: 0 }}>Not sent yet. Your record is saved on this phone.</p>
+                    <p style={{ color: textSecondary, fontSize: "0.9375rem", marginTop: "4px" }}>
+                        {item.payload.description} · {shortDate(item.payload.event_date)}
+                    </p>
+                </div>
+            ))}
 
             <form onSubmit={submit} className="mt-5">
                 <div className="mb-4">

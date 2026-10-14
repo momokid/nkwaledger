@@ -89,6 +89,8 @@ class IncomeAndExpenditureService
     private function cashFlow(int $farmerProfileId, string $from, string $to, bool $includeProvisional, string $type): int
     {
         return (int) Transaction::query()
+            ->notCancelled()
+            ->tap(fn($query) => Transaction::excludeNonCash($query))
             ->where('farmer_profile_id', $farmerProfileId)
             ->where('transaction_type', $type)
             ->whereDate('transaction_date', '>=', $from)
@@ -144,11 +146,7 @@ class IncomeAndExpenditureService
             ->where('journal_lines.farmer_profile_id', $farmerProfileId)
             ->whereDate('journal_lines.transaction_date', '>=', $from)
             ->whereDate('journal_lines.transaction_date', '<=', $to)
-            ->whereIn('transactions.transaction_type', [
-                Transaction::INCOME,
-                Transaction::EXPENSE,
-                Transaction::LOSS,
-            ])
+            ->whereIn('transactions.transaction_type', Transaction::FIGURE_TYPES)
             // the money the farmer holds is not earnings or spending, it is where it sits
             ->where('ledger_accounts.is_settlement', false)
             // an asset acquired distorts operating profit - pulled out of the expense total
@@ -157,6 +155,7 @@ class IncomeAndExpenditureService
                 ->whereNot('transactions.transaction_type', Transaction::EXPENSE)
                 ->orWhere('transaction_templates.is_stock_purchase', false))
             ->when(! $includeProvisional, fn($query) => $query->where('transactions.is_provisional', false))
+            ->tap(fn($query) => Transaction::excludeCancelled($query))
             // earning sits on the credit side, paying out and value gone sit on the debit side
             ->where(fn($query) => $query
                 ->where(fn($income) => $income
@@ -181,6 +180,7 @@ class IncomeAndExpenditureService
             ->whereDate('journal_lines.transaction_date', '>=', $from)
             ->whereDate('journal_lines.transaction_date', '<=', $to)
             ->where('transactions.is_provisional', true)
+            ->tap(fn($query) => Transaction::excludeCancelled($query))
             ->where('ledger_accounts.is_settlement', false)
             ->where(fn($query) => $query
                 ->where(fn($income) => $income

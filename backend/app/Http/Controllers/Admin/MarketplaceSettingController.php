@@ -34,7 +34,10 @@ class MarketplaceSettingController extends Controller
             throw ValidationException::withMessages(['key' => 'Unknown setting.']);
         }
 
-        $this->settings->set($key, $request->validated()['value'], $request->user());
+        // an empty string is how a setting like the announcement banner gets turned
+        // off entirely - set() takes a real string, never null, so a blank submission
+        // becomes '' rather than a type error
+        $this->settings->set($key, $request->validated()['value'] ?? '', $request->user());
 
         return back()->with('success', 'Setting updated.');
     }

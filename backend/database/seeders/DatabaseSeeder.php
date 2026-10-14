@@ -20,9 +20,13 @@ class DatabaseSeeder extends Seeder
             // accounts first, since the templates look them up by name
             LedgerAccountSeeder::class,
             TransactionTemplateSeeder::class,
+            LoanTemplateSeeder::class,
+            RepaymentSeeder::class,
+            InstitutionSeeder::class,
             MarketplaceSettingSeeder::class,
             ProductCategorySeeder::class,
             ProductUnitSeeder::class,
+            MarketplaceCategorySeeder::class,
         ]);
     }
 }

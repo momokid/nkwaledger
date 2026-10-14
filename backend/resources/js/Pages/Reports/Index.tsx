@@ -1,6 +1,7 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import Button from "@/Components/Button";
+import { LOAN_NOTICE } from "@/lib/loanNotice";
 import { cedis, shortDate } from "@/lib/format";
 import { router } from "@inertiajs/react";
 import { PageProps } from "@/types";
@@ -20,13 +21,14 @@ interface Header {
     notice: string;
 }
 
-type MoneyClass = "asset" | "expenditure" | "income" | "liability";
+type MoneyClass = "asset" | "expenditure" | "income" | "liability" | "loan_repayment";
 
 const MONEY_CLASS_LABELS: Record<MoneyClass, string> = {
     asset: "Asset",
     expenditure: "Expenditure",
     income: "Income",
     liability: "Liability",
+    loan_repayment: "Loan repayment",
 };
 
 interface StatementRow {
@@ -41,6 +43,10 @@ interface StatementRow {
     cancel_state: string;
     value_lost: number;
     money_class: MoneyClass | null;
+    is_non_cash: boolean;
+    non_cash: number;
+    is_loan?: boolean;
+    lender?: string | null;
 }
 
 interface IncomeRow {
@@ -68,7 +74,10 @@ interface Report {
     total_assets?: number;
     total_expenditure?: number;
     total_liability?: number;
-    cancelled?: number;
+    total_loan_repayment?: number;
+    non_cash?: number;
+    cancelled_in?: number;
+    cancelled_out?: number;
     income_rows?: IncomeRow[];
     expense_rows?: IncomeRow[];
     loss_rows?: IncomeRow[];
@@ -671,6 +680,39 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                                         Cancelled
                                     </span>
                                 )}
+                                {row.is_non_cash && (
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.9375rem",
+                                            color: colours.textSecondary,
+                                        }}
+                                    >
+                                        Non-cash {cedis(row.non_cash)}
+                                    </span>
+                                )}
+                                {row.lender && (
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.9375rem",
+                                            color: colours.textSecondary,
+                                        }}
+                                    >
+                                        {row.lender}
+                                    </span>
+                                )}
+                                {row.is_loan && (
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: "0.9375rem",
+                                            color: colours.textSecondary,
+                                        }}
+                                    >
+                                        {LOAN_NOTICE}
+                                    </span>
+                                )}
                             </td>
                             <td
                                 className="px-4 py-3"
@@ -853,6 +895,56 @@ function Statement({ report, colours }: { report: Report; colours: Colours }) {
                             </td>
                             <td className="px-4 py-2" />
                             <td className="px-4 py-2" />
+                        </tr>
+                    )}
+                    {(report.total_loan_repayment ?? 0) > 0 && (
+                        <tr>
+                            <td
+                                className="px-4 py-2"
+                                colSpan={3}
+                                style={{
+                                    color: colours.textSecondary,
+                                    fontSize: "0.9375rem",
+                                }}
+                            >
+                                Loan repayment
+                            </td>
+                            <td className="px-4 py-2" />
+                            <td
+                                className="px-4 py-2"
+                                style={{
+                                    color: colours.textSecondary,
+                                    fontSize: "0.9375rem",
+                                }}
+                            >
+                                {cedis(report.total_loan_repayment ?? 0)}
+                            </td>
+                            <td className="px-4 py-2" />
+                        </tr>
+                    )}
+                    {(report.non_cash ?? 0) > 0 && (
+                        <tr>
+                            <td
+                                className="px-4 py-2"
+                                colSpan={3}
+                                style={{
+                                    color: colours.textSecondary,
+                                    fontSize: "0.9375rem",
+                                }}
+                            >
+                                Non-cash
+                            </td>
+                            <td className="px-4 py-2" />
+                            <td className="px-4 py-2" />
+                            <td
+                                className="px-4 py-2"
+                                style={{
+                                    color: colours.textSecondary,
+                                    fontSize: "0.9375rem",
+                                }}
+                            >
+                                {cedis(report.non_cash ?? 0)}
+                            </td>
                         </tr>
                     )}
                 </tfoot>

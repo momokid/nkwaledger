@@ -13,17 +13,18 @@ interface ReportRow {
 
 interface Props extends PageProps {
     reports: ReportRow[];
+    waitingCount: number;
 }
 
-export default function Index({ reports }: Props) {
+export default function Index({ reports, waitingCount }: Props) {
     return (
         <AdminLayout title="Disease & Health Reports">
-            <IndexContent reports={reports} />
+            <IndexContent reports={reports} waitingCount={waitingCount} />
         </AdminLayout>
     );
 }
 
-function IndexContent({ reports }: Pick<Props, "reports">) {
+function IndexContent({ reports, waitingCount }: Pick<Props, "reports" | "waitingCount">) {
     const { dark } = useTheme();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -50,6 +51,11 @@ function IndexContent({ reports }: Pick<Props, "reports">) {
                 These reports are waiting because the farmer's agent has no
                 vet or adviser linked yet. Add the link on the Officer
                 Assignments page and these will move over automatically.
+            </p>
+
+            <p style={{ fontSize: "1.0625rem", color: text, marginTop: "16px" }}>
+                <span style={{ color: textSecondary }}>Health reports waiting for a photo</span>{" "}
+                <strong data-testid="waiting-count">{waitingCount}</strong>
             </p>
 
             {reports.length === 0 ? (

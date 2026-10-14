@@ -5,6 +5,7 @@ namespace App\Services\Ledger\Reports;
 use App\Models\FarmerProfile;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
 class TrialBalanceService
@@ -86,6 +87,7 @@ class TrialBalanceService
             ->whereDate('journal_lines.transaction_date', '>=', $from)
             ->whereDate('journal_lines.transaction_date', '<=', $to)
             ->where('transactions.is_provisional', true)
+            ->tap(fn($query) => Transaction::onlyLive($query))
             ->sum('journal_lines.debit_minor');
     }
 

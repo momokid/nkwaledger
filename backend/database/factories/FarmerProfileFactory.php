@@ -37,6 +37,7 @@ class FarmerProfileFactory extends Factory
         return $this->state(fn() => [
             'identity_type' => $type,
             'identity_number_hash' => IdentityDocument::hash($number ?? $this->faker->unique()->numerify('GHA-#########-#')),
+            'identity_photo_path' => 'kyc/test.webp',
         ]);
     }
 

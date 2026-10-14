@@ -375,6 +375,17 @@ it('records what an agent typed for a farmer', function () {
     expect(Transaction::first()->recorded_by)->toBe($this->agent->id);
 });
 
+// locking the farmer's own sign-in does not stop the agent keeping their book
+it('still records for a farmer whose account is locked', function () {
+    $this->profile->user->forceFill(['locked_at' => now()])->save();
+
+    $this->actingAs($this->agent)
+        ->post("/agent/farmers/{$this->profile->uuid}/records", $this->payload)
+        ->assertRedirect();
+
+    expect(Transaction::count())->toBe(1);
+});
+
 // an agent works their own book and nobody else's
 it('hides a farmer the agent does not hold', function () {
     $other = FarmerProfile::factory()->create();

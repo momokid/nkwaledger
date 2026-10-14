@@ -3,6 +3,10 @@
 // exportable — losing the key (see deleteDeviceKey, called on logout) is what
 // makes previously queued data permanently unreadable.
 
+import { buildQueueRow, ownedBy } from "./queueOwner";
+import { withQueueLock } from "./queueLock";
+import { RowSummary, summaryOf } from "@/types/offlineQueue";
+
 const DB_NAME = "nkwa-offline-store";
 const DB_VERSION = 1;
 const KEY_STORE = "device-key";
@@ -30,8 +34,18 @@ interface QueueRow {
     id: string;
     envelope: EncryptedEnvelope;
     createdAt: string;
+    seq?: number;
     synced: boolean;
+    owner?: string;
     needsAttention?: string;
+    attempts?: number;
+    stuck?: boolean;
+    // the report's text reached the server; its media is still on this row until every file is confirmed
+    textSent?: boolean;
+    // the farmer said "Send now" for this report's files; never asked again for it
+    dataApproved?: boolean;
+    // what a list shows, encrypted apart from the payload so media is never opened to draw a row
+    summary?: EncryptedEnvelope;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -94,17 +108,23 @@ async function loadOrGenerateDeviceKey(): Promise<CryptoKey> {
         return existing as CryptoKey;
     }
 
-    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+    const generated = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
         "encrypt",
         "decrypt",
     ]);
 
+    // first writer wins: a key someone else stored meanwhile is the one everybody uses
     const writeTx = db.transaction(KEY_STORE, "readwrite");
-    writeTx.objectStore(KEY_STORE).put(key, DEVICE_KEY_ID);
+    const winner = (await requestResult(writeTx.objectStore(KEY_STORE).get(DEVICE_KEY_ID))) as CryptoKey | undefined;
+
+    if (!winner) {
+        writeTx.objectStore(KEY_STORE).put(generated, DEVICE_KEY_ID);
+    }
+
     await whenDone(writeTx);
     db.close();
 
-    return key;
+    return winner ?? generated;
 }
 
 export async function deleteDeviceKey(): Promise<void> {
@@ -135,27 +155,37 @@ export async function decrypt<T = unknown>(key: CryptoKey, envelope: EncryptedEn
     return JSON.parse(new TextDecoder().decode(plaintext)) as T;
 }
 
-export async function enqueue(payload: unknown): Promise<string> {
-    const key = await getOrCreateDeviceKey();
-    const envelope = await encrypt(key, payload);
-    const row: QueueRow = {
-        id: crypto.randomUUID(),
-        envelope,
-        createdAt: new Date().toISOString(),
-        synced: false,
-    };
+export function enqueue(payload: unknown, owner: string | null = null): Promise<string> {
+    return withQueueLock(async () => {
+        // another tab may have deleted the key since this one cached it
+        deviceKeyPromise = null;
 
-    const db = await openDatabase();
-    const tx = db.transaction(QUEUE_STORE, "readwrite");
-    tx.objectStore(QUEUE_STORE).put(row);
-    await whenDone(tx);
-    db.close();
+        const key = await getOrCreateDeviceKey();
+        const envelope = await encrypt(key, payload);
+        const details = summaryOf(payload);
+        const summary = details ? await encrypt(key, details) : undefined;
+        const row: QueueRow = buildQueueRow(
+            { id: crypto.randomUUID(), envelope, ...(summary ? { summary } : {}), createdAt: new Date().toISOString() },
+            owner,
+        );
 
-    return row.id;
+        const db = await openDatabase();
+        const tx = db.transaction(QUEUE_STORE, "readwrite");
+        const store = tx.objectStore(QUEUE_STORE);
+        const existing = (await requestResult(store.getAll())) as QueueRow[];
+        const seq = Math.max(0, ...existing.map((item) => item.seq ?? 0)) + 1;
+        store.put({ ...row, seq });
+        await whenDone(tx);
+        db.close();
+
+        return row.id;
+    });
 }
 
-// oldest first, so a partial sync retries in the order the farmer actually recorded things
-export async function listPending<T = unknown>(): Promise<QueueItem<T>[]> {
+const bySavedOrder = (a: QueueRow, b: QueueRow) => (a.seq ?? 0) - (b.seq ?? 0) || a.createdAt.localeCompare(b.createdAt);
+
+// saved order (seq), not phone-clock order, so a partial sync retries in the order the farmer actually recorded things
+export async function listPending<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
     const key = await getOrCreateDeviceKey();
 
     const db = await openDatabase();
@@ -163,9 +193,9 @@ export async function listPending<T = unknown>(): Promise<QueueItem<T>[]> {
     const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
     db.close();
 
-    const pending = rows
-        .filter((row) => !row.synced && !row.needsAttention)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const pending = ownedBy(rows, currentUser)
+        .filter((row) => !row.synced && !row.needsAttention && !row.stuck && !row.textSent)
+        .sort(bySavedOrder);
 
     return Promise.all(
         pending.map(async (row) => ({
@@ -192,7 +222,66 @@ export async function markNeedsAttention(id: string, message: string): Promise<v
     db.close();
 }
 
-export async function listNeedsAttention<T = unknown>(): Promise<NeedsAttentionItem<T>[]> {
+export async function markTextSent(id: string): Promise<void> {
+    await patchRow(id, { textSent: true });
+}
+
+export async function markDataApproved(id: string): Promise<void> {
+    await patchRow(id, { dataApproved: true });
+}
+
+// kept on the device with everything it holds, never retried by itself
+export async function markStuck(id: string): Promise<void> {
+    await patchRow(id, { stuck: true });
+}
+
+async function patchRow(id: string, change: Partial<QueueRow>): Promise<void> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(QUEUE_STORE);
+    const row = (await requestResult(store.get(id))) as QueueRow | undefined;
+
+    if (row) {
+        store.put({ ...row, ...change });
+    }
+
+    await whenDone(tx);
+    db.close();
+}
+
+// rows whose text is on the server and whose files are still being sent: ids only, nothing is opened here
+export async function listMediaIds(currentUser: string | null): Promise<Array<{ id: string; approved: boolean }>> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    return ownedBy(rows, currentUser)
+        .filter((row) => row.textSent && !row.synced && !row.stuck)
+        .sort(bySavedOrder)
+        .map((row) => ({ id: row.id, approved: row.dataApproved === true }));
+}
+
+// one item, opened on its own
+export async function readItem<T = unknown>(id: string): Promise<T | null> {
+    const key = await getOrCreateDeviceKey();
+
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const row = (await requestResult(tx.objectStore(QUEUE_STORE).get(id))) as QueueRow | undefined;
+    db.close();
+
+    return row ? decrypt<T>(key, row.envelope) : null;
+}
+
+export interface StuckRow {
+    id: string;
+    // null for a row saved before summaries existed: it is listed without details
+    summary: RowSummary | null;
+}
+
+// stuck rows for a list: only each row's small summary is opened, never its payload or media
+export async function listStuckSummaries(currentUser: string | null): Promise<StuckRow[]> {
     const key = await getOrCreateDeviceKey();
 
     const db = await openDatabase();
@@ -200,7 +289,103 @@ export async function listNeedsAttention<T = unknown>(): Promise<NeedsAttentionI
     const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
     db.close();
 
-    const flagged = rows.filter((row) => !!row.needsAttention);
+    return Promise.all(
+        ownedBy(rows, currentUser)
+            .filter((row) => row.stuck && !row.synced)
+            .sort(bySavedOrder)
+            .map(async (row) => ({ id: row.id, summary: row.summary ? await decrypt<RowSummary>(key, row.summary) : null })),
+    );
+}
+
+export async function stuckCount(currentUser: string | null): Promise<number> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    return ownedBy(rows, currentUser).filter((row) => row.stuck && !row.synced).length;
+}
+
+// back in the queue with a fresh count, so the next sync sends it
+export async function retryStuck(id: string): Promise<void> {
+    await patchRow(id, { stuck: false, attempts: 0 });
+}
+
+// only a stuck row can be deleted this way, and only the farmer asks for it
+export async function deleteStuck(id: string): Promise<void> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(QUEUE_STORE);
+    const row = (await requestResult(store.get(id))) as QueueRow | undefined;
+
+    if (row?.stuck) {
+        store.delete(id);
+    }
+
+    await whenDone(tx);
+    db.close();
+}
+
+export const MAX_FAILED_ATTEMPTS = 5;
+
+// the fifth failure parks the item as stuck: kept on the device, never retried automatically
+export async function recordFailedAttempt(id: string): Promise<void> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(QUEUE_STORE);
+    const row = (await requestResult(store.get(id))) as QueueRow | undefined;
+
+    if (row) {
+        const attempts = (row.attempts ?? 0) + 1;
+        store.put({ ...row, attempts, ...(attempts >= MAX_FAILED_ATTEMPTS ? { stuck: true } : {}) });
+    }
+
+    await whenDone(tx);
+    db.close();
+}
+
+// everything still on the device, whoever it belongs to: `own` is the signed-in user's items that
+// can still be sent or need attention (stuck ones are kept but never block anything)
+export async function queueCounts(currentUser: string | null): Promise<{ own: number; total: number }> {
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = ((await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[]).filter((row) => !row.synced);
+    db.close();
+
+    return { own: ownedBy(rows, currentUser).filter((row) => !row.stuck).length, total: rows.length };
+}
+
+// items that failed five times: kept on the device, shown to their owner, never sent again by themselves
+export async function listStuck<T = unknown>(currentUser: string | null): Promise<QueueItem<T>[]> {
+    const key = await getOrCreateDeviceKey();
+
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    const stuck = ownedBy(rows, currentUser)
+        .filter((row) => row.stuck && !row.synced)
+        .sort(bySavedOrder);
+
+    return Promise.all(
+        stuck.map(async (row) => ({
+            id: row.id,
+            payload: await decrypt<T>(key, row.envelope),
+            createdAt: row.createdAt,
+        })),
+    );
+}
+
+export async function listNeedsAttention<T = unknown>(currentUser: string | null): Promise<NeedsAttentionItem<T>[]> {
+    const key = await getOrCreateDeviceKey();
+
+    const db = await openDatabase();
+    const tx = db.transaction(QUEUE_STORE, "readonly");
+    const rows = (await requestResult(tx.objectStore(QUEUE_STORE).getAll())) as QueueRow[];
+    db.close();
+
+    const flagged = ownedBy(rows, currentUser).filter((row) => !!row.needsAttention);
 
     return Promise.all(
         flagged.map(async (row) => ({

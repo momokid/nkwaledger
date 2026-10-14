@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\CommissionStatus;
 use App\Enums\OrderEventType;
+use App\Enums\OrderPaymentMethod;
 use App\Models\Commission;
 use App\Models\FarmerProfile;
 use App\Models\Kiosk;
@@ -211,7 +212,11 @@ class OrderService
         // both payment methods are real payment events by the time "Received" fires, so
         // this always settles against a real cash/bank account, never Accounts Payable -
         // never provisional, never on credit
-        $settlementAccountName = $order->payment_method->value === 'bank' ? 'Bank A/C' : 'Cash A/C';
+        $settlementAccountName = match ($order->payment_method) {
+            OrderPaymentMethod::Bank => 'Bank A/C',
+            OrderPaymentMethod::Momo => 'Momo A/C',
+            OrderPaymentMethod::CashOnDelivery => 'Cash A/C',
+        };
         $settlementAccount = LedgerAccount::query()->where('name', $settlementAccountName)->firstOrFail();
 
         $transaction = $this->posting->post(new PostingRequest(

@@ -50,6 +50,7 @@ test('adding a product with a new barcode creates a catalog record and a kiosk p
         'category_id' => $category->id,
         'unit_id' => $unit->id,
         'price' => 15000,
+        'images' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('catalog_products', ['barcode' => '00012345678905', 'name' => 'NPK Fertilizer 50kg']);
@@ -64,6 +65,7 @@ test('adding a product with a barcode already in the catalog reuses it instead o
         'raw_code' => '00012345678905',
         'name' => 'Ignored Name',
         'price' => 9900,
+        'images' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasNoErrors();
 
     expect(CatalogProduct::count())->toBe(1);
@@ -76,6 +78,7 @@ test('adding a product with no barcode marks it as having none', function () {
     $this->actingAs($kiosk->supplier->user)->post("/supplier/kiosks/{$kiosk->uuid}/products", [
         'name' => 'Loose Tomatoes',
         'price' => 500,
+        'images' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('catalog_products', ['name' => 'Loose Tomatoes', 'barcode' => null]);
@@ -88,6 +91,7 @@ test('a gs1 qr fills in the batch and expiry on the kiosk product', function () 
         'raw_code' => 'https://id.gs1.org/01/00012345678905/10/BATCH42/17/261231',
         'name' => 'Vet Dewormer',
         'price' => 4500,
+        'images' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasNoErrors();
 
     $product = KioskProduct::where('kiosk_id', $kiosk->id)->first();
@@ -104,6 +108,7 @@ test('a product in a category that requires an expiry date cannot be added witho
         'name' => 'Chemical Spray',
         'category_id' => $category->id,
         'price' => 2000,
+        'images' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasErrors('expiry_date');
 
     expect(KioskProduct::count())->toBe(0);
@@ -120,6 +125,7 @@ test('the required-expiry check follows the reused catalog product\'s own catego
         'name' => 'Whatever',
         'category_id' => $noExpiryCategory->id,
         'price' => 2000,
+        'images' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasErrors('expiry_date');
 });
 
@@ -129,6 +135,7 @@ test('creating a kiosk product writes its first price history row', function () 
     $this->actingAs($kiosk->supplier->user)->post("/supplier/kiosks/{$kiosk->uuid}/products", [
         'name' => 'Loose Tomatoes',
         'price' => 500,
+        'images' => [UploadedFile::fake()->image('produce.jpg')],
     ]);
 
     $product = KioskProduct::where('kiosk_id', $kiosk->id)->first();
@@ -138,6 +145,17 @@ test('creating a kiosk product writes its first price history row', function () 
         'old_price' => null,
         'new_price' => 500,
     ]);
+});
+
+test('a product cannot be added with zero photos', function () {
+    $kiosk = supplierWithActiveKiosk();
+
+    $this->actingAs($kiosk->supplier->user)->post("/supplier/kiosks/{$kiosk->uuid}/products", [
+        'name' => 'Loose Tomatoes',
+        'price' => 500,
+    ])->assertSessionHasErrors('images');
+
+    expect(KioskProduct::count())->toBe(0);
 });
 
 test('a product cannot be added with more than the allowed number of images', function () {

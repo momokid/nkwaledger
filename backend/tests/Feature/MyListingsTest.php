@@ -11,8 +11,11 @@ use App\Models\ProduceListing;
 use App\Models\Transaction;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
+    Storage::fake('public');
     $this->seed(DatabaseSeeder::class);
 
     AccountingPeriod::create([
@@ -34,13 +37,39 @@ test('a farmer can post a listing on their own batch', function () {
     $this->actingAs($this->farmerUser)->post('/my-listings', [
         'farm_unit_stock_id' => $this->stock->id,
         'quantity' => 10,
+        'photos' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasNoErrors();
 
     $listing = ProduceListing::first();
 
     expect($listing)->not->toBeNull()
         ->and($listing->status)->toBe(ProduceListingStatus::Active)
-        ->and((float) $listing->quantity_listed)->toBe(10.0);
+        ->and((float) $listing->quantity_listed)->toBe(10.0)
+        ->and($listing->images)->toHaveCount(1);
+});
+
+test('a listing cannot be posted without at least one photo', function () {
+    $this->actingAs($this->farmerUser)->post('/my-listings', [
+        'farm_unit_stock_id' => $this->stock->id,
+        'quantity' => 10,
+    ])->assertSessionHasErrors('photos');
+
+    expect(ProduceListing::count())->toBe(0);
+});
+
+test('a listing cannot be posted with more than 3 photos', function () {
+    $this->actingAs($this->farmerUser)->post('/my-listings', [
+        'farm_unit_stock_id' => $this->stock->id,
+        'quantity' => 10,
+        'photos' => [
+            UploadedFile::fake()->image('1.jpg'),
+            UploadedFile::fake()->image('2.jpg'),
+            UploadedFile::fake()->image('3.jpg'),
+            UploadedFile::fake()->image('4.jpg'),
+        ],
+    ])->assertSessionHasErrors('photos');
+
+    expect(ProduceListing::count())->toBe(0);
 });
 
 test('the my-listings index only shows this farmer\'s own listings', function () {
@@ -63,27 +92,32 @@ test('an agent-posted listing is invisible to browsing until the farmer agrees',
     $this->actingAs($agent)->post("/agent/farmers/{$this->farmer->uuid}/listings", [
         'farm_unit_stock_id' => $this->stock->id,
         'quantity' => 10,
+        'photos' => [UploadedFile::fake()->image('produce.jpg')],
     ])->assertSessionHasNoErrors();
 
     $listing = ProduceListing::first();
     expect($listing->status)->toBe(ProduceListingStatus::Draft);
 
-    // not yet visible on the public browse page
+    // not yet visible on that category's own Market Center row - assigned first
+    $category = \App\Models\MarketplaceCategory::factory()->create();
+    $listing->marketplaceCategories()->attach($category->id);
     $buyer = User::factory()->create();
-    $this->actingAs($buyer)->get('/produce-listings')
-        ->assertInertia(fn($page) => $page->where('listings.data', []));
+    $this->actingAs($buyer)->get("/market-center/{$category->slug}")
+        ->assertInertia(fn($page) => $page->where('items', []));
 
     // the farmer agrees, and only then does it appear
     $this->actingAs($this->farmerUser)->post("/my-listings/{$listing->uuid}/agree")->assertSessionHasNoErrors();
 
     expect($listing->fresh()->status)->toBe(ProduceListingStatus::Active);
 
-    $this->actingAs($buyer)->get('/produce-listings')
-        ->assertInertia(fn($page) => $page->where('listings.data.0.uuid', $listing->fresh()->uuid));
+    $this->actingAs($buyer)->get("/market-center/{$category->slug}")
+        ->assertInertia(fn($page) => $page->where('items.0.id', $listing->fresh()->uuid));
 });
 
-test('withdrawing a listing removes it from the public browse page and posts nothing', function () {
+test('withdrawing a listing removes it from Market Center and posts nothing', function () {
     $listing = ProduceListing::factory()->create(['farm_unit_stock_id' => $this->stock->id, 'farmer_profile_id' => $this->farmer->id]);
+    $category = \App\Models\MarketplaceCategory::factory()->create();
+    $listing->marketplaceCategories()->attach($category->id);
 
     $this->actingAs($this->farmerUser)->post("/my-listings/{$listing->uuid}/withdraw")->assertSessionHasNoErrors();
 
@@ -91,8 +125,8 @@ test('withdrawing a listing removes it from the public browse page and posts not
         ->and(Transaction::count())->toBe(0);
 
     $buyer = User::factory()->create();
-    $this->actingAs($buyer)->get('/produce-listings')
-        ->assertInertia(fn($page) => $page->where('listings.data', []));
+    $this->actingAs($buyer)->get("/market-center/{$category->slug}")
+        ->assertInertia(fn($page) => $page->where('items', []));
 });
 
 test('marking a listing sold records a real transaction and reduces the batch stock', function () {

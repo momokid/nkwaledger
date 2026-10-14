@@ -18,6 +18,7 @@ use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Throwable;
 
@@ -59,6 +60,8 @@ class PostingService
             throw PostingFailed::because('The number lost needs to be more than zero.');
         }
 
+        $this->assertWholeIfRequired($farmUnit, $request->quantityLost);
+
         $stocks = $this->activeStocks($farmUnit);
 
         if ($stocks->isEmpty()) {
@@ -74,7 +77,7 @@ class PostingService
 
         return [
             'quantity' => $request->quantityLost,
-            'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand),
+            'allocations' => $this->splitProportionally($stocks, $requested),
         ];
     }
 
@@ -92,6 +95,8 @@ class PostingService
             throw PostingFailed::because('The number sold needs to be more than zero.');
         }
 
+        $this->assertWholeIfRequired($farmUnit, $request->quantitySold);
+
         $stocks = $this->activeStocks($farmUnit);
 
         if ($stocks->isEmpty()) {
@@ -107,7 +112,7 @@ class PostingService
 
         return [
             'quantity' => $request->quantitySold,
-            'allocations' => $this->splitProportionally($stocks, $requested, $totalOnHand),
+            'allocations' => $this->splitProportionally($stocks, $requested),
         ];
     }
 
@@ -128,12 +133,23 @@ class PostingService
             throw PostingFailed::because('The number bought needs to be more than zero.');
         }
 
+        $this->assertWholeIfRequired($farmUnit, $request->quantityPurchased);
+
         $stocks = $this->activeStocks($farmUnit);
 
         return [
             'quantity' => $request->quantityPurchased,
             'stock' => $stocks->isEmpty() ? null : $stocks->last(),
         ];
+    }
+
+    private function assertWholeIfRequired(?FarmUnit $farmUnit, string $quantity): void
+    {
+        $refusal = $farmUnit?->quantityRefusal($quantity);
+
+        if ($refusal !== null) {
+            throw PostingFailed::because($refusal);
+        }
     }
 
     private function activeStocks(?FarmUnit $farmUnit)
@@ -146,23 +162,30 @@ class PostingService
             ->get();
     }
 
+    // works in hundredths so the parts add up exactly; only a batch with stock on hand takes a share
+    // (the last such batch absorbs the rounding), and no batch is ever given more than it holds
     /** @param \Illuminate\Support\Collection<int, FarmUnitStock> $stocks */
-    private function splitProportionally($stocks, float $requested, float $totalOnHand): array
+    private function splitProportionally($stocks, float $requested): array
     {
+        $live = $stocks->filter(fn($stock) => (float) $stock->current_quantity > 0)->values();
+        $held = $live->map(fn($stock) => (int) round((float) $stock->current_quantity * 100))->all();
+        $total = array_sum($held);
+        $wanted = (int) round($requested * 100);
+
+        $shares = array_map(fn($amount) => (int) round($wanted * $amount / $total), $held);
+        $diff = $wanted - array_sum($shares);
+
+        for ($i = count($shares) - 1; $i >= 0 && $diff !== 0; $i--) {
+            $move = $diff > 0 ? min($diff, $held[$i] - $shares[$i]) : -min(-$diff, $shares[$i]);
+            $shares[$i] += $move;
+            $diff -= $move;
+        }
+
         $allocations = [];
-        $allocatedSoFar = 0.0;
 
-        foreach ($stocks as $index => $stock) {
-            $isLast = $index === $stocks->count() - 1;
-            $available = (float) $stock->current_quantity;
-
-            $share = $isLast
-                ? round($requested - $allocatedSoFar, 2)
-                : round($requested * ($available / $totalOnHand), 2);
-
-            if ($share > 0) {
-                $allocations[] = ['stock' => $stock, 'quantity' => $share];
-                $allocatedSoFar += $share;
+        foreach ($live as $index => $stock) {
+            if ($shares[$index] > 0) {
+                $allocations[] = ['stock' => $stock, 'quantity' => $shares[$index] / 100];
             }
         }
 
@@ -175,9 +198,20 @@ class PostingService
             return null;
         }
 
-        return Transaction::query()
+        $existing = Transaction::query()
             ->where('idempotency_key', $request->idempotencyKey)
             ->first();
+
+        // a key from someone else's farmer is never ours to return
+        if ($existing !== null && (int) $existing->farmer_profile_id !== $request->farmerProfileId) {
+            throw PostingFailed::because('Something went wrong. Please try again.');
+        }
+
+        if ($existing !== null && ! Transaction::sameDetails($existing->transaction_template_id, Money::toDecimal($existing->amount_minor), $request->transactionTemplateId, $request->amount)) {
+            throw PostingFailed::because(Transaction::KEY_REUSED);
+        }
+
+        return $existing;
     }
 
     private function resolveTemplate(PostingRequest $request): TransactionTemplate
@@ -346,6 +380,7 @@ class PostingService
         foreach ($resolved['allocations'] as $allocation) {
             FarmUnitStockMovement::create([
                 'farm_unit_stock_id' => $allocation['stock']->id,
+                'transaction_id' => $transaction->id,
                 'reason' => $reason,
                 'quantity' => $allocation['quantity'],
                 'occurred_on' => $transaction->transaction_date,
@@ -368,6 +403,7 @@ class PostingService
         if ($resolved['stock'] !== null) {
             FarmUnitStockMovement::create([
                 'farm_unit_stock_id' => $resolved['stock']->id,
+                'transaction_id' => $transaction->id,
                 'reason' => MovementReason::Purchase,
                 'quantity' => $resolved['quantity'],
                 'occurred_on' => $transaction->transaction_date,
@@ -377,7 +413,7 @@ class PostingService
             return;
         }
 
-        FarmUnitStock::create([
+        $stock = FarmUnitStock::create([
             'farm_unit_id' => $farmUnit->id,
             'source' => $template->stock_source ?? StockSource::Purchase,
             'opening_quantity' => $resolved['quantity'],
@@ -387,6 +423,8 @@ class PostingService
             'acquisition_cost' => $transaction->amount_minor / 100,
             'recorded_by' => $request->recordedBy,
         ]);
+
+        $stock->movements()->where('reason', MovementReason::Opening)->update(['transaction_id' => $transaction->id]);
     }
 
     private function legs(TransactionTemplate $template, ?int $settlementAccountId): array
@@ -461,7 +499,14 @@ class PostingService
                     throw $collision;
                 }
             } catch (Throwable $failure) {
-                throw PostingFailed::because($failure->getMessage());
+                // the raw message holds SQL and values, so it is logged, never shown
+                Log::error('Posting failed on a database error.', [
+                    'template_id' => $template->id,
+                    'farmer_id' => $request->farmerProfileId,
+                    'exception' => $failure,
+                ]);
+
+                throw PostingFailed::system('Something went wrong. Please try again.');
             }
         }
 

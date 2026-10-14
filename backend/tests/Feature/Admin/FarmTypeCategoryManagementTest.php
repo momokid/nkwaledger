@@ -47,6 +47,7 @@ test('a user without farm-type-categories.create cannot create a category', func
 
 test('a user with farm-type-categories.create can create a category', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-type-categories.view', 'farm-type-categories.create']);
 
     $this->actingAs($user)->post('/admin/farm-type-categories', [
@@ -62,6 +63,7 @@ test('creating a category with a duplicate name fails validation', function () {
     FarmTypeCategory::create(['name' => 'Crop']);
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-type-categories.view', 'farm-type-categories.create']);
 
     $this->actingAs($user)->post('/admin/farm-type-categories', [
@@ -83,6 +85,7 @@ test('a user without farm-type-categories.update cannot update a category', func
 test('a user with farm-type-categories.update can update a category, including toggling is_active', function () {
     $category = FarmTypeCategory::create(['name' => 'Crop', 'is_active' => true]);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-type-categories.view', 'farm-type-categories.update']);
 
     $this->actingAs($user)->put("/admin/farm-type-categories/{$category->id}", [
@@ -108,6 +111,7 @@ test('a user without farm-type-categories.delete cannot delete a category', func
 test('a user with farm-type-categories.delete can soft delete a category', function () {
     $category = FarmTypeCategory::create(['name' => 'Crop']);
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo(['farm-type-categories.view', 'farm-type-categories.delete']);
 
     $this->actingAs($user)->delete("/admin/farm-type-categories/{$category->id}")
@@ -123,6 +127,7 @@ test('a soft-deleted category is excluded from the default index', function () {
     $deleted->delete();
 
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farm-type-categories.view');
 
     $response = $this->actingAs($user)->get('/admin/farm-type-categories');
@@ -137,6 +142,7 @@ test('a soft-deleted category is excluded from the default index', function () {
 
 test('a user with farm-type-categories.view granted directly can view the list', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo('farm-type-categories.view');
 
     $response = $this->actingAs($user)->get('/admin/farm-type-categories');
@@ -153,6 +159,7 @@ test('a user with farm-type-categories.view granted directly can view the list',
 
 test('the permissions prop reflects all four permissions when fully granted', function () {
     $user = User::factory()->create();
+    $user->assignRole('admin');
     $user->givePermissionTo([
         'farm-type-categories.view',
         'farm-type-categories.create',

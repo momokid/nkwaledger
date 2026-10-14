@@ -28,6 +28,7 @@ class DiseaseReportQueueController extends Controller
 
         return Inertia::render('Admin/DiseaseReports/Index', [
             'reports' => $reports,
+            'waitingCount' => DiseaseReport::waitingCount(),
         ]);
     }
 }

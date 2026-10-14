@@ -4,6 +4,7 @@ import { Head, Link } from "@inertiajs/react";
 import { cedis, shortDate } from "@/lib/format";
 import { useState } from "react";
 import GreetingHeader from "@/Components/GreetingHeader";
+import UnsentRecordsCount from "@/Components/UnsentRecordsCount";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
@@ -27,6 +28,7 @@ interface Summary {
     net: number;
     cash_collected: number;
     cash_paid_out: number;
+    total_owed: number;
     trends: {
         income: Trend;
         expense: Trend;
@@ -173,15 +175,11 @@ function DashboardContent({
         },
         {
             key: "loans" as const,
-            label: "Active loans",
-            value: "GH 2,000",
+            label: "Total owed on loans",
+            value: `GHS ${cedis(summary.total_owed)}`,
             secondary: null,
-            trend: {
-                TrendIcon: IconMinus,
-                color: textSecondary,
-                label: "Due in 14 days",
-            },
-            soon: true,
+            trend: null,
+            soon: false,
             clickable: false,
         },
     ];
@@ -189,6 +187,8 @@ function DashboardContent({
     return (
         <>
             <GreetingHeader subtitle="Here is your farm's financial snapshot for today." />
+
+            <UnsentRecordsCount />
 
             <div
                 style={{
@@ -247,18 +247,20 @@ function DashboardContent({
                                 {kpi.secondary}
                             </p>
                         )}
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                fontSize: "0.9375rem",
-                                color: kpi.trend.color,
-                            }}
-                        >
-                            <kpi.trend.TrendIcon size={18} stroke={1.8} />
-                            {kpi.trend.label}
-                        </div>
+                        {kpi.trend && (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    fontSize: "0.9375rem",
+                                    color: kpi.trend.color,
+                                }}
+                            >
+                                <kpi.trend.TrendIcon size={18} stroke={1.8} />
+                                {kpi.trend.label}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

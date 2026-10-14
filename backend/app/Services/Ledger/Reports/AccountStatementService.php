@@ -6,6 +6,7 @@ use App\Enums\MoneyClass;
 use App\Models\CreditSettlement;
 use App\Models\FarmerProfile;
 use App\Models\LedgerAccount;
+use App\Models\Loan;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -37,7 +38,7 @@ class AccountStatementService
         $opening = $this->balanceBefore($farmerProfileId, $from, $to, $includeProvisional, $accountId, $page, $perPage, $settlementAccounts);
 
         $transactions = (clone $base)
-            ->with(['template:id,name,is_stock_purchase,is_liability', 'settlementAccount:id,name'])
+            ->with(['template:id,name,is_stock_purchase,is_liability,is_non_cash,settlement_side', 'settlementAccount:id,name'])
             ->withExists('reversedBy as is_cancelled')
             ->withExists(['reversalRequests as has_pending_cancel' => fn($query) => $query->where('status', 'pending')])
             ->whereDate('transaction_date', '>=', $from)
@@ -50,9 +51,15 @@ class AccountStatementService
 
         $originals = $this->loadOriginals($transactions);
 
-        $rows = $this->rows($transactions, $opening, $settlementAccounts, $originals);
+        $loanRecords = Loan::with('lender')->whereIn('transaction_id', $transactions->pluck('id'))->get()->mapWithKeys(fn(Loan $loan) => [$loan->transaction_id => $loan->lender_name])->all();
+
+        $rows = $this->rows($transactions, $opening, $settlementAccounts, $originals, $loanRecords);
 
         $profile = FarmerProfile::query()->with('user')->findOrFail($farmerProfileId);
+
+        $classTotals = AccountStatement::classTotals($rows);
+        $moneyTotals = AccountStatement::moneyTotals($rows);
+        $nonCashMinor = AccountStatement::nonCashTotal($rows);
 
         return new AccountStatement(
             farmerProfileId: $farmerProfileId,
@@ -64,6 +71,9 @@ class AccountStatementService
             openingBalanceMinor: $opening,
             generatedAt: now(),
             rows: $rows,
+            classTotals: $classTotals,
+            moneyTotals: $moneyTotals,
+            nonCashMinor: $nonCashMinor,
             total: $total,
             page: $page,
             perPage: $perPage,
@@ -76,14 +86,17 @@ class AccountStatementService
                 // the page number is in here, so two pages never sign the same
                 figures: [
                     'opening' => $opening,
-                    'in' => array_sum(array_map(fn($row) => $row->moneyInMinor, $rows)),
-                    'out' => array_sum(array_map(fn($row) => $row->moneyOutMinor, $rows)),
+                    'in' => $moneyTotals['in'],
+                    'out' => $moneyTotals['out'],
                     'closing' => $rows === [] ? $opening : $rows[array_key_last($rows)]->balanceMinor,
                     'page' => $page,
-                    'assets' => $this->sumByClass($rows, MoneyClass::Asset),
-                    'expenditure' => $this->sumByClass($rows, MoneyClass::Expenditure),
-                    'income' => $this->sumByClass($rows, MoneyClass::Income),
-                    'liability' => $this->sumByClass($rows, MoneyClass::Liability),
+                    'assets' => $classTotals[MoneyClass::Asset->value],
+                    'expenditure' => $classTotals[MoneyClass::Expenditure->value],
+                    'income' => $classTotals[MoneyClass::Income->value],
+                    'liability' => $classTotals[MoneyClass::Liability->value],
+                    // signed only when there is something to sign, so a statement without them keeps its code
+                    ...($classTotals[MoneyClass::LoanRepayment->value] > 0 ? ['loan_repayment' => $classTotals[MoneyClass::LoanRepayment->value]] : []),
+                    ...($nonCashMinor > 0 ? ['non_cash' => $nonCashMinor] : []),
                 ],
             ),
         );
@@ -104,9 +117,21 @@ class AccountStatementService
             ->whereIn('settlement_transaction_id', $settlements->pluck('id'))
             ->pluck('transaction_id', 'settlement_transaction_id');
 
-        $originalIds = $corrections->pluck('reverses_transaction_id')
-            ->merge($settlementOriginalIds->values())
-            ->unique();
+        // the correction of a credit payment takes the class of the credit record that payment was for,
+        // the same class the payment itself shows
+        $correctedIds = $corrections->pluck('reverses_transaction_id');
+
+        $paymentRecordIds = $correctedIds->isEmpty()
+            ? collect()
+            : CreditSettlement::query()
+                ->whereIn('settlement_transaction_id', $correctedIds)
+                ->pluck('transaction_id', 'settlement_transaction_id');
+
+        $subjectId = fn(Transaction $adjustment) => $adjustment->reverses_transaction_id !== null
+            ? ($paymentRecordIds->get($adjustment->reverses_transaction_id) ?? $adjustment->reverses_transaction_id)
+            : $settlementOriginalIds->get($adjustment->id);
+
+        $originalIds = $adjustments->map($subjectId)->filter()->unique();
 
         if ($originalIds->isEmpty()) {
             return collect();
@@ -114,25 +139,15 @@ class AccountStatementService
 
         $originalsById = Transaction::query()
             ->whereIn('id', $originalIds)
-            ->with('template:id,is_stock_purchase,is_liability')
+            ->with('template:id,is_stock_purchase,is_liability,is_non_cash,settlement_side')
             ->get()
             ->keyBy('id');
 
-        return $adjustments->mapWithKeys(function (Transaction $adjustment) use ($originalsById, $settlementOriginalIds) {
-            $originalId = $adjustment->reverses_transaction_id ?? $settlementOriginalIds->get($adjustment->id);
+        return $adjustments->mapWithKeys(function (Transaction $adjustment) use ($originalsById, $subjectId) {
+            $originalId = $subjectId($adjustment);
 
             return [$adjustment->id => $originalId !== null ? $originalsById->get($originalId) : null];
         })->filter();
-    }
-
-    // an original not found (should never happen, but the classifier still refuses to throw) is
-    // simply missing from this map, which classify() already treats the same as null
-    private function sumByClass(array $rows, MoneyClass $class): int
-    {
-        return array_sum(array_map(
-            fn($row) => $row->moneyClass === $class ? $row->moneyInMinor + $row->moneyOutMinor : 0,
-            $rows,
-        ));
     }
 
     private function cancelState(Transaction $transaction): string
@@ -156,7 +171,7 @@ class AccountStatementService
     }
 
     /** @return array<int, AccountStatementRow> */
-    private function rows(Collection $transactions, int $opening, Collection $settlementAccounts, Collection $originals): array
+    private function rows(Collection $transactions, int $opening, Collection $settlementAccounts, Collection $originals, array $loanRecords = []): array
     {
         $balance = $opening;
         $rows = [];
@@ -185,16 +200,25 @@ class AccountStatementService
                     ? (int) $transaction->amount_minor
                     : 0,
                 moneyClass: $this->classifier->classify($transaction, $in, $out, $originals->get($transaction->id)),
+                isNonCash: $this->isNonCash($transaction),
+                nonCashMinor: $this->isNonCash($transaction) ? (int) $transaction->amount_minor : 0,
+                isLoan: array_key_exists($transaction->id, $loanRecords),
+                lenderName: $loanRecords[$transaction->id] ?? null,
             );
         }
 
         return $rows;
     }
 
-    // money only moves when a settlement account was named
+    private function isNonCash(Transaction $transaction): bool
+    {
+        return (bool) $transaction->template?->is_non_cash;
+    }
+
+    // money only moves when a settlement account was named, and never for a non-cash record
     private function moneyIn(Transaction $transaction, Collection $settlementAccounts): int
     {
-        if (! $this->touchesCash($transaction, $settlementAccounts)) {
+        if ($this->isNonCash($transaction) || ! $this->touchesCash($transaction, $settlementAccounts)) {
             return 0;
         }
 
@@ -203,7 +227,7 @@ class AccountStatementService
 
     private function moneyOut(Transaction $transaction, Collection $settlementAccounts): int
     {
-        if (! $this->touchesCash($transaction, $settlementAccounts)) {
+        if ($this->isNonCash($transaction) || ! $this->touchesCash($transaction, $settlementAccounts)) {
             return 0;
         }
 
@@ -212,6 +236,11 @@ class AccountStatementService
 
     private function cashRises(Transaction $transaction): bool
     {
+        // a loan entry takes its direction from the side its template settles on
+        if ($transaction->transaction_type === Transaction::LOAN) {
+            return $transaction->template?->settlement_side === 'debit';
+        }
+
         if ($transaction->transaction_type !== Transaction::ADJUSTMENT) {
             return $transaction->transaction_type === Transaction::INCOME;
         }
@@ -246,6 +275,7 @@ class AccountStatementService
         Collection $settlementAccounts,
     ): int {
         $earlier = $this->scope($farmerProfileId, $includeProvisional, $accountId)
+            ->with('template:id,is_non_cash,settlement_side')
             ->whereDate('transaction_date', '<', $from)
             ->get();
 
@@ -256,6 +286,7 @@ class AccountStatementService
         }
 
         $skipped = $this->scope($farmerProfileId, $includeProvisional, $accountId)
+            ->with('template:id,is_non_cash,settlement_side')
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)
             ->orderBy('transaction_date')
@@ -275,6 +306,8 @@ class AccountStatementService
         Collection $settlementAccounts,
     ): int {
         $waiting = $this->scope($farmerProfileId, true, $accountId)
+            ->with('template:id,is_non_cash,settlement_side')
+            ->live()
             ->where('is_provisional', true)
             ->whereDate('transaction_date', '>=', $from)
             ->whereDate('transaction_date', '<=', $to)

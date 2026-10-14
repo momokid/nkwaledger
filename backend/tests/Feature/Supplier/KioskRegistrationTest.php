@@ -135,6 +135,7 @@ test('admin approving a confirmed second kiosk makes it visible', function () {
     ]);
 
     $admin = User::factory()->create();
+    $admin->assignRole('admin');
     $admin->givePermissionTo('marketplace-kiosks.approve');
 
     $this->actingAs($admin)->patch("/admin/marketplace/kiosks/{$second->uuid}/approve")

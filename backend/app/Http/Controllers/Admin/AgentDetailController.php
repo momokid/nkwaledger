@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Agent\AgentActivityFeedService;
@@ -24,7 +25,7 @@ class AgentDetailController extends Controller
         $from = $request->query('from', Carbon::now()->subDays(29)->toDateString());
         $to = $request->query('to', Carbon::now()->toDateString());
 
-        [$income, $expense, $activeCount, $rosterRows, $collected, $paidOut] = $this->roster->totalsFor(
+        [$income, $expense, $activeCount, $rosterRows, $collected, $paidOut, $loss] = $this->roster->totalsFor(
             $agent->id,
             $from,
             $to,
@@ -35,7 +36,7 @@ class AgentDetailController extends Controller
             'summary' => [
                 'total_income' => $income,
                 'total_expense' => $expense,
-                'net' => $income - $expense,
+                'net' => IncomeAndExpenditure::netOf($income, $expense, $loss),
                 'cash_collected' => $collected,
                 'cash_paid_out' => $paidOut,
             ],

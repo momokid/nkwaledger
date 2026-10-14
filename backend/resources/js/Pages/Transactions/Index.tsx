@@ -3,8 +3,9 @@ import Button from "@/Components/Button";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { useState } from "react";
+import RecordsAttention, { FlaggedRow } from "@/Components/RecordsAttention";
 
-type MoneyClass = "asset" | "expenditure" | "income" | "liability";
+type MoneyClass = "asset" | "expenditure" | "income" | "liability" | "loan_repayment";
 
 interface Row {
     uuid: string;
@@ -20,6 +21,8 @@ interface Row {
     account: string | null;
     value_lost: number;
     money_class: MoneyClass | null;
+    is_non_cash: boolean;
+    non_cash: number;
 }
 
 const MONEY_CLASS_LABELS: Record<MoneyClass, string> = {
@@ -27,6 +30,7 @@ const MONEY_CLASS_LABELS: Record<MoneyClass, string> = {
     expenditure: "Expenditure",
     income: "Income",
     liability: "Liability",
+    loan_repayment: "Loan repayment",
 };
 
 interface AccountOption {
@@ -54,7 +58,10 @@ interface Statement {
     total_expenditure: number;
     total_income: number;
     total_liability: number;
-    cancelled: number;
+    total_loan_repayment: number;
+    non_cash: number;
+    cancelled_in: number;
+    cancelled_out: number;
     provisional_held_back: number;
     total: number;
     page: number;
@@ -68,6 +75,8 @@ interface Props extends PageProps {
     accounts: AccountOption[];
     creditRows: CreditRow[];
     creditSettlementAccounts: AccountOption[];
+    flagged: FlaggedRow[];
+    canSettle: boolean;
     layout: "farmer" | "agent";
     basePath: string;
 }
@@ -90,6 +99,8 @@ type ContentProps = Pick<
     | "accounts"
     | "creditRows"
     | "creditSettlementAccounts"
+    | "flagged"
+    | "canSettle"
     | "layout"
     | "basePath"
 >;
@@ -101,6 +112,8 @@ function IndexContent({
     accounts,
     creditRows,
     creditSettlementAccounts,
+    flagged,
+    canSettle,
     layout,
     basePath,
 }: ContentProps) {
@@ -199,11 +212,20 @@ function IndexContent({
     const summary = [
         { label: "Money in", value: statement.total_in, colour: brand },
         { label: "Money out", value: statement.total_out, colour: "#B45309" },
-        ...(statement.cancelled > 0
+        ...(statement.cancelled_in > 0
             ? [
                   {
-                      label: "Cancelled",
-                      value: statement.cancelled,
+                      label: "Cancelled money in",
+                      value: statement.cancelled_in,
+                      colour: textSecondary,
+                  },
+              ]
+            : []),
+        ...(statement.cancelled_out > 0
+            ? [
+                  {
+                      label: "Cancelled money out",
+                      value: statement.cancelled_out,
                       colour: textSecondary,
                   },
               ]
@@ -223,6 +245,10 @@ function IndexContent({
             <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>
                 {layout === "agent" ? `${farmer.name} — records` : "My records"}
             </h2>
+
+            <div className="mt-4">
+                <RecordsAttention flagged={flagged} farmerId={farmer.id} />
+            </div>
 
             {flash?.success && (
                 <div
@@ -310,6 +336,17 @@ function IndexContent({
                             Expenditure GHS{" "}
                             {cedis(statement.total_expenditure)}
                         </span>
+                        {statement.total_loan_repayment > 0 && (
+                            <span
+                                style={{
+                                    fontSize: "0.9375rem",
+                                    color: textSecondary,
+                                }}
+                            >
+                                Loan repayment GHS{" "}
+                                {cedis(statement.total_loan_repayment)}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div>
@@ -344,6 +381,13 @@ function IndexContent({
                         )}
                     </div>
                 </div>
+                {statement.non_cash > 0 && (
+                    <span
+                        style={{ fontSize: "0.9375rem", color: textSecondary }}
+                    >
+                        Non-cash GHS {cedis(statement.non_cash)}
+                    </span>
+                )}
             </div>
 
             {statement.provisional_held_back > 0 && (
@@ -602,6 +646,17 @@ function IndexContent({
                                                 Corrected
                                             </span>
                                         )}
+                                        {row.is_non_cash && (
+                                            <span
+                                                style={{
+                                                    display: "block",
+                                                    fontSize: "0.9375rem",
+                                                    color: textSecondary,
+                                                }}
+                                            >
+                                                Non-cash {cedis(row.non_cash)}
+                                            </span>
+                                        )}
                                     </td>
                                     <td
                                         className="px-4 py-3"
@@ -833,7 +888,7 @@ function IndexContent({
                                             : "Paid"}
                                     </td>
                                     <td className="px-4 py-3">
-                                        {row.outstanding > 0 && (
+                                        {row.outstanding > 0 && canSettle && (
                                             <Button
                                                 look="secondary"
                                                 size="small"

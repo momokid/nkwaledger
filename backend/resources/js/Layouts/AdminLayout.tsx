@@ -4,9 +4,11 @@ import NotificationBell from "@/Components/NotificationBell";
 import ConnectivityIndicator from "@/Components/ConnectivityIndicator";
 import useIsVerified from "@/hooks/useIsVerified";
 import useOfflineSync from "@/hooks/useOfflineSync";
+import SessionEndedBanner from "@/Components/SessionEndedBanner";
 import { PropsWithChildren, useEffect, useState } from "react";
 import {
-    IconCategory,
+    IconBook,
+    IconChecklist,
     IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
@@ -15,26 +17,15 @@ import {
     IconMoon,
     IconPlant,
     IconShieldLock,
-    IconSun,
-    IconUsers,
-    IconUsersGroup,
-    IconBook,
-    IconStack2,
-    IconListDetails,
-    IconUserPlus,
-    IconHistory,
-    IconCalendar,
-    IconArrowsExchange,
-    IconUserCheck,
-    IconChecklist,
-    IconStethoscope,
     IconShoppingCart,
+    IconStethoscope,
+    IconSun,
 } from "@tabler/icons-react";
 import FlashMessages from "@/Components/FlashMessages";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
-import { buildMarketplaceNavGroup, disabledPlaceholder } from "@/lib/navHelpers";
 import { PageProps } from "@/types";
-import { deleteDeviceKey } from "@/lib/offlineStore";
+import useSafeLogout from "@/hooks/useSafeLogout";
+import LogoutBlockedBanner from "@/Components/LogoutBlockedBanner";
 import {
     ROOT_FONT_SIZE,
     TextSize,
@@ -45,21 +36,22 @@ interface Props extends PropsWithChildren {
     title: string;
 }
 
+// the menu itself is built and filtered on the server (NavigationAccessService::adminMenu) and
+// arrives as the adminMenu prop; this file only knows how to draw it
 interface NavLeaf {
     label: string;
     // absent only for a "coming soon" placeholder, which has nowhere to link to yet
     routeName?: string;
-    // absent for a placeholder too - never shown once indented under a group anyway
-    icon?: typeof IconLayoutDashboard;
+    icon?: string | null;
     // names which count this item wants beside its label
-    badge?: string;
+    badge?: string | null;
     // false means "coming soon"; absent or true means a normal, permission-gated link
     ready?: boolean;
 }
 
 interface NavGroup {
     label: string;
-    icon: typeof IconLayoutDashboard;
+    icon?: string | null;
     children: NavLeaf[];
 }
 
@@ -69,163 +61,15 @@ function isGroup(entry: NavEntry): entry is NavGroup {
     return "children" in entry;
 }
 
-const navItems: NavEntry[] = [
-    {
-        label: "Dashboard",
-        routeName: "admin.dashboard",
-        icon: IconLayoutDashboard,
-    },
-    {
-        label: "Approvals",
-        routeName: "admin.approvals.index",
-        icon: IconChecklist,
-        badge: "approvals",
-    },
-    {
-        label: "Farm Setup",
-        icon: IconPlant,
-        children: [
-            {
-                label: "Farm Type Categories",
-                routeName: "admin.farm-type-categories.index",
-                icon: IconCategory,
-            },
-            {
-                label: "Farm Types",
-                routeName: "admin.farm-types.index",
-                icon: IconPlant,
-            },
-            {
-                label: "Farmer Groups",
-                routeName: "admin.farmer-groups.index",
-                icon: IconUsersGroup,
-            },
-            {
-                label: "Farmers Account",
-                routeName: "admin.farmers.index",
-                icon: IconUserCheck,
-            },
-        ],
-    },
-    {
-        label: "Ledger Setup",
-        icon: IconBook,
-        children: [
-            {
-                label: "Ledger Classes",
-                routeName: "admin.ledger-classes.index",
-                icon: IconListDetails,
-            },
-            {
-                label: "Ledger Types",
-                routeName: "admin.ledger-types.index",
-                icon: IconListDetails,
-            },
-            {
-                label: "Ledger Controls",
-                routeName: "admin.ledger-controls.index",
-                icon: IconListDetails,
-            },
-            {
-                label: "Ledger Categories",
-                routeName: "admin.ledger-categories.index",
-                icon: IconStack2,
-            },
-            {
-                label: "Ledger Subcategories",
-                routeName: "admin.ledger-subcategories.index",
-                icon: IconStack2,
-            },
-            {
-                label: "Ledger Accounts",
-                routeName: "admin.ledger-accounts.index",
-                icon: IconBook,
-            },
-            {
-                label: "Accounting Periods",
-                routeName: "admin.accounting-periods.index",
-                icon: IconCalendar,
-            },
-            {
-                label: "Transaction Templates",
-                routeName: "admin.transaction-templates.index",
-                icon: IconArrowsExchange,
-            },
-        ],
-    },
-    {
-        label: "Access Control",
-        icon: IconShieldLock,
-        children: [
-            {
-                label: "Staff Accounts",
-                routeName: "admin.staff.index",
-                icon: IconUserPlus,
-            },
-            {
-                label: "Roles & Permissions",
-                routeName: "admin.permissions.roles.index",
-                icon: IconShieldLock,
-            },
-            {
-                label: "User Access",
-                routeName: "admin.permissions.users.index",
-                icon: IconUsers,
-            },
-            {
-                label: "Audit Log",
-                routeName: "admin.audit.index",
-                icon: IconHistory,
-            },
-        ],
-    },
-    {
-        label: "Disease & Health Reports",
-        icon: IconStethoscope,
-        children: [
-            {
-                label: "Waiting for Officer",
-                routeName: "admin.disease-reports.index",
-                icon: IconChecklist,
-            },
-            {
-                label: "Officer Assignments",
-                routeName: "admin.officer-assignments.index",
-                icon: IconUsersGroup,
-            },
-        ],
-    },
-    buildMarketplaceNavGroup<NavLeaf>([
-        {
-            label: "Setup: Suppliers",
-            routeName: "admin.marketplace.suppliers.index",
-            ready: true,
-        },
-        {
-            label: "Setup: Kiosks",
-            routeName: "admin.marketplace.kiosks.index",
-            ready: true,
-        },
-        {
-            label: "Setup: Catalog",
-            routeName: "admin.marketplace.catalog.index",
-            ready: true,
-        },
-        {
-            label: "Setup: Settings",
-            routeName: "admin.marketplace.settings.index",
-            ready: true,
-        },
-        {
-            label: "Setup: Reports",
-            routeName: "admin.marketplace.kiosk-reports.index",
-            ready: true,
-        },
-        disabledPlaceholder("Market Center"),
-        disabledPlaceholder("Product Analysis"),
-        disabledPlaceholder("Finance"),
-    ]),
-];
+const ICONS: Record<string, typeof IconLayoutDashboard> = {
+    "layout-dashboard": IconLayoutDashboard,
+    checklist: IconChecklist,
+    plant: IconPlant,
+    book: IconBook,
+    "shield-lock": IconShieldLock,
+    stethoscope: IconStethoscope,
+    "shopping-cart": IconShoppingCart,
+};
 
 // a group is active if any of its children match the current route
 function groupIsActive(group: NavGroup): boolean {
@@ -234,42 +78,16 @@ function groupIsActive(group: NavGroup): boolean {
     );
 }
 
-// keeps only what this user may open, and drops a group once all its children are gone -
-// a "coming soon" placeholder has no route to be permission-gated on, so it always shows
-function visibleNavItems(allowed: string[]): NavEntry[] {
-    const result: NavEntry[] = [];
-
-    for (const entry of navItems) {
-        if (!isGroup(entry)) {
-            if (entry.ready === false || allowed.includes(entry.routeName!)) {
-                result.push(entry);
-            }
-            continue;
-        }
-
-        const children = entry.children.filter(
-            (child) =>
-                child.ready === false || allowed.includes(child.routeName!),
-        );
-
-        if (children.length > 0) {
-            result.push({ ...entry, children });
-        }
-    }
-
-    return result;
-}
-
 export default function AdminLayout({ title, children }: Props) {
     const { auth } = usePage<PageProps>().props;
-    const allowedRoutes = (auth as unknown as { nav?: string[] })?.nav ?? [];
-    const items = visibleNavItems(allowedRoutes);
+    const items: NavEntry[] =
+        (auth as unknown as { adminMenu?: NavEntry[] })?.adminMenu ?? [];
 
     const [collapsed, setCollapsed] = useState(false);
     const [dark, setDark] = useState(false);
     const [textSize, setTextSizeState] = useState<TextSize>("normal");
     const verified = useIsVerified();
-    useOfflineSync();
+    const authExpired = useOfflineSync();
 
     useEffect(() => {
         const saved = localStorage.getItem("nkwa_theme");
@@ -318,18 +136,7 @@ export default function AdminLayout({ title, children }: Props) {
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
     const hoverBg = dark ? "rgba(29,158,117,0.15)" : "#EAF5F0";
 
-    const logout = () => {
-        router.post(
-            route("logout"),
-            {},
-            {
-                onSuccess: () => {
-                    deleteDeviceKey();
-                    window.history.replaceState({ loggedOut: true }, "");
-                },
-            },
-        );
-    };
+    const { logout, blocked: logoutBlocked } = useSafeLogout(auth?.user ? String(auth.user.id) : null);
 
     const toggleGroup = (label: string) => {
         if (collapsed) {
@@ -340,7 +147,7 @@ export default function AdminLayout({ title, children }: Props) {
     };
 
     const renderLeaf = (item: NavLeaf, indented: boolean) => {
-        const Icon = item.icon;
+        const Icon = item.icon ? ICONS[item.icon] : undefined;
 
         if (item.ready === false) {
             return (
@@ -465,7 +272,7 @@ export default function AdminLayout({ title, children }: Props) {
     };
 
     const renderGroup = (group: NavGroup) => {
-        const Icon = group.icon;
+        const Icon = ICONS[group.icon ?? ""] ?? IconLayoutDashboard;
         const isOpen = expanded === group.label;
         const active = groupIsActive(group);
 
@@ -825,6 +632,8 @@ export default function AdminLayout({ title, children }: Props) {
                         </header>
 
                         <main style={{ padding: "24px" }}>
+                            <SessionEndedBanner show={authExpired} />
+                            <LogoutBlockedBanner show={logoutBlocked} />
                             <VerificationGate>{children}</VerificationGate>
                         </main>
                     </div>
@@ -849,6 +658,8 @@ export default function AdminLayout({ title, children }: Props) {
                             </h1>
                         </header>
                         <main style={{ padding: "24px" }}>
+                            <SessionEndedBanner show={authExpired} />
+                            <LogoutBlockedBanner show={logoutBlocked} />
                             <VerificationGate>{children}</VerificationGate>
                         </main>
                     </div>

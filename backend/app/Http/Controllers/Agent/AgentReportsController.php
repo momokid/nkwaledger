@@ -241,23 +241,23 @@ class AgentReportsController extends Controller
         return [
             'total_income' => $report->totalIncomeMinor,
             'total_expense' => $report->totalExpenseMinor,
-            'net' => $report->totalIncomeMinor - $report->totalExpenseMinor,
+            'total_loss' => $report->totalLossMinor,
+            'net' => $report->netMinor,
         ];
     }
 
-    // highest first; net is income minus expense since the roster row doesn't carry
-    // a separate net figure
+    // highest first; the roster row carries its own net
     private function ranked(array $rows, string $sort): array
     {
         usort($rows, function ($a, $b) use ($sort) {
-            $valueA = $sort === 'net' ? $a['income'] - $a['expense'] : $a['income'];
-            $valueB = $sort === 'net' ? $b['income'] - $b['expense'] : $b['income'];
+            $valueA = $sort === 'net' ? $a['net'] : $a['income'];
+            $valueB = $sort === 'net' ? $b['net'] : $b['income'];
 
             return $valueB <=> $valueA;
         });
 
         return array_values(array_map(
-            fn($row, $index) => [...$row, 'net' => $row['income'] - $row['expense'], 'rank' => $index + 1],
+            fn($row, $index) => [...$row, 'rank' => $index + 1],
             $rows,
             array_keys($rows),
         ));

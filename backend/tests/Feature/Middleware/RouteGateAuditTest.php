@@ -17,6 +17,9 @@ $exempt = [
     'otp.resend',
     'otp.phone.send',
     'otp.phone.confirm',
+    // a locked-out user must be able to reset the PIN on their own phone whether or not the number is verified
+    'pin-reset.send',
+    'pin-reset.confirm',
     'password.confirm',
     'password.update',
     'verification.notice',

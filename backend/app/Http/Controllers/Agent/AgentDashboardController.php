@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Agent;
 
+use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Http\Controllers\Controller;
 use App\Services\Agent\FarmerRosterService;
 use Illuminate\Http\Request;
@@ -22,16 +23,16 @@ class AgentDashboardController extends Controller
         $to = $request->query('to', Carbon::now()->toDateString());
         [$prevFrom, $prevTo] = $this->previousPeriod($from, $to);
 
-        [$income, $expense, $activeCount, $roster, $collected, $paidOut] = $this->roster->totalsFor(
+        [$income, $expense, $activeCount, $roster, $collected, $paidOut, $loss] = $this->roster->totalsFor(
             $request->user()->id,
             $from,
             $to,
             withRows: true,
         );
-        [$prevIncome, $prevExpense] = $this->roster->totalsFor($request->user()->id, $prevFrom, $prevTo);
+        [$prevIncome, $prevExpense, , , , , $prevLoss] = $this->roster->totalsFor($request->user()->id, $prevFrom, $prevTo);
 
         return Inertia::render('Agent/Dashboard', [
-            'summary' => $this->summaryFrom($income, $expense, $prevIncome, $prevExpense, $collected, $paidOut),
+            'summary' => $this->summaryFrom($income, $expense, $loss, $prevIncome, $prevExpense, $prevLoss, $collected, $paidOut),
             'farmer_count' => $activeCount,
             'roster' => $roster,
             'activity_feed' => $this->activityFeed->recentFor($request->user()->id, $from, $to),
@@ -43,13 +44,15 @@ class AgentDashboardController extends Controller
     private function summaryFrom(
         int $income,
         int $expense,
+        int $loss,
         int $prevIncome,
         int $prevExpense,
+        int $prevLoss,
         int $collected,
         int $paidOut,
     ): array {
-        $net = $income - $expense;
-        $prevNet = $prevIncome - $prevExpense;
+        $net = IncomeAndExpenditure::netOf($income, $expense, $loss);
+        $prevNet = IncomeAndExpenditure::netOf($prevIncome, $prevExpense, $prevLoss);
 
         return [
             'total_income' => $income,

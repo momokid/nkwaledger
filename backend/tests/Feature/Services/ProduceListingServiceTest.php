@@ -55,10 +55,10 @@ test('a listing cannot claim more than the batch actually has confirmed', functi
     $user = User::factory()->create();
     $user->assignRole('farmer');
 
-    expect(fn() => $this->service->create($stock, $farmer, $user, 21, null, null))
+    expect(fn() => $this->service->create($stock, $farmer, $user, 21, null, ['produce-listings/test.jpg']))
         ->toThrow(InvalidArgumentException::class);
 
-    $ok = $this->service->create($stock, $farmer, $user, 20, null, null);
+    $ok = $this->service->create($stock, $farmer, $user, 20, null, ['produce-listings/test.jpg']);
     expect($ok->quantity_listed)->toEqual('20.00');
 });
 
@@ -72,14 +72,14 @@ test('two listing attempts against the same batch can never jointly exceed it', 
     $user = User::factory()->create();
     $user->assignRole('farmer');
 
-    $first = $this->service->create($stock, $farmer, $user, 20, null, null);
+    $first = $this->service->create($stock, $farmer, $user, 20, null, ['produce-listings/test.jpg']);
     expect($first->status)->toBe(ProduceListingStatus::Active);
 
     // only 10 left (30 - 20 already active) - asking for 15 must fail, not silently clamp
-    expect(fn() => $this->service->create($stock, $farmer, $user, 15, null, null))
+    expect(fn() => $this->service->create($stock, $farmer, $user, 15, null, ['produce-listings/test.jpg']))
         ->toThrow(InvalidArgumentException::class);
 
-    $second = $this->service->create($stock, $farmer, $user, 10, null, null);
+    $second = $this->service->create($stock, $farmer, $user, 10, null, ['produce-listings/test.jpg']);
     expect($second->quantity_listed)->toEqual('10.00');
 
     $totalClaimed = ProduceListing::where('farm_unit_stock_id', $stock->id)->sum('quantity_remaining');
@@ -92,7 +92,7 @@ test('an agent-posted listing stays a draft until the farmer agrees', function (
     $agent = User::factory()->create();
     $agent->assignRole('agent');
 
-    $listing = $this->service->create($stock, $farmer, $agent, 10, null, null);
+    $listing = $this->service->create($stock, $farmer, $agent, 10, null, ['produce-listings/test.jpg']);
 
     expect($listing->status)->toBe(ProduceListingStatus::Draft)
         ->and($listing->farmer_agreed_at)->toBeNull();
@@ -109,7 +109,7 @@ test('withdrawing a listing posts nothing to the ledger', function () {
     $user = User::factory()->create();
     $user->assignRole('farmer');
 
-    $listing = $this->service->create($stock, $farmer, $user, 10, null, null);
+    $listing = $this->service->create($stock, $farmer, $user, 10, null, ['produce-listings/test.jpg']);
 
     $this->service->withdraw($listing);
 
@@ -123,7 +123,7 @@ test('marking sold posts the farmer income and reduces stock, never price times 
     $user = User::factory()->create();
     $user->assignRole('farmer');
 
-    $listing = $this->service->create($stock, $farmer, $user, 10, null, null);
+    $listing = $this->service->create($stock, $farmer, $user, 10, null, ['produce-listings/test.jpg']);
 
     $cash = LedgerAccount::where('name', 'Cash A/C')->firstOrFail();
 
@@ -143,7 +143,7 @@ test('a partial sale is allowed and does not close the listing', function () {
     $user = User::factory()->create();
     $user->assignRole('farmer');
 
-    $listing = $this->service->create($stock, $farmer, $user, 10, null, null);
+    $listing = $this->service->create($stock, $farmer, $user, 10, null, ['produce-listings/test.jpg']);
     $cash = LedgerAccount::where('name', 'Cash A/C')->firstOrFail();
 
     $this->service->markSold($listing, '200', '3', $cash->id, $user->id);
@@ -158,7 +158,7 @@ test('selling the last of a listing closes it as sold', function () {
     $user = User::factory()->create();
     $user->assignRole('farmer');
 
-    $listing = $this->service->create($stock, $farmer, $user, 5, null, null);
+    $listing = $this->service->create($stock, $farmer, $user, 5, null, ['produce-listings/test.jpg']);
     $cash = LedgerAccount::where('name', 'Cash A/C')->firstOrFail();
 
     $this->service->markSold($listing, '100', '5', $cash->id, $user->id);
