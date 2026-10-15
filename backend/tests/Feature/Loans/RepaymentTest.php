@@ -109,7 +109,7 @@ test('paying off exactly what remains, after drift, leaves exactly nothing owed'
         ->and($last->excess_confirmed)->toBeFalse();
 });
 
-test('net moves by the interest only, the balance by the principal only, and the dashboard figure agrees', function () {
+test('net moves by the interest only, the balance by what is paid, and the dashboard figure agrees', function () {
     $beforeNet = ($this->net)()->netMinor;
     $beforeExpense = ($this->net)()->totalExpenseMinor;
     $owedBefore = app(\App\Services\Loans\LoanService::class)->totalOwedMinor($this->profile);
@@ -124,9 +124,9 @@ test('net moves by the interest only, the balance by the principal only, and the
 
     expect($after->totalExpenseMinor - $beforeExpense)->toBe(10000)
         ->and($after->netMinor - $beforeNet)->toBe(-10000)
-        ->and($owedBefore)->toBe(100000)
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000)
-        ->and($dashboard)->toBe(50000)
+        ->and($owedBefore)->toBe(120000)
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000)
+        ->and($dashboard)->toBe(60000)
         ->and(($this->payableBalance)())->toBe(50000);
 });
 
@@ -137,9 +137,9 @@ test('a cancelled record is not counted as paid', function () {
     $reversal = app(\App\Services\Ledger\ReversalService::class);
     $reversal->approve($reversal->request(Transaction::find($repayment->principal_transaction_id), $this->clerk, 'Typed wrongly'), $this->approver);
 
-    expect($before)->toBe(50000)
+    expect($before)->toBe(60000)
         ->and($this->loan->fresh()->principalRepaidMinor())->toBe(0)
-        ->and($this->loan->fresh()->balanceMinor())->toBe(100000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(110000);
 });
 
 test('every repayment is audit-logged with the person who made it', function () {
@@ -240,7 +240,7 @@ test('the same key sent twice makes one repayment', function () {
 
     expect($second->id)->toBe($first->id)
         ->and(LoanRepayment::count())->toBe(1)
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000);
 });
 
 // --- hidden from the form and from sync ---

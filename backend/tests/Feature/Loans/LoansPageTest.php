@@ -214,7 +214,7 @@ test('sending the same form twice makes one loan', function () {
     expect(Loan::count())->toBe(1);
 });
 
-test('the dashboard shows the principal still owed on the active loans, and nothing from a cancelled one', function () {
+test('the dashboard shows the principal and interest still owed on the active loans, and nothing from a cancelled one', function () {
     $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '500']));
     $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300', 'interest' => '99']);
     $cancelled = $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '90']));
@@ -222,7 +222,7 @@ test('the dashboard shows the principal still owed on the active loans, and noth
 
     $summary = ($this->props)($this->farmerUser, '/farmer/dashboard')['props']['summary'];
 
-    expect($summary['total_owed'])->toBe(80000);
+    expect($summary['total_owed'])->toBe(89900);
 });
 
 test('the dashboard shows zero owed when there are no loans', function () {

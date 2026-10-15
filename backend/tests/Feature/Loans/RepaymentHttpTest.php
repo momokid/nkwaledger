@@ -94,7 +94,7 @@ test('the loan page shows the loan, its repayments and the form values, with no 
     });
 
     expect($props['loan']['uuid'])->toBe($this->loan->uuid)
-        ->and($props['loan']['balance'])->toBe(50000)
+        ->and($props['loan']['balance'])->toBe(60000)
         ->and($props['repayments'])->toHaveCount(1)
         ->and($props['repayments'][0]['amount'])->toBe(60000)
         ->and($props['repayments'][0]['principal'])->toBe(50000)

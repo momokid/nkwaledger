@@ -108,14 +108,14 @@ class Loan extends Model
         return $this->status === self::CANCELLED;
     }
 
-    // the one place the balance is worked out: the principal less what has been paid back
+    // the one place the balance is worked out: what is still owed, the principal and the interest together
     public function balanceMinor(): int
     {
         if ($this->isCancelled()) {
             return 0;
         }
 
-        return $this->remainingPrincipalMinor();
+        return $this->remainingPrincipalMinor() + $this->remainingInterestMinor();
     }
 
     public function remainingPrincipalMinor(): int

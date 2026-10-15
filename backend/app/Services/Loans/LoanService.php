@@ -139,7 +139,7 @@ class LoanService
         return $loan;
     }
 
-    // principal still unpaid on the loans in force, in pesewas
+    // principal and interest still unpaid on the loans in force, in pesewas
     public function totalOwedMinor(FarmerProfile $farmer): int
     {
         return Loan::where('farmer_profile_id', $farmer->id)

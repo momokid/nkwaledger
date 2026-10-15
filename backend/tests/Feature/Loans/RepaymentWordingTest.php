@@ -123,6 +123,6 @@ test('in production a missing key inside the accept does not undo the accept', f
 
     expect($repayment)->toBeInstanceOf(\App\Models\LoanRepayment::class)
         ->and($entry->fresh()->status)->toBe('accepted')
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000)
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000)
         ->and(($this->latest)($this->agent))->toBe("{$this->agentName}: Something went wrong. Please try again.");
 });

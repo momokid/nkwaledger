@@ -41,7 +41,7 @@ test('recording stores a pending entry with a snapshot of the loan and touches n
         ->and($entry->payload['snapshot'])->toBe(['remaining_principal' => 100000, 'remaining_interest' => 20000])
         ->and($entry->payload['excess'])->toBeFalse()
         ->and([Transaction::count(), LoanRepayment::count()])->toBe([$transactions, 0])
-        ->and($this->loan->fresh()->balanceMinor())->toBe(100000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(120000);
 
     $log = AuditLog::where('auditable_type', PendingEntry::class)->where('auditable_id', $entry->id)->first();
 
@@ -65,7 +65,7 @@ test('accepting in the app posts the repayment, linked to the agent who recorded
         ->and((int) $repayment->recorded_by)->toBe($this->agent->id)
         ->and($entry->fresh()->status)->toBe('accepted')
         ->and($entry->fresh()->result_type)->toBe('loan_repayment')
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000);
 
     $actions = AuditLog::where('auditable_type', PendingEntry::class)->where('auditable_id', $entry->id)->orderBy('id')->pluck('action')->all();
 
@@ -81,7 +81,7 @@ test('accepting with the SMS code posts the repayment', function () {
 
     expect($repayment)->toBeInstanceOf(LoanRepayment::class)
         ->and($repayment->accepted_via)->toBe('code')
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000);
 });
 
 test('if the loan changed since the agent typed it, the entry is rejected and nothing posts', function () {
