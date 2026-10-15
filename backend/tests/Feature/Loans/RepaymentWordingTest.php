@@ -83,3 +83,46 @@ test('no notification or SMS shows a raw key', function () {
     expect($messages->count())->toBeGreaterThan(2)
         ->and($messages->filter(fn($message) => preg_match(RAW_KEY, $message))->all())->toBe([]);
 });
+
+// a name too long for one SMS is cut in the SMS only; the amount and the code stay whole, and the code stays last
+test('a very long lender name is cut to fit 160 characters in the SMS and stays whole everywhere else', function () {
+    $name = mb_substr(str_repeat('Asante Akim North Rural Bank ', 9), 0, 255);
+    $loan = ($this->openLoan)(['lender_name' => $name]);
+    $entry = $this->entries->recordRepayment($loan, $this->agent, ($this->repayForm)('600', []));
+    $this->codes->send($entry, $this->agent);
+
+    $sent = end(app(\App\Contracts\SmsProvider::class)->sent)['message'];
+
+    expect(mb_strlen($sent))->toBeLessThanOrEqual(160)
+        ->and($sent)->toStartWith('Your agent recorded a repayment of GHS 600.00 to Asante Akim North Rural Bank')
+        ->and($sent)->toMatch('/\.\.\.\. Code: \d{6}$/')
+        ->and($entry->lenderName())->toBe($name);
+});
+
+test('a name that fits is sent as it is, accents and curly quotes included', function () {
+    $name = 'Société d’Épargne';
+    $loan = ($this->openLoan)(['lender_name' => $name]);
+    $entry = $this->entries->recordRepayment($loan, $this->agent, ($this->repayForm)('600', []));
+    $this->codes->send($entry, $this->agent);
+
+    expect(end(app(\App\Contracts\SmsProvider::class)->sent)['message'])->toContain("to {$name}. Code: ");
+});
+
+test('in production a missing key inside the accept does not undo the accept', function () {
+    $entry = ($this->pendingRepay)('600');
+    $map = json_decode(file_get_contents(resource_path('wording.json')), true);
+    unset($map['repayment.accepted']);
+    $this->app['env'] = 'production';
+    Wording::swap($map);
+
+    try {
+        $repayment = $this->entries->accept($entry, $this->farmerUser, 'app');
+    } finally {
+        Wording::swap(null);
+    }
+
+    expect($repayment)->toBeInstanceOf(\App\Models\LoanRepayment::class)
+        ->and($entry->fresh()->status)->toBe('accepted')
+        ->and($this->loan->fresh()->balanceMinor())->toBe(50000)
+        ->and(($this->latest)($this->agent))->toBe("{$this->agentName}: Something went wrong. Please try again.");
+});

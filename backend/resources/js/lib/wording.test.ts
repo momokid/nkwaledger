@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { wording, fill } from "./wording";
 
 describe("wording", () => {
@@ -15,5 +15,20 @@ describe("wording", () => {
 
     it("refuses a key that has no wording", () => {
         expect(() => wording("repayment.nope")).toThrow();
+    });
+});
+
+describe("wording in production", () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("gives the plain sentence for a missing key and reports it once in the console", () => {
+        vi.stubEnv("PROD", true);
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        expect(wording("repayment.nope")).toBe("Something went wrong. Please try again.");
+        expect(fill("repayment.nope", { amount: "1" })).toBe("Something went wrong. Please try again.");
+        expect(error).toHaveBeenCalledTimes(1);
+
+        error.mockRestore();
     });
 });
