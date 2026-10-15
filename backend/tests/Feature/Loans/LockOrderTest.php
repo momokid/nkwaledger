@@ -74,3 +74,28 @@ test('rejecting the waiting repayments of a cancelled loan takes the entry befor
 
     expect($orders)->toBe([['entry', 'code']]);
 });
+
+test('cancelling a loan takes the waiting repayment and its code before the loan row', function () {
+    $loan = ($this->openLoan)();
+    $entry = $this->entries->recordRepayment($loan, $this->agent, ($this->repayForm)('600', []));
+    $this->codes->send($entry, $this->agent);
+
+    $reversals = app(\App\Services\Ledger\ReversalService::class);
+    $request = $reversals->request(\App\Models\Transaction::find($loan->transaction_id), $this->clerk, 'Typed wrongly');
+    $seen = [];
+
+    DB::listen(function (QueryExecuted $query) use (&$seen) {
+        $sql = strtolower($query->sql);
+
+        match (true) {
+            str_contains($sql, 'from "pending_entries"') && str_contains($sql, 'for update') => $seen[] = 'entry',
+            str_contains($sql, '"pending_entry_codes"') && str_starts_with($sql, 'update') => $seen[] = 'code',
+            str_starts_with($sql, 'update "loans"') => $seen[] = 'loan',
+            default => null,
+        };
+    });
+
+    $reversals->approve($request, $this->approver);
+
+    expect($seen)->toBe(['entry', 'code', 'loan']);
+});

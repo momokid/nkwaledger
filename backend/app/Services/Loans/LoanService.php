@@ -118,10 +118,15 @@ class LoanService
         });
     }
 
+    public function activeFor(Transaction $original): ?Loan
+    {
+        return Loan::where('transaction_id', $original->id)->where('status', Loan::ACTIVE)->first();
+    }
+
     // the loan follows its record: when the record is cancelled the loan is cancelled in the same step
     public function cancelFor(Transaction $original): ?Loan
     {
-        $loan = Loan::where('transaction_id', $original->id)->where('status', Loan::ACTIVE)->first();
+        $loan = $this->activeFor($original);
 
         if ($loan === null) {
             return null;
