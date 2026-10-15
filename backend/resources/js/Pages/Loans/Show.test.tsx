@@ -9,17 +9,22 @@ vi.mock("@/Layouts/AuthenticatedLayout", () => ({
     useTheme: () => ({ dark: false }),
 }));
 
-vi.mock("@inertiajs/react", () => ({
-    usePage: () => ({ props: { errors: {}, flash: {} } }),
-    useForm: (initial: Record<string, unknown>) => ({
-        data: initial,
-        errors: {},
-        processing: false,
-        setData: () => {},
-        transform: () => {},
-        post: () => {},
-    }),
-}));
+vi.mock("@inertiajs/react", async () => {
+    const React = await import("react");
+
+    return {
+        Link: ({ href, children }: { href: string; children: React.ReactNode }) => React.createElement("a", { href }, children),
+        usePage: () => ({ props: { errors: {}, flash: {} } }),
+        useForm: (initial: Record<string, unknown>) => ({
+            data: initial,
+            errors: {},
+            processing: false,
+            setData: () => {},
+            transform: () => {},
+            post: () => {},
+        }),
+    };
+});
 
 const props = {
     loan: { uuid: "9d2f0c0e-0000-4000-8000-000000000001", lender: "Sika Microfinance", amount: 100000, balance: 50000, status: "active" },
@@ -51,6 +56,14 @@ afterEach(async () => {
 });
 
 describe("The loan page", () => {
+    it("has a Back link to the loans list", async () => {
+        await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
+
+        const back = Array.from(container.querySelectorAll("a")).find((link) => link.textContent === "← Back");
+
+        expect(back?.getAttribute("href")).toBe("/loans");
+    });
+
     it("shows the four approved table headers and no raw key", async () => {
         await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
 

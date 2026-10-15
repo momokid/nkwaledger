@@ -1,5 +1,6 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
+import BackLink from "@/Components/BackLink";
 import Button from "@/Components/Button";
 import RepaymentForm, { PaidFromOption } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
@@ -64,6 +65,7 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
 
     return (
         <div className="p-6" style={{ background: surface, border: `1px solid ${border}` }}>
+            <BackLink fallbackHref="/loans" />
             <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>{loan.lender}</h2>
             <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
                 GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)}
