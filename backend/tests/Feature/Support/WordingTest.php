@@ -46,6 +46,7 @@ const APPROVED_WORDING = [
     'lender.type.credit_financial_institution' => 'Credit Financial Institution',
     'lender.type.microfinance' => 'Microfinance',
     'lender.type.other' => 'Other',
+    'lender.nothing_to_save' => "Enter the Lender's name or choose a type",
 ];
 
 test('every approved key has exactly the approved wording and nothing else is in the file', function () {

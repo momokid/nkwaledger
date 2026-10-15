@@ -8,6 +8,7 @@ use App\Services\Loans\LenderService;
 use App\Support\Wording;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,6 +42,11 @@ class LenderController extends Controller
 
     public function update(Request $request, Lender $lender): JsonResponse
     {
+        // a request with neither field gets one plain message, not the name and type errors together
+        if (! $request->hasAny(['name', 'type'])) {
+            throw ValidationException::withMessages(['name' => Wording::get('lender.nothing_to_save')]);
+        }
+
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:255', 'required_without:type'],
             'type' => ['nullable', 'string', 'in:' . implode(',', Lender::TYPES), 'required_without:name'],

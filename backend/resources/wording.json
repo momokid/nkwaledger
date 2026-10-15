@@ -38,5 +38,6 @@
     "lender.type.rural_bank": "Rural Bank",
     "lender.type.credit_financial_institution": "Credit Financial Institution",
     "lender.type.microfinance": "Microfinance",
-    "lender.type.other": "Other"
+    "lender.type.other": "Other",
+    "lender.nothing_to_save": "Enter the Lender's name or choose a type"
 }
