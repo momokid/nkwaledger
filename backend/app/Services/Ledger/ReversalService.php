@@ -68,11 +68,14 @@ class ReversalService
         return DB::transaction(function () use ($request, $original, $approvedBy) {
             $reversal = $this->post($original, $request, $approvedBy);
             $this->stock->release($original, $approvedBy);
-            $loan = $this->loans->cancelFor($original);
+            // the waiting repayments are locked before the loan row, the same order as accepting one, so the two can never wait for each other
+            $loan = $this->loans->activeFor($original);
 
             if ($loan !== null) {
                 $this->pendingEntries->rejectRepaymentsFor($loan, $approvedBy);
             }
+
+            $this->loans->cancelFor($original);
 
             $request->forceFill([
                 'status' => ReversalRequest::APPROVED,
