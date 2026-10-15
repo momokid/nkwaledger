@@ -284,3 +284,25 @@ test('a rename updates sort_key and a type edit does not change it', function ()
 
     expect($lender->fresh()->only(['name', 'name_key', 'sort_key', 'type']))->toBe(['name' => 'Café Rural', 'name_key' => 'café rural', 'sort_key' => 'kept as stored', 'type' => 'other']);
 });
+
+test('an edit that sends neither a name nor a type gets one plain message and changes nothing', function (array $body) {
+    $lender = Lender::create(['type' => 'bank', 'name' => 'Some Bank']);
+    $before = $lender->fresh()->toJson();
+
+    ($this->patch)($lender, $body)
+        ->assertStatus(422)
+        ->assertJsonPath('errors.name.0', "Enter the Lender's name or choose a type")
+        ->assertJsonMissingValidationErrors(['type']);
+
+    expect($lender->fresh()->toJson())->toBe($before)->and(AuditLog::where('action', 'lender.updated')->count())->toBe(0);
+})->with([
+    'nothing at all' => [[]],
+    'only something else' => [['colour' => 'blue']],
+]);
+
+test('a name box left blank still asks for the name, and a type that is not one of the five is still invalid', function () {
+    $lender = Lender::create(['type' => 'bank', 'name' => 'Some Bank']);
+
+    ($this->patch)($lender, ['name' => ''])->assertStatus(422)->assertJsonPath('errors.name.0', "Enter the Lender's name");
+    ($this->patch)($lender, ['type' => 'pawn_shop'])->assertStatus(422)->assertJsonPath('errors.type.0', 'Invalid lender details');
+});
