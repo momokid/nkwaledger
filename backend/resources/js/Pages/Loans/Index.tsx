@@ -5,7 +5,6 @@ import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { cedis } from "@/lib/format";
 import { LOAN_NOTICE } from "@/lib/loanNotice";
-import { REPAYMENT_TEXT } from "@/Components/RepaymentForm";
 import { useState } from "react";
 
 type Status = "active" | "repaid" | "cancelled";
@@ -20,7 +19,6 @@ interface LoanRow {
 
 interface PendingCard {
     kind: "loan" | "repayment";
-    excess: boolean;
     uuid: string;
     lender: string;
     amount: number;
@@ -52,7 +50,6 @@ type ContentProps = Pick<Props, "loans" | "pending">;
 function IndexContent({ loans, pending }: ContentProps) {
     const { dark } = useTheme();
     const [declining, setDeclining] = useState<string | null>(null);
-    const [confirming, setConfirming] = useState<string | null>(null);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -111,27 +108,9 @@ function IndexContent({ loans, pending }: ContentProps) {
                                 </Button>
                             </div>
                         </div>
-                    ) : confirming === card.uuid ? (
-                        <div className="mt-3" role="alertdialog" aria-label={REPAYMENT_TEXT.prompt}>
-                            <p style={{ color: text, fontSize: "1.0625rem" }}>{REPAYMENT_TEXT.prompt}</p>
-                            <div className="mt-2 flex gap-3">
-                                <Button
-                                    type="button"
-                                    onClick={() => router.post(`/loans/entries/${card.uuid}/accept`, { confirm_excess: true })}
-                                >
-                                    {REPAYMENT_TEXT.yes}
-                                </Button>
-                                <Button type="button" look="secondary" onClick={() => setConfirming(null)}>
-                                    {REPAYMENT_TEXT.no}
-                                </Button>
-                            </div>
-                        </div>
                     ) : (
                         <div className="mt-3 flex gap-3">
-                            <Button
-                                type="button"
-                                onClick={() => (card.excess ? setConfirming(card.uuid) : router.post(`/loans/entries/${card.uuid}/accept`))}
-                            >
+                            <Button type="button" onClick={() => router.post(`/loans/entries/${card.uuid}/accept`)}>
                                 Accept
                             </Button>
                             <Button type="button" look="secondary" onClick={() => setDeclining(card.uuid)}>

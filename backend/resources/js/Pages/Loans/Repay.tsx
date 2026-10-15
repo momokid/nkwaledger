@@ -46,7 +46,6 @@ function RepayContent({ loan, paidFrom, previewUrl, postUrl, backUrl, today }: C
                 previewUrl={previewUrl}
                 postUrl={postUrl}
                 today={today}
-                agent
                 onCancel={() => router.visit(backUrl)}
             />
         </div>

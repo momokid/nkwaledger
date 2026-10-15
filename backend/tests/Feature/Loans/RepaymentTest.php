@@ -152,26 +152,26 @@ test('every repayment is audit-logged with the person who made it', function () 
         ->and($log->new_values['principal_minor'])->toBe(50000);
 });
 
-// --- the excess ---
+// --- nothing above what is owed ---
 
-test('more than what remains is refused without the farmer confirming, and nothing is written', function () {
+test('more than what remains is refused, and nothing is written', function () {
     $before = [Transaction::count(), LoanRepayment::count()];
 
-    expect(fn() => ($this->repay)($this->loan, '1300'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::EXCESS_NOT_CONFIRMED))
+    expect(fn() => ($this->repay)($this->loan, '1300'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::OVER_TOTAL))
         ->and([Transaction::count(), LoanRepayment::count()])->toBe($before);
 });
 
-test('a confirmed excess pays off both parts and the extra is interest, and the confirmation is saved', function () {
-    $repayment = ($this->repay)($this->loan, '1300', ['confirm_excess' => true]);
+test('exactly what remains pays off both parts and leaves nothing owed', function () {
+    $repayment = ($this->repay)($this->loan, '1200');
 
-    expect([$repayment->principal_minor, $repayment->interest_minor, $repayment->excess_confirmed])->toBe([100000, 30000, true])
+    expect([$repayment->principal_minor, $repayment->interest_minor, $repayment->excess_confirmed])->toBe([100000, 20000, false])
         ->and($this->loan->fresh()->balanceMinor())->toBe(0);
 });
 
-test('a confirmation is refused when the server finds no excess', function () {
+test('a confirmation sent along is ignored and cannot get an amount past what is owed', function () {
     $before = Transaction::count();
 
-    expect(fn() => ($this->repay)($this->loan, '600', ['confirm_excess' => true]))->toThrow(PostingFailed::class, Wording::get(RepaymentService::CONFIRMATION_NOT_NEEDED))
+    expect(fn() => ($this->repay)($this->loan, '1300', ['confirm_excess' => true]))->toThrow(PostingFailed::class, Wording::get(RepaymentService::OVER_TOTAL))
         ->and(Transaction::count())->toBe($before);
 });
 

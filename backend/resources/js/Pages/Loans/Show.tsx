@@ -79,7 +79,7 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                 Repayments
             </h3>
 
-            {loan.status !== "cancelled" && !open && (
+            {loan.status === "active" && !open && (
                 <div className="mt-3">
                     <Button type="button" onClick={() => setOpen(true)}>
                         Record a repayment
@@ -94,7 +94,6 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                     postUrl={postUrl}
                     today={today}
                     idempotencyKey={idempotencyKey}
-                    agent={false}
                     onCancel={() => setOpen(false)}
                 />
             )}

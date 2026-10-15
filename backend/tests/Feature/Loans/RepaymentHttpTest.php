@@ -7,6 +7,8 @@ require_once __DIR__ . '/../../Support/LoanWorld.php';
 use App\Models\LoanRepayment;
 use App\Models\PendingEntry;
 use App\Models\Transaction;
+use App\Services\Loans\RepaymentService;
+use App\Support\Wording;
 use Illuminate\Support\Facades\Auth;
 
 beforeEach(function () {
@@ -115,8 +117,8 @@ test('the preview shows the split the server would use, and changes nothing', fu
         ->assertJson(['principal' => 50000, 'interest' => 10000, 'excess' => 0]);
 
     ($this->as)('farmer')->postJson("{$this->farmerUrl}/repayments/preview", ['amount' => '1300'])
-        ->assertOk()
-        ->assertJson(['principal' => 100000, 'interest' => 30000, 'excess' => 10000]);
+        ->assertStatus(422)
+        ->assertJson(['message' => Wording::get(RepaymentService::OVER_TOTAL)]);
 
     expect([Transaction::count(), LoanRepayment::count()])->toBe($before);
 });
@@ -131,37 +133,25 @@ test('a split sent by the client is ignored', function () {
     expect([$repayment->principal_minor, $repayment->interest_minor])->toBe([50000, 10000]);
 });
 
-test('an excess needs the confirmation over HTTP too', function () {
-    ($this->as)('farmer')->post("{$this->farmerUrl}/repayments", ($this->httpForm)('1300'))->assertSessionHas('error');
+test('an amount above what is owed is refused over HTTP, whatever confirmation is sent along', function () {
+    ($this->as)('farmer')->post("{$this->farmerUrl}/repayments", ($this->httpForm)('1300'))->assertSessionHas('error', Wording::get(RepaymentService::OVER_TOTAL));
+    ($this->as)('farmer')->post("{$this->farmerUrl}/repayments", ($this->httpForm)('1300', ['confirm_excess' => true]))->assertSessionHas('error', Wording::get(RepaymentService::OVER_TOTAL));
 
     expect(LoanRepayment::count())->toBe(0);
-
-    ($this->as)('farmer')->post("{$this->farmerUrl}/repayments", ($this->httpForm)('1300', ['confirm_excess' => true]))->assertSessionMissing('error');
-
-    expect(LoanRepayment::count())->toBe(1);
 });
 
-test('the farmer accepts an agent\'s excess entry in the app with the confirmation, not without it', function () {
-    ($this->as)('agent')->post($this->agentUrl, ($this->httpForm)('1300'))->assertRedirect();
-    $entry = PendingEntry::first();
+test('an agent cannot record an amount above what is owed, and the farmer is never asked about it', function () {
+    ($this->as)('agent')->post($this->agentUrl, ($this->httpForm)('1300'))->assertSessionHas('error', Wording::get(RepaymentService::OVER_TOTAL));
 
-    ($this->as)('farmer')->post("/loans/entries/{$entry->uuid}/accept")->assertSessionHas('error');
-    expect($entry->fresh()->status)->toBe('pending');
-
-    ($this->as)('farmer')->post("/loans/entries/{$entry->uuid}/accept", ['confirm_excess' => true])->assertSessionMissing('error');
-    expect($entry->fresh()->status)->toBe('accepted')->and(LoanRepayment::first()->excess_confirmed)->toBeTrue();
+    expect(PendingEntry::count())->toBe(0);
 });
 
-test('the SMS code route refuses an excess entry', function () {
-    ($this->as)('agent')->post($this->agentUrl, ($this->httpForm)('1300'));
-    $entry = PendingEntry::first();
+test('an agent cannot record an entry on a fully repaid loan', function () {
+    ($this->as)('farmer')->post("{$this->farmerUrl}/repayments", ($this->httpForm)('1200'));
+    ($this->as)('agent')->post($this->agentUrl, ($this->httpForm)('10'))->assertSessionHas('error', Wording::get(RepaymentService::FULLY_REPAID));
 
-    ($this->as)('agent')->post("/agent/loan-entries/{$entry->uuid}/send-code")->assertSessionHas('error');
-    ($this->as)('agent')->post("/agent/loan-entries/{$entry->uuid}/code", ['code' => '123456']);
-
-    expect($entry->fresh()->status)->toBe('pending')->and(LoanRepayment::count())->toBe(0);
+    expect(PendingEntry::count())->toBe(0);
 });
-
 test('the farmer\'s loans page shows the repayment waiting, without row ids', function () {
     ($this->as)('agent')->post($this->agentUrl, ($this->httpForm)('600'));
 
@@ -173,5 +163,5 @@ test('the farmer\'s loans page shows the repayment waiting, without row ids', fu
     expect($props['pending'])->toHaveCount(1)
         ->and($props['pending'][0]['amount'])->toBe(60000)
         ->and($props['pending'][0]['kind'])->toBe('repayment')
-        ->and($props['pending'][0]['excess'])->toBeFalse();
+        ->and(array_key_exists('excess', $props['pending'][0]))->toBeFalse();
 });

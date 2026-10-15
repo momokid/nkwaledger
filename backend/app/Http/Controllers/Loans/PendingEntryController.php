@@ -22,7 +22,7 @@ class PendingEntryController extends Controller
         Gate::authorize('respond', $entry);
 
         try {
-            $result = $this->entries->accept($entry, $request->user(), PendingEntry::VIA_APP, $request->boolean('confirm_excess'));
+            $result = $this->entries->accept($entry, $request->user(), PendingEntry::VIA_APP);
         } catch (PostingFailed|EntryRefused $refusal) {
             return redirect('/loans')->with('error', $refusal->getMessage());
         }

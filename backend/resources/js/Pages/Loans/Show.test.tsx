@@ -56,6 +56,21 @@ afterEach(async () => {
 });
 
 describe("The loan page", () => {
+    const recordButton = () => Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Record a repayment");
+
+    it("offers Record a repayment on an active loan only: not on a repaid or a cancelled one", async () => {
+        const render = async (status: string) => act(async () => root.render(<Show {...({ ...props, loan: { ...props.loan, status } } as unknown as ComponentProps<typeof Show>)} />));
+
+        await render("active");
+        expect(recordButton()).toBeDefined();
+
+        await render("repaid");
+        expect(recordButton()).toBeUndefined();
+
+        await render("cancelled");
+        expect(recordButton()).toBeUndefined();
+    });
+
     it("has a Back link to the loans list", async () => {
         await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
 

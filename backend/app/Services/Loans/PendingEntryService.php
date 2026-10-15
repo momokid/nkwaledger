@@ -72,6 +72,7 @@ class PendingEntryService
         $checked = $this->repayments->validated($data);
         $this->repayments->mustNotPrecede($loan, $checked['date']);
         $snapshot = $this->repayments->snapshot($loan);
+        $this->repayments->mustFit($loan, $checked['amount_minor']);
 
         return DB::transaction(function () use ($loan, $agent, $checked, $snapshot) {
             $payload = [
@@ -80,7 +81,6 @@ class PendingEntryService
                 'date' => $checked['date'],
                 'paid_from' => $checked['paid_from'],
                 'snapshot' => $snapshot,
-                'excess' => $checked['amount_minor'] > $snapshot['remaining_principal'] + $snapshot['remaining_interest'],
             ];
 
             $entry = PendingEntry::create([
@@ -109,9 +109,9 @@ class PendingEntryService
 
     // by either route: one lock, every check again, one loan or repayment, or nothing at all.
     // Null means a repayment was rejected because the loan is no longer as the agent saw it
-    public function accept(PendingEntry $entry, User $actor, string $via, bool $confirmExcess = false): Loan|LoanRepayment|null
+    public function accept(PendingEntry $entry, User $actor, string $via): Loan|LoanRepayment|null
     {
-        return DB::transaction(function () use ($entry, $actor, $via, $confirmExcess) {
+        return DB::transaction(function () use ($entry, $actor, $via) {
             $locked = $this->lock($entry);
 
             if ($locked->status === PendingEntry::ACCEPTED) {
@@ -121,7 +121,7 @@ class PendingEntryService
             $this->mustBePending($locked);
 
             if ($locked->isRepayment()) {
-                return $this->acceptRepayment($locked, $actor, $via, $confirmExcess);
+                return $this->acceptRepayment($locked, $actor, $via);
             }
 
             $farmer = $locked->farmerProfile;
@@ -246,13 +246,9 @@ class PendingEntryService
     }
 
     // an agent's repayment at the moment of acceptance: the loan must still be exactly as the agent saw it
-    private function acceptRepayment(PendingEntry $locked, User $actor, string $via, bool $confirmExcess): ?LoanRepayment
+    private function acceptRepayment(PendingEntry $locked, User $actor, string $via): ?LoanRepayment
     {
         $payload = $locked->payload;
-
-        if ($via === PendingEntry::VIA_CODE && $payload['excess']) {
-            throw EntryRefused::because(RepaymentService::CODE_NOT_ALLOWED);
-        }
 
         $loan = Loan::where('uuid', $payload['loan_uuid'])->firstOrFail();
 
@@ -261,8 +257,6 @@ class PendingEntryService
                 'amount' => Money::toDecimal($payload['amount_minor']),
                 'date' => $payload['date'],
                 'paid_from' => $payload['paid_from'],
-                // a code can never carry the farmer's yes to an extra amount
-                'confirm_excess' => $via === PendingEntry::VIA_APP && $confirmExcess,
                 'idempotency_key' => 'entry.' . $locked->uuid,
             ], $via, $payload['snapshot']);
         } catch (RepaymentSnapshotChanged) {

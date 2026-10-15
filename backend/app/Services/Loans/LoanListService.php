@@ -59,7 +59,6 @@ class LoanListService
             ->map(fn(PendingEntry $entry) => [
                 'uuid' => $entry->uuid,
                 'kind' => $entry->isRepayment() ? 'repayment' : 'loan',
-                'excess' => $entry->isRepayment() && $entry->payload['excess'],
                 'lender' => $entry->lenderName(),
                 'amount' => $entry->payload['principal_minor'] ?? $entry->payload['amount_minor'],
                 // an opening entry is dated the day it is accepted, so the card shows the day it was recorded
