@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -116,6 +117,32 @@ class Loan extends Model
         }
 
         return $this->remainingPrincipalMinor() + $this->remainingInterestMinor();
+    }
+
+    /**
+     * The balance of many loans at once, in two queries instead of two per loan. Must always agree with balanceMinor().
+     *
+     * @param Collection<int, Loan> $loans
+     * @return Collection<int, int> loan id => balance in pesewas
+     */
+    public static function balancesOf(Collection $loans): Collection
+    {
+        $ids = $loans->pluck('id')->all();
+
+        $paid = fn(string $link) => Transaction::excludeCancelled(
+            DB::table('loan_repayments')
+                ->join('transactions', 'transactions.id', '=', "loan_repayments.{$link}")
+                ->whereIn('loan_repayments.loan_id', $ids)
+        )->groupBy('loan_repayments.loan_id')->selectRaw('loan_repayments.loan_id as loan_id, SUM(transactions.amount_minor) as total')->pluck('total', 'loan_id');
+
+        $principal = $paid('principal_transaction_id');
+        $interest = $paid('interest_transaction_id');
+
+        return $loans->mapWithKeys(fn(Loan $loan) => [
+            $loan->id => $loan->isCancelled()
+                ? 0
+                : max(0, $loan->principal_minor - (int) ($principal[$loan->id] ?? 0)) + max(0, (int) $loan->agreed_interest_minor - (int) ($interest[$loan->id] ?? 0)),
+        ]);
     }
 
     public function remainingPrincipalMinor(): int

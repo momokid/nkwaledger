@@ -70,6 +70,25 @@ class LoanListService
             ->values();
     }
 
+    /** @return Collection<int, array<string, mixed>> the repayments made on a loan, newest first, public ids only */
+    public function repaymentRows(Loan $loan): Collection
+    {
+        return $loan->repayments()
+            ->with(['principalTransaction.reversedBy', 'interestTransaction.reversedBy'])
+            ->orderByDesc('repaid_on')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn(\App\Models\LoanRepayment $repayment) => [
+                'uuid' => $repayment->uuid,
+                'date' => $repayment->repaid_on->toDateString(),
+                'amount' => $repayment->amount_minor,
+                'principal' => $repayment->principal_minor,
+                'interest' => $repayment->interest_minor,
+                'cancelled' => $repayment->principalTransaction?->reversedBy !== null || $repayment->interestTransaction?->reversedBy !== null,
+            ])
+            ->values();
+    }
+
     // the repayments an agent entered for this loan that were rejected, so the farmer can see what happened to them
     public function rejectedRepayments(Loan $loan): Collection
     {

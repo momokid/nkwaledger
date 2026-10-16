@@ -9,6 +9,14 @@ return [
     ['label' => 'Approvals', 'icon' => 'checklist', 'route' => 'admin.approvals.index', 'badge' => 'approvals'],
     ['label' => 'Records to review', 'icon' => 'checklist', 'route' => 'admin.sync-submissions.index'],
     [
+        'label' => 'Credit',
+        'icon' => 'credit-card',
+        'children' => [
+            ['label' => 'Loans', 'route' => 'admin.loans.index'],
+            ['label' => 'Lenders', 'route' => 'admin.lenders.index'],
+        ],
+    ],
+    [
         'label' => 'Farm Setup',
         'icon' => 'plant',
         'children' => [
