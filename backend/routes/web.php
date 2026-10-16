@@ -555,6 +555,7 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::get('/loans', [\App\Http\Controllers\Admin\CreditLoanController::class, 'index'])->name('loans.index');
     Route::get('/loans/{loan}', [\App\Http\Controllers\Admin\CreditLoanController::class, 'show'])->name('loans.show');
     Route::post('/loans/{loan}/checks', [\App\Http\Controllers\Admin\CreditLoanController::class, 'check'])->name('loans.checks.store');
+    Route::post('/loans/{loan}/checks/withdraw', [\App\Http\Controllers\Admin\CreditLoanController::class, 'withdrawCheck'])->name('loans.checks.withdraw');
 
     Route::get('/lenders', [AdminLenderController::class, 'index'])->name('lenders.index');
     Route::post('/lenders', [AdminLenderController::class, 'store'])->name('lenders.store');

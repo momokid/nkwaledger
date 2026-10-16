@@ -5,6 +5,7 @@ import { wording } from "@/lib/wording";
 import { cedis, shortDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck, CheckStatus, checkOptionLabel } from "@/Components/LoanCheckNotice";
 import LoanCheckForm, { SavedChecks } from "@/Components/Admin/LoanCheckForm";
+import LoanCheckWithdraw from "@/Components/Admin/LoanCheckWithdraw";
 import { PageProps } from "@/types";
 import { useState } from "react";
 
@@ -17,8 +18,11 @@ interface LoanSummary {
     check: LoanCheck | null;
 }
 
-interface CheckRow extends LoanCheck {
+interface CheckRow {
     uuid: string;
+    status: CheckStatus | "withdrawn";
+    note: string | null;
+    date: string;
     by: string;
 }
 
@@ -83,6 +87,16 @@ function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, 
                 <LoanCheckNotice check={check} />
             </div>
 
+            {check && (
+                <LoanCheckWithdraw
+                    loanUuid={loan.uuid}
+                    onSaved={(saved: SavedChecks) => {
+                        setCheck(saved.check);
+                        setChecks(saved.checks as CheckRow[]);
+                    }}
+                />
+            )}
+
             {loan.status !== "cancelled" && (
                 <LoanCheckForm
                     loanUuid={loan.uuid}
@@ -100,7 +114,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, 
                     {checks.map((row) => (
                         <div key={row.uuid} className="mt-2" style={{ borderTop: `1px solid ${border}`, paddingTop: "8px" }}>
                             <p style={{ color: text, fontSize: "1.0625rem", fontWeight: 600 }}>
-                                {checkOptionLabel(row.status as CheckStatus)} · {shortDate(row.date)} · {row.by}
+                                {checkOptionLabel(row.status)} · {shortDate(row.date)} · {row.by}
                             </p>
                             {row.note && <p style={{ color: textSecondary, fontSize: "1.0625rem", whiteSpace: "pre-wrap" }}>{row.note}</p>}
                         </div>

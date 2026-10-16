@@ -18,6 +18,8 @@ beforeEach(function () {
     $this->loan = ($this->openLoan)(['lender_name' => 'Sika Microfinance']);
     $this->check = fn(string $status = 'confirmed', ?string $note = null, $who = null, array $extra = []) => ($this->actingAs($who ?? $this->admin))
         ->postJson("/admin/loans/{$this->loan->uuid}/checks", array_filter(['status' => $status, 'note' => $note], fn($value) => $value !== null) + $extra);
+    $this->withdraw = fn(string $note, $who = null, ?string $key = null) => ($this->actingAs($who ?? $this->admin))
+        ->postJson("/admin/loans/{$this->loan->uuid}/checks/withdraw", ['note' => $note] + ($key === null ? [] : ['idempotency_key' => $key]));
     $this->farmerName = trim("{$this->farmerUser->surname} {$this->farmerUser->first_name}");
 });
 
@@ -167,4 +169,81 @@ test('nothing in the pages carries a row id or a link into another role\'s pages
 
     expect($farmer)->not->toContain('"id"')->not->toContain('\/admin')->not->toContain('\/agent')
         ->and($admin)->not->toContain('"id"')->not->toContain('"\/loans')->not->toContain('\/agent\/');
+});
+
+// --- withdrawing a check ---
+
+test('the withdraw words are the approved ones', function () {
+    expect(Wording::get('lender.check_withdraw'))->toBe('Withdraw this check')
+        ->and(Wording::get('lender.check_option_withdrawn'))->toBe('Withdrawn')
+        ->and(Wording::get('lender.check_notice_withdrawn', ['lender' => 'Sika Microfinance']))->toBe('Sika Microfinance: the check with the lender was withdrawn');
+});
+
+test('an admin withdraws the current check with a reason; it is a new row, the old one stays, and the loan reads unchecked again', function () {
+    ($this->check)('confirmed', 'Spoke to the manager');
+
+    $response = ($this->withdraw)('Wrong branch')->assertStatus(201);
+
+    expect($response->json('check'))->toBeNull()
+        ->and(collect($response->json('checks'))->pluck('status')->all())->toBe(['withdrawn', 'confirmed'])
+        ->and(collect($response->json('checks'))->pluck('note')->all())->toBe(['Wrong branch', 'Spoke to the manager'])
+        ->and(LoanCheck::count())->toBe(2);
+
+    $log = AuditLog::where('auditable_type', LoanCheck::class)->where('action', 'loan_check.withdrawn')->first();
+
+    expect((int) $log->user_id)->toBe($this->admin->id)->and($log->new_values['note'])->toBe('Wrong branch');
+});
+
+test('only an admin may withdraw, and only a check that is there and not already withdrawn', function () {
+    ($this->withdraw)('No check yet')->assertStatus(422);
+
+    ($this->check)('confirmed');
+
+    ($this->withdraw)('Not mine', $this->farmerUser)->assertStatus(403);
+    ($this->withdraw)('Not mine', $this->agent)->assertStatus(403);
+    ($this->withdraw)('Wrong branch')->assertStatus(201);
+    ($this->withdraw)('Again')->assertStatus(422);
+
+    expect(LoanCheck::count())->toBe(2);
+});
+
+test('a withdrawal needs a reason of at most 500 characters', function () {
+    ($this->check)('confirmed');
+
+    ($this->withdraw)('')->assertStatus(422)->assertJsonValidationErrors(['note']);
+    ($this->withdraw)(str_repeat('a', 501))->assertStatus(422)->assertJsonValidationErrors(['note']);
+
+    expect(LoanCheck::count())->toBe(1);
+});
+
+test('after a withdrawal the farmer and the agent see the self-reported notice again and are told', function () {
+    ($this->check)('confirmed', 'Spoke to the manager');
+    ($this->withdraw)('Wrong branch');
+
+    $farmer = $this->actingAs($this->farmerUser)->get("/loans/{$this->loan->uuid}")->viewData('page')['props']['loan'];
+    $rows = $this->actingAs($this->agent)->get("/agent/farmers/{$this->profile->uuid}")->viewData('page')['props']['loans'];
+    $told = Notification::where('kind', 'loan.checked')->where('message', 'Sika Microfinance: the check with the lender was withdrawn');
+
+    expect($farmer['check'])->toBeNull()
+        ->and(collect($rows)->firstWhere('uuid', $this->loan->uuid)['check'])->toBeNull()
+        ->and($told->pluck('user_id')->sort()->values()->all())->toBe(collect([$this->farmerUser->id, $this->agent->id])->sort()->values()->all());
+});
+
+test('a new check after a withdrawal becomes the current one', function () {
+    ($this->check)('confirmed');
+    ($this->withdraw)('Wrong branch');
+
+    $again = ($this->check)('does_not_match', 'Right branch says 800')->assertStatus(201);
+
+    expect($again->json('check.status'))->toBe('does_not_match')
+        ->and(collect($again->json('checks'))->pluck('status')->all())->toBe(['does_not_match', 'withdrawn', 'confirmed']);
+});
+
+test('the same withdrawal sent twice is saved once', function () {
+    ($this->check)('confirmed');
+
+    ($this->withdraw)('Wrong branch', null, 'w-1')->assertStatus(201);
+    ($this->withdraw)('Wrong branch', null, 'w-1')->assertStatus(201);
+
+    expect(LoanCheck::where('status', 'withdrawn')->count())->toBe(1);
 });

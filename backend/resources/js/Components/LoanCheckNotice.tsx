@@ -11,7 +11,8 @@ export interface LoanCheck {
     date: string;
 }
 
-export const checkOptionLabel = (status: CheckStatus) => wording(`lender.check_option_${status}`);
+// the history also lists a check that was taken back
+export const checkOptionLabel = (status: CheckStatus | "withdrawn") => wording(`lender.check_option_${status}`);
 
 const COLORS: Record<CheckStatus, string> = {
     confirmed: "#0F6E56",

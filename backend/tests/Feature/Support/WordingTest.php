@@ -61,6 +61,9 @@ const APPROVED_WORDING = [
     'lender.check_notice_not_confirmed' => '{lender}: Not Confirmed',
     'lender.check_notice_does_not_match' => '{lender}: the lender says this does not match',
     'lender.check_notice_unreachable' => '{lender}: Lender could not be reached',
+    'lender.check_withdraw' => 'Withdraw this check',
+    'lender.check_option_withdrawn' => 'Withdrawn',
+    'lender.check_notice_withdrawn' => '{lender}: the check with the lender was withdrawn',
 ];
 
 test('every approved key has exactly the approved wording and nothing else is in the file', function () {

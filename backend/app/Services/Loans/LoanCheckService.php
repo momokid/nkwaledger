@@ -56,19 +56,59 @@ class LoanCheckService
         });
     }
 
+    // the current check is taken back: a new row records it, and the loan reads as unchecked again
+    public function withdraw(Loan $loan, User $by, string $note, ?string $key): LoanCheck
+    {
+        return DB::transaction(function () use ($loan, $by, $note, $key) {
+            $locked = Loan::query()->whereKey($loan->id)->lockForUpdate()->firstOrFail();
+
+            if ($key !== null && ($twin = LoanCheck::where('loan_id', $locked->id)->where('idempotency_key', $key)->first()) !== null) {
+                return $twin;
+            }
+
+            $current = $locked->currentCheck()->first();
+
+            if ($current === null || $current->status === LoanCheck::WITHDRAWN || $locked->isCancelled()) {
+                throw PostingFailed::because(Wording::FALLBACK);
+            }
+
+            $check = LoanCheck::create([
+                'loan_id' => $locked->id,
+                'recorded_by' => $by->id,
+                'status' => LoanCheck::WITHDRAWN,
+                'note' => $note,
+                'idempotency_key' => $key,
+            ]);
+
+            $this->audit->recordOn('loan_check.withdrawn', $check, ['status' => $current->status], [
+                'uuid' => $check->uuid,
+                'loan_uuid' => $locked->uuid,
+                'withdraws' => $current->uuid,
+                'note' => $note,
+            ], $by);
+
+            $this->tell($locked, LoanCheck::WITHDRAWN);
+
+            return $check;
+        });
+    }
+
     /** @return Collection<int, array<string, mixed>> every check on the loan, newest first, with who made it */
     public function history(Loan $loan): Collection
     {
-        return $loan->checks()->with('recordedBy')->get()->map(fn(LoanCheck $check) => self::present($check) + [
+        return $loan->checks()->with('recordedBy')->get()->map(fn(LoanCheck $check) => [
             'uuid' => $check->uuid,
+            'status' => $check->status,
+            'note' => $check->note,
+            'date' => $check->created_at->toDateString(),
             'by' => trim("{$check->recordedBy?->surname} {$check->recordedBy?->first_name}"),
         ])->values();
     }
 
-    /** @return array{status: string, note: ?string, date: string}|null what the farmer and the agent are shown: no id, no admin */
+    /** @return array{status: string, note: ?string, date: string}|null what the farmer and the agent are shown: no id, no admin. A withdrawn check shows as none */
     public static function present(?LoanCheck $check): ?array
     {
-        return $check === null ? null : [
+        return $check === null || $check->status === LoanCheck::WITHDRAWN ? null : [
             'status' => $check->status,
             'note' => $check->note,
             'date' => $check->created_at->toDateString(),

@@ -178,3 +178,80 @@ describe("Confirm with the lender", () => {
         expect(text).toContain("Lender could not be reached");
     });
 });
+
+describe("Withdraw this check", () => {
+    const checked = {
+        loan: { ...base.loan, check: { status: "confirmed", note: "Spoke to the manager", date: "2026-10-16" } },
+        checks: [{ uuid: "c1", status: "confirmed", note: "Spoke to the manager", date: "2026-10-16", by: "Admin One" }],
+    };
+    const button = (label: string) => Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label);
+
+    it("is not offered while there is no check to take back", () => {
+        expect(button("Withdraw this check")).toBeUndefined();
+    });
+
+    it("opens a reason box, and the withdraw button waits for a reason", async () => {
+        await render(checked);
+        await act(async () => button("Withdraw this check")!.click());
+
+        expect(container.querySelector("#withdraw-note")).not.toBeNull();
+        expect(button("Withdraw this check")!.disabled).toBe(true);
+
+        await act(async () => button("Cancel")!.click());
+
+        expect(container.querySelector("#withdraw-note")).toBeNull();
+        expect(button("Withdraw this check")).toBeDefined();
+    });
+
+    it("withdraws in place: it posts the reason, then shows the self-reported notice again and the withdrawn check in the history", async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            status: 201,
+            json: async () => ({
+                check: null,
+                checks: [
+                    { uuid: "c2", status: "withdrawn", note: "Wrong branch", date: "2026-10-17", by: "Admin One" },
+                    { uuid: "c1", status: "confirmed", note: "Spoke to the manager", date: "2026-10-16", by: "Admin One" },
+                ],
+            }),
+        });
+        await render(checked);
+        await act(async () => button("Withdraw this check")!.click());
+
+        const area = container.querySelector<HTMLTextAreaElement>("#withdraw-note")!;
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+        await act(async () => {
+            setter.call(area, "Wrong branch");
+            area.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        await act(async () => button("Withdraw this check")!.click());
+
+        expect(fetchMock.mock.calls[0][0]).toBe("/admin/loans/l-1/checks/withdraw");
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body).note).toBe("Wrong branch");
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("You entered this loan yourself. It has not been checked with the lender.");
+        expect(text).toContain("Withdrawn");
+        expect(text).toContain("Wrong branch");
+        expect(button("Withdraw this check")).toBeUndefined();
+        expect(visit).not.toHaveBeenCalled();
+    });
+
+    it("shows what the server refused under the reason box and keeps the reason", async () => {
+        fetchMock.mockResolvedValue({ ok: false, status: 422, json: async () => ({ errors: { note: ["Something went wrong. Please try again."] } }) });
+        await render(checked);
+        await act(async () => button("Withdraw this check")!.click());
+
+        const area = container.querySelector<HTMLTextAreaElement>("#withdraw-note")!;
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+        await act(async () => {
+            setter.call(area, "x");
+            area.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        await act(async () => button("Withdraw this check")!.click());
+
+        expect(container.textContent).toContain("Something went wrong. Please try again.");
+        expect(container.querySelector<HTMLTextAreaElement>("#withdraw-note")!.value).toBe("x");
+    });
+});

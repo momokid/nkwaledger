@@ -14,6 +14,9 @@ class LoanCheck extends Model
 
     public const STATUSES = ['confirmed', 'not_confirmed', 'does_not_match', 'unreachable'];
 
+    // a check taken back: a row of its own, so the first one stays in the history
+    public const WITHDRAWN = 'withdrawn';
+
     protected $fillable = ['uuid', 'loan_id', 'recorded_by', 'status', 'note', 'idempotency_key'];
 
     protected static function booted(): void

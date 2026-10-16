@@ -83,6 +83,30 @@ class CreditLoanController extends Controller
             return response()->json(['message' => $failure->getMessage()], 422);
         }
 
+        return $this->saved($loan);
+    }
+
+    public function withdrawCheck(Request $request, Loan $loan): JsonResponse
+    {
+        Gate::authorize('view', $loan);
+
+        $words = Wording::FALLBACK;
+        $data = $request->validate([
+            'note' => ['required', 'string', 'max:500'],
+            'idempotency_key' => ['nullable', 'string', 'max:64'],
+        ], ['note.required' => $words, 'note.string' => $words, 'note.max' => $words]);
+
+        try {
+            $this->checks->withdraw($loan, $request->user(), $data['note'], $data['idempotency_key'] ?? null);
+        } catch (PostingFailed $failure) {
+            return response()->json(['message' => $failure->getMessage()], 422);
+        }
+
+        return $this->saved($loan);
+    }
+
+    private function saved(Loan $loan): JsonResponse
+    {
         return response()->json([
             'check' => LoanCheckService::present($loan->currentCheck()->first()),
             'checks' => $this->checks->history($loan),
