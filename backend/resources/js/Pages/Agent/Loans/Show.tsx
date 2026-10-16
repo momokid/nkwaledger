@@ -3,6 +3,7 @@ import BackLink from "@/Components/BackLink";
 import { wording } from "@/lib/wording";
 import { cedis, shortDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck, CheckStatus, checkOptionLabel } from "@/Components/LoanCheckNotice";
+import useFocusFlash from "@/hooks/useFocusFlash";
 import { PageProps } from "@/types";
 
 interface CheckRow {
@@ -51,6 +52,7 @@ type ContentProps = Pick<Props, "loan" | "farmer" | "repayments" | "rejected" | 
 // the agent reads the money, the lender check and its note; the check itself is saved by the admin
 function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProps) {
     const { dark } = useTheme();
+    useFocusFlash();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -62,10 +64,12 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
     return (
         <div className="p-6" style={{ background: surface, border: `1px solid ${border}` }}>
             <BackLink fallbackHref="/agent/loans" />
-            <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>{loan.lender}</h2>
-            <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
-                {farmer} · GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)} · {STATUS_LABELS[loan.status] ?? loan.status}
-            </p>
+            <div data-focus={loan.uuid}>
+                <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>{loan.lender}</h2>
+                <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
+                    {farmer} · GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)} · {STATUS_LABELS[loan.status] ?? loan.status}
+                </p>
+            </div>
 
             <div className="mt-2">
                 <LoanCheckNotice check={loan.check} />
@@ -75,7 +79,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
                 <div className="mt-5">
                     <h3 style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>{wording("lender.check_history")}</h3>
                     {checks.map((row) => (
-                        <div key={row.uuid} className="mt-2" style={{ borderTop: `1px solid ${border}`, paddingTop: "8px" }}>
+                        <div key={row.uuid} data-focus={row.uuid} className="mt-2" style={{ borderTop: `1px solid ${border}`, paddingTop: "8px" }}>
                             <p style={{ color: text, fontSize: "1.0625rem", fontWeight: 600 }}>
                                 {checkOptionLabel(row.status)} · {shortDate(row.date)} · {row.by}
                             </p>
@@ -90,7 +94,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
             </h3>
 
             {rejected.map((row) => (
-                <p key={row.uuid} className="mt-2" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
+                <p key={row.uuid} data-focus={row.uuid} className="mt-2" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
                     {shortDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
                 </p>
             ))}
@@ -108,7 +112,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
                         </thead>
                         <tbody>
                             {repayments.map((row) => (
-                                <tr key={row.uuid} style={{ borderTop: `1px solid ${border}`, opacity: row.cancelled ? 0.6 : 1 }}>
+                                <tr key={row.uuid} data-focus={row.uuid} style={{ borderTop: `1px solid ${border}`, opacity: row.cancelled ? 0.6 : 1 }}>
                                     <td className="px-4 py-3">{shortDate(row.date)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.amount)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.principal)}</td>

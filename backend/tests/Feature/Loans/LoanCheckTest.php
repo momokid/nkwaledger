@@ -110,7 +110,7 @@ test('the farmer and the farmer\'s agent are told, each on their own screen, and
     expect($toFarmer)->toHaveCount(1)->and($toAgent)->toHaveCount(1)
         ->and($toFarmer[0]->message)->toBe($text)->and($toAgent[0]->message)->toBe($text)
         ->and($toFarmer[0]->link)->toBe("/loans/{$this->loan->uuid}")
-        ->and($toAgent[0]->link)->toBe("/agent/farmers/{$this->profile->uuid}")
+        ->and($toAgent[0]->link)->toBe("/agent/loans/{$this->loan->uuid}?focus=" . $this->loan->checks()->latest('id')->value('uuid'))
         ->and(Notification::where('user_id', $this->admin->id)->where('kind', 'loan.checked')->count())->toBe(0);
 })->with([
     'confirmed' => ['confirmed', 'Sika Microfinance: confirmed with the lender'],

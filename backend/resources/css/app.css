@@ -9,3 +9,27 @@
         font-family: 'Inter', system-ui, sans-serif;
     }
 }
+/* the item a notification points at: a soft green glow, once */
+@keyframes flash-focus {
+    0%,
+    55% {
+        background-color: rgba(29, 158, 117, 0.22);
+        box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.55);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: 0 0 0 0 rgba(29, 158, 117, 0);
+    }
+}
+
+.flash-focus {
+    animation: flash-focus 2.4s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flash-focus {
+        animation: none;
+        background-color: rgba(29, 158, 117, 0.22);
+        outline: 2px solid #1d9e75;
+    }
+}
