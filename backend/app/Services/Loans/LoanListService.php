@@ -15,7 +15,7 @@ class LoanListService
     /** @return Collection<int, array<string, mixed>> */
     public function forStaff(FarmerProfile $farmer): Collection
     {
-        $loans = Loan::where('farmer_profile_id', $farmer->id)->with('lender')->get()->map(fn(Loan $loan) => [
+        $loans = Loan::where('farmer_profile_id', $farmer->id)->with(['lender', 'currentCheck'])->get()->map(fn(Loan $loan) => [
             'at' => $loan->created_at,
             'id' => $loan->id,
             'row' => [
@@ -25,6 +25,7 @@ class LoanListService
                 'amount' => $loan->principal_minor,
                 'balance' => $loan->balanceMinor(),
                 'status' => $loan->displayStatus(),
+                'check' => LoanCheckService::present($loan->currentCheck),
             ],
         ]);
 

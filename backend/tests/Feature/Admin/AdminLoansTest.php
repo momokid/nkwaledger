@@ -123,7 +123,7 @@ test('the figures in the list are the same as the ones worked out loan by loan',
     }
 });
 
-test('the loan page is read-only and shows the repayments, the farmer\'s name and the lender', function () {
+test('the loan page records no money: it shows the repayments, the farmer\'s name and the lender, and carries nothing to add a repayment', function () {
     ($this->repay)($this->mine, '600');
 
     $props = $this->actingAs($this->admin)->get("/admin/loans/{$this->mine->uuid}")->viewData('page')['props'];
@@ -133,7 +133,7 @@ test('the loan page is read-only and shows the repayments, the farmer\'s name an
         ->and($props['farmer'])->toBe($this->farmerName)
         ->and($props['repayments'])->toHaveCount(1)
         ->and([$props['repayments'][0]['amount'], $props['repayments'][0]['principal'], $props['repayments'][0]['interest']])->toBe([60000, 50000, 10000])
-        ->and(array_keys($props))->not->toContain('postUrl')->not->toContain('previewUrl')->not->toContain('idempotencyKey');
+        ->and(array_keys($props))->not->toContain('postUrl')->not->toContain('previewUrl')->not->toContain('paidFrom');
 });
 
 test('nothing on the admin pages sends the admin into a farmer\'s own pages', function () {

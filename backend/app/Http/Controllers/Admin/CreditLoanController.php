@@ -3,7 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\Ledger\PostingFailed;
 use App\Models\Loan;
+use App\Models\LoanCheck;
+use App\Services\Loans\LoanCheckService;
+use App\Support\Wording;
+use Illuminate\Support\Str;
 use App\Services\Loans\AdminLoanListService;
 use App\Services\Loans\LoanListService;
 use App\Services\Loans\RepaymentService;
@@ -20,6 +25,7 @@ class CreditLoanController extends Controller
         private readonly AdminLoanListService $list,
         private readonly LoanListService $loans,
         private readonly RepaymentService $repayments,
+        private readonly LoanCheckService $checks,
     ) {}
 
     // the first visit renders the page with the first page in it; every search, filter and page after that is fetched in place
@@ -51,6 +57,35 @@ class CreditLoanController extends Controller
             'farmer' => $this->list->farmerName($loan->farmerProfile),
             'repayments' => $this->loans->repaymentRows($loan),
             'rejected' => $this->loans->rejectedRepayments($loan),
+            'checks' => $this->checks->history($loan),
+            'idempotencyKey' => (string) Str::uuid(),
         ]);
+    }
+
+    // saved in place: the page gets back the current check and the history, and nothing reloads
+    public function check(Request $request, Loan $loan): JsonResponse
+    {
+        Gate::authorize('view', $loan);
+
+        $words = Wording::FALLBACK;
+        $data = $request->validate([
+            'status' => ['required', 'string', 'in:' . implode(',', LoanCheck::STATUSES)],
+            'note' => ['nullable', 'string', 'max:500'],
+            'idempotency_key' => ['nullable', 'string', 'max:64'],
+        ], [
+            'status.required' => $words, 'status.string' => $words, 'status.in' => $words,
+            'note.string' => $words, 'note.max' => $words,
+        ]);
+
+        try {
+            $this->checks->record($loan, $request->user(), $data['status'], $data['note'] ?? null, $data['idempotency_key'] ?? null);
+        } catch (PostingFailed $failure) {
+            return response()->json(['message' => $failure->getMessage()], 422);
+        }
+
+        return response()->json([
+            'check' => LoanCheckService::present($loan->currentCheck()->first()),
+            'checks' => $this->checks->history($loan),
+        ], 201);
     }
 }

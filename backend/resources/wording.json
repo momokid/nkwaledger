@@ -37,5 +37,21 @@
     "lender.type.credit_financial_institution": "Credit Financial Institution",
     "lender.type.microfinance": "Microfinance",
     "lender.type.other": "Other",
-    "lender.nothing_to_save": "Enter the Lender's name or choose a type"
+    "lender.nothing_to_save": "Enter the Lender's name or choose a type",
+    "lender.check_heading": "Confirm with the lender",
+    "lender.check_status": "Status",
+    "lender.check_note": "Note",
+    "lender.check_history": "Checks with the lender",
+    "lender.check_option_confirmed": "Confirmed",
+    "lender.check_option_not_confirmed": "Not Confirmed",
+    "lender.check_option_does_not_match": "Does not match",
+    "lender.check_option_unreachable": "Lender could not be reached",
+    "lender.check_line_confirmed": "Confirmed with the lender on {date}",
+    "lender.check_line_not_confirmed": "Not Confirmed",
+    "lender.check_line_does_not_match": "The lender says this does not match",
+    "lender.check_line_unreachable": "Lender could not be reached",
+    "lender.check_notice_confirmed": "{lender}: confirmed with the lender",
+    "lender.check_notice_not_confirmed": "{lender}: Not Confirmed",
+    "lender.check_notice_does_not_match": "{lender}: the lender says this does not match",
+    "lender.check_notice_unreachable": "{lender}: Lender could not be reached"
 }

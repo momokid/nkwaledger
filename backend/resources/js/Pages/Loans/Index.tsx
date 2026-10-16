@@ -4,7 +4,7 @@ import Button from "@/Components/Button";
 import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { cedis } from "@/lib/format";
-import { LOAN_NOTICE } from "@/lib/loanNotice";
+import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useState } from "react";
 
 type Status = "active" | "repaid" | "cancelled";
@@ -15,6 +15,7 @@ interface LoanRow {
     amount: number;
     balance: number;
     status: Status;
+    check?: LoanCheck | null;
 }
 
 interface PendingCard {
@@ -156,9 +157,7 @@ function IndexContent({ loans, pending }: ContentProps) {
                                         <Link href={`/loans/${loan.uuid}`} style={{ color: text, textDecoration: "underline" }}>
                                             {loan.lender}
                                         </Link>
-                                        <p role="note" style={{ color: "#B45309", fontSize: "0.9375rem" }}>
-                                            {LOAN_NOTICE}
-                                        </p>
+                                        <LoanCheckNotice check={loan.check} size="0.9375rem" />
                                     </td>
                                     <td className="px-4 py-3" style={{ color: text }}>
                                         GHS {cedis(loan.amount)}

@@ -155,6 +155,17 @@ class Loan extends Model
         return max(0, (int) $this->agreed_interest_minor - $this->interestPaidMinor());
     }
 
+    public function checks(): HasMany
+    {
+        return $this->hasMany(LoanCheck::class)->orderByDesc('id');
+    }
+
+    // the newest check with the lender, if anyone has made one
+    public function currentCheck(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(LoanCheck::class)->latestOfMany('id');
+    }
+
     public function repayments(): HasMany
     {
         return $this->hasMany(LoanRepayment::class);

@@ -46,6 +46,7 @@ class RepaymentService
             'balance' => $loan->balanceMinor(),
             'interest_remaining' => $loan->isCancelled() ? 0 : $loan->remainingInterestMinor(),
             'status' => $loan->displayStatus(),
+            'check' => LoanCheckService::present($loan->currentCheck),
         ];
     }
 

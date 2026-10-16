@@ -3,8 +3,10 @@ import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import BackLink from "@/Components/BackLink";
 import { wording } from "@/lib/wording";
 import { cedis, shortDate } from "@/lib/format";
-import { LOAN_NOTICE } from "@/lib/loanNotice";
+import LoanCheckNotice, { LoanCheck, CheckStatus, checkOptionLabel } from "@/Components/LoanCheckNotice";
+import LoanCheckForm, { SavedChecks } from "@/Components/Admin/LoanCheckForm";
 import { PageProps } from "@/types";
+import { useState } from "react";
 
 interface LoanSummary {
     uuid: string;
@@ -12,6 +14,12 @@ interface LoanSummary {
     amount: number;
     balance: number;
     status: string;
+    check: LoanCheck | null;
+}
+
+interface CheckRow extends LoanCheck {
+    uuid: string;
+    by: string;
 }
 
 interface RepaymentRow {
@@ -34,6 +42,8 @@ interface Props extends PageProps {
     farmer: string;
     repayments: RepaymentRow[];
     rejected: RejectedRow[];
+    checks: CheckRow[];
+    idempotencyKey: string;
 }
 
 const STATUS_LABELS: Record<string, string> = { active: "Active", repaid: "Repaid", cancelled: "Cancelled" };
@@ -46,11 +56,13 @@ export default function Show(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "loan" | "farmer" | "repayments" | "rejected">;
+type ContentProps = Pick<Props, "loan" | "farmer" | "repayments" | "rejected" | "checks" | "idempotencyKey">;
 
-// read-only: the admin looks, and records nothing from here
-function ShowContent({ loan, farmer, repayments, rejected }: ContentProps) {
+// the admin looks at the money and records nothing on it from here; the one thing saved is the check with the lender
+function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, idempotencyKey }: ContentProps) {
     const { dark } = useTheme();
+    const [check, setCheck] = useState(loan.check);
+    const [checks, setChecks] = useState(firstChecks);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -67,9 +79,34 @@ function ShowContent({ loan, farmer, repayments, rejected }: ContentProps) {
                 {farmer} · GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)} · {STATUS_LABELS[loan.status] ?? loan.status}
             </p>
 
-            <p role="note" className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
-                {LOAN_NOTICE}
-            </p>
+            <div className="mt-2">
+                <LoanCheckNotice check={check} />
+            </div>
+
+            {loan.status !== "cancelled" && (
+                <LoanCheckForm
+                    loanUuid={loan.uuid}
+                    idempotencyKey={idempotencyKey}
+                    onSaved={(saved: SavedChecks) => {
+                        setCheck(saved.check);
+                        setChecks(saved.checks as CheckRow[]);
+                    }}
+                />
+            )}
+
+            {checks.length > 0 && (
+                <div className="mt-5">
+                    <h3 style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>{wording("lender.check_history")}</h3>
+                    {checks.map((row) => (
+                        <div key={row.uuid} className="mt-2" style={{ borderTop: `1px solid ${border}`, paddingTop: "8px" }}>
+                            <p style={{ color: text, fontSize: "1.0625rem", fontWeight: 600 }}>
+                                {checkOptionLabel(row.status as CheckStatus)} · {shortDate(row.date)} · {row.by}
+                            </p>
+                            {row.note && <p style={{ color: textSecondary, fontSize: "1.0625rem", whiteSpace: "pre-wrap" }}>{row.note}</p>}
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments

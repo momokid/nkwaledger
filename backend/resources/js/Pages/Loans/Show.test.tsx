@@ -56,6 +56,17 @@ afterEach(async () => {
 });
 
 describe("The loan page", () => {
+    it("shows the check with the lender and its note in place of the self-reported notice", async () => {
+        const checked = { ...props, loan: { ...props.loan, check: { status: "does_not_match", note: "Branch says 800", date: "2026-10-16" } } };
+        await act(async () => root.render(<Show {...(checked as unknown as ComponentProps<typeof Show>)} />));
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("The lender says this does not match");
+        expect(text).toContain("Branch says 800");
+        expect(text).not.toContain("It has not been checked with the lender");
+    });
+
     const recordButton = () => Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Record a repayment");
 
     it("offers Record a repayment on an active loan only: not on a repaid or a cancelled one", async () => {

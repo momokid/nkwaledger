@@ -554,6 +554,7 @@ Route::middleware(['marketplace', 'auth', 'role:supplier', 'verified.phone'])->p
 Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/loans', [\App\Http\Controllers\Admin\CreditLoanController::class, 'index'])->name('loans.index');
     Route::get('/loans/{loan}', [\App\Http\Controllers\Admin\CreditLoanController::class, 'show'])->name('loans.show');
+    Route::post('/loans/{loan}/checks', [\App\Http\Controllers\Admin\CreditLoanController::class, 'check'])->name('loans.checks.store');
 
     Route::get('/lenders', [AdminLenderController::class, 'index'])->name('lenders.index');
     Route::post('/lenders', [AdminLenderController::class, 'store'])->name('lenders.store');

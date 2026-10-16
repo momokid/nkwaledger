@@ -5,7 +5,7 @@ import Button from "@/Components/Button";
 import RepaymentForm, { PaidFromOption } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
 import { cedis, shortDate } from "@/lib/format";
-import { LOAN_NOTICE } from "@/lib/loanNotice";
+import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useState } from "react";
 
 interface LoanSummary {
@@ -14,6 +14,7 @@ interface LoanSummary {
     amount: number;
     balance: number;
     status: string;
+    check?: LoanCheck | null;
 }
 
 interface RepaymentRow {
@@ -71,9 +72,9 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                 GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)}
             </p>
 
-            <p role="note" className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
-                {LOAN_NOTICE}
-            </p>
+            <div className="mt-2">
+                <LoanCheckNotice check={loan.check} />
+            </div>
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments
