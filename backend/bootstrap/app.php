@@ -52,6 +52,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn(Request $request) => $request->is('api/*')
-                || ($request->expectsJson() && $request->is('sync/*', 'admin/sync-submissions/*', 'pin-reset/*', 'lenders/*', 'admin/lenders', 'admin/lenders/*', 'admin/loans', 'admin/loans/*/checks', 'admin/loans/*/checks/withdraw', 'loans/*/repayments/preview', 'agent/loans/*/repayments/preview')),
+                || ($request->expectsJson() && $request->is('sync/*', 'admin/sync-submissions/*', 'pin-reset/*', 'lenders/*', 'admin/lenders', 'admin/lenders/*', 'admin/loans', 'admin/loan-analysis', 'admin/loans/*/checks', 'admin/loans/*/checks/withdraw', 'loans/*/repayments/preview', 'agent/loans/*/repayments/preview')),
         );
     })->create();

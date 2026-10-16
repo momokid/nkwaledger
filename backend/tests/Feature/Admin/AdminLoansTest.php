@@ -150,8 +150,8 @@ test('the admin menu has a Credit group with Loans and Lenders, for an admin onl
     $credit = $menu->firstWhere('label', 'Credit');
 
     expect($credit)->not->toBeNull()
-        ->and(collect($credit['children'])->pluck('label')->all())->toBe(['Loans', 'Lenders'])
-        ->and(collect($credit['children'])->pluck('routeName')->all())->toBe(['admin.loans.index', 'admin.lenders.index'])
+        ->and(collect($credit['children'])->pluck('label')->all())->toBe(['Loans', 'Loan Analysis', 'Lenders'])
+        ->and(collect($credit['children'])->pluck('routeName')->all())->toBe(['admin.loans.index', 'admin.loan-analysis.index', 'admin.lenders.index'])
         ->and(app(NavigationAccessService::class)->adminMenu($this->farmerUser))->toBe([])
         ->and(app(NavigationAccessService::class)->adminMenu($this->agent))->toBe([]);
 });

@@ -552,6 +552,7 @@ Route::middleware(['marketplace', 'auth', 'role:supplier', 'verified.phone'])->p
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
 Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/loan-analysis', [\App\Http\Controllers\Admin\LoanAnalysisController::class, 'index'])->name('loan-analysis.index');
     Route::get('/loans', [\App\Http\Controllers\Admin\CreditLoanController::class, 'index'])->name('loans.index');
     Route::get('/loans/{loan}', [\App\Http\Controllers\Admin\CreditLoanController::class, 'show'])->name('loans.show');
     Route::post('/loans/{loan}/checks', [\App\Http\Controllers\Admin\CreditLoanController::class, 'check'])->name('loans.checks.store');
