@@ -250,6 +250,8 @@ Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->na
     Route::post('/loan-entries/{entry}/send-code', [AgentLoanController::class, 'sendCode'])->middleware('throttle:loan-code')->name('send-code');
     Route::post('/loan-entries/{entry}/code', [AgentLoanController::class, 'enterCode'])->middleware('throttle:loan-code')->name('code');
     Route::post('/loan-entries/{entry}/withdraw', [AgentLoanController::class, 'withdraw'])->name('withdraw');
+    Route::get('/loans', [\App\Http\Controllers\Agent\AgentLoanViewController::class, 'index'])->name('index');
+    Route::get('/loans/{loan}', [\App\Http\Controllers\Agent\AgentLoanViewController::class, 'show'])->whereUuid('loan')->name('show');
 });
 
 // finding an institution for a loan: a POST, so nothing typed lands in an address
