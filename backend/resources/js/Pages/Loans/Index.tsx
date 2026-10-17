@@ -1,10 +1,10 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { cedis } from "@/lib/format";
-import { LOAN_NOTICE } from "@/lib/loanNotice";
-import { REPAYMENT_TEXT } from "@/Components/RepaymentForm";
+import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useState } from "react";
 
 type Status = "active" | "repaid" | "cancelled";
@@ -15,11 +15,11 @@ interface LoanRow {
     amount: number;
     balance: number;
     status: Status;
+    check?: LoanCheck | null;
 }
 
 interface PendingCard {
     kind: "loan" | "repayment";
-    excess: boolean;
     uuid: string;
     lender: string;
     amount: number;
@@ -51,7 +51,6 @@ type ContentProps = Pick<Props, "loans" | "pending">;
 function IndexContent({ loans, pending }: ContentProps) {
     const { dark } = useTheme();
     const [declining, setDeclining] = useState<string | null>(null);
-    const [confirming, setConfirming] = useState<string | null>(null);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -90,7 +89,7 @@ function IndexContent({ loans, pending }: ContentProps) {
                     <p style={{ color: textSecondary, fontSize: "1rem" }}>Recorded by {card.agent}</p>
                     <p className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
                         {card.kind === "repayment"
-                            ? "repayment.pending_notice"
+                            ? wording("repayment.pending_notice")
                             : "Your agent recorded a loan for you. It is not counted until you accept it."}
                     </p>
 
@@ -110,27 +109,9 @@ function IndexContent({ loans, pending }: ContentProps) {
                                 </Button>
                             </div>
                         </div>
-                    ) : confirming === card.uuid ? (
-                        <div className="mt-3" role="alertdialog" aria-label={REPAYMENT_TEXT.prompt}>
-                            <p style={{ color: text, fontSize: "1.0625rem" }}>{REPAYMENT_TEXT.prompt}</p>
-                            <div className="mt-2 flex gap-3">
-                                <Button
-                                    type="button"
-                                    onClick={() => router.post(`/loans/entries/${card.uuid}/accept`, { confirm_excess: true })}
-                                >
-                                    {REPAYMENT_TEXT.yes}
-                                </Button>
-                                <Button type="button" look="secondary" onClick={() => setConfirming(null)}>
-                                    {REPAYMENT_TEXT.no}
-                                </Button>
-                            </div>
-                        </div>
                     ) : (
                         <div className="mt-3 flex gap-3">
-                            <Button
-                                type="button"
-                                onClick={() => (card.excess ? setConfirming(card.uuid) : router.post(`/loans/entries/${card.uuid}/accept`))}
-                            >
+                            <Button type="button" onClick={() => router.post(`/loans/entries/${card.uuid}/accept`)}>
                                 Accept
                             </Button>
                             <Button type="button" look="secondary" onClick={() => setDeclining(card.uuid)}>
@@ -176,9 +157,7 @@ function IndexContent({ loans, pending }: ContentProps) {
                                         <Link href={`/loans/${loan.uuid}`} style={{ color: text, textDecoration: "underline" }}>
                                             {loan.lender}
                                         </Link>
-                                        <p role="note" style={{ color: "#B45309", fontSize: "0.9375rem" }}>
-                                            {LOAN_NOTICE}
-                                        </p>
+                                        <LoanCheckNotice check={loan.check} size="0.9375rem" />
                                     </td>
                                     <td className="px-4 py-3" style={{ color: text }}>
                                         GHS {cedis(loan.amount)}

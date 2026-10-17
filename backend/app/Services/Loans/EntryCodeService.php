@@ -12,6 +12,7 @@ use App\Models\PendingEntryCode;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Support\Money;
+use App\Support\Wording;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -23,6 +24,7 @@ class EntryCodeService
     public const LIFETIME_MINUTES = 10;
     public const MAX_TRIES = 3;
     public const MAX_SENDS_PER_HOUR = 3;
+    public const SMS_LENGTH = 160;
 
     public const WRONG = 'The code is not correct.';
     public const EXPIRED = 'The code has expired. Send a new code.';
@@ -43,10 +45,6 @@ class EntryCodeService
         DB::transaction(function () use ($entry, $agent) {
             $locked = $this->entries->lock($entry);
             $this->entries->mustBePending($locked);
-
-            if ($locked->isRepayment() && $locked->payload['excess']) {
-                throw EntryRefused::because(RepaymentService::CODE_NOT_ALLOWED);
-            }
 
             $phone = trim((string) $locked->farmerProfile->user?->phone);
 
@@ -111,6 +109,9 @@ class EntryCodeService
         }
 
         return DB::transaction(function () use ($entry, $agent, $row) {
+            // the entry first, then its code, the same order as everything else, so two requests never wait for each other
+            $this->entries->lock($entry);
+
             $fresh = PendingEntryCode::query()->whereKey($row->id)->lockForUpdate()->firstOrFail();
 
             if ($fresh->used_at !== null || $fresh->cancelled_at !== null) {
@@ -166,16 +167,24 @@ class EntryCodeService
         return hash_hmac('sha256', $entry->uuid . '|' . $code, (string) config('app.key'));
     }
 
+    // one SMS holds 160 characters: only the name is cut (with ...), so the amount, the code and the rest of the words stay whole.
+    // This is for the SMS only; the name on screen and in the database is never cut
+    private function fitLender(string $name, int $otherLength): string
+    {
+        $room = self::SMS_LENGTH - $otherLength;
+
+        return mb_strlen($name) <= $room ? $name : rtrim(mb_substr($name, 0, $room - 3)) . '...';
+    }
+
     private function message(PendingEntry $entry, string $code): string
     {
-        if ($entry->isRepayment()) {
-            // placeholder wording for a repayment: not approved yet
-            return 'repayment.sms GHS ' . Money::toDecimal($entry->payload['amount_minor']) . " {$entry->lenderName()} code {$code}";
-        }
+        $repayment = $entry->isRepayment();
+        $amount = Money::toDecimal($entry->payload[$repayment ? 'amount_minor' : 'principal_minor']);
 
-        $amount = Money::toDecimal($entry->payload['principal_minor']);
-        $lender = $entry->lenderName();
+        $build = fn(string $lender) => $repayment
+            ? Wording::get('repayment.sms', ['amount' => $amount, 'lender' => $lender, 'code' => $code])
+            : "NkwaLedger: Your agent recorded a loan of GHS {$amount} from {$lender}. Give the code {$code} to your agent only if you agree. It works for 10 minutes.";
 
-        return "NkwaLedger: Your agent recorded a loan of GHS {$amount} from {$lender}. Give the code {$code} to your agent only if you agree. It works for 10 minutes.";
+        return $build($this->fitLender($entry->lenderName(), mb_strlen($build(''))));
     }
 }

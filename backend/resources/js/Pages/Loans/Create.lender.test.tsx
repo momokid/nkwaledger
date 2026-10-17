@@ -17,6 +17,7 @@ vi.mock("@inertiajs/react", async () => {
     const React = await import("react");
 
     return {
+        Link: ({ href, children }: { href: string; children: React.ReactNode }) => React.createElement("a", { href }, children),
         usePage: () => ({ props: { errors: {}, flash: {}, old: mockOld } }),
         router: { visit: () => {} },
         useForm: (initial: Record<string, string>) => {
@@ -135,8 +136,8 @@ describe("The lender on the loan form", () => {
         await typeInto("sik");
 
         expect(options().map((option) => option.textContent)).toEqual([
-            "Sika Microfinancelender.type.microfinance",
-            "Sikaman Rural Banklender.type.rural_bank",
+            "Sika MicrofinanceMicrofinance",
+            "Sikaman Rural BankRural Bank",
         ]);
     });
 
@@ -152,7 +153,7 @@ describe("The lender on the loan form", () => {
         await show();
         await typeInto("my own bank");
 
-        expect(container.textContent).toContain("lender.not_in_list");
+        expect(container.textContent).toContain("Lender is not listed");
         expect(save().disabled).toBe(true);
     });
 

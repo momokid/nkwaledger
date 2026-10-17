@@ -250,6 +250,8 @@ Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->na
     Route::post('/loan-entries/{entry}/send-code', [AgentLoanController::class, 'sendCode'])->middleware('throttle:loan-code')->name('send-code');
     Route::post('/loan-entries/{entry}/code', [AgentLoanController::class, 'enterCode'])->middleware('throttle:loan-code')->name('code');
     Route::post('/loan-entries/{entry}/withdraw', [AgentLoanController::class, 'withdraw'])->name('withdraw');
+    Route::get('/loans', [\App\Http\Controllers\Agent\AgentLoanViewController::class, 'index'])->name('index');
+    Route::get('/loans/{loan}', [\App\Http\Controllers\Agent\AgentLoanViewController::class, 'show'])->whereUuid('loan')->name('show');
 });
 
 // finding an institution for a loan: a POST, so nothing typed lands in an address
@@ -552,6 +554,12 @@ Route::middleware(['marketplace', 'auth', 'role:supplier', 'verified.phone'])->p
 
 // role-gated: only the admin role may reach these, regardless of any permission grant
 Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/loan-analysis', [\App\Http\Controllers\Admin\LoanAnalysisController::class, 'index'])->name('loan-analysis.index');
+    Route::get('/loans', [\App\Http\Controllers\Admin\CreditLoanController::class, 'index'])->name('loans.index');
+    Route::get('/loans/{loan}', [\App\Http\Controllers\Admin\CreditLoanController::class, 'show'])->name('loans.show');
+    Route::post('/loans/{loan}/checks', [\App\Http\Controllers\Admin\CreditLoanController::class, 'check'])->name('loans.checks.store');
+    Route::post('/loans/{loan}/checks/withdraw', [\App\Http\Controllers\Admin\CreditLoanController::class, 'withdrawCheck'])->name('loans.checks.withdraw');
+
     Route::get('/lenders', [AdminLenderController::class, 'index'])->name('lenders.index');
     Route::post('/lenders', [AdminLenderController::class, 'store'])->name('lenders.store');
     Route::patch('/lenders/{lender}', [AdminLenderController::class, 'update'])->name('lenders.update');

@@ -15,7 +15,7 @@ class LoanListService
     /** @return Collection<int, array<string, mixed>> */
     public function forStaff(FarmerProfile $farmer): Collection
     {
-        $loans = Loan::where('farmer_profile_id', $farmer->id)->with('lender')->get()->map(fn(Loan $loan) => [
+        $loans = Loan::where('farmer_profile_id', $farmer->id)->with(['lender', 'currentCheck'])->get()->map(fn(Loan $loan) => [
             'at' => $loan->created_at,
             'id' => $loan->id,
             'row' => [
@@ -25,6 +25,7 @@ class LoanListService
                 'amount' => $loan->principal_minor,
                 'balance' => $loan->balanceMinor(),
                 'status' => $loan->displayStatus(),
+                'check' => LoanCheckService::present($loan->currentCheck),
             ],
         ]);
 
@@ -59,7 +60,6 @@ class LoanListService
             ->map(fn(PendingEntry $entry) => [
                 'uuid' => $entry->uuid,
                 'kind' => $entry->isRepayment() ? 'repayment' : 'loan',
-                'excess' => $entry->isRepayment() && $entry->payload['excess'],
                 'lender' => $entry->lenderName(),
                 'amount' => $entry->payload['principal_minor'] ?? $entry->payload['amount_minor'],
                 // an opening entry is dated the day it is accepted, so the card shows the day it was recorded
@@ -67,6 +67,25 @@ class LoanListService
                     ? $entry->payload['date']
                     : ($entry->payload['kind'] === Loan::KIND_MONEY ? $entry->payload['loan_date'] : $entry->created_at->toDateString()),
                 'agent' => $entry->recordedBy ? trim("{$entry->recordedBy->surname} {$entry->recordedBy->first_name}") : '',
+            ])
+            ->values();
+    }
+
+    /** @return Collection<int, array<string, mixed>> the repayments made on a loan, newest first, public ids only */
+    public function repaymentRows(Loan $loan): Collection
+    {
+        return $loan->repayments()
+            ->with(['principalTransaction.reversedBy', 'interestTransaction.reversedBy'])
+            ->orderByDesc('repaid_on')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn(\App\Models\LoanRepayment $repayment) => [
+                'uuid' => $repayment->uuid,
+                'date' => $repayment->repaid_on->toDateString(),
+                'amount' => $repayment->amount_minor,
+                'principal' => $repayment->principal_minor,
+                'interest' => $repayment->interest_minor,
+                'cancelled' => $repayment->principalTransaction?->reversedBy !== null || $repayment->interestTransaction?->reversedBy !== null,
             ])
             ->values();
     }

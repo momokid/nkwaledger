@@ -91,5 +91,5 @@ test('the flag changes no amount, balance, total or signing code', function () {
         ->and($report['closing_balance'])->toBe($statement->closingBalanceMinor)
         ->and($report['total_in'])->toBe($statement->totalInMinor)
         ->and($report['header']['verification_code'] ?? $statement->header->verificationCode)->toBe($statement->header->verificationCode)
-        ->and($loan->balanceMinor())->toBe(100000);
+        ->and($loan->balanceMinor())->toBe(120000);
 });

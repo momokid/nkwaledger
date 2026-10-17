@@ -15,6 +15,8 @@ vi.mock("@/lib/syncHttp", () => ({ csrfToken: () => "token" }));
 vi.mock("@inertiajs/react", () => ({ router: { get: vi.fn() } }));
 
 const types = ["bank", "rural_bank", "credit_financial_institution", "microfinance", "other"];
+const typeNames = ["Bank", "Rural Bank", "Credit Financial Institution", "Microfinance", "Other"];
+const RAW_KEY = /\b(repayment|lender)\.[a-z_]+/;
 
 const props = {
     lenders: [
@@ -60,7 +62,8 @@ afterEach(async () => {
 describe("The type on each row of the Lenders page", () => {
     it("is a select showing the five keys, on the row's own type", () => {
         expect(Array.from(rowSelect(0).options).map((option) => option.value)).toEqual(types);
-        expect(Array.from(rowSelect(0).options).map((option) => option.textContent)).toEqual(types.map((type) => `lender.type.${type}`));
+        expect(Array.from(rowSelect(0).options).map((option) => option.textContent)).toEqual(typeNames);
+        expect(container.textContent).not.toMatch(RAW_KEY);
         expect([rowSelect(0).value, rowSelect(1).value]).toEqual(["bank", "microfinance"]);
     });
 
@@ -74,17 +77,17 @@ describe("The type on each row of the Lenders page", () => {
         expect(fetchMock.mock.calls[0][1].method).toBe("PATCH");
         expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ type: "rural_bank" });
         expect(rowSelect(0).value).toBe("rural_bank");
-        expect(container.querySelector("tbody tr")!.textContent).toContain("lender.saved");
+        expect(container.querySelector("tbody tr")!.textContent).toContain("Lender details saved");
     });
 
     it("puts the old type back and shows an error when the save fails", async () => {
-        fetchMock.mockResolvedValue(reply(false, { errors: { type: ["lender.type_invalid"] } }));
+        fetchMock.mockResolvedValue(reply(false, { errors: { type: ["Invalid lender details"] } }));
 
         await pick(rowSelect(0), "other");
 
         expect(rowSelect(0).value).toBe("bank");
-        expect(container.querySelector("tbody tr")!.textContent).toContain("lender.type_invalid");
-        expect(container.querySelector("tbody tr")!.textContent).not.toContain("lender.saved");
+        expect(container.querySelector("tbody tr")!.textContent).toContain("Invalid lender details");
+        expect(container.querySelector("tbody tr")!.textContent).not.toContain("Lender details saved");
     });
 
     it("puts the old type back, with the fallback error, when the request itself fails", async () => {
@@ -93,7 +96,7 @@ describe("The type on each row of the Lenders page", () => {
         await pick(rowSelect(1), "bank");
 
         expect(rowSelect(1).value).toBe("microfinance");
-        expect(container.querySelectorAll("tbody tr")[1].textContent).toContain("lender.save_failed");
+        expect(container.querySelectorAll("tbody tr")[1].textContent).toContain("Failed to save lender details");
     });
 
     it("leaves the other rows alone", async () => {
@@ -102,7 +105,7 @@ describe("The type on each row of the Lenders page", () => {
         await pick(rowSelect(0), "other");
 
         expect(rowSelect(1).value).toBe("microfinance");
-        expect(container.querySelectorAll("tbody tr")[1].textContent).not.toContain("lender.saved");
+        expect(container.querySelectorAll("tbody tr")[1].textContent).not.toContain("Lender details saved");
     });
 });
 
@@ -110,7 +113,7 @@ describe("Renaming", () => {
     it("keeps its own edit and sends only the name", async () => {
         fetchMock.mockResolvedValue(reply(true, { uuid: "u-1", type: "bank", name: "First Bank Renamed" }));
 
-        const edit = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "lender.edit")!;
+        const edit = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Edit")!;
         await act(async () => edit.click());
 
         const input = container.querySelector<HTMLInputElement>("tbody input")!;
@@ -120,7 +123,7 @@ describe("Renaming", () => {
             input.dispatchEvent(new Event("input", { bubbles: true }));
         });
 
-        const save = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "lender.save")!;
+        const save = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Save")!;
         await act(async () => save.click());
 
         expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ name: "First Bank Renamed" });

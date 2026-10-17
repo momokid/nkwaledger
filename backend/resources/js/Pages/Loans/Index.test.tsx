@@ -79,6 +79,13 @@ describe("Pending entries from an agent", () => {
         expect(buttons()).toContain("Decline");
     });
 
+    it("tells the farmer about a waiting repayment in the approved words", async () => {
+        await show([], [card({ kind: "repayment" })]);
+
+        expect(container.textContent).toContain("Your agent recorded a repayment for you. It is not counted until you accept it.");
+        expect(container.textContent).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
+    });
+
     it("sits above the list of loans", async () => {
         await show([loan({ lender: "Listed Lender" })], [card()]);
 
@@ -132,6 +139,16 @@ describe("The loans page", () => {
         expect(buttons()).toContain("Add a loan");
         expect(buttons()).toContain("Add a loan I already had");
         expect(container.textContent).not.toContain("not been checked with the lender");
+    });
+
+    it("shows a loan's check with the lender and its note in place of the notice, and the notice on the others", async () => {
+        await show([loan({ check: { status: "confirmed", note: "Spoke to the manager", date: "2026-10-16" } }), loan({ uuid: "b2" })]);
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("Confirmed with the lender on");
+        expect(text).toContain("Spoke to the manager");
+        expect(text.split("not been checked with the lender").length).toBe(2);
     });
 
     it("shows the notice once on each loan row", async () => {

@@ -7,6 +7,7 @@ use App\Models\Lender;
 use App\Models\Loan;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Support\Wording;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,6 @@ class LenderService
     public const SEARCH_LIMIT = 10;
     public const SEARCH_MIN = 2;
 
-    // placeholders: the wording for these is not approved yet
     public const NOT_IN_LIST = 'lender.not_in_list';
     public const NAME_CHARACTERS = 'lender.name_characters';
     public const NAME_TAKEN = 'lender.institution_exists';
@@ -77,7 +77,7 @@ class LenderService
         $name = Lender::squish($name);
 
         if (! in_array($type, Lender::TYPES, true)) {
-            throw ValidationException::withMessages(['type' => 'lender.type_invalid']);
+            throw ValidationException::withMessages(['type' => Wording::get('lender.type_invalid')]);
         }
 
         // two admins adding twins at once both pass the check; the unique index on sort_key lets only one in
@@ -92,7 +92,7 @@ class LenderService
                 return $lender;
             });
         } catch (UniqueConstraintViolationException) {
-            throw ValidationException::withMessages(['name' => self::NAME_TAKEN]);
+            throw ValidationException::withMessages(['name' => Wording::get(self::NAME_TAKEN)]);
         }
     }
 
@@ -103,13 +103,13 @@ class LenderService
     public function update(Lender $lender, ?string $name, ?string $type, User $by): Lender
     {
         if ($type !== null && ! in_array($type, Lender::TYPES, true)) {
-            throw ValidationException::withMessages(['type' => 'lender.type_invalid']);
+            throw ValidationException::withMessages(['type' => Wording::get('lender.type_invalid')]);
         }
 
         try {
             return $this->updateLocked($lender, $name, $type, $by);
         } catch (UniqueConstraintViolationException) {
-            throw ValidationException::withMessages(['name' => self::NAME_TAKEN]);
+            throw ValidationException::withMessages(['name' => Wording::get(self::NAME_TAKEN)]);
         }
     }
 
@@ -156,12 +156,12 @@ class LenderService
     private function mustBeNew(string $name, ?Lender $except): void
     {
         if ($name === '') {
-            throw ValidationException::withMessages(['name' => 'lender.name_required']);
+            throw ValidationException::withMessages(['name' => Wording::get('lender.name_required')]);
         }
 
-        // placeholder: a name with a letter that has no plain form cannot be matched or sorted
+        // a name with a letter that has no plain form cannot be matched or sorted
         if (Lender::hasUnfoldable($name)) {
-            throw ValidationException::withMessages(['name' => self::NAME_CHARACTERS]);
+            throw ValidationException::withMessages(['name' => Wording::get(self::NAME_CHARACTERS)]);
         }
 
         $clash = Lender::where(fn($q) => $q->where('name_key', Lender::keyOf($name))->orWhere('sort_key', Lender::sortKeyOf($name)))
@@ -169,7 +169,7 @@ class LenderService
             ->exists();
 
         if ($clash) {
-            throw ValidationException::withMessages(['name' => self::NAME_TAKEN]);
+            throw ValidationException::withMessages(['name' => Wording::get(self::NAME_TAKEN)]);
         }
     }
 }

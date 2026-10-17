@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Loans\Concerns\PreviewsRepayment;
 use App\Http\Requests\Loans\StoreRepaymentRequest;
 use App\Models\Loan;
-use App\Models\LoanRepayment;
 use App\Services\Loans\LoanListService;
 use App\Services\Loans\RepaymentService;
 use App\Services\RecordLock;
@@ -36,20 +35,7 @@ class RepaymentController extends Controller
 
         return Inertia::render('Loans/Show', [
             'loan' => $this->repayments->summary($loan),
-            'repayments' => $loan->repayments()
-                ->with(['principalTransaction.reversedBy', 'interestTransaction.reversedBy'])
-                ->orderByDesc('repaid_on')
-                ->orderByDesc('id')
-                ->get()
-                ->map(fn(LoanRepayment $repayment) => [
-                    'uuid' => $repayment->uuid,
-                    'date' => $repayment->repaid_on->toDateString(),
-                    'amount' => $repayment->amount_minor,
-                    'principal' => $repayment->principal_minor,
-                    'interest' => $repayment->interest_minor,
-                    'cancelled' => $repayment->principalTransaction?->reversedBy !== null || $repayment->interestTransaction?->reversedBy !== null,
-                ])
-                ->values(),
+            'repayments' => $this->list->repaymentRows($loan),
             'rejected' => $this->list->rejectedRepayments($loan),
             'paidFrom' => $this->repayments->paidFromOptions(),
             'idempotencyKey' => (string) Str::uuid(),

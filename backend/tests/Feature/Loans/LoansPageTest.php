@@ -153,7 +153,7 @@ test('a missing lender shows the lender placeholder, and a missing paid-into acc
 
     expect(Loan::count())->toBe(0);
 })->with([
-    ['lender', 'lender.not_in_list'],
+    ['lender', 'Lender is not listed'],
     ['paid_into', 'Choose where the money was paid into.'],
 ]);
 
@@ -174,7 +174,7 @@ test('the loan I already had form shows the lender placeholder for a missing len
     ], $over);
 
     $this->actingAs($this->farmerUser)->post('/loans', $existing(['lender' => '']))
-        ->assertSessionHasErrors(['lender' => 'lender.not_in_list']);
+        ->assertSessionHasErrors(['lender' => 'Lender is not listed']);
     $this->actingAs($this->farmerUser)->post('/loans', $existing())->assertSessionHasNoErrors();
 
     expect(Loan::count())->toBe(1);
@@ -214,7 +214,7 @@ test('sending the same form twice makes one loan', function () {
     expect(Loan::count())->toBe(1);
 });
 
-test('the dashboard shows the principal still owed on the active loans, and nothing from a cancelled one', function () {
+test('the dashboard shows the principal and interest still owed on the active loans, and nothing from a cancelled one', function () {
     $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '500']));
     $this->loans->record($this->profile, $this->farmerUser, ['kind' => 'existing', 'lender_name' => 'Uncle Kofi', 'lender' => institutionNamed('Uncle Kofi', 'other')->uuid, 'amount' => '300', 'interest' => '99']);
     $cancelled = $this->loans->record($this->profile, $this->farmerUser, ($this->newLoan)(['amount' => '90']));
@@ -222,7 +222,7 @@ test('the dashboard shows the principal still owed on the active loans, and noth
 
     $summary = ($this->props)($this->farmerUser, '/farmer/dashboard')['props']['summary'];
 
-    expect($summary['total_owed'])->toBe(80000);
+    expect($summary['total_owed'])->toBe(89900);
 });
 
 test('the dashboard shows zero owed when there are no loans', function () {

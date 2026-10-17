@@ -133,6 +133,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 ready: true,
                 badge: "approvals",
             },
+            { label: "Loans", href: "/agent/loans", icon: IconCreditCard, ready: true },
             { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
             {
                 label: "Reports",

@@ -47,7 +47,7 @@ test('recording checks the same rules as the farmer form, and stores nothing whe
     expect(fn() => ($this->pendingMoney)(['amount' => '0']))->toThrow(PostingFailed::class, 'Enter an amount above zero.')
         ->and(fn() => ($this->pendingMoney)(['date' => now()->addDay()->toDateString()]))->toThrow(PostingFailed::class, 'This date is in the future.')
         ->and(fn() => ($this->pendingMoney)(['paid_into' => $this->receivable->id]))->toThrow(InvalidArgumentException::class)
-        ->and(fn() => ($this->pendingMoney)(['lender' => '']))->toThrow(PostingFailed::class, 'lender.not_in_list')
+        ->and(fn() => ($this->pendingMoney)(['lender' => '']))->toThrow(PostingFailed::class, 'Lender is not listed')
         ->and(PendingEntry::count())->toBe(0);
 });
 

@@ -220,7 +220,7 @@ test('adding an accent twin of an existing name is refused with the existing dup
     Lender::create(['type' => 'bank', 'name' => 'Societe Generale']);
 
     $this->actingAs($this->admin)->postJson('/admin/lenders', ['type' => 'bank', 'name' => 'Société Générale'])
-        ->assertStatus(422)->assertJsonValidationErrors(['name'])->assertJsonPath('errors.name.0', 'lender.institution_exists');
+        ->assertStatus(422)->assertJsonValidationErrors(['name'])->assertJsonPath('errors.name.0', 'Lender already exists');
 
     expect(Lender::where('sort_key', 'societe generale')->count())->toBe(1);
 });
@@ -230,7 +230,7 @@ test('renaming into the accent twin of another lender is refused and nothing cha
     $other = Lender::create(['type' => 'bank', 'name' => 'Other Place']);
     $before = $other->fresh()->toJson();
 
-    ($this->patch)($other, ['name' => 'Société Générale'])->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.institution_exists');
+    ($this->patch)($other, ['name' => 'Société Générale'])->assertStatus(422)->assertJsonPath('errors.name.0', 'Lender already exists');
 
     expect($other->fresh()->toJson())->toBe($before)->and(($this->logs)($other)->count())->toBe(0);
 });
@@ -258,7 +258,7 @@ test('a clash that only the unique index sees gives the same duplicate error', f
     });
 
     $this->actingAs($this->admin)->postJson('/admin/lenders', ['type' => 'bank', 'name' => 'Société'])
-        ->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.institution_exists');
+        ->assertStatus(422)->assertJsonPath('errors.name.0', 'Lender already exists');
 
     expect(Lender::where('name', 'Société')->exists())->toBeFalse();
 });
@@ -267,8 +267,8 @@ test('a name with a character that cannot be folded to plain letters is refused 
     $lender = Lender::create(['type' => 'bank', 'name' => 'Plain Bank']);
 
     $this->actingAs($this->admin)->postJson('/admin/lenders', ['type' => 'bank', 'name' => $name])
-        ->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.name_characters');
-    ($this->patch)($lender, ['name' => $name])->assertStatus(422)->assertJsonPath('errors.name.0', 'lender.name_characters');
+        ->assertStatus(422)->assertJsonPath('errors.name.0', "Use only letters, numbers and common symbols in the Lender's name");
+    ($this->patch)($lender, ['name' => $name])->assertStatus(422)->assertJsonPath('errors.name.0', "Use only letters, numbers and common symbols in the Lender's name");
 
     expect($lender->fresh()->name)->toBe('Plain Bank')->and(Lender::count())->toBe(2);
 })->with(['open e' => 'Ɛ Rural Bank', 'open o' => 'Bank ɔ', 'chinese' => '名前 Bank', 'emoji' => 'Cafe ☕']);
@@ -283,4 +283,26 @@ test('a rename updates sort_key and a type edit does not change it', function ()
     ($this->patch)($lender, ['type' => 'other'])->assertOk();
 
     expect($lender->fresh()->only(['name', 'name_key', 'sort_key', 'type']))->toBe(['name' => 'Café Rural', 'name_key' => 'café rural', 'sort_key' => 'kept as stored', 'type' => 'other']);
+});
+
+test('an edit that sends neither a name nor a type gets one plain message and changes nothing', function (array $body) {
+    $lender = Lender::create(['type' => 'bank', 'name' => 'Some Bank']);
+    $before = $lender->fresh()->toJson();
+
+    ($this->patch)($lender, $body)
+        ->assertStatus(422)
+        ->assertJsonPath('errors.name.0', "Enter the Lender's name or choose a type")
+        ->assertJsonMissingValidationErrors(['type']);
+
+    expect($lender->fresh()->toJson())->toBe($before)->and(AuditLog::where('action', 'lender.updated')->count())->toBe(0);
+})->with([
+    'nothing at all' => [[]],
+    'only something else' => [['colour' => 'blue']],
+]);
+
+test('a name box left blank still asks for the name, and a type that is not one of the five is still invalid', function () {
+    $lender = Lender::create(['type' => 'bank', 'name' => 'Some Bank']);
+
+    ($this->patch)($lender, ['name' => ''])->assertStatus(422)->assertJsonPath('errors.name.0', "Enter the Lender's name");
+    ($this->patch)($lender, ['type' => 'pawn_shop'])->assertStatus(422)->assertJsonPath('errors.type.0', 'Invalid lender details');
 });

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Loans;
 use App\Models\Loan;
 use App\Services\Loans\LenderService;
 use App\Services\Loans\LoanService;
+use App\Support\Wording;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -43,9 +44,8 @@ class StoreLoanRequest extends FormRequest
             'amount.regex' => LoanService::AMOUNT_REFUSAL,
             'date.before_or_equal' => LoanService::FUTURE_REFUSAL,
             'due_date.after_or_equal' => 'The due date cannot be before the date received.',
-            // placeholder: the wording is not approved yet
-            'lender.required' => LenderService::NOT_IN_LIST,
-            'lender.uuid' => LenderService::NOT_IN_LIST,
+            'lender.required' => Wording::get(LenderService::NOT_IN_LIST),
+            'lender.uuid' => Wording::get(LenderService::NOT_IN_LIST),
             'paid_into.required' => 'Choose where the money was paid into.',
             'paid_into.integer' => 'Choose where the money was paid into.',
             'paid_into.in' => 'Choose where the money was paid into.',

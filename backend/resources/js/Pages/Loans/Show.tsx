@@ -1,9 +1,11 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
+import BackLink from "@/Components/BackLink";
 import Button from "@/Components/Button";
 import RepaymentForm, { PaidFromOption } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
 import { cedis, shortDate } from "@/lib/format";
-import { LOAN_NOTICE } from "@/lib/loanNotice";
+import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useState } from "react";
 
 interface LoanSummary {
@@ -12,6 +14,7 @@ interface LoanSummary {
     amount: number;
     balance: number;
     status: string;
+    check?: LoanCheck | null;
 }
 
 interface RepaymentRow {
@@ -63,20 +66,21 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
 
     return (
         <div className="p-6" style={{ background: surface, border: `1px solid ${border}` }}>
+            <BackLink fallbackHref="/loans" />
             <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: text }}>{loan.lender}</h2>
             <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
                 GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)}
             </p>
 
-            <p role="note" className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
-                {LOAN_NOTICE}
-            </p>
+            <div className="mt-2">
+                <LoanCheckNotice check={loan.check} />
+            </div>
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments
             </h3>
 
-            {loan.status !== "cancelled" && !open && (
+            {loan.status === "active" && !open && (
                 <div className="mt-3">
                     <Button type="button" onClick={() => setOpen(true)}>
                         Record a repayment
@@ -91,14 +95,13 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                     postUrl={postUrl}
                     today={today}
                     idempotencyKey={idempotencyKey}
-                    agent={false}
                     onCancel={() => setOpen(false)}
                 />
             )}
 
             {rejected.map((row) => (
                 <p key={row.uuid} className="mt-3" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
-                    {shortDate(row.date)} · GHS {cedis(row.amount)} · repayment.rejected
+                    {shortDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
                 </p>
             ))}
 
@@ -107,10 +110,10 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                             <tr>
-                                <th style={head}>repayment.date</th>
-                                <th style={head}>repayment.amount</th>
-                                <th style={head}>repayment.principal_part</th>
-                                <th style={head}>repayment.interest_part</th>
+                                <th style={head}>{wording("repayment.date")}</th>
+                                <th style={head}>{wording("repayment.amount")}</th>
+                                <th style={head}>{wording("repayment.principal_part")}</th>
+                                <th style={head}>{wording("repayment.interest_part")}</th>
                             </tr>
                         </thead>
                         <tbody>

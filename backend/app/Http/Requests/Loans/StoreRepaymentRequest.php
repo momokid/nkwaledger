@@ -5,6 +5,7 @@ namespace App\Http\Requests\Loans;
 use App\Models\PendingEntry;
 use App\Services\Loans\LoanService;
 use App\Services\Loans\RepaymentService;
+use App\Support\Wording;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
@@ -30,7 +31,6 @@ class StoreRepaymentRequest extends FormRequest
             'amount' => ['required', 'string', 'regex:/^\d+(\.\d{1,2})?$/'],
             'date' => ['required', 'date', 'before_or_equal:today'],
             'paid_from' => ['required', 'string', 'in:' . app(RepaymentService::class)->paidFromOptions()->pluck('value')->implode(',')],
-            'confirm_excess' => ['nullable', 'boolean'],
             'idempotency_key' => ['nullable', 'string', 'max:64'],
         ];
     }
@@ -42,9 +42,8 @@ class StoreRepaymentRequest extends FormRequest
             'amount.string' => LoanService::AMOUNT_REFUSAL,
             'amount.regex' => LoanService::AMOUNT_REFUSAL,
             'date.before_or_equal' => LoanService::FUTURE_REFUSAL,
-            // placeholder: the wording is not approved yet
-            'paid_from.required' => RepaymentService::PAID_FROM_INVALID,
-            'paid_from.in' => RepaymentService::PAID_FROM_INVALID,
+            'paid_from.required' => Wording::get(RepaymentService::PAID_FROM_INVALID),
+            'paid_from.in' => Wording::get(RepaymentService::PAID_FROM_INVALID),
         ];
     }
 
@@ -59,7 +58,7 @@ class StoreRepaymentRequest extends FormRequest
         ];
     }
 
-    /** @return array{amount: string, date: string, paid_from: ?int, confirm_excess: bool, idempotency_key: ?string} */
+    /** @return array{amount: string, date: string, paid_from: ?int, idempotency_key: ?string} */
     public function repayment(): array
     {
         $data = $this->validated();
@@ -68,7 +67,6 @@ class StoreRepaymentRequest extends FormRequest
             'amount' => $data['amount'],
             'date' => $data['date'],
             'paid_from' => app(RepaymentService::class)->accountIdFor($data['paid_from']),
-            'confirm_excess' => (bool) ($data['confirm_excess'] ?? false),
             'idempotency_key' => $data['idempotency_key'] ?? null,
         ];
     }

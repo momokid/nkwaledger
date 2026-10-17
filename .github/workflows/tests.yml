@@ -19,9 +19,6 @@ jobs:
         working-directory: backend
 
     env:
-      APP_KEY: base64:59rcOaGkAzZTfiPLXyL80YfTCZe71t2LwAFPoiqx6pM=
-      ARKESEL_SENDER: NkwaLedger
-      REPORT_SECRET: base64:jV5e2oTqMJjzcYflr1E/sy9MgYt/DdhcbexDEX551P4=
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: "5432"
