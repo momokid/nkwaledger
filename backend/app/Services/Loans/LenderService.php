@@ -153,7 +153,7 @@ class LenderService
         return $lender;
     }
 
-    private function mustBeNew(string $name, ?Lender $except): void
+    public function mustBeNew(string $name, ?Lender $except): void
     {
         if ($name === '') {
             throw ValidationException::withMessages(['name' => Wording::get('lender.name_required')]);

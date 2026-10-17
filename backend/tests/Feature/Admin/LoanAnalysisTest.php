@@ -167,6 +167,6 @@ test('the page opens with the first table already in it, and no row id and no li
 test('the admin menu lists Loan Analysis between Loans and Lenders', function () {
     $credit = collect(app(NavigationAccessService::class)->adminMenu($this->admin))->firstWhere('label', 'Credit');
 
-    expect(collect($credit['children'])->pluck('label')->all())->toBe(['Loans', 'Loan Analysis', 'Lenders'])
-        ->and(collect($credit['children'])->pluck('routeName')->all())->toBe(['admin.loans.index', 'admin.loan-analysis.index', 'admin.lenders.index']);
+    expect(collect($credit['children'])->pluck('label')->all())->toBe(['Loans', 'Loan Analysis', 'Lenders', 'Lender Requests'])
+        ->and(collect($credit['children'])->pluck('routeName')->all())->toBe(['admin.loans.index', 'admin.loan-analysis.index', 'admin.lenders.index', 'admin.lender-requests.index']);
 });

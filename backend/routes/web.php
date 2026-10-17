@@ -256,6 +256,7 @@ Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->na
 
 // finding an institution for a loan: a POST, so nothing typed lands in an address
 Route::middleware(['auth', 'verified.phone', 'throttle:lender-search'])->post('/lenders/search', LenderSearchController::class)->name('lenders.search');
+Route::middleware(['auth', 'verified.phone', 'throttle:20,1'])->post('/lender-requests', [\App\Http\Controllers\Loans\LenderRequestController::class, 'store'])->name('lender-requests.store');
 
 // repayments on one loan. Any signed-in person may knock; the policy answers 404 to everyone out of reach
 Route::middleware(['auth', 'verified.phone'])->group(function () {
@@ -563,6 +564,11 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::get('/lenders', [AdminLenderController::class, 'index'])->name('lenders.index');
     Route::post('/lenders', [AdminLenderController::class, 'store'])->name('lenders.store');
     Route::patch('/lenders/{lender}', [AdminLenderController::class, 'update'])->name('lenders.update');
+
+    Route::get('/lender-requests', [\App\Http\Controllers\Admin\LenderRequestController::class, 'index'])->name('lender-requests.index');
+    Route::post('/lender-requests/{lenderRequest}/add', [\App\Http\Controllers\Admin\LenderRequestController::class, 'add'])->name('lender-requests.add');
+    Route::post('/lender-requests/{lenderRequest}/use-existing', [\App\Http\Controllers\Admin\LenderRequestController::class, 'useExisting'])->name('lender-requests.use-existing');
+    Route::post('/lender-requests/{lenderRequest}/reject', [\App\Http\Controllers\Admin\LenderRequestController::class, 'reject'])->name('lender-requests.reject');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');

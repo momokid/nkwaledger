@@ -110,6 +110,7 @@ class AgentLoanController extends Controller
             'paidInto' => $this->loans->paidIntoOptions(),
             'idempotencyKey' => (string) Str::uuid(),
             'agent' => true,
+            'requestFor' => $farmer->uuid,
             'postUrl' => "/agent/farmers/{$farmer->uuid}/loans",
             'backUrl' => "/agent/farmers/{$farmer->uuid}",
         ]);

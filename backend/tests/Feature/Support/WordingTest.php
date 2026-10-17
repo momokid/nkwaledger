@@ -64,6 +64,19 @@ const APPROVED_WORDING = [
     'lender.check_withdraw' => 'Withdraw this check',
     'lender.check_option_withdrawn' => 'Withdrawn',
     'lender.check_notice_withdrawn' => '{lender}: the check with the lender was withdrawn',
+    'lender.request_button' => 'Request this lender',
+    'lender.request_heading' => 'Request a lender',
+    'lender.request_note' => 'Note',
+    'lender.request_send' => 'Send request',
+    'lender.request_sent' => 'Request sent. You will be notified with the response',
+    'lender.request_waiting' => 'This lender has already been contacted waiting for response',
+    'lender.request_added' => '{lender} has been added. You can now select it',
+    'lender.request_merged' => '{lender} is in the list as {existing}. You can now select it',
+    'lender.request_rejected' => '{lender} was not added: {reason}',
+    'lender.request_use_existing' => 'Use existing lender',
+    'lender.request_reject' => 'Reject',
+    'lender.request_reason' => 'Reason',
+    'lender.request_empty' => 'No requests yet',
 ];
 
 test('every approved key has exactly the approved wording and nothing else is in the file', function () {

@@ -15,6 +15,7 @@ return [
             ['label' => 'Loans', 'route' => 'admin.loans.index'],
             ['label' => 'Loan Analysis', 'route' => 'admin.loan-analysis.index'],
             ['label' => 'Lenders', 'route' => 'admin.lenders.index'],
+            ['label' => 'Lender Requests', 'route' => 'admin.lender-requests.index'],
         ],
     ],
     [
