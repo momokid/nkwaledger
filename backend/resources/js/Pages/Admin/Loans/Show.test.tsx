@@ -96,7 +96,7 @@ describe("The admin's loan page", () => {
     });
 
     it("has the four approved repayment headers, the repayment and the rejected one, and no raw key", () => {
-        const headers = Array.from(container.querySelectorAll("th")).map((th) => th.textContent);
+        const headers = Array.from(Array.from(container.querySelectorAll("table")).at(-1)!.querySelectorAll("th")).map((th) => th.textContent);
         const text = container.textContent ?? "";
 
         expect(headers).toEqual(["Repayment Date", "Repayment Amount", "Principal on Repayment", "Interest on Repayment"]);

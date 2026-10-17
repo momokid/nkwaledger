@@ -2,6 +2,7 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
 import BackLink from "@/Components/BackLink";
 import Button from "@/Components/Button";
+import LoanGrantedDetails from "@/Components/LoanGrantedDetails";
 import RepaymentForm, { PaidFromOption, SavedRepayment } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
 import { cedis, shortDate } from "@/lib/format";
@@ -12,6 +13,8 @@ interface LoanSummary {
     uuid: string;
     lender: string;
     amount: number;
+    agreed_interest: number | null;
+    granted_on: string;
     balance: number;
     status: string;
     check?: LoanCheck | null;
@@ -85,6 +88,8 @@ function ShowContent({ loan: firstLoan, repayments: firstRepayments, rejected: f
             <div className="mt-2">
                 <LoanCheckNotice check={loan.check} />
             </div>
+
+            <LoanGrantedDetails grantedOn={loan.granted_on} amount={loan.amount} interest={loan.agreed_interest} />
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments

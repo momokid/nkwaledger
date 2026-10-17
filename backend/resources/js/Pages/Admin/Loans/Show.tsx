@@ -1,6 +1,7 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import BackLink from "@/Components/BackLink";
+import LoanGrantedDetails from "@/Components/LoanGrantedDetails";
 import { wording } from "@/lib/wording";
 import { cedis, shortDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck, CheckStatus, checkOptionLabel } from "@/Components/LoanCheckNotice";
@@ -13,6 +14,8 @@ interface LoanSummary {
     uuid: string;
     lender: string;
     amount: number;
+    agreed_interest: number | null;
+    granted_on: string;
     balance: number;
     status: string;
     check: LoanCheck | null;
@@ -121,6 +124,8 @@ function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, 
                     ))}
                 </div>
             )}
+
+            <LoanGrantedDetails grantedOn={loan.granted_on} amount={loan.amount} interest={loan.agreed_interest} />
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments

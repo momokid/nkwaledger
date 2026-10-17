@@ -50,7 +50,7 @@ describe("The agent's loan page", () => {
         expect(text).toContain("Loan Balance GHS 600.00");
         expect(text).toContain("Spoke to the manager");
         expect(text).toContain("Admin One");
-        expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
+        expect(Array.from(container.querySelectorAll("table")).at(-1)!.querySelectorAll("tbody tr")).toHaveLength(1);
     });
 
     it("has nothing to save: no form, no field, no action button", () => {

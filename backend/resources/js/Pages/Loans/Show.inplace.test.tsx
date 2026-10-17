@@ -34,7 +34,7 @@ vi.mock("@inertiajs/react", async () => {
 });
 
 const props = {
-    loan: { uuid: "l-1", lender: "Sika Microfinance", amount: 100000, balance: 120000, status: "active" },
+    loan: { uuid: "l-1", lender: "Sika Microfinance", amount: 100000, agreed_interest: 20000, granted_on: "2026-09-01", balance: 120000, status: "active" },
     rejected: [],
     repayments: [],
     paidFrom: [{ value: "cash", label: "Cash" }],
@@ -86,12 +86,13 @@ afterEach(async () => {
 
 describe("The loan page after a repayment is saved", () => {
     it("shows the new repayment and the new balance in place, and clears the form", async () => {
-        expect(container.querySelectorAll("tbody tr")).toHaveLength(0);
+        // the loan's own line is the only row until a repayment is saved
+        expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
 
         await type("600");
         await save();
 
-        expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
+        expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
         expect(container.textContent).toContain("Loan Balance GHS 600.00");
         expect(container.querySelector<HTMLInputElement>("#repay-amount")!.value).toBe("");
         expect(visited).not.toHaveBeenCalled();

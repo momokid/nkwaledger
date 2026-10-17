@@ -43,6 +43,7 @@ class RepaymentService
             'lender' => $loan->lender_name,
             'amount' => $loan->principal_minor,
             'agreed_interest' => $loan->agreed_interest_minor,
+            'granted_on' => $loan->loan_date->toDateString(),
             'balance' => $loan->balanceMinor(),
             'interest_remaining' => $loan->isCancelled() ? 0 : $loan->remainingInterestMinor(),
             'status' => $loan->displayStatus(),

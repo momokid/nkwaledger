@@ -93,7 +93,7 @@ describe("The loan page", () => {
     it("shows the four approved table headers and no raw key", async () => {
         await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
 
-        expect(Array.from(container.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
+        expect(Array.from(Array.from(container.querySelectorAll("table")).at(-1)!.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
             "Repayment Date",
             "Repayment Amount",
             "Principal on Repayment",
