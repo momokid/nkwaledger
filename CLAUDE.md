@@ -203,7 +203,7 @@ These rules override Workflow items 3, 4, 5 and 6 above. In Claude Code sessions
 Every task ends with a report that has:
 - Raw output of: git status, git log origin/develop..HEAD --oneline, git show --stat for each commit.
 - Full output of any failing run, and repeat runs of anything flaky.
-- Full-suite results for SQLite, JS and PostgreSQL.
+- Full-suite results for SQLite and JS, plus the PostgreSQL tests for the area touched. The full PostgreSQL suite runs once per batch of tasks and before pushing; say when it is still pending.
 - Every placeholder wording key used.
 - Every decision the owner did not settle.
 
