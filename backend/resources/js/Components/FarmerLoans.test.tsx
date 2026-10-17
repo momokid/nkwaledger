@@ -91,6 +91,16 @@ describe("The admin's read-only loans section", () => {
         expect(text).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
     });
 
+    it("shows a loan's check with the lender and its note, and nothing about it for a loan nobody has checked", async () => {
+        await show([row({ check: { status: "unreachable", note: "Phone off all day", date: "2026-10-16" } }), row({ uuid: "2", lender: "Uncle Kofi" })]);
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("Lender could not be reached");
+        expect(text).toContain("Phone off all day");
+        expect(text).not.toContain("not been checked with the lender");
+    });
+
     it("shows nothing when the farmer has no loans", async () => {
         await show([]);
 

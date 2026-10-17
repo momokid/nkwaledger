@@ -2,6 +2,7 @@ import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { cedis } from "@/lib/format";
+import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { router, usePage } from "@inertiajs/react";
 import { useState } from "react";
 
@@ -15,6 +16,7 @@ export interface FarmerLoanRow {
     amount: number;
     balance: number | null;
     status: Status;
+    check?: LoanCheck | null;
 }
 
 const STATUS_LABELS: Record<Status, string> = {
@@ -134,6 +136,7 @@ export default function FarmerLoans({ loans, farmerUuid }: Props) {
                                 Record a repayment
                             </Button>
                         )}
+                        {loan.row === "loan" && <LoanCheckNotice check={loan.check} whenNone="nothing" size="0.9375rem" />}
                     </td>
                     <td className="px-4 py-3" style={{ color: text }}>
                         GHS {cedis(loan.amount)}

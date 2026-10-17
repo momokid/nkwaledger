@@ -1,5 +1,6 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
+import BackLink from "@/Components/BackLink";
 import Button from "@/Components/Button";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
@@ -159,6 +160,7 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
             className="p-6"
             style={{ background: surface, border: `1px solid ${border}`, maxWidth: "560px" }}
         >
+            <BackLink fallbackHref={backUrl} />
             <form onSubmit={submit}>
                 <div className="mb-4">
                     <label htmlFor="lender_name" style={label}>

@@ -46,10 +46,6 @@ class EntryCodeService
             $locked = $this->entries->lock($entry);
             $this->entries->mustBePending($locked);
 
-            if ($locked->isRepayment() && $locked->payload['excess']) {
-                throw EntryRefused::because(RepaymentService::CODE_NOT_ALLOWED);
-            }
-
             $phone = trim((string) $locked->farmerProfile->user?->phone);
 
             if ($phone === '') {

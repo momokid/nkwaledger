@@ -109,7 +109,7 @@ test('paying off exactly what remains, after drift, leaves exactly nothing owed'
         ->and($last->excess_confirmed)->toBeFalse();
 });
 
-test('net moves by the interest only, the balance by the principal only, and the dashboard figure agrees', function () {
+test('net moves by the interest only, the balance by what is paid, and the dashboard figure agrees', function () {
     $beforeNet = ($this->net)()->netMinor;
     $beforeExpense = ($this->net)()->totalExpenseMinor;
     $owedBefore = app(\App\Services\Loans\LoanService::class)->totalOwedMinor($this->profile);
@@ -124,9 +124,9 @@ test('net moves by the interest only, the balance by the principal only, and the
 
     expect($after->totalExpenseMinor - $beforeExpense)->toBe(10000)
         ->and($after->netMinor - $beforeNet)->toBe(-10000)
-        ->and($owedBefore)->toBe(100000)
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000)
-        ->and($dashboard)->toBe(50000)
+        ->and($owedBefore)->toBe(120000)
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000)
+        ->and($dashboard)->toBe(60000)
         ->and(($this->payableBalance)())->toBe(50000);
 });
 
@@ -137,9 +137,9 @@ test('a cancelled record is not counted as paid', function () {
     $reversal = app(\App\Services\Ledger\ReversalService::class);
     $reversal->approve($reversal->request(Transaction::find($repayment->principal_transaction_id), $this->clerk, 'Typed wrongly'), $this->approver);
 
-    expect($before)->toBe(50000)
+    expect($before)->toBe(60000)
         ->and($this->loan->fresh()->principalRepaidMinor())->toBe(0)
-        ->and($this->loan->fresh()->balanceMinor())->toBe(100000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(110000);
 });
 
 test('every repayment is audit-logged with the person who made it', function () {
@@ -152,26 +152,26 @@ test('every repayment is audit-logged with the person who made it', function () 
         ->and($log->new_values['principal_minor'])->toBe(50000);
 });
 
-// --- the excess ---
+// --- nothing above what is owed ---
 
-test('more than what remains is refused without the farmer confirming, and nothing is written', function () {
+test('more than what remains is refused, and nothing is written', function () {
     $before = [Transaction::count(), LoanRepayment::count()];
 
-    expect(fn() => ($this->repay)($this->loan, '1300'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::EXCESS_NOT_CONFIRMED))
+    expect(fn() => ($this->repay)($this->loan, '1300'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::OVER_TOTAL))
         ->and([Transaction::count(), LoanRepayment::count()])->toBe($before);
 });
 
-test('a confirmed excess pays off both parts and the extra is interest, and the confirmation is saved', function () {
-    $repayment = ($this->repay)($this->loan, '1300', ['confirm_excess' => true]);
+test('exactly what remains pays off both parts and leaves nothing owed', function () {
+    $repayment = ($this->repay)($this->loan, '1200');
 
-    expect([$repayment->principal_minor, $repayment->interest_minor, $repayment->excess_confirmed])->toBe([100000, 30000, true])
+    expect([$repayment->principal_minor, $repayment->interest_minor, $repayment->excess_confirmed])->toBe([100000, 20000, false])
         ->and($this->loan->fresh()->balanceMinor())->toBe(0);
 });
 
-test('a confirmation is refused when the server finds no excess', function () {
+test('a confirmation sent along is ignored and cannot get an amount past what is owed', function () {
     $before = Transaction::count();
 
-    expect(fn() => ($this->repay)($this->loan, '600', ['confirm_excess' => true]))->toThrow(PostingFailed::class, Wording::get(RepaymentService::CONFIRMATION_NOT_NEEDED))
+    expect(fn() => ($this->repay)($this->loan, '1300', ['confirm_excess' => true]))->toThrow(PostingFailed::class, Wording::get(RepaymentService::OVER_TOTAL))
         ->and(Transaction::count())->toBe($before);
 });
 
@@ -240,7 +240,7 @@ test('the same key sent twice makes one repayment', function () {
 
     expect($second->id)->toBe($first->id)
         ->and(LoanRepayment::count())->toBe(1)
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000);
 });
 
 // --- hidden from the form and from sync ---

@@ -15,18 +15,23 @@ vi.mock("@/Layouts/AuthenticatedLayout", () => ({
     useTheme: () => ({ dark: mockDark }),
 }));
 
-vi.mock("@inertiajs/react", () => ({
-    usePage: () => ({ props: { errors: mockErrors, flash: {}, old: mockOld } }),
-    router: { visit: (...args: unknown[]) => visit(...args) },
-    useForm: (initial: Record<string, string>) => ({
-        data: initial,
-        errors: {},
-        processing: false,
-        setData: () => {},
-        reset: () => {},
-        post: (...args: unknown[]) => post(...args),
-    }),
-}));
+vi.mock("@inertiajs/react", async () => {
+    const React = await import("react");
+
+    return {
+        Link: ({ href, children }: { href: string; children: React.ReactNode }) => React.createElement("a", { href }, children),
+        usePage: () => ({ props: { errors: mockErrors, flash: {}, old: mockOld } }),
+        router: { visit: (...args: unknown[]) => visit(...args) },
+        useForm: (initial: Record<string, string>) => ({
+            data: initial,
+            errors: {},
+            processing: false,
+            setData: () => {},
+            reset: () => {},
+            post: (...args: unknown[]) => post(...args),
+        }),
+    };
+});
 
 const props = (kind: "money" | "existing", over: Record<string, unknown> = {}) => ({
     kind,
@@ -69,6 +74,17 @@ afterEach(async () => {
 });
 
 describe("The new loan form", () => {
+    it("has a Back link to wherever the form was opened from, for the farmer and for the agent", async () => {
+        await show("money");
+        const back = () => Array.from(container.querySelectorAll("a")).find((link) => link.textContent === "← Back")?.getAttribute("href");
+
+        expect(back()).toBe("/loans");
+
+        await show("money", { agent: true, backUrl: "/agent/farmers/f-1" });
+
+        expect(back()).toBe("/agent/farmers/f-1");
+    });
+
     it("has exactly the approved fields", async () => {
         await show("money");
 

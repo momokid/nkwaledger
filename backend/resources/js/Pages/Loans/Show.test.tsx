@@ -9,17 +9,22 @@ vi.mock("@/Layouts/AuthenticatedLayout", () => ({
     useTheme: () => ({ dark: false }),
 }));
 
-vi.mock("@inertiajs/react", () => ({
-    usePage: () => ({ props: { errors: {}, flash: {} } }),
-    useForm: (initial: Record<string, unknown>) => ({
-        data: initial,
-        errors: {},
-        processing: false,
-        setData: () => {},
-        transform: () => {},
-        post: () => {},
-    }),
-}));
+vi.mock("@inertiajs/react", async () => {
+    const React = await import("react");
+
+    return {
+        Link: ({ href, children }: { href: string; children: React.ReactNode }) => React.createElement("a", { href }, children),
+        usePage: () => ({ props: { errors: {}, flash: {} } }),
+        useForm: (initial: Record<string, unknown>) => ({
+            data: initial,
+            errors: {},
+            processing: false,
+            setData: () => {},
+            transform: () => {},
+            post: () => {},
+        }),
+    };
+});
 
 const props = {
     loan: { uuid: "9d2f0c0e-0000-4000-8000-000000000001", lender: "Sika Microfinance", amount: 100000, balance: 50000, status: "active" },
@@ -51,6 +56,40 @@ afterEach(async () => {
 });
 
 describe("The loan page", () => {
+    it("shows the check with the lender and its note in place of the self-reported notice", async () => {
+        const checked = { ...props, loan: { ...props.loan, check: { status: "does_not_match", note: "Branch says 800", date: "2026-10-16" } } };
+        await act(async () => root.render(<Show {...(checked as unknown as ComponentProps<typeof Show>)} />));
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("The lender says this does not match");
+        expect(text).toContain("Branch says 800");
+        expect(text).not.toContain("It has not been checked with the lender");
+    });
+
+    const recordButton = () => Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Record a repayment");
+
+    it("offers Record a repayment on an active loan only: not on a repaid or a cancelled one", async () => {
+        const render = async (status: string) => act(async () => root.render(<Show {...({ ...props, loan: { ...props.loan, status } } as unknown as ComponentProps<typeof Show>)} />));
+
+        await render("active");
+        expect(recordButton()).toBeDefined();
+
+        await render("repaid");
+        expect(recordButton()).toBeUndefined();
+
+        await render("cancelled");
+        expect(recordButton()).toBeUndefined();
+    });
+
+    it("has a Back link to the loans list", async () => {
+        await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
+
+        const back = Array.from(container.querySelectorAll("a")).find((link) => link.textContent === "← Back");
+
+        expect(back?.getAttribute("href")).toBe("/loans");
+    });
+
     it("shows the four approved table headers and no raw key", async () => {
         await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
 

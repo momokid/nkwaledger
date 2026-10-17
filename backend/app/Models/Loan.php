@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -108,14 +109,40 @@ class Loan extends Model
         return $this->status === self::CANCELLED;
     }
 
-    // the one place the balance is worked out: the principal less what has been paid back
+    // the one place the balance is worked out: what is still owed, the principal and the interest together
     public function balanceMinor(): int
     {
         if ($this->isCancelled()) {
             return 0;
         }
 
-        return $this->remainingPrincipalMinor();
+        return $this->remainingPrincipalMinor() + $this->remainingInterestMinor();
+    }
+
+    /**
+     * The balance of many loans at once, in two queries instead of two per loan. Must always agree with balanceMinor().
+     *
+     * @param Collection<int, Loan> $loans
+     * @return Collection<int, int> loan id => balance in pesewas
+     */
+    public static function balancesOf(Collection $loans): Collection
+    {
+        $ids = $loans->pluck('id')->all();
+
+        $paid = fn(string $link) => Transaction::excludeCancelled(
+            DB::table('loan_repayments')
+                ->join('transactions', 'transactions.id', '=', "loan_repayments.{$link}")
+                ->whereIn('loan_repayments.loan_id', $ids)
+        )->groupBy('loan_repayments.loan_id')->selectRaw('loan_repayments.loan_id as loan_id, SUM(transactions.amount_minor) as total')->pluck('total', 'loan_id');
+
+        $principal = $paid('principal_transaction_id');
+        $interest = $paid('interest_transaction_id');
+
+        return $loans->mapWithKeys(fn(Loan $loan) => [
+            $loan->id => $loan->isCancelled()
+                ? 0
+                : max(0, $loan->principal_minor - (int) ($principal[$loan->id] ?? 0)) + max(0, (int) $loan->agreed_interest_minor - (int) ($interest[$loan->id] ?? 0)),
+        ]);
     }
 
     public function remainingPrincipalMinor(): int
@@ -126,6 +153,17 @@ class Loan extends Model
     public function remainingInterestMinor(): int
     {
         return max(0, (int) $this->agreed_interest_minor - $this->interestPaidMinor());
+    }
+
+    public function checks(): HasMany
+    {
+        return $this->hasMany(LoanCheck::class)->orderByDesc('id');
+    }
+
+    // the newest check with the lender, if anyone has made one
+    public function currentCheck(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(LoanCheck::class)->latestOfMany('id');
     }
 
     public function repayments(): HasMany
