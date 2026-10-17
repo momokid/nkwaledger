@@ -8,6 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
 // what the admin sees under Credit: every farmer's loans in one list, and the entries still waiting for a farmer.
+// The agent sees the same list, kept to the farmers assigned to them.
 // Read-only, newest first, and only public ids leave it
 class AdminLoanListService
 {
@@ -15,20 +16,20 @@ class AdminLoanListService
     public const STATUSES = ['all', 'active', 'repaid', 'cancelled', 'waiting'];
 
     /** the principal and interest still owed on every loan in force */
-    public function totalOwed(): int
+    public function totalOwed(?int $agentId = null): int
     {
-        return (int) Loan::balancesOf(Loan::where('status', Loan::ACTIVE)->get())->sum();
+        return (int) Loan::balancesOf($this->ownedBy(Loan::where('status', Loan::ACTIVE), $agentId)->get())->sum();
     }
 
     /** @return array{rows: list<array<string, mixed>>, pagination: array{page: int, last: int}} */
-    public function page(string $search, string $status, int $page): array
+    public function page(string $search, string $status, int $page, ?int $agentId = null): array
     {
-        return $status === 'waiting' ? $this->waiting($search, $page) : $this->loans($search, $status, $page);
+        return $status === 'waiting' ? $this->waiting($search, $page, $agentId) : $this->loans($search, $status, $page, $agentId);
     }
 
-    private function loans(string $search, string $status, int $page): array
+    private function loans(string $search, string $status, int $page, ?int $agentId): array
     {
-        $query = Loan::query()->with(['farmerProfile.user', 'lender'])->orderByDesc('created_at')->orderByDesc('id');
+        $query = $this->ownedBy(Loan::query()->with(['farmerProfile.user', 'lender'])->orderByDesc('created_at')->orderByDesc('id'), $agentId);
         $this->matching($query, $search, true);
 
         // whether a loan in force is repaid depends on what the books hold, so those two filters are worked out on the list
@@ -56,9 +57,9 @@ class AdminLoanListService
         ];
     }
 
-    private function waiting(string $search, int $page): array
+    private function waiting(string $search, int $page, ?int $agentId): array
     {
-        $query = PendingEntry::query()->with('farmerProfile.user')->where('status', PendingEntry::PENDING)->orderByDesc('id');
+        $query = $this->ownedBy(PendingEntry::query()->with('farmerProfile.user')->where('status', PendingEntry::PENDING)->orderByDesc('id'), $agentId);
         $this->matching($query, $search, false);
 
         $paged = $query->paginate(self::PER_PAGE, ['*'], 'page', $page);
@@ -89,6 +90,11 @@ class AdminLoanListService
             'balance' => $balance,
             'status' => $loan->isCancelled() ? Loan::CANCELLED : ($balance === 0 ? 'repaid' : Loan::ACTIVE),
         ];
+    }
+
+    private function ownedBy(Builder $query, ?int $agentId): Builder
+    {
+        return $agentId === null ? $query : $query->whereHas('farmerProfile', fn(Builder $farmer) => $farmer->where('assigned_agent_id', $agentId));
     }
 
     public function farmerName(?\App\Models\FarmerProfile $farmer): string

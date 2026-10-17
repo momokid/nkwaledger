@@ -8,6 +8,7 @@ use App\Models\LoanCheck;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Support\AgentLoanLink;
 use App\Support\Wording;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -125,7 +126,7 @@ class LoanCheckService
         }
 
         if ($farmer->assignedAgent !== null) {
-            $this->notifications->send($farmer->assignedAgent, 'loan.checked', $message, "/agent/farmers/{$farmer->uuid}");
+            $this->notifications->send($farmer->assignedAgent, 'loan.checked', $message, AgentLoanLink::to($loan->uuid, $loan->checks()->latest('id')->value('uuid')));
         }
     }
 }

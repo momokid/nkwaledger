@@ -13,6 +13,7 @@ use App\Models\PendingEntryCode;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Support\AgentLoanLink;
 use App\Support\Money;
 use App\Support\Wording;
 use Illuminate\Support\Facades\DB;
@@ -145,7 +146,7 @@ class PendingEntryService
             ], $actor);
 
             if ($via === PendingEntry::VIA_APP) {
-                $this->tellAgent($locked, 'loan.accepted', 'accepted');
+                $this->tellAgent($locked, 'loan.accepted', 'accepted', AgentLoanLink::to($loan->uuid, $loan->uuid));
             }
 
             return $loan;
@@ -183,7 +184,7 @@ class PendingEntryService
                     'reason' => 'loan_cancelled',
                 ], $by);
 
-                $this->tellAgent($locked, 'loan.rejected', 'rejected');
+                $this->tellAgent($locked, 'loan.rejected', 'rejected', AgentLoanLink::to($loan->uuid, $locked->uuid));
 
                 if ($locked->farmerProfile->user !== null) {
                     $this->notifications->send($locked->farmerProfile->user, 'loan.rejected', Wording::get('repayment.rejected'), "/loans/{$loan->uuid}");
@@ -209,7 +210,7 @@ class PendingEntryService
                 'via' => PendingEntry::VIA_APP,
             ], $farmerUser);
 
-            $this->tellAgent($locked, 'loan.declined', 'declined');
+            $this->tellAgent($locked, 'loan.declined', 'declined', "/agent/farmers/{$locked->farmerProfile->uuid}");
         });
     }
 
@@ -272,7 +273,7 @@ class PendingEntryService
                 'via' => $via,
             ], $actor);
 
-            $this->tellAgent($locked, 'loan.rejected', 'rejected');
+            $this->tellAgent($locked, 'loan.rejected', 'rejected', AgentLoanLink::to($loan->uuid, $locked->uuid));
 
             return null;
         }
@@ -293,7 +294,7 @@ class PendingEntryService
         ], $actor);
 
         if ($via === PendingEntry::VIA_APP) {
-            $this->tellAgent($locked, 'loan.accepted', 'accepted');
+            $this->tellAgent($locked, 'loan.accepted', 'accepted', AgentLoanLink::to($loan->uuid, $repayment->uuid));
         }
 
         return $repayment;
@@ -317,7 +318,7 @@ class PendingEntryService
         ];
     }
 
-    private function tellAgent(PendingEntry $entry, string $kind, string $word): void
+    private function tellAgent(PendingEntry $entry, string $kind, string $word, string $link): void
     {
         $agent = $entry->recordedBy;
         $user = $entry->farmerProfile->user;
@@ -329,6 +330,6 @@ class PendingEntryService
         $name = trim("{$user->surname} {$user->first_name}");
         $message = $entry->isRepayment() ? "{$name}: " . Wording::get("repayment.{$word}") : "{$name} {$word} the loan.";
 
-        $this->notifications->send($agent, $kind, $message, "/agent/farmers/{$entry->farmerProfile->uuid}");
+        $this->notifications->send($agent, $kind, $message, $link);
     }
 }
