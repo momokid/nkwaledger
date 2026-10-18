@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,6 +17,8 @@ class Loan extends Model
 
     // the only two states a loan itself has. Waiting, declined and withdrawn belong to the
     // pending entry that came before the loan, and are kept there and nowhere else
+    public const DEFAULT_AFTER_DAYS = 90;
+
     public const ACTIVE = 'active';
     public const CANCELLED = 'cancelled';
 
@@ -201,13 +204,34 @@ class Loan extends Model
         return $this->status === self::ACTIVE && $this->balanceMinor() === 0;
     }
 
-    // the word the list shows: active, repaid or cancelled
+    // the word the list shows: active, overdue, default, repaid or cancelled
     public function displayStatus(): string
     {
-        if ($this->isCancelled()) {
+        return self::statusFor($this->status, $this->isCancelled() ? 0 : $this->balanceMinor(), $this->due_date, today());
+    }
+
+    // never stored: worked out from the due date, today and what is still owed
+    public static function statusFor(string $stored, int $balance, ?CarbonInterface $due, CarbonInterface $today): string
+    {
+        if ($stored === self::CANCELLED) {
             return self::CANCELLED;
         }
 
-        return $this->isRepaid() ? 'repaid' : self::ACTIVE;
+        if ($balance === 0) {
+            return 'repaid';
+        }
+
+        if ($due === null) {
+            return self::ACTIVE;
+        }
+
+        $day = $today->copy()->startOfDay();
+        $dueDay = $due->copy()->startOfDay();
+
+        if (! $day->gt($dueDay)) {
+            return self::ACTIVE;
+        }
+
+        return $day->gte($dueDay->addDays(self::DEFAULT_AFTER_DAYS)) ? 'default' : 'overdue';
     }
 }

@@ -2,12 +2,12 @@ import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import TableSkeletonRows from "@/Components/Admin/TableSkeletonRows";
 import Button from "@/Components/Button";
 import { wording } from "@/lib/wording";
-import { cedis } from "@/lib/format";
+import { cedis, LATE_STATUS } from "@/lib/format";
 import { Link } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { useEffect, useRef, useState } from "react";
 
-type Status = "active" | "repaid" | "cancelled" | "pending";
+type Status = "active" | "overdue" | "default" | "repaid" | "cancelled" | "pending";
 
 interface Row {
     row: "loan" | "entry";
@@ -34,6 +34,8 @@ export interface LoansListProps extends PageProps {
 
 const STATUS_LABELS: Record<Status, string> = {
     active: "Active",
+    overdue: LATE_STATUS.overdue.label,
+    default: LATE_STATUS.default.label,
     repaid: "Repaid",
     cancelled: "Cancelled",
     pending: "Waiting for the farmer to accept",
@@ -177,7 +179,7 @@ export default function LoansList({ base, rows: firstRows, pagination: firstPagi
                                     </td>
                                     <td className="px-4 py-3">GHS {cedis(row.amount)}</td>
                                     <td className="px-4 py-3">{row.balance === null ? "" : `GHS ${cedis(row.balance)}`}</td>
-                                    <td className="px-4 py-3">{STATUS_LABELS[row.status]}</td>
+                                    <td className="px-4 py-3" style={{ color: LATE_STATUS[row.status]?.color }}>{STATUS_LABELS[row.status]}</td>
                                 </tr>
                             ))}
                     </tbody>

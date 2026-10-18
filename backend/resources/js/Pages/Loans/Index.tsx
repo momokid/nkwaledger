@@ -3,11 +3,11 @@ import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { cedis, slashDate } from "@/lib/format";
+import { cedis, LATE_STATUS, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useState } from "react";
 
-type Status = "active" | "repaid" | "cancelled";
+type Status = "active" | "overdue" | "default" | "repaid" | "cancelled";
 
 interface LoanRow {
     uuid: string;
@@ -34,6 +34,8 @@ interface Props extends PageProps {
 
 const STATUS_LABELS: Record<Status, string> = {
     active: "Active",
+    overdue: LATE_STATUS.overdue.label,
+    default: LATE_STATUS.default.label,
     repaid: "Repaid",
     cancelled: "Cancelled",
 };
@@ -167,7 +169,7 @@ function IndexContent({ loans, pending }: ContentProps) {
                                     </td>
                                     <td
                                         className="px-4 py-3"
-                                        style={{ color: loan.status === "cancelled" ? textSecondary : text }}
+                                        style={{ color: LATE_STATUS[loan.status]?.color ?? (loan.status === "cancelled" ? textSecondary : text) }}
                                     >
                                         {STATUS_LABELS[loan.status]}
                                     </td>

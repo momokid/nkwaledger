@@ -95,6 +95,13 @@ describe("The admin Loans list", () => {
         expect(text).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
     });
 
+    it("shows Overdue and Default as the status", async () => {
+        await show({ rows: [loan({ status: "overdue" }), loan({ uuid: "l-3", status: "default" })] });
+
+        expect(container.textContent).toContain("Overdue");
+        expect(container.textContent).toContain("Default");
+    });
+
     it("links a loan to its admin page and nothing to any farmer page", async () => {
         await show();
 

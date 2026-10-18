@@ -57,6 +57,15 @@ afterEach(async () => {
     container.remove();
 });
 
+describe("Late loans", () => {
+    it("shows Overdue and Default as the status", async () => {
+        await show([row({ status: "overdue" }), row({ uuid: "2", status: "default" })]);
+
+        expect(container.textContent).toContain("Overdue");
+        expect(container.textContent).toContain("Default");
+    });
+});
+
 describe("The admin's read-only loans section", () => {
     it("lists the loans under the approved names, and has no button at all", async () => {
         await show([row(), row({ uuid: "2", lender: "Uncle Kofi", balance: 0, status: "cancelled" })]);

@@ -59,6 +59,15 @@ afterEach(async () => {
     container.remove();
 });
 
+describe("Late loans", () => {
+    it("shows Overdue and Default as the status", async () => {
+        await show([loan({ status: "overdue" }), loan({ uuid: "b2", status: "default" })]);
+
+        expect(container.textContent).toContain("Overdue");
+        expect(container.textContent).toContain("Default");
+    });
+});
+
 describe("Pending entries from an agent", () => {
     const click = async (label: string) => {
         const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label);
