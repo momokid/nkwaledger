@@ -1138,3 +1138,9 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
 
 // the gateway calls this, so it has no session or CSRF; the secret in the address is the only door
 Route::post('/ussd/callback/{secret}', [\App\Http\Controllers\Ussd\UssdController::class, 'callback'])->middleware('throttle:ussd')->name('ussd.callback');
+
+// the USSD simulator page: the controller answers 404 everywhere but local and testing
+Route::prefix('dev/ussd')->name('dev.ussd.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Ussd\UssdSimulatorController::class, 'page'])->name('page');
+    Route::post('/dial', [\App\Http\Controllers\Ussd\UssdSimulatorController::class, 'dial'])->name('dial');
+});
