@@ -42,12 +42,13 @@ afterEach(async () => {
 });
 
 describe("agent menu", () => {
-    it("has a Credit group holding Loans, like the admin menu", async () => {
+    it("has a Credit group holding View Loans and New Loan, like the admin menu", async () => {
         const credit = [...container.querySelectorAll("button")].find((b) => b.textContent === "Credit");
         expect(credit).toBeTruthy();
 
         await act(async () => credit!.click());
 
-        expect(container.querySelector('a[href="/agent/loans"]')?.textContent).toBe("Loans");
+        expect(container.querySelector('a[href="/agent/loans"]')?.textContent).toBe("View Loans");
+        expect(container.querySelector('a[href="/agent/loans/new"]')?.textContent).toBe("New Loan");
     });
 });

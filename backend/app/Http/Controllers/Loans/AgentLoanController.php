@@ -12,10 +12,13 @@ use App\Models\PendingEntry;
 use App\Services\Loans\EntryCodeService;
 use App\Services\Loans\LoanService;
 use App\Services\Loans\PendingEntryService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use App\Support\Wording;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,6 +31,41 @@ class AgentLoanController extends Controller
         private readonly PendingEntryService $entries,
         private readonly EntryCodeService $codes,
     ) {}
+
+    public function newLoan(): Response
+    {
+        return Inertia::render('Agent/Loans/New');
+    }
+
+    // a POST, so what is typed never lands in an address. Only the agent's own farmers, never a row id
+    public function searchFarmers(Request $request): JsonResponse
+    {
+        $check = Validator::make($request->only('q'), ['q' => ['required', 'string', 'min:2', 'max:100']]);
+
+        if ($check->fails()) {
+            return response()->json(['errors' => $check->errors()], 422);
+        }
+
+        $needle = '%' . mb_strtolower($check->validated()['q']) . '%';
+
+        return response()->json(FarmerProfile::query()
+            ->where('assigned_agent_id', $request->user()->id)
+            ->where(fn(Builder $outer) => $outer
+                ->whereHas('user', fn(Builder $inner) => $inner
+                    ->whereRaw('LOWER(surname) LIKE ?', [$needle])
+                    ->orWhereRaw('LOWER(first_name) LIKE ?', [$needle])
+                    ->orWhereRaw('LOWER(phone) LIKE ?', [$needle]))
+                ->orWhereHas('community', fn(Builder $inner) => $inner->whereRaw('LOWER(name) LIKE ?', [$needle])))
+            ->with(['user:id,surname,first_name', 'community:id,name'])
+            ->limit(20)
+            ->get()
+            ->map(fn(FarmerProfile $farmer) => [
+                'id' => $farmer->uuid,
+                'name' => trim("{$farmer->user?->surname} {$farmer->user?->first_name}"),
+                'community' => $farmer->community?->name,
+            ])
+            ->values());
+    }
 
     public function create(FarmerProfile $farmer): Response
     {
