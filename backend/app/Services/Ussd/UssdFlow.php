@@ -30,12 +30,17 @@ class UssdFlow
         $state = $new ? null : Cache::get($key);
         $user = $state === null ? $this->farmerFor($msisdn) : User::find($state['user']);
 
+        // English until the farmer is known, so a stranger's number never shows which language a farmer chose
+        $this->text->use(null);
+
         // a number that is not a farmer's, a different number from the one the session began with, or a block, all read the same
         if ($user === null || ($state !== null && Phone::normalise($msisdn) !== $user->phone)) {
             Cache::forget($key);
 
             return $this->end('not_registered');
         }
+
+        $this->text->use($user->ussd_language);
 
         if ($state === null) {
             if ($this->pins->isLocked($user)) {
@@ -61,6 +66,7 @@ class UssdFlow
             'method' => $this->recorder->isMethod($input)
                 ? $this->confirmScreen($key, [...$state, 'method' => $input])
                 : $this->show($key, $state, 'method_' . $state['kind']),
+            'language' => $this->languageChosen($key, $state, $user, $input),
             'waiting_pick' => $this->waitingPicked($key, $state, $user, $input),
             'waiting_act' => $this->waitingAnswered($key, $state, $user, $input),
             'confirm' => $this->finish($key, $state, $user, $input, $session),
@@ -74,10 +80,24 @@ class UssdFlow
             '1' => $this->show($key, [...$state, 'step' => 'period'], 'period'),
             '2' => $this->end(null, $key, $this->reads->loans($user->farmerProfile)),
             '3', '4' => $this->startLogging($key, $state, $user, $input === '3' ? 'income' : 'expense'),
+            '5' => $this->show($key, [...$state, 'step' => 'language'], 'language_pick'),
             '6' => $this->end('goodbye', $key),
             '7' => $this->startWaiting($key, $state, $user),
             default => $this->menu($key, $state, $user),
         };
+    }
+
+    private function languageChosen(string $key, array $state, User $user, string $input): array
+    {
+        if (! in_array($input, ['1', '2'], true)) {
+            return $this->show($key, $state, 'language_pick');
+        }
+
+        $language = $input === '2' ? 'tw' : null;
+        $user->forceFill(['ussd_language' => $language])->save();
+        $this->text->use($language);
+
+        return $this->end('language_saved', $key);
     }
 
     private function startWaiting(string $key, array $state, User $user): array

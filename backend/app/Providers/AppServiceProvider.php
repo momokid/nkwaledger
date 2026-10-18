@@ -42,6 +42,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->app->scoped(\App\Services\Ussd\UssdText::class);
+
         // an explicit flag rather than app()->isLocal(), so arkesel can still be
         // tested from a local machine on demand
         $this->app->bind(SmsProvider::class, fn() => env('SMS_DRIVER', 'arkesel') === 'log'

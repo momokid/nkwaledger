@@ -2,15 +2,37 @@
 
 namespace App\Services\Ussd;
 
-// the screens a farmer reads over USSD, from resources/ussd.en.json so a Twi file can sit beside it later
+// the screens a farmer reads over USSD, from resources/ussd.{language}.json. A screen missing in a language reads in English.
+// One shared instance per request, so choosing a language once changes every screen after it
 class UssdText
 {
-    private ?array $map = null;
+    public const LANGUAGES = ['en', 'tw'];
+
+    private array $maps = [];
+    private string $language = 'en';
+
+    public function use(?string $language): void
+    {
+        $this->language = in_array($language, self::LANGUAGES, true) ? $language : 'en';
+    }
+
+    public function in(string $language): static
+    {
+        $copy = clone $this;
+        $copy->use($language);
+
+        return $copy;
+    }
 
     public function get(string $key, array $with = []): string
     {
-        $this->map ??= json_decode(file_get_contents(resource_path('ussd.en.json')), true, flags: JSON_THROW_ON_ERROR);
+        $text = $this->map($this->language)[$key] ?? $this->map('en')[$key];
 
-        return strtr($this->map[$key], array_combine(array_map(fn($name) => '{' . $name . '}', array_keys($with)), array_map('strval', $with)));
+        return $with === [] ? $text : strtr($text, array_combine(array_map(fn($name) => '{' . $name . '}', array_keys($with)), array_map('strval', $with)));
+    }
+
+    private function map(string $language): array
+    {
+        return $this->maps[$language] ??= json_decode(file_get_contents(resource_path("ussd.{$language}.json")), true, flags: JSON_THROW_ON_ERROR);
     }
 }
