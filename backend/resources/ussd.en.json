@@ -7,7 +7,7 @@
     "enter_pin": "Welcome to NkwaLedger. Enter your PIN.",
     "wrong_pin": "Wrong PIN. Enter your PIN.",
     "pin_locked": "Your PIN is locked. Try again in 30 minutes.",
-    "menu": "Hello {name}.\n1. Summary\n2. Loans\n6. Exit",
+    "menu": "Hello {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n6. Exit",
     "goodbye": "Thank you.",
     "period": "Choose a period.\n1. Last 30 days\n2. This month\n3. This year",
     "period_1": "Last 30 days",
@@ -17,5 +17,17 @@
     "loans": "Total owed: {total}{lines}",
     "loan_line": "\n{lender}: {balance}{status}",
     "loan_overdue": " (Overdue)",
-    "loan_default": " (Default)"
+    "loan_default": " (Default)",
+    "pick_income": "Money in.",
+    "pick_expense": "Money out.",
+    "amount": "Enter the amount in cedis.",
+    "amount_invalid": "Enter an amount above 0, like 50 or 50.50, up to 100000.",
+    "method_income": "Received in?\n1. Cash\n2. MoMo\n3. Bank",
+    "method_expense": "Paid from?\n1. Cash\n2. MoMo\n3. Bank",
+    "method_1": "Cash",
+    "method_2": "MoMo",
+    "method_3": "Bank",
+    "confirm": "Save: {name}, {amount}, {method}?\n1. Yes\n2. No",
+    "saved": "Saved. Reference {reference}.",
+    "not_saved": "Not saved."
 }
