@@ -46,7 +46,7 @@ const props = {
 
 const after = (balance: number, status = "active") => ({
     loan: { uuid: "l-1", lender: "Sika Microfinance", amount: 100000, balance, status },
-    repayments: [{ uuid: "r1", date: "2026-10-12", amount: 60000, principal: 50000, interest: 10000, cancelled: false }],
+    repayments: [{ uuid: "r1", date: "2026-10-12", amount: 60000, principal: 50000, interest: 10000, balance: 60000, cancelled: false }],
     rejected: [],
     idempotencyKey: "fresh-key",
 });

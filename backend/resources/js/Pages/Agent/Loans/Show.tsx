@@ -21,6 +21,7 @@ interface RepaymentRow {
     amount: number;
     principal: number;
     interest: number;
+    balance: number;
     cancelled: boolean;
 }
 
@@ -111,6 +112,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
                                 <th style={head}>{wording("repayment.amount")}</th>
                                 <th style={head}>{wording("repayment.principal_part")}</th>
                                 <th style={head}>{wording("repayment.interest_part")}</th>
+                                <th style={head}>{wording("repayment.loan_balance")}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -120,6 +122,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
                                     <td className="px-4 py-3">GHS {cedis(row.amount)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.principal)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.interest)}</td>
+                                    <td className="px-4 py-3">GHS {cedis(row.balance)}</td>
                                 </tr>
                             ))}
                         </tbody>

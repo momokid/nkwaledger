@@ -11,6 +11,7 @@ const APPROVED_WORDING = [
     'repayment.paid_from' => 'Paid From',
     'repayment.principal_part' => 'Principal on Repayment',
     'repayment.interest_part' => 'Interest on Repayment',
+    'repayment.loan_balance' => 'Loan Balance',
     'repayment.save' => 'Save Repayment',
     'repayment.saving' => 'Saving...',
     'repayment.cancel' => 'Cancel',

@@ -20,7 +20,7 @@ vi.mock("@inertiajs/react", async () => {
 const base = {
     loan: { uuid: "l-1", lender: "Sika Microfinance", amount: 100000, balance: 60000, status: "active", check: { status: "confirmed", note: "Spoke to the manager", date: "2026-10-16" } },
     farmer: "Mensah Kofi",
-    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, cancelled: false }],
+    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, balance: 60000, cancelled: false }],
     rejected: [],
     checks: [{ uuid: "c1", status: "confirmed", note: "Spoke to the manager", date: "2026-10-16", by: "Admin One" }],
 };

@@ -25,7 +25,7 @@ vi.mock("@inertiajs/react", async () => {
 const base = {
     loan: { uuid: "l-1", lender: "Sika Microfinance", amount: 100000, balance: 60000, status: "active", check: null },
     farmer: "Mensah Kofi",
-    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, cancelled: false }],
+    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, balance: 60000, cancelled: false }],
     rejected: [{ uuid: "x1", date: "2026-10-09", amount: 5000 }],
     checks: [],
     idempotencyKey: "key-1",
@@ -99,7 +99,7 @@ describe("The admin's loan page", () => {
         const headers = Array.from(Array.from(container.querySelectorAll("table")).at(-1)!.querySelectorAll("th")).map((th) => th.textContent);
         const text = container.textContent ?? "";
 
-        expect(headers).toEqual(["Repayment Date", "Repayment Amount", "Principal on Repayment", "Interest on Repayment"]);
+        expect(headers).toEqual(["Repayment Date", "Repayment Amount", "Principal on Repayment", "Interest on Repayment", "Loan Balance"]);
         expect(text).toContain("GHS 500.00");
         expect(text).toContain("Repayment rejected");
         expect(text).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);

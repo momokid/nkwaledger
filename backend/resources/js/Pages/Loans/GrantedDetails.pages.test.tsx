@@ -27,7 +27,7 @@ const loan = { uuid: "l-1", lender: "Sika Microfinance", amount: 100000, agreed_
 const base = {
     loan,
     farmer: "Mensah Kofi",
-    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, cancelled: false }],
+    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, balance: 60000, cancelled: false }],
     rejected: [],
     checks: [],
     paidFrom: [{ value: "cash", label: "Cash" }],
