@@ -7,6 +7,15 @@
     "enter_pin": "Welcome to NkwaLedger. Enter your PIN.",
     "wrong_pin": "Wrong PIN. Enter your PIN.",
     "pin_locked": "Your PIN is locked. Try again in 30 minutes.",
-    "menu": "Hello {name}.\n0. Exit",
-    "goodbye": "Thank you."
+    "menu": "Hello {name}.\n1. Summary\n2. Loans\n6. Exit",
+    "goodbye": "Thank you.",
+    "period": "Choose a period.\n1. Last 30 days\n2. This month\n3. This year",
+    "period_1": "Last 30 days",
+    "period_2": "This month",
+    "period_3": "This year",
+    "summary": "{period}\nIncome: {income}\nExpenses: {expense}\nNet: {net}",
+    "loans": "Total owed: {total}{lines}",
+    "loan_line": "\n{lender}: {balance}{status}",
+    "loan_overdue": " (Overdue)",
+    "loan_default": " (Default)"
 }

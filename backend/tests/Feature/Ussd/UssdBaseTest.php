@@ -73,12 +73,12 @@ describe('with a PIN', function () {
         ($this->dial)('', true);
     });
 
-    test('the right PIN shows the menu and 0 ends the session', function () {
+    test('the right PIN shows the menu and 6 ends the session', function () {
         $menu = ($this->dial)('4829')->assertOk();
         expect($menu->json('continueSession'))->toBeTrue()
             ->and($menu->json('message'))->toContain('Kofi');
 
-        expect(($this->dial)('0')->json('continueSession'))->toBeFalse();
+        expect(($this->dial)('6')->json('continueSession'))->toBeFalse();
     });
 
     test('a wrong PIN is counted and the right one clears the count', function () {

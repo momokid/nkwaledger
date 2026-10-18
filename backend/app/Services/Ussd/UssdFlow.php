@@ -14,6 +14,7 @@ class UssdFlow
     public function __construct(
         private readonly UssdPinService $pins,
         private readonly UssdText $text,
+        private readonly UssdReads $reads,
     ) {}
 
     /** @return array{message: string, continue: bool} */
@@ -46,7 +47,20 @@ class UssdFlow
                 : $this->show($key, $state, 'pin_rule'),
             'confirm_pin' => $this->confirm($key, $state, $user, $input),
             'enter_pin' => $this->enter($key, $state, $user, $input),
-            default => $input === '0' ? $this->end('goodbye', $key) : $this->menu($key, $state, $user),
+            'period' => $this->reads->isPeriod($input)
+                ? $this->end(null, $key, $this->reads->summary($user->farmerProfile, $input))
+                : $this->show($key, $state, 'period'),
+            default => $this->choose($key, $state, $user, $input),
+        };
+    }
+
+    private function choose(string $key, array $state, User $user, string $input): array
+    {
+        return match ($input) {
+            '1' => $this->show($key, [...$state, 'step' => 'period'], 'period'),
+            '2' => $this->end(null, $key, $this->reads->loans($user->farmerProfile)),
+            '6' => $this->end('goodbye', $key),
+            default => $this->menu($key, $state, $user),
         };
     }
 
@@ -86,13 +100,13 @@ class UssdFlow
         return ['message' => $this->text->get($screen, $with), 'continue' => true];
     }
 
-    private function end(string $screen, ?string $key = null): array
+    private function end(?string $screen, ?string $key = null, ?string $message = null): array
     {
         if ($key !== null) {
             Cache::forget($key);
         }
 
-        return ['message' => $this->text->get($screen), 'continue' => false];
+        return ['message' => $message ?? $this->text->get($screen), 'continue' => false];
     }
 
     // only an active farmer with a verified number gets in
