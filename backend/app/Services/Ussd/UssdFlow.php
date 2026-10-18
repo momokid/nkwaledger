@@ -3,9 +3,11 @@
 namespace App\Services\Ussd;
 
 use App\Exceptions\Ledger\PostingFailed;
+use App\Exceptions\Loans\EntryRefused;
 use App\Models\User;
 use App\Support\Money;
 use App\Support\Phone;
+use App\Support\Wording;
 use Illuminate\Support\Facades\Cache;
 
 // one reply per call. The step the farmer is on is kept in the cache for the length of the session, and nothing typed is logged
@@ -18,6 +20,7 @@ class UssdFlow
         private readonly UssdText $text,
         private readonly UssdReads $reads,
         private readonly UssdRecorder $recorder,
+        private readonly UssdWaiting $waiting,
     ) {}
 
     /** @return array{message: string, continue: bool} */
@@ -58,6 +61,8 @@ class UssdFlow
             'method' => $this->recorder->isMethod($input)
                 ? $this->confirmScreen($key, [...$state, 'method' => $input])
                 : $this->show($key, $state, 'method_' . $state['kind']),
+            'waiting_pick' => $this->waitingPicked($key, $state, $user, $input),
+            'waiting_act' => $this->waitingAnswered($key, $state, $user, $input),
             'confirm' => $this->finish($key, $state, $user, $input, $session),
             default => $this->choose($key, $state, $user, $input),
         };
@@ -70,8 +75,58 @@ class UssdFlow
             '2' => $this->end(null, $key, $this->reads->loans($user->farmerProfile)),
             '3', '4' => $this->startLogging($key, $state, $user, $input === '3' ? 'income' : 'expense'),
             '6' => $this->end('goodbye', $key),
+            '7' => $this->startWaiting($key, $state, $user),
             default => $this->menu($key, $state, $user),
         };
+    }
+
+    private function startWaiting(string $key, array $state, User $user): array
+    {
+        $items = $this->waiting->items($user);
+
+        if ($items === []) {
+            return $this->end('waiting_none', $key);
+        }
+
+        $state = [...$state, 'step' => 'waiting_pick', 'uuids' => array_values(array_map(fn($item) => $item['uuid'], $items))];
+
+        return $this->show($key, $state, null, [], $this->waiting->listScreen($items));
+    }
+
+    private function waitingPicked(string $key, array $state, User $user, string $input): array
+    {
+        $items = $this->waiting->items($user);
+        $uuid = $state['uuids'][(int) $input - 1] ?? null;
+        $item = collect($items)->firstWhere('uuid', $uuid);
+
+        if ($item === null) {
+            return $items === [] ? $this->end('waiting_gone', $key) : $this->show($key, $state, null, [], $this->waiting->listScreen($items));
+        }
+
+        return $this->show($key, [...$state, 'step' => 'waiting_act', 'uuid' => $uuid], null, [], $this->waiting->detailScreen($item));
+    }
+
+    private function waitingAnswered(string $key, array $state, User $user, string $input): array
+    {
+        if (! in_array($input, ['1', '2'], true)) {
+            $item = collect($this->waiting->items($user))->firstWhere('uuid', $state['uuid']);
+
+            return $item === null ? $this->end('waiting_gone', $key) : $this->show($key, $state, null, [], $this->waiting->detailScreen($item));
+        }
+
+        try {
+            if ($input === '2') {
+                $this->waiting->decline($user, $state['uuid']);
+
+                return $this->end('declined', $key);
+            }
+
+            return $this->waiting->accept($user, $state['uuid'])
+                ? $this->end('accepted', $key)
+                : $this->end(null, $key, Wording::get('repayment.stale'));
+        } catch (PostingFailed|EntryRefused $refusal) {
+            return $this->end(null, $key, $refusal->getMessage());
+        }
     }
 
     private function startLogging(string $key, array $state, User $user, string $kind): array

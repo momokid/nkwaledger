@@ -7,7 +7,7 @@
     "enter_pin": "Welcome to NkwaLedger. Enter your PIN.",
     "wrong_pin": "Wrong PIN. Enter your PIN.",
     "pin_locked": "Your PIN is locked. Try again in 30 minutes.",
-    "menu": "Hello {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n6. Exit",
+    "menu": "Hello {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n6. Exit\n7. Waiting for you",
     "goodbye": "Thank you.",
     "period": "Choose a period.\n1. Last 30 days\n2. This month\n3. This year",
     "period_1": "Last 30 days",
@@ -29,5 +29,14 @@
     "method_3": "Bank",
     "confirm": "Save: {name}, {amount}, {method}?\n1. Yes\n2. No",
     "saved": "Saved. Reference {reference}.",
-    "not_saved": "Not saved."
+    "not_saved": "Not saved.",
+    "waiting_none": "Nothing is waiting for you.",
+    "waiting_title": "Waiting for you.",
+    "waiting_line": "{number}. {kind} {lender} {amount}",
+    "waiting_detail": "{kind}: {lender}\n{amount}\n{date}\nRecorded by {agent}\nIt is not counted until you accept it.\n1. Accept\n2. Decline",
+    "kind_loan": "Loan",
+    "kind_repayment": "Repayment",
+    "accepted": "Accepted.",
+    "declined": "Declined.",
+    "waiting_gone": "This is no longer waiting."
 }
