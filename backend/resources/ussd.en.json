@@ -1,0 +1,12 @@
+{
+    "not_registered": "This number is not registered for NkwaLedger.",
+    "set_pin": "Welcome to NkwaLedger. Set a 4-digit PIN.",
+    "pin_rule": "Use 4 digits that are not all the same or in a row. Set a 4-digit PIN.",
+    "confirm_pin": "Enter the PIN again to confirm.",
+    "pin_mismatch": "The PINs did not match. Set a 4-digit PIN.",
+    "enter_pin": "Welcome to NkwaLedger. Enter your PIN.",
+    "wrong_pin": "Wrong PIN. Enter your PIN.",
+    "pin_locked": "Your PIN is locked. Try again in 30 minutes.",
+    "menu": "Hello {name}.\n0. Exit",
+    "goodbye": "Thank you."
+}

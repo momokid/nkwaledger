@@ -23,7 +23,7 @@ use Spatie\Permission\Traits\HasRoles;
     'password',
     'is_active',
 ])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'ussd_pin_hash'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -54,6 +54,7 @@ class User extends Authenticatable
             'password'                     => 'hashed',
             'is_active'                    => 'boolean',
             'locked_at'                    => 'datetime',
+            'ussd_pin_locked_at'           => 'datetime',
             'logins_since_verification'    => 'integer',
             'verification_login_threshold' => 'integer',
             // turns the stored text into a date object

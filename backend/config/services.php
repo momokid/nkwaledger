@@ -40,6 +40,10 @@ return [
         'sender' => env('ARKESEL_SENDER_ID', 'NkwaLedger'),
     ],
 
+    'ussd' => [
+        'secret' => env('USSD_CALLBACK_SECRET'),
+    ],
+
     'google' => [
         'client_id'     => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

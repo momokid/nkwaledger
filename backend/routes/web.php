@@ -1135,3 +1135,6 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
         Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
     });
 });
+
+// the gateway calls this, so it has no session or CSRF; the secret in the address is the only door
+Route::post('/ussd/callback/{secret}', [\App\Http\Controllers\Ussd\UssdController::class, 'callback'])->middleware('throttle:ussd')->name('ussd.callback');
