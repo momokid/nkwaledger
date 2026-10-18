@@ -72,7 +72,7 @@ describe("Pending entries from an agent", () => {
 
         expect(text).toContain("Sika Microfinance");
         expect(text).toContain("500.00");
-        expect(text).toContain("2026-10-08");
+        expect(text).toContain("08/10/2026");
         expect(text).toContain("Recorded by Mensah Kofi");
         expect(text).toContain("Your agent recorded a loan for you. It is not counted until you accept it.");
         expect(buttons()).toContain("Accept");

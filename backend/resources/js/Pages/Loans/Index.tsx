@@ -3,7 +3,7 @@ import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
 import { Link, router } from "@inertiajs/react";
 import { PageProps } from "@/types";
-import { cedis } from "@/lib/format";
+import { cedis, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useState } from "react";
 
@@ -85,7 +85,7 @@ function IndexContent({ loans, pending }: ContentProps) {
                     <p style={{ color: text, fontSize: "1.125rem", fontWeight: 700 }}>
                         {card.lender} · GHS {cedis(card.amount)}
                     </p>
-                    <p style={{ color: textSecondary, fontSize: "1rem" }}>{card.date}</p>
+                    <p style={{ color: textSecondary, fontSize: "1rem" }}>{slashDate(card.date)}</p>
                     <p style={{ color: textSecondary, fontSize: "1rem" }}>Recorded by {card.agent}</p>
                     <p className="mt-2" style={{ color: "#B45309", fontSize: "1rem" }}>
                         {card.kind === "repayment"

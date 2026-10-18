@@ -1,5 +1,5 @@
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
-import { cedis, shortDate } from "@/lib/format";
+import { cedis, slashDate } from "@/lib/format";
 
 interface Props {
     grantedOn: string;
@@ -32,7 +32,7 @@ export default function LoanGrantedDetails({ grantedOn, amount, interest }: Prop
                     </thead>
                     <tbody>
                         <tr>
-                            <td className="px-4 py-3">{shortDate(grantedOn)}</td>
+                            <td className="px-4 py-3">{slashDate(grantedOn)}</td>
                             <td className="px-4 py-3">GHS {cedis(amount)}</td>
                             <td className="px-4 py-3">{interest === null ? "" : `GHS ${cedis(interest)}`}</td>
                         </tr>

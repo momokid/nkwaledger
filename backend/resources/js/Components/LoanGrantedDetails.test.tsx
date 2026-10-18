@@ -39,7 +39,7 @@ describe("Loan Granted Details", () => {
 
         const cells = Array.from(container.querySelectorAll("td")).map((cell) => cell.textContent);
 
-        expect(cells[0]).toContain("2026");
+        expect(cells[0]).toContain("01/09/2026");
         expect(cells[1]).toBe("GHS 1,000.00");
         expect(cells[2]).toBe("GHS 200.00");
     });

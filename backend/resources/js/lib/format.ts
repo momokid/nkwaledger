@@ -17,3 +17,10 @@ export const cedis = (minor: number): string =>
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
+
+// DD/MM/YYYY from the date part of a YYYY-MM-DD string, read as text so no timezone can move the day
+export const slashDate = (value: string | null | undefined): string => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? "");
+
+    return match ? `${match[3]}/${match[2]}/${match[1]}` : "—";
+};

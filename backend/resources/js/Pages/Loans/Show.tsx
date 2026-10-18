@@ -5,7 +5,7 @@ import Button from "@/Components/Button";
 import LoanGrantedDetails from "@/Components/LoanGrantedDetails";
 import RepaymentForm, { PaidFromOption, SavedRepayment } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
-import { cedis, shortDate } from "@/lib/format";
+import { cedis, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useEffect, useState } from "react";
 
@@ -122,7 +122,7 @@ function ShowContent({ loan: firstLoan, repayments: firstRepayments, rejected: f
 
             {rejected.map((row) => (
                 <p key={row.uuid} className="mt-3" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
-                    {shortDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
+                    {slashDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
                 </p>
             ))}
 
@@ -141,7 +141,7 @@ function ShowContent({ loan: firstLoan, repayments: firstRepayments, rejected: f
                         <tbody>
                             {repayments.map((row) => (
                                 <tr key={row.uuid} style={{ borderBottom: `1px solid ${border}`, color: row.cancelled ? textSecondary : text }}>
-                                    <td className="px-4 py-3">{shortDate(row.date)}</td>
+                                    <td className="px-4 py-3">{slashDate(row.date)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.amount)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.principal)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.interest)}</td>

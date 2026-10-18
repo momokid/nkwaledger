@@ -3,7 +3,7 @@ import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import BackLink from "@/Components/BackLink";
 import LoanGrantedDetails from "@/Components/LoanGrantedDetails";
 import { wording } from "@/lib/wording";
-import { cedis, shortDate } from "@/lib/format";
+import { cedis, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck, CheckStatus, checkOptionLabel } from "@/Components/LoanCheckNotice";
 import LoanCheckForm, { SavedChecks } from "@/Components/Admin/LoanCheckForm";
 import LoanCheckWithdraw from "@/Components/Admin/LoanCheckWithdraw";
@@ -118,7 +118,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, 
                     {checks.map((row) => (
                         <div key={row.uuid} className="mt-2" style={{ borderTop: `1px solid ${border}`, paddingTop: "8px" }}>
                             <p style={{ color: text, fontSize: "1.0625rem", fontWeight: 600 }}>
-                                {checkOptionLabel(row.status)} · {shortDate(row.date)} · {row.by}
+                                {checkOptionLabel(row.status)} · {slashDate(row.date)} · {row.by}
                             </p>
                             {row.note && <p style={{ color: textSecondary, fontSize: "1.0625rem", whiteSpace: "pre-wrap" }}>{row.note}</p>}
                         </div>
@@ -134,7 +134,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, 
 
             {rejected.map((row) => (
                 <p key={row.uuid} className="mt-2" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
-                    {shortDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
+                    {slashDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
                 </p>
             ))}
 
@@ -153,7 +153,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, 
                         <tbody>
                             {repayments.map((row) => (
                                 <tr key={row.uuid} style={{ borderTop: `1px solid ${border}`, opacity: row.cancelled ? 0.6 : 1 }}>
-                                    <td className="px-4 py-3">{shortDate(row.date)}</td>
+                                    <td className="px-4 py-3">{slashDate(row.date)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.amount)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.principal)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.interest)}</td>
