@@ -38,7 +38,7 @@ test('choosing Twi saves it and shows the welcome menu in Twi at once', function
     $twi = app(UssdText::class)->in('tw');
 
     expect($menu->json('continueSession'))->toBeTrue()
-        ->and($menu->json('message'))->toBe($twi->get('menu', ['name' => 'Kofi']))
+        ->and($menu->json('message'))->toBe($twi->get('menu', ['name' => 'Kofi']) . "\n" . $twi->get('menu_waiting'))
         ->and($this->farmerUser->fresh()->ussd_language)->toBe('tw');
 
     // the menu works in Twi, and the next dial remembers it

@@ -13,11 +13,6 @@ use Illuminate\Support\Facades\Cache;
 // one reply per call. The step the farmer is on is kept in the cache for the length of the session, and nothing typed is logged
 class UssdFlow
 {
-    private const SESSION_MINUTES = 5;
-
-    // every screen that waits for an answer after the PIN steps carries "0. Back", which goes one step back
-    private const BACK_STEPS = ['confirm_pin', 'period', 'group', 'pick', 'unit', 'quantity', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act', 'change_old', 'change_new', 'change_confirm', 'farmer_phone', 'target_menu', 'pin_for_farmer'];
-
     public function __construct(
         private readonly UssdPinService $pins,
         private readonly UssdText $text,
@@ -25,6 +20,8 @@ class UssdFlow
         private readonly UssdRecorder $recorder,
         private readonly UssdWaiting $waiting,
         private readonly UssdPinReset $pinReset,
+        private readonly UssdScreens $screens,
+        private readonly UssdLoanFlow $loans,
     ) {}
 
     /** @return array{message: string, continue: bool} */
@@ -59,8 +56,12 @@ class UssdFlow
         // whose books the screens work on: the signed-in farmer's own, or the farmer an agent picked
         $subject = isset($state['target']) ? (User::find($state['target']) ?? $user) : $user;
 
-        if ($input === '0' && in_array($state['step'], self::BACK_STEPS, true)) {
+        if ($input === '0' && in_array($state['step'], UssdScreens::BACK_STEPS, true)) {
             return $this->back($key, $state, $user, $subject);
+        }
+
+        if (str_starts_with($state['step'], 'loan_')) {
+            return $this->loans->handle($key, $state, $user, $subject, $input);
         }
 
         return match ($state['step']) {
@@ -130,6 +131,11 @@ class UssdFlow
     // one step back, keeping what the farmer already chose on the steps before it
     private function back(string $key, array $state, User $user, User $subject): array
     {
+        // the loans menu is the first loan screen: back from it is the farmer's menu
+        if (str_starts_with($state['step'], 'loan_') && $state['step'] !== 'loan_menu') {
+            return $this->loans->back($key, $state, $user, $subject);
+        }
+
         return match ($state['step']) {
             'confirm_pin' => $this->show($key, ['user' => $user->id, 'step' => 'set_pin'], 'set_pin'),
             'change_confirm' => $this->show($key, ['user' => $user->id, 'step' => 'change_new'], 'change_new'),
@@ -457,6 +463,7 @@ class UssdFlow
             '2' => $this->end(null, $key, $this->reads->loans($farmer->farmerProfile)),
             '3', '4' => $this->startLogging($key, $state, $agent, $farmer, $input === '3' ? 'income' : 'expense'),
             '5' => $this->show($key, [...$state, 'step' => 'pin_for_farmer'], 'pin_for_farmer_confirm'),
+            '6' => $this->loans->start($key, $state, $agent, $farmer),
             default => $this->menu($key, $state, $agent),
         };
     }
@@ -479,28 +486,12 @@ class UssdFlow
 
     private function show(string $key, array $state, ?string $screen, array $with = [], ?string $message = null): array
     {
-        Cache::put($key, $state, now()->addMinutes(self::SESSION_MINUTES));
-
-        $text = $message ?? $this->text->get($screen, $with);
-
-        if (in_array($state['step'] ?? null, self::BACK_STEPS, true)) {
-            $text .= "\n" . $this->text->get('back');
-        }
-
-        if (($state['step'] ?? null) === 'enter_pin') {
-            $text .= "\n" . $this->text->get('forgot_hint');
-        }
-
-        return ['message' => $text, 'continue' => true];
+        return $this->screens->show($key, $state, $screen, $with, $message);
     }
 
     private function end(?string $screen, ?string $key = null, ?string $message = null): array
     {
-        if ($key !== null) {
-            Cache::forget($key);
-        }
-
-        return ['message' => $message ?? $this->text->get($screen), 'continue' => false];
+        return $this->screens->end($screen, $key, $message);
     }
 
     // an active farmer, or an agent, with a verified number gets in

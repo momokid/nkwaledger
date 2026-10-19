@@ -72,6 +72,12 @@ class UssdRecorder
         return isset(self::METHODS[$choice]) || ($allowsCredit && $choice === self::CREDIT);
     }
 
+    // the ledger account behind Cash, MoMo or Bank
+    public function accountId(string $choice): ?int
+    {
+        return isset(self::METHODS[$choice]) ? LedgerAccount::where('name', self::METHODS[$choice])->value('id') : null;
+    }
+
     /** @return array<int, string> the farmer's approved, active farm units: id => name, in the order shown */
     public function units(User $user): array
     {
