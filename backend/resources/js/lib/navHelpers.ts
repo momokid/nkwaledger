@@ -16,3 +16,15 @@ export function buildMarketplaceNavGroup<T>(subItems: T[]) {
         children: subItems,
     };
 }
+
+const MOBILE_BAR_SLOTS = 4;
+
+// the phone bar holds four items; everything else (groups opened out) goes under "More"
+export function splitMobileNav<T extends { children?: T[] }>(main: T[], tools: T[]) {
+    const rest = [...main.slice(MOBILE_BAR_SLOTS), ...tools];
+
+    return {
+        bar: main.slice(0, MOBILE_BAR_SLOTS),
+        more: rest.flatMap((item) => item.children ?? [item]),
+    };
+}

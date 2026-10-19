@@ -42,6 +42,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->app->scoped(\App\Services\Ussd\UssdText::class);
+
         // an explicit flag rather than app()->isLocal(), so arkesel can still be
         // tested from a local machine on demand
         $this->app->bind(SmsProvider::class, fn() => env('SMS_DRIVER', 'arkesel') === 'log'
@@ -135,6 +137,7 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         // finding a lender is a typing-speed lookup, so the cap is per person and generous but not unlimited
+        RateLimiter::for('ussd', fn(Request $request) => Limit::perMinute(30)->by('ussd:' . $request->input('msisdn', $request->ip())));
         RateLimiter::for('lender-search', fn(Request $request) => Limit::perMinute(30)->by('lender-search:' . ($request->user()?->id ?? $request->ip())));
 
         // sending a loan code costs an sms, and entering one is a guessing game: both are capped

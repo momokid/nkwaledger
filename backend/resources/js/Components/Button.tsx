@@ -66,6 +66,7 @@ export default function Button({
         <button
             {...rest}
             disabled={disabled || busy}
+            aria-busy={busy || undefined}
             style={{
                 ...base,
                 ...sizes[size],
@@ -75,6 +76,14 @@ export default function Button({
                 ...style,
             }}
         >
+            {busy && (
+                <span
+                    data-spinner
+                    aria-hidden="true"
+                    className="animate-spin motion-reduce:animate-none"
+                    style={{ width: "1em", height: "1em", border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%" }}
+                />
+            )}
             {busy ? busyLabel : children}
         </button>
     );

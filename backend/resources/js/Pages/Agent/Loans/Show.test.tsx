@@ -20,7 +20,7 @@ vi.mock("@inertiajs/react", async () => {
 const base = {
     loan: { uuid: "l-1", lender: "Sika Microfinance", amount: 100000, balance: 60000, status: "active", check: { status: "confirmed", note: "Spoke to the manager", date: "2026-10-16" } },
     farmer: "Mensah Kofi",
-    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, cancelled: false }],
+    repayments: [{ uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, balance: 60000, cancelled: false }],
     rejected: [],
     checks: [{ uuid: "c1", status: "confirmed", note: "Spoke to the manager", date: "2026-10-16", by: "Admin One" }],
 };
@@ -50,7 +50,7 @@ describe("The agent's loan page", () => {
         expect(text).toContain("Loan Balance GHS 600.00");
         expect(text).toContain("Spoke to the manager");
         expect(text).toContain("Admin One");
-        expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
+        expect(Array.from(container.querySelectorAll("table")).at(-1)!.querySelectorAll("tbody tr")).toHaveLength(1);
     });
 
     it("has nothing to save: no form, no field, no action button", () => {

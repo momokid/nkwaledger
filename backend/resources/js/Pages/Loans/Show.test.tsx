@@ -30,8 +30,8 @@ const props = {
     loan: { uuid: "9d2f0c0e-0000-4000-8000-000000000001", lender: "Sika Microfinance", amount: 100000, balance: 50000, status: "active" },
     rejected: [{ uuid: "x1", date: "2026-10-09", amount: 5000 }],
     repayments: [
-        { uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, cancelled: false },
-        { uuid: "r2", date: "2026-10-11", amount: 1000, principal: 800, interest: 200, cancelled: false },
+        { uuid: "r1", date: "2026-10-10", amount: 60000, principal: 50000, interest: 10000, balance: 60000, cancelled: false },
+        { uuid: "r2", date: "2026-10-11", amount: 1000, principal: 800, interest: 200, balance: 59000, cancelled: false },
     ],
     paidFrom: [{ value: "cash", label: "Cash" }],
     idempotencyKey: "key-1",
@@ -90,16 +90,25 @@ describe("The loan page", () => {
         expect(back?.getAttribute("href")).toBe("/loans");
     });
 
-    it("shows the four approved table headers and no raw key", async () => {
+    it("shows the approved table headers and no raw key", async () => {
         await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
 
-        expect(Array.from(container.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
+        expect(Array.from(Array.from(container.querySelectorAll("table")).at(-1)!.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
             "Repayment Date",
             "Repayment Amount",
             "Principal on Repayment",
             "Interest on Repayment",
+            "Loan Balance",
         ]);
         expect(container.textContent).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
+    });
+
+    it("shows what was still owed after each repayment, in the order given", async () => {
+        await act(async () => root.render(<Show {...(props as unknown as ComponentProps<typeof Show>)} />));
+
+        const rows = Array.from(Array.from(container.querySelectorAll("table")).at(-1)!.querySelectorAll("tbody tr"));
+
+        expect(rows.map((row) => row.lastElementChild!.textContent)).toEqual(["GHS 600.00", "GHS 590.00"]);
     });
 
 

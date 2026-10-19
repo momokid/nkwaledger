@@ -2,6 +2,7 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
 import BackLink from "@/Components/BackLink";
 import Button from "@/Components/Button";
+import LenderRequestForm from "@/Components/LenderRequestForm";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { csrfToken } from "@/lib/syncHttp";
@@ -28,6 +29,8 @@ interface Props extends PageProps {
     idempotencyKey: string;
     // an agent filling the form in for a farmer: another address to post to and to go back to
     agent: boolean;
+    // the farmer a lender request is for when an agent fills the form in; null for the farmer themselves
+    requestFor: string | null;
     postUrl: string;
     backUrl: string;
 }
@@ -40,9 +43,9 @@ export default function Create(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "kind" | "paidInto" | "idempotencyKey" | "agent" | "postUrl" | "backUrl">;
+type ContentProps = Pick<Props, "kind" | "paidInto" | "idempotencyKey" | "agent" | "requestFor" | "postUrl" | "backUrl">;
 
-function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl }: ContentProps) {
+function CreateContent({ kind, paidInto, idempotencyKey, agent, requestFor, postUrl, backUrl }: ContentProps) {
     const { errors, old } = usePage<Props>().props as unknown as {
         errors: Record<string, string>;
         old: Record<string, string>;
@@ -73,6 +76,7 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
 
     const [found, setFound] = useState<Found[] | null>(null);
     const [pickedType, setPickedType] = useState("");
+    const [requesting, setRequesting] = useState(false);
     const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
     // a lender is picked from the list: what is typed here only searches, and only the picked id is sent
@@ -247,6 +251,14 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
                     )}
                     {pickedType !== "" && form.data.lender !== "" && <p style={{ fontSize: "0.9375rem", marginTop: "4px", color: text }}>{typeLabel(pickedType)}</p>}
                     {found !== null && found.length === 0 && <p style={errorText}>{LENDER_TEXT.notInList}</p>}
+                    {found !== null && found.length === 0 && !requesting && (
+                        <div className="mt-2">
+                            <Button type="button" look="secondary" size="small" onClick={() => setRequesting(true)}>
+                                {wording("lender.request_button")}
+                            </Button>
+                        </div>
+                    )}
+                    {requesting && <LenderRequestForm name={form.data.lender_name} farmer={requestFor} onClose={() => setRequesting(false)} />}
                     {errors.lender && <p style={errorText}>{errors.lender}</p>}
                 </div>
 

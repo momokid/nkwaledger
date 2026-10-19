@@ -16,12 +16,22 @@ interface Split {
     interest: number;
 }
 
+// what the server sends back after a repayment is saved in place
+export interface SavedRepayment {
+    loan: Record<string, unknown>;
+    repayments: unknown[];
+    rejected: unknown[];
+    idempotencyKey: string;
+}
+
 interface Props {
     paidFrom: PaidFromOption[];
     previewUrl: string;
     postUrl: string;
     today: string;
     idempotencyKey?: string;
+    // given on a page that stays open: the repayment is saved in place and the form is cleared, with no page visit
+    onSaved?: (saved: SavedRepayment) => void;
     onCancel: () => void;
 }
 
@@ -38,9 +48,12 @@ export const REPAYMENT_TEXT = {
 
 const AMOUNT = /^\d+(\.\d{1,2})?$/;
 
-export default function RepaymentForm({ paidFrom, previewUrl, postUrl, today, idempotencyKey, onCancel }: Props) {
+export default function RepaymentForm({ paidFrom, previewUrl, postUrl, today, idempotencyKey, onSaved, onCancel }: Props) {
     const { dark } = useTheme();
-    const { errors } = usePage().props as unknown as { errors: Record<string, string> };
+    const { errors: pageErrors } = usePage().props as unknown as { errors: Record<string, string> };
+    const [saving, setSaving] = useState(false);
+    const [savedErrors, setSavedErrors] = useState<Record<string, string>>({});
+    const errors = { ...pageErrors, ...savedErrors };
 
     const [split, setSplit] = useState<Split | null>(null);
     // the server's own words when the amount is more than the loan owes, or the loan is fully repaid
@@ -99,9 +112,41 @@ export default function RepaymentForm({ paidFrom, previewUrl, postUrl, today, id
     const label = { display: "block", fontSize: "1.0625rem", fontWeight: 600, color: text, marginBottom: "6px" } as const;
     const errorText = { fontSize: "0.9375rem", color: "#B91C1C", marginTop: "4px" } as const;
 
-    const submit = (event: FormEvent) => {
+    const submit = async (event: FormEvent) => {
         event.preventDefault();
-        form.post(postUrl);
+
+        if (!onSaved) {
+            form.post(postUrl);
+
+            return;
+        }
+
+        setSaving(true);
+        setSavedErrors({});
+
+        try {
+            const response = await fetch(postUrl, {
+                method: "POST",
+                headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken() },
+                body: JSON.stringify(form.data),
+            });
+            const body = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                // every field goes back to how it started, and the next repayment gets the fresh key
+                form.setData({ amount: "", date: today, paid_from: paidFrom[0]?.value ?? "", idempotency_key: body.idempotencyKey });
+                setSplit(null);
+                setRefusal(null);
+                onSaved(body);
+            } else {
+                setSavedErrors(Object.fromEntries(Object.entries((body.errors ?? {}) as Record<string, string[]>).map(([key, messages]) => [key, messages[0]])));
+                setRefusal(body.message ?? null);
+            }
+        } catch {
+            // a failed request leaves the form as it was, ready to send again with the same key
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -157,7 +202,7 @@ export default function RepaymentForm({ paidFrom, previewUrl, postUrl, today, id
             )}
 
             <div className="flex flex-wrap gap-3">
-                <Button type="submit" busy={form.processing} busyLabel={REPAYMENT_TEXT.saving}>
+                <Button type="submit" busy={form.processing || saving} busyLabel={REPAYMENT_TEXT.saving}>
                     {REPAYMENT_TEXT.save}
                 </Button>
                 <Button type="button" look="secondary" onClick={onCancel}>
