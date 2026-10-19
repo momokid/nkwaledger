@@ -127,3 +127,20 @@ test('the PIN screens and the menu have no Back', function () {
     expect($enter->json('message'))->not->toContain('0. Back')
         ->and($menu->json('message'))->not->toContain('0. Back');
 });
+
+test('the reply carries back the gateway\'s own user id, and the extra fields it sends are accepted', function () {
+    $reply = $this->postJson('/ussd/callback/test-secret', [
+        'sessionID' => '2005506191900168', 'userID' => 'USSD_DOCUMENTATION', 'newSession' => true,
+        'msisdn' => '233244445566', 'userData' => '*928*1#', 'network' => 'AIRTELTIGO',
+    ])->assertOk();
+
+    expect($reply->json())->toHaveKeys(['sessionID', 'userID', 'msisdn', 'message', 'continueSession'])
+        ->and($reply->json('userID'))->toBe('USSD_DOCUMENTATION')
+        ->and($reply->json('sessionID'))->toBe('2005506191900168');
+});
+
+test('a reply as long as a USSD screen allows is accepted', function () {
+    $this->postJson('/ussd/callback/test-secret', [
+        'sessionID' => 's-long', 'msisdn' => '233244445566', 'newSession' => false, 'userData' => str_repeat('a', 120),
+    ])->assertOk();
+});
