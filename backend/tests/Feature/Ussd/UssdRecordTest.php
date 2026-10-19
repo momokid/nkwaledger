@@ -23,9 +23,19 @@ beforeEach(function () {
         'debit_account_id' => $account($debit)->id, 'credit_account_id' => $account($credit)->id, 'settlement_side' => $side,
     ]);
 
+    foreach (['Grants and Support', 'Hire Income', 'By-product Income', 'Expense on Rent', 'Expense on Utilities', 'Expense on Repairs'] as $name) {
+        LedgerAccount::create(['name' => $name, 'control_id' => $this->cash->control_id, 'subcategory_id' => $this->cash->subcategory_id, 'type_id' => $this->cash->type_id]);
+    }
+
+    $make('I received a grant or support', 'grant_income', 'INCOME', 'Cash A/C', 'Grants and Support', 'debit');
+    $make('I hired out my land or equipment', 'hire_income', 'INCOME', 'Cash A/C', 'Hire Income', 'debit');
+    $make('I sold manure or by-products', 'byproduct_income', 'INCOME', 'Cash A/C', 'By-product Income', 'debit');
     $make('Money came in from something else', 'other_income', 'INCOME', 'Cash A/C', 'Sales A/C', 'debit');
     $make('I paid someone to work', 'labour_cost', 'EXPENSE', 'Feed A/C', 'Cash A/C', 'credit');
     $make('I paid for transport', 'transport_cost', 'EXPENSE', 'Feed A/C', 'Cash A/C', 'credit');
+    $make('I paid rent for land', 'rent_cost', 'EXPENSE', 'Expense on Rent', 'Cash A/C', 'credit');
+    $make('I paid for water or electricity', 'utilities_cost', 'EXPENSE', 'Expense on Utilities', 'Cash A/C', 'credit');
+    $make('I paid for repairs', 'repairs_cost', 'EXPENSE', 'Expense on Repairs', 'Cash A/C', 'credit');
 
     $this->dial = fn(string $input = '', bool $new = false) => $this->postJson('/ussd/callback/test-secret', [
         'sessionID' => 's-1', 'msisdn' => '233244445566', 'newSession' => $new, 'userData' => $input,
@@ -71,7 +81,7 @@ test('expenditure: transport, 50, MoMo, confirm, saved on the ussd channel from 
 });
 
 test('income: 120.50 received in the bank', function () {
-    ($this->walk)('3', '1', '120.50', '3', '1');
+    ($this->walk)('3', '4', '120.50', '3', '1');
 
     $transaction = Transaction::where('channel', 'ussd')->firstOrFail();
 
@@ -125,4 +135,27 @@ test('back from each logging step', function () {
         ->and(($this->dial)('0')->json('message'))->toContain('Money out.')->toContain('I paid for transport')
         ->and(($this->dial)('0')->json('message'))->toContain('4. Log expenditure')
         ->and(Transaction::where('channel', 'ussd')->count())->toBe(0);
+});
+
+test('Log income lists the four money-in types and Log expenditure the five money-out types', function () {
+    $income = ($this->walk)('3')->json('message');
+    expect($income)->toContain('1. I received a grant or support')->toContain('2. I hired out my land or equipment')
+        ->toContain('3. I sold manure or by-products')->toContain('4. Money came in from something else');
+
+    ($this->dial)('0');
+    $expense = ($this->dial)('4')->json('message');
+
+    expect($expense)->toContain('1. I paid someone to work')->toContain('2. I paid for transport')->toContain('3. I paid rent for land')
+        ->toContain('4. I paid for water or electricity')->toContain('5. I paid for repairs');
+});
+
+test('a grant and a repair are saved to their own accounts', function () {
+    ($this->walk)('3', '1', '300', '1', '1');
+    ($this->walk)('4', '5', '80', '2', '1');
+
+    $saved = Transaction::where('channel', 'ussd')->with('template')->get()->keyBy(fn($t) => $t->template->slug);
+
+    expect($saved['grant_income']->amount_minor)->toBe(30000)
+        ->and($saved['repairs_cost']->amount_minor)->toBe(8000)
+        ->and($saved['repairs_cost']->settlementAccount->name)->toBe('Momo A/C');
 });

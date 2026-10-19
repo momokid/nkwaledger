@@ -16,7 +16,10 @@ use Illuminate\Support\Collection;
 // money in or out from a phone: the three record types that need no farm unit and no quantity, posted the way the web posts them
 class UssdRecorder
 {
-    private const SLUGS = ['income' => ['other_income'], 'expense' => ['labour_cost', 'transport_cost']];
+    private const SLUGS = [
+        'income' => ['grant_income', 'hire_income', 'byproduct_income', 'other_income'],
+        'expense' => ['labour_cost', 'transport_cost', 'rent_cost', 'utilities_cost', 'repairs_cost'],
+    ];
     private const METHODS = ['1' => 'Cash A/C', '2' => 'Momo A/C', '3' => 'Bank A/C'];
     private const MAX_CEDIS = 100000;
 
