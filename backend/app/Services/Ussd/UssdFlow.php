@@ -16,7 +16,7 @@ class UssdFlow
     private const SESSION_MINUTES = 5;
 
     // every screen that waits for an answer after the PIN steps carries "0. Back", which goes one step back
-    private const BACK_STEPS = ['confirm_pin', 'period', 'group', 'pick', 'unit', 'quantity', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act', 'change_old', 'change_new', 'change_confirm'];
+    private const BACK_STEPS = ['confirm_pin', 'period', 'group', 'pick', 'unit', 'quantity', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act', 'change_old', 'change_new', 'change_confirm', 'farmer_phone', 'target_menu', 'pin_for_farmer'];
 
     public function __construct(
         private readonly UssdPinService $pins,
@@ -32,7 +32,7 @@ class UssdFlow
     {
         $key = 'ussd:' . $session;
         $state = $new ? null : Cache::get($key);
-        $user = $state === null ? $this->farmerFor($msisdn) : User::find($state['user']);
+        $user = $state === null ? $this->signInFor($msisdn) : User::find($state['user']);
 
         // English until the farmer is known, so a stranger's number never shows which language a farmer chose
         $this->text->use(null);
@@ -56,11 +56,17 @@ class UssdFlow
             return $this->show($key, ['user' => $user->id, 'step' => $step], $step);
         }
 
+        // whose books the screens work on: the signed-in farmer's own, or the farmer an agent picked
+        $subject = isset($state['target']) ? (User::find($state['target']) ?? $user) : $user;
+
         if ($input === '0' && in_array($state['step'], self::BACK_STEPS, true)) {
-            return $this->back($key, $state, $user);
+            return $this->back($key, $state, $user, $subject);
         }
 
         return match ($state['step']) {
+            'farmer_phone' => $this->farmerChosen($key, $state, $user, $input),
+            'target_menu' => $this->targetChoose($key, $state, $user, $subject, $input),
+            'pin_for_farmer' => $this->farmerPinAnswered($key, $state, $user, $subject, $input),
             'set_pin' => $this->pins->isAllowed($input)
                 ? $this->show($key, [...$state, 'step' => 'confirm_pin', 'hash' => $this->pins->hashOf($input)], 'confirm_pin')
                 : $this->show($key, $state, 'pin_rule'),
@@ -72,11 +78,11 @@ class UssdFlow
             'change_new' => $this->newPinEntered($key, $state, $user, $input, 'change_confirm'),
             'change_confirm' => $this->newPinConfirmed($key, $state, $user, $input, 'change_new'),
             'period' => $this->reads->isPeriod($input)
-                ? $this->end(null, $key, $this->reads->summary($user->farmerProfile, $input))
+                ? $this->end(null, $key, $this->reads->summary($subject->farmerProfile, $input))
                 : $this->show($key, $state, 'period'),
-            'group' => $this->groupChosen($key, $state, $user, $input),
-            'pick' => $this->picked($key, $state, $user, $input),
-            'unit' => $this->unitPicked($key, $state, $input),
+            'group' => $this->groupChosen($key, $state, $subject, $input),
+            'pick' => $this->picked($key, $state, $subject, $input),
+            'unit' => $this->unitPicked($key, $state, $subject, $input),
             'quantity' => $this->quantityEntered($key, $state, $input),
             'amount' => $this->amountEntered($key, $state, $input),
             'method' => $this->recorder->isMethod($input, $state['kind'] === 'sale')
@@ -85,17 +91,21 @@ class UssdFlow
             'language' => $this->languageChosen($key, $state, $user, $input),
             'waiting_pick' => $this->waitingPicked($key, $state, $user, $input),
             'waiting_act' => $this->waitingAnswered($key, $state, $user, $input),
-            'confirm' => $this->finish($key, $state, $user, $input, $session),
+            'confirm' => $this->finish($key, $state, $user, $subject, $input, $session),
             default => $this->choose($key, $state, $user, $input),
         };
     }
 
     private function choose(string $key, array $state, User $user, string $input): array
     {
+        if ($user->hasRole('agent')) {
+            return $this->agentChoose($key, $state, $user, $input);
+        }
+
         return match ($input) {
             '1' => $this->show($key, [...$state, 'step' => 'period'], 'period'),
             '2' => $this->end(null, $key, $this->reads->loans($user->farmerProfile)),
-            '3', '4' => $this->startLogging($key, $state, $user, $input === '3' ? 'income' : 'expense'),
+            '3', '4' => $this->startLogging($key, $state, $user, $user, $input === '3' ? 'income' : 'expense'),
             '5' => $this->show($key, [...$state, 'step' => 'language'], 'language_pick'),
             '6' => $this->end('goodbye', $key),
             '7' => $this->show($key, [...$state, 'step' => 'change_old'], 'change_old'),
@@ -118,19 +128,20 @@ class UssdFlow
     }
 
     // one step back, keeping what the farmer already chose on the steps before it
-    private function back(string $key, array $state, User $user): array
+    private function back(string $key, array $state, User $user, User $subject): array
     {
         return match ($state['step']) {
             'confirm_pin' => $this->show($key, ['user' => $user->id, 'step' => 'set_pin'], 'set_pin'),
             'change_confirm' => $this->show($key, ['user' => $user->id, 'step' => 'change_new'], 'change_new'),
             'pick' => $state['kind'] === 'expense' ? $this->menu($key, $state, $user) : $this->groupScreen($key, $state),
-            'unit' => $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $user)),
+            'target_menu' => $this->menu($key, ['user' => $user->id], $user),
+            'unit' => $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $subject)),
             'quantity' => count($state['units'] ?? []) > 1
-                ? $this->show($key, [...$state, 'step' => 'unit'], null, [], $this->unitList($state['units'], $user))
-                : $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $user)),
+                ? $this->show($key, [...$state, 'step' => 'unit'], null, [], $this->unitList($state['units'], $subject))
+                : $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $subject)),
             'amount' => $state['kind'] === 'sale'
                 ? $this->show($key, [...$state, 'step' => 'quantity'], $this->quantityScreen($state))
-                : $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $user)),
+                : $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $subject)),
             'method' => $this->show($key, [...$state, 'step' => 'amount'], 'amount'),
             'confirm' => $this->show($key, [...$state, 'step' => 'method'], $this->methodScreen($state)),
             'waiting_act' => $this->startWaiting($key, ['user' => $user->id], $user),
@@ -187,16 +198,16 @@ class UssdFlow
         }
     }
 
-    private function startLogging(string $key, array $state, User $user, string $kind): array
+    private function startLogging(string $key, array $state, User $actor, User $subject, string $kind): array
     {
-        if (($reason = $this->recorder->blockedReason($user)) !== null) {
+        if (($reason = $this->recorder->blockedReason($actor, $subject)) !== null) {
             return $this->end(null, $key, $reason);
         }
 
         // money in has two groups: sales (a unit and a quantity) and everything else
         return $kind === 'income'
             ? $this->groupScreen($key, [...$state, 'kind' => 'income'])
-            : $this->show($key, [...$state, 'step' => 'pick', 'kind' => $kind], null, [], $this->pickList($kind, $user));
+            : $this->show($key, [...$state, 'step' => 'pick', 'kind' => $kind], null, [], $this->pickList($kind, $subject));
     }
 
     private function groupScreen(string $key, array $state): array
@@ -254,12 +265,12 @@ class UssdFlow
         return $this->text->get('unit_pick') . "\n" . $lines;
     }
 
-    private function unitPicked(string $key, array $state, string $input): array
+    private function unitPicked(string $key, array $state, User $subject, string $input): array
     {
         $id = $state['units'][(int) $input - 1] ?? null;
 
         if ($id === null) {
-            return $this->show($key, $state, null, [], $this->unitList($state['units'], User::find($state['user'])));
+            return $this->show($key, $state, null, [], $this->unitList($state['units'], $subject));
         }
 
         return $this->show($key, [...$state, 'step' => 'quantity', 'unit' => $id], $this->quantityScreen($state));
@@ -307,16 +318,22 @@ class UssdFlow
         return $this->show($key, $state, $state['kind'] === 'sale' ? 'confirm_sale' : 'confirm', $with);
     }
 
-    private function finish(string $key, array $state, User $user, string $input, string $session): array
+    private function finish(string $key, array $state, User $actor, User $subject, string $input, string $session): array
     {
         if ($input !== '1') {
             return $this->end('not_saved', $key);
         }
 
         try {
-            $transaction = $this->recorder->save($user, $this->recorder->find($state['slug']), $state['amount'], $state['method'], $session, $state['unit'] ?? null, $state['quantity'] ?? null);
+            $template = $this->recorder->find($state['slug']);
+            $transaction = $this->recorder->save($subject, $template, $state['amount'], $state['method'], $session, $state['unit'] ?? null, $state['quantity'] ?? null, $actor);
         } catch (PostingFailed $failure) {
             return $this->end(null, $key, $failure->getMessage());
+        }
+
+        // a farmer is told when someone else puts something on their books
+        if ($actor->id !== $subject->id) {
+            $this->recorder->tellFarmer($subject, $template, $state['amount'], $transaction);
         }
 
         return $this->end(null, $key, $this->text->get('saved', ['reference' => $transaction->reference]));
@@ -341,9 +358,11 @@ class UssdFlow
 
         // a PIN is four digits, so a lone 0 can only mean the farmer forgot it
         if ($input === '0') {
+            $admin = $user->hasRole('agent') ? '_admin' : '';
+
             return $this->end(match ($this->pinReset->request($user)) {
-                'sent' => 'forgot_sent',
-                'already' => 'forgot_already',
+                'sent' => 'forgot_sent' . $admin,
+                'already' => 'forgot_already' . $admin,
                 default => 'forgot_no_agent',
             }, $key);
         }
@@ -396,9 +415,60 @@ class UssdFlow
 
     private function menu(string $key, array $state, User $user): array
     {
+        if ($user->hasRole('agent')) {
+            $target = isset($state['target']) ? User::find($state['target']) : null;
+
+            return $target === null
+                ? $this->show($key, ['user' => $user->id, 'step' => 'menu'], 'menu_agent', ['name' => $user->first_name])
+                : $this->show($key, ['user' => $user->id, 'step' => 'target_menu', 'target' => $target->id], 'menu_target', ['name' => trim($target->first_name)]);
+        }
+
         $menu = $this->text->get('menu', ['name' => $user->first_name]);
 
         return $this->show($key, ['user' => $user->id, 'step' => 'menu'], null, [], $this->waitingOn() ? $menu . "\n" . $this->text->get('menu_waiting') : $menu);
+    }
+
+    // the agent's own menu: pick a farmer, or the same language, exit and PIN choices a farmer has
+    private function agentChoose(string $key, array $state, User $agent, string $input): array
+    {
+        return match ($input) {
+            '1' => $this->show($key, [...$state, 'step' => 'farmer_phone'], 'farmer_phone'),
+            '5' => $this->show($key, [...$state, 'step' => 'language'], 'language_pick'),
+            '6' => $this->end('goodbye', $key),
+            '7' => $this->show($key, [...$state, 'step' => 'change_old'], 'change_old'),
+            default => $this->menu($key, $state, $agent),
+        };
+    }
+
+    // only one of the agent's own farmers; every other number, or none, reads the same
+    private function farmerChosen(string $key, array $state, User $agent, string $input): array
+    {
+        $farmer = $this->agentFarmer($agent, $input);
+
+        return $farmer === null
+            ? $this->show($key, $state, 'farmer_not_found')
+            : $this->menu($key, [...$state, 'target' => $farmer->id], $agent);
+    }
+
+    private function targetChoose(string $key, array $state, User $agent, User $farmer, string $input): array
+    {
+        return match ($input) {
+            '1' => $this->show($key, [...$state, 'step' => 'period'], 'period'),
+            '2' => $this->end(null, $key, $this->reads->loans($farmer->farmerProfile)),
+            '3', '4' => $this->startLogging($key, $state, $agent, $farmer, $input === '3' ? 'income' : 'expense'),
+            '5' => $this->show($key, [...$state, 'step' => 'pin_for_farmer'], 'pin_for_farmer_confirm'),
+            default => $this->menu($key, $state, $agent),
+        };
+    }
+
+    // the temporary PIN is shown once, to the agent who has just checked who the farmer is
+    private function farmerPinAnswered(string $key, array $state, User $agent, User $farmer, string $input): array
+    {
+        return match ($input) {
+            '1' => $this->end(null, $key, $this->text->get('pin_for_farmer_done', ['pin' => $this->pinReset->reset($farmer, $agent)])),
+            '2' => $this->menu($key, $state, $agent),
+            default => $this->show($key, $state, 'pin_for_farmer_confirm'),
+        };
     }
 
     // "Waiting for you" is built and tested but off the menu until the owner turns it on
@@ -433,8 +503,8 @@ class UssdFlow
         return ['message' => $message ?? $this->text->get($screen), 'continue' => false];
     }
 
-    // only an active farmer with a verified number gets in
-    private function farmerFor(string $msisdn): ?User
+    // an active farmer, or an agent, with a verified number gets in
+    private function signInFor(string $msisdn): ?User
     {
         $phone = Phone::normalise($msisdn);
 
@@ -442,13 +512,22 @@ class UssdFlow
             return null;
         }
 
-        return User::query()
-            ->where('phone', $phone)
-            ->where('is_active', true)
-            ->whereNull('locked_at')
-            ->whereNotNull('phone_verified_at')
-            ->whereHas('farmerProfile')
-            ->role('farmer')
-            ->first();
+        $user = $this->activeByPhone($phone);
+
+        return $user !== null && ($user->hasRole('agent') || ($user->hasRole('farmer') && $user->farmerProfile !== null)) ? $user : null;
+    }
+
+    // one of this agent's own farmers, by the number the agent typed
+    private function agentFarmer(User $agent, string $input): ?User
+    {
+        $phone = Phone::normalise($input);
+        $farmer = $phone === null ? null : $this->activeByPhone($phone);
+
+        return $farmer !== null && $farmer->hasRole('farmer') && (int) $farmer->farmerProfile?->assigned_agent_id === $agent->id ? $farmer : null;
+    }
+
+    private function activeByPhone(string $phone): ?User
+    {
+        return User::query()->where('phone', $phone)->where('is_active', true)->whereNull('locked_at')->whereNotNull('phone_verified_at')->first();
     }
 }

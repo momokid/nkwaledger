@@ -30,7 +30,7 @@ test('a wrong secret in the address gets nothing', function () {
 
 test('an unknown number, a staff number and a blocked farmer all get the same answer', function () {
     $staff = User::factory()->create(['phone' => '0201112233', 'phone_verified_at' => now()]);
-    $staff->assignRole('agent');
+    $staff->assignRole('vet');
     $blocked = User::factory()->create(['phone' => '0551112233', 'phone_verified_at' => now(), 'is_active' => false]);
     $blocked->assignRole('farmer');
     FarmerProfile::factory()->create(['user_id' => $blocked->id]);

@@ -2,6 +2,7 @@
 
 namespace App\Services\Ussd;
 
+use App\Contracts\SmsProvider;
 use App\Models\FarmerProfile;
 use App\Models\LedgerAccount;
 use App\Models\Transaction;
@@ -12,6 +13,7 @@ use App\Services\FarmerEligibilityService;
 use App\Services\Ledger\PostingRequest;
 use App\Services\Ledger\PostingService;
 use App\Services\RecordLock;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 
 // money in or out from a phone, posted the way the web posts it: everyday records, and farm sales with a unit and a quantity
@@ -32,16 +34,18 @@ class UssdRecorder
         private readonly FarmerEligibilityService $eligibility,
         private readonly AccessControlService $access,
         private readonly RecordLock $lock,
+        private readonly SmsProvider $sms,
+        private readonly UssdText $text,
     ) {}
 
-    // the reason this farmer cannot record, in the web's own words, or null
-    public function blockedReason(User $user): ?string
+    // the reason this farmer's books cannot take a record from this person, in the web's own words, or null
+    public function blockedReason(User $actor, User $farmer): ?string
     {
-        if (! $this->access->can($user, 'transactions.create')) {
+        if (! $this->access->can($actor, 'transactions.create')) {
             return 'This account is not set up for recording farm transactions.';
         }
 
-        return $this->eligibility->reasonCannotTransact($user);
+        return $this->eligibility->reasonCannotTransact($farmer);
     }
 
     /** @return Collection<int, TransactionTemplate> numbered from 1 in the order shown */
@@ -95,7 +99,7 @@ class UssdRecorder
         return number_format((float) $input, 2, '.', '');
     }
 
-    public function save(User $user, TransactionTemplate $template, string $amount, string $method, string $session, ?int $unitId = null, ?string $quantity = null): Transaction
+    public function save(User $user, TransactionTemplate $template, string $amount, string $method, string $session, ?int $unitId = null, ?string $quantity = null, ?User $actor = null): Transaction
     {
         $request = new PostingRequest(
             farmerProfileId: $user->farmerProfile->id,
@@ -105,11 +109,21 @@ class UssdRecorder
             transactionDate: today()->toDateString(),
             farmUnitId: $unitId,
             channel: 'ussd',
-            recordedBy: $user->id,
+            recordedBy: ($actor ?? $user)->id,
             idempotencyKey: substr('ussd.' . sha1("{$session}|{$template->slug}|{$amount}|{$method}|{$unitId}|{$quantity}"), 0, 64),
             quantitySold: $quantity,
         );
 
-        return $this->lock->around($user->id, $request->idempotencyKey, fn() => $this->posting->post($request));
+        return $this->lock->around(($actor ?? $user)->id, $request->idempotencyKey, fn() => $this->posting->post($request));
+    }
+
+    // a farmer hears, in their own language, when someone else has put something on their books
+    public function tellFarmer(User $farmer, TransactionTemplate $template, string $amount, Transaction $transaction): void
+    {
+        $this->sms->send($farmer->phone, $this->text->in($farmer->ussd_language ?? 'en')->get('agent_entry_sms', [
+            'name' => $template->name,
+            'amount' => Money::format(Money::toMinor($amount)),
+            'reference' => $transaction->reference,
+        ]));
     }
 }

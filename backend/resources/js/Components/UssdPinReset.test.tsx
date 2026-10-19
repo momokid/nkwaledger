@@ -23,7 +23,7 @@ beforeEach(async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root.render(<UssdPinReset farmerUuid="f-1" />));
+    await act(async () => root.render(<UssdPinReset url="/agent/farmers/f-1/ussd-pin" />));
 });
 
 afterEach(async () => {
@@ -51,6 +51,13 @@ describe("The agent's USSD PIN reset", () => {
         expect(fetchMock.mock.calls[0][0]).toBe("/agent/farmers/f-1/ussd-pin");
         expect(fetchMock.mock.calls[0][1].method).toBe("POST");
         expect(container.textContent).toContain("Temporary PIN: 7352");
+    });
+
+    it("names the person it is for", async () => {
+        await act(async () => root.render(<UssdPinReset url="/admin/staff/a-1/ussd-pin" person="agent" />));
+        await click("Set a new USSD PIN");
+
+        expect(container.textContent).toContain("speaking to the agent?");
     });
 
     it("says so when it could not be set, and shows no PIN", async () => {

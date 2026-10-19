@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\StaffUssdPinController;
 use App\Http\Controllers\KioskReportController;
 use App\Http\Controllers\DiseaseReportMediaController;
 use App\Http\Controllers\Sync\HealthReportUploadController;
@@ -878,6 +879,7 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::middleware('access:staff.update')->group(function () {
         Route::patch('/staff/{user}/disable', [StaffController::class, 'disable'])->name('staff.disable');
         Route::patch('/staff/{user}/enable', [StaffController::class, 'enable'])->name('staff.enable');
+        Route::post('/staff/{user:uuid}/ussd-pin', [StaffUssdPinController::class, 'store'])->middleware('throttle:20,1')->name('staff.ussd-pin');
     });
 
     Route::middleware('access:staff.delete')->group(function () {

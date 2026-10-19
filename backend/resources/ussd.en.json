@@ -61,5 +61,14 @@
     "forgot_already": "You already asked. Please wait for your agent to contact you.",
     "forgot_no_agent": "We could not find an agent for you. Please contact support.",
     "pin_request_notice": "{name} asked for a USSD PIN reset.",
-    "pin_reset_sms": "Your NkwaLedger USSD PIN was reset by your agent. Dial in and set a new PIN."
+    "pin_reset_sms": "Your NkwaLedger USSD PIN was reset by your agent. Dial in and set a new PIN.",
+    "menu_agent": "Hello {name}.\n1. Work on a farmer\n5. Choose Language\n6. Exit\n7. Change PIN",
+    "menu_target": "Farmer: {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n5. Set farmer PIN",
+    "farmer_phone": "Enter the farmer's phone number.",
+    "farmer_not_found": "We could not find that farmer. Enter the farmer's phone number.",
+    "pin_for_farmer_confirm": "Have you checked that you are speaking to the farmer?\n1. Yes\n2. No",
+    "pin_for_farmer_done": "Temporary PIN: {pin}. Give it to the farmer only after checking who they are.",
+    "agent_entry_sms": "Your agent recorded {name}, {amount}. Reference {reference}.",
+    "forgot_sent_admin": "Your request has been sent to an admin. They will contact you.",
+    "forgot_already_admin": "You already asked. Please wait for an admin to contact you."
 }

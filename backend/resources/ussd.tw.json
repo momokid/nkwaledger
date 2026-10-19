@@ -61,5 +61,14 @@
     "forgot_already": "Woabisa dedaw. Twɛn wo agent no na ɔfrɛ wo.",
     "forgot_no_agent": "Yɛanhu wo agent. Frɛ mmoa.",
     "pin_request_notice": "{name} asked for a USSD PIN reset.",
-    "pin_reset_sms": "Wo agent no asesa wo NkwaLedger USSD PIN. Fa ntɛm si PIN foforo."
+    "pin_reset_sms": "Wo agent no asesa wo NkwaLedger USSD PIN. Fa ntɛm si PIN foforo.",
+    "menu_agent": "Maakye {name}.\n1. Yɛ adwuma ma okuafo\n5. Sesa kasa\n6. Fi mu\n7. Sesa PIN",
+    "menu_target": "Okuafo: {name}.\n1. Nsɛm tiawa\n2. Bosea\n3. Kyerɛw sika a ɛba\n4. Kyerɛw sika a ɛfiri\n5. Si okuafo PIN",
+    "farmer_phone": "Hyɛ okuafo no fon nɔma.",
+    "farmer_not_found": "Yɛanhu okuafo no. Hyɛ okuafo no fon nɔma.",
+    "pin_for_farmer_confirm": "Woahwɛ sɛ ɔno ankasa na woreka ne ho asɛm?\n1. Aane\n2. Daabi",
+    "pin_for_farmer_done": "PIN bere tiaa: {pin}. Fa ma okuafo no nko ara bere a woahwɛ sɛ ɔno ne no.",
+    "agent_entry_sms": "Wo agent no akyerɛw {name}, {amount}. Nkyerɛwee: {reference}.",
+    "forgot_sent_admin": "Wɔde wo abisade ama admin. Ɔbɛfrɛ wo.",
+    "forgot_already_admin": "Woabisa dedaw. Twɛn admin no na ɔfrɛ wo."
 }

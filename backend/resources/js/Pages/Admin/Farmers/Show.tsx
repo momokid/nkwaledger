@@ -92,7 +92,7 @@ export default function Show(props: Props) {
     return (
         <Frame layout={props.layout} title={props.farmer.name}>
             <ShowContent {...props} />
-            {props.ussd_pin_reset && <UssdPinReset farmerUuid={String(props.farmer.id)} />}
+            {props.ussd_pin_reset && <UssdPinReset url={`/agent/farmers/${props.farmer.id}/ussd-pin`} />}
             {props.loans && (
                 <FarmerLoans loans={props.loans} farmerUuid={props.loan_actions ? String(props.farmer.id) : undefined} />
             )}

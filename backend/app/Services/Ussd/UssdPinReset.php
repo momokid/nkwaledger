@@ -20,23 +20,29 @@ class UssdPinReset
     ) {}
 
     /** @return 'sent'|'already'|'no_agent' */
-    public function request(User $farmer): string
+    public function request(User $asker): string
     {
-        $profile = $farmer->farmerProfile;
-        $agent = $profile->assignedAgent;
+        // a farmer asks their agent; an agent asks the admins
+        $isAgent = $asker->hasRole('agent');
+        $profile = $asker->farmerProfile;
+        $recipients = $isAgent
+            ? User::role('admin')->where('is_active', true)->get()
+            : collect([$profile?->assignedAgent])->filter();
 
-        if ($agent === null) {
+        if ($recipients->isEmpty()) {
             return 'no_agent';
         }
 
-        // one request an hour, so nobody can fill an agent's notices
-        if (! Cache::add('ussd-pin-request:' . $farmer->id, 1, now()->addHour())) {
+        // one request an hour, so nobody can fill anyone's notices
+        if (! Cache::add('ussd-pin-request:' . $asker->id, 1, now()->addHour())) {
             return 'already';
         }
 
-        $name = trim("{$farmer->surname} {$farmer->first_name}");
-        $this->notifications->send($agent, 'ussd.pin_request', $this->text->in('en')->get('pin_request_notice', ['name' => $name]), "/agent/farmers/{$profile->uuid}");
-        $this->audit->recordOn('ussd_pin.requested', $farmer, null, null, $farmer);
+        $message = $this->text->in('en')->get('pin_request_notice', ['name' => trim("{$asker->surname} {$asker->first_name}")]);
+        $link = $isAgent ? '/admin/staff' : "/agent/farmers/{$profile->uuid}";
+
+        $recipients->each(fn(User $to) => $this->notifications->send($to, 'ussd.pin_request', $message, $link));
+        $this->audit->recordOn('ussd_pin.requested', $asker, null, null, $asker);
 
         return 'sent';
     }
