@@ -40,5 +40,6 @@
     "declined": "Declined.",
     "waiting_gone": "This is no longer waiting.",
     "language_pick": "Choose language.\n1. English\n2. Twi",
-    "language_saved": "Language saved."
+    "language_saved": "Language saved.",
+    "back": "0. Back"
 }

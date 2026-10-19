@@ -106,3 +106,24 @@ describe('with a PIN', function () {
             ->and($this->farmerUser->fresh()->ussd_pin_attempts)->toBe(0);
     });
 });
+
+test('0 on the confirm-PIN screen goes back to setting the PIN', function () {
+    ($this->dial)('', true);
+    $confirm = ($this->dial)('4829');
+    expect($confirm->json('message'))->toContain('0. Back');
+
+    expect(($this->dial)('0')->json('message'))->toContain('Set a 4-digit PIN')
+        ->and($this->farmerUser->fresh()->ussd_pin_hash)->toBeNull();
+});
+
+test('the PIN screens and the menu have no Back', function () {
+    $first = ($this->dial)('', true);
+    expect($first->json('message'))->not->toContain('0. Back');
+
+    $this->farmerUser->forceFill(['ussd_pin_hash' => Hash::make('4829')])->save();
+    $enter = ($this->dial)('', true);
+    $menu = ($this->dial)('4829');
+
+    expect($enter->json('message'))->not->toContain('0. Back')
+        ->and($menu->json('message'))->not->toContain('0. Back');
+});

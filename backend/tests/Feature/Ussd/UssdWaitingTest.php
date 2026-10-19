@@ -115,3 +115,17 @@ test('an answer that is not on the list shows the list again', function () {
 
     expect($again->json('continueSession'))->toBeTrue()->and($again->json('message'))->toContain('Sika Microfinanc');
 });
+
+test('0 goes back one step at a time: details to the list, the list to the menu', function () {
+    ($this->waitingLoan)();
+    ($this->walk)('7');
+
+    $detail = ($this->dial)('1');
+    expect($detail->json('message'))->toContain('0. Back');
+
+    $list = ($this->dial)('0');
+    expect($list->json('message'))->toContain('Waiting for you.')->toContain('0. Back');
+
+    expect(($this->dial)('0')->json('message'))->toContain('7. Waiting for you')
+        ->and(PendingEntry::where('status', PendingEntry::PENDING)->count())->toBe(1);
+});

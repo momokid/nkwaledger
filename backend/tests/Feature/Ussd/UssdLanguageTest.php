@@ -76,3 +76,18 @@ test('every English screen has a Twi one', function () {
 
     expect(array_keys($tw))->toBe(array_keys($en));
 });
+
+test('0 on the language screen goes back to the menu, and the language is not changed', function () {
+    ($this->signIn)();
+    expect(($this->dial)('5')->json('message'))->toContain('0. Back');
+
+    expect(($this->dial)('0')->json('message'))->toContain('5. Choose Language')
+        ->and($this->farmerUser->fresh()->ussd_language)->toBeNull();
+});
+
+test('the back line follows the farmer\'s language', function () {
+    $this->farmerUser->forceFill(['ussd_language' => 'tw'])->save();
+    ($this->signIn)();
+
+    expect(($this->dial)('5')->json('message'))->toContain(app(UssdText::class)->in('tw')->get('back'));
+});

@@ -85,3 +85,11 @@ test('with no loans it says so', function () {
 
     expect(($this->dial)('2')->json('message'))->toContain('GHS 0.00');
 });
+
+test('0 on the period screen goes back to the menu', function () {
+    ($this->signIn)();
+    $period = ($this->dial)('1');
+    expect($period->json('message'))->toContain('0. Back');
+
+    expect(($this->dial)('0')->json('message'))->toContain('1. Summary')->toContain('2. Loans');
+});

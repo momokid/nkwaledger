@@ -15,6 +15,9 @@ class UssdFlow
 {
     private const SESSION_MINUTES = 5;
 
+    // every screen that waits for an answer after the PIN steps carries "0. Back", which goes one step back
+    private const BACK_STEPS = ['confirm_pin', 'period', 'pick', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act'];
+
     public function __construct(
         private readonly UssdPinService $pins,
         private readonly UssdText $text,
@@ -50,6 +53,10 @@ class UssdFlow
             $step = $user->ussd_pin_hash === null ? 'set_pin' : 'enter_pin';
 
             return $this->show($key, ['user' => $user->id, 'step' => $step], $step);
+        }
+
+        if ($input === '0' && in_array($state['step'], self::BACK_STEPS, true)) {
+            return $this->back($key, $state, $user);
         }
 
         return match ($state['step']) {
@@ -98,6 +105,19 @@ class UssdFlow
         $this->text->use($language);
 
         return $this->end('language_saved', $key);
+    }
+
+    // one step back, keeping what the farmer already chose on the steps before it
+    private function back(string $key, array $state, User $user): array
+    {
+        return match ($state['step']) {
+            'confirm_pin' => $this->show($key, ['user' => $user->id, 'step' => 'set_pin'], 'set_pin'),
+            'amount' => $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'])),
+            'method' => $this->show($key, [...$state, 'step' => 'amount'], 'amount'),
+            'confirm' => $this->show($key, [...$state, 'step' => 'method'], 'method_' . $state['kind']),
+            'waiting_act' => $this->startWaiting($key, ['user' => $user->id], $user),
+            default => $this->menu($key, $state, $user),
+        };
     }
 
     private function startWaiting(string $key, array $state, User $user): array
@@ -241,7 +261,13 @@ class UssdFlow
     {
         Cache::put($key, $state, now()->addMinutes(self::SESSION_MINUTES));
 
-        return ['message' => $message ?? $this->text->get($screen, $with), 'continue' => true];
+        $text = $message ?? $this->text->get($screen, $with);
+
+        if (in_array($state['step'] ?? null, self::BACK_STEPS, true)) {
+            $text .= "\n" . $this->text->get('back');
+        }
+
+        return ['message' => $text, 'continue' => true];
     }
 
     private function end(?string $screen, ?string $key = null, ?string $message = null): array

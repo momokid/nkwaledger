@@ -88,7 +88,7 @@ test('saying no at the confirm screen saves nothing', function () {
 test('an amount that is not above zero, is not a number, or is too large asks again and saves nothing', function () {
     ($this->walk)('4', '1');
 
-    foreach (['0', 'abc', '12.345', '100001', ''] as $bad) {
+    foreach (['0.00', 'abc', '12.345', '100001', ''] as $bad) {
         $again = ($this->dial)($bad);
 
         expect($again->json('continueSession'))->toBeTrue()
@@ -105,5 +105,24 @@ test('a farmer whose profile is on hold is told why and nothing is saved', funct
 
     expect($reply->json('continueSession'))->toBeFalse()
         ->and($reply->json('message'))->toContain('on hold')
+        ->and(Transaction::where('channel', 'ussd')->count())->toBe(0);
+});
+
+test('back from each logging step', function () {
+    $screens = [];
+    ($this->walk)('4');
+    $screens['pick'] = ($this->dial)('2')->json('message');
+    $screens['amount'] = ($this->dial)('50')->json('message');
+    $screens['method'] = ($this->dial)('2')->json('message');
+    $screens['confirm'] = $screens['method'];
+
+    foreach (['amount', 'method'] as $step) {
+        expect($screens[$step])->toContain('0. Back');
+    }
+
+    expect(($this->dial)('0')->json('message'))->toContain('Paid from?')
+        ->and(($this->dial)('0')->json('message'))->toContain('Enter the amount')
+        ->and(($this->dial)('0')->json('message'))->toContain('Money out.')->toContain('I paid for transport')
+        ->and(($this->dial)('0')->json('message'))->toContain('4. Log expenditure')
         ->and(Transaction::where('channel', 'ussd')->count())->toBe(0);
 });
