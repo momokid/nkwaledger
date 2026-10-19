@@ -7,7 +7,8 @@
     "enter_pin": "Akwaaba wɔ NkwaLedger. Hyɛ wo PIN.",
     "wrong_pin": "Wo PIN no nteɛ. Hyɛ wo PIN.",
     "pin_locked": "Wɔato wo PIN no mu. Sɔ hwɛ bio wɔ simma 30 akyi.",
-    "menu": "Maakye {name}.\n1. Nsɛm tiawa\n2. Bosea\n3. Kyerɛw sika a ɛba\n4. Kyerɛw sika a ɛfiri\n5. Sesa kasa\n6. Fi mu\n7. Wɔretwɛn wo",
+    "menu": "Maakye {name}.\n1. Nsɛm tiawa\n2. Bosea\n3. Kyerɛw sika a ɛba\n4. Kyerɛw sika a ɛfiri\n5. Sesa kasa\n6. Fi mu",
+    "menu_waiting": "7. Wɔretwɛn wo",
     "goodbye": "Medaase.",
     "period": "Paw bere.\n1. Nnansa 30 a atwam\n2. Bosome yi\n3. Afe yi",
     "period_1": "Nnansa 30 a atwam",
@@ -40,6 +41,5 @@
     "declined": "Wosii kwan.",
     "waiting_gone": "Ɛnte saa bio.",
     "language_pick": "Paw kasa.\n1. English\n2. Twi",
-    "language_saved": "Wɔakora kasa no.",
     "back": "0. San kɔ akyi"
 }

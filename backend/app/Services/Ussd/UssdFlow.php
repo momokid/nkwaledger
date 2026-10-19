@@ -89,7 +89,7 @@ class UssdFlow
             '3', '4' => $this->startLogging($key, $state, $user, $input === '3' ? 'income' : 'expense'),
             '5' => $this->show($key, [...$state, 'step' => 'language'], 'language_pick'),
             '6' => $this->end('goodbye', $key),
-            '7' => $this->startWaiting($key, $state, $user),
+            '7' => $this->waitingOn() ? $this->startWaiting($key, $state, $user) : $this->menu($key, $state, $user),
             default => $this->menu($key, $state, $user),
         };
     }
@@ -104,7 +104,7 @@ class UssdFlow
         $user->forceFill(['ussd_language' => $language])->save();
         $this->text->use($language);
 
-        return $this->end('language_saved', $key);
+        return $this->menu($key, $state, $user);
     }
 
     // one step back, keeping what the farmer already chose on the steps before it
@@ -254,7 +254,15 @@ class UssdFlow
 
     private function menu(string $key, array $state, User $user): array
     {
-        return $this->show($key, ['user' => $user->id, 'step' => 'menu'], 'menu', ['name' => $user->first_name]);
+        $menu = $this->text->get('menu', ['name' => $user->first_name]);
+
+        return $this->show($key, ['user' => $user->id, 'step' => 'menu'], null, [], $this->waitingOn() ? $menu . "\n" . $this->text->get('menu_waiting') : $menu);
+    }
+
+    // "Waiting for you" is built and tested but off the menu until the owner turns it on
+    private function waitingOn(): bool
+    {
+        return (bool) config('services.ussd.waiting');
     }
 
     private function show(string $key, array $state, ?string $screen, array $with = [], ?string $message = null): array

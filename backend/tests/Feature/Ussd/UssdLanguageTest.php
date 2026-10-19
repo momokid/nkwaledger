@@ -30,28 +30,36 @@ test('the menu offers Choose Language', function () {
     expect(($this->signIn)()->json('message'))->toContain('5. Choose Language');
 });
 
-test('choosing Twi is saved and the next dial speaks Twi', function () {
+test('choosing Twi saves it and shows the welcome menu in Twi at once', function () {
     ($this->signIn)();
     expect(($this->dial)('5')->json('message'))->toContain('1. English')->toContain('2. Twi');
 
-    $saved = ($this->dial)('2');
+    $menu = ($this->dial)('2');
+    $twi = app(UssdText::class)->in('tw');
 
-    expect($saved->json('continueSession'))->toBeFalse()
+    expect($menu->json('continueSession'))->toBeTrue()
+        ->and($menu->json('message'))->toBe($twi->get('menu', ['name' => 'Kofi']))
         ->and($this->farmerUser->fresh()->ussd_language)->toBe('tw');
+
+    // the menu works in Twi, and the next dial remembers it
+    expect(($this->dial)('6')->json('continueSession'))->toBeFalse();
 
     $next = ($this->dial)('', true, 's-2');
 
-    expect($next->json('message'))->toBe(app(UssdText::class)->in('tw')->get('enter_pin'))
+    expect($next->json('message'))->toBe($twi->get('enter_pin'))
         ->and($next->json('message'))->not->toBe(app(UssdText::class)->in('en')->get('enter_pin'));
 });
 
-test('choosing English goes back', function () {
+test('choosing English goes back to the welcome menu in English', function () {
     $this->farmerUser->forceFill(['ussd_language' => 'tw'])->save();
     ($this->signIn)();
     ($this->dial)('5');
-    ($this->dial)('1');
 
-    expect($this->farmerUser->fresh()->ussd_language)->toBeNull()
+    $menu = ($this->dial)('1');
+
+    expect($menu->json('continueSession'))->toBeTrue()
+        ->and($menu->json('message'))->toContain('Hello Kofi.')
+        ->and($this->farmerUser->fresh()->ussd_language)->toBeNull()
         ->and(($this->dial)('', true, 's-2')->json('message'))->toBe(app(UssdText::class)->in('en')->get('enter_pin'));
 });
 

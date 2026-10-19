@@ -42,6 +42,7 @@ return [
 
     'ussd' => [
         'secret' => env('USSD_CALLBACK_SECRET'),
+        'waiting' => (bool) env('USSD_WAITING', false),
     ],
 
     'google' => [

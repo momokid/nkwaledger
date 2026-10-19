@@ -7,7 +7,8 @@
     "enter_pin": "Welcome to NkwaLedger. Enter your PIN.",
     "wrong_pin": "Wrong PIN. Enter your PIN.",
     "pin_locked": "Your PIN is locked. Try again in 30 minutes.",
-    "menu": "Hello {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n5. Choose Language\n6. Exit\n7. Waiting for you",
+    "menu": "Hello {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n5. Choose Language\n6. Exit",
+    "menu_waiting": "7. Waiting for you",
     "goodbye": "Thank you.",
     "period": "Choose a period.\n1. Last 30 days\n2. This month\n3. This year",
     "period_1": "Last 30 days",
@@ -40,6 +41,5 @@
     "declined": "Declined.",
     "waiting_gone": "This is no longer waiting.",
     "language_pick": "Choose language.\n1. English\n2. Twi",
-    "language_saved": "Language saved.",
     "back": "0. Back"
 }

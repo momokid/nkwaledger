@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
     buildLoanWorld($this);
-    config(['services.ussd.secret' => 'test-secret']);
+    config(['services.ussd.secret' => 'test-secret', 'services.ussd.waiting' => true]);
 
     $this->farmerUser->forceFill(['phone' => '0244445566', 'phone_verified_at' => now(), 'ussd_pin_hash' => Hash::make('4829')])->save();
 
@@ -128,4 +128,17 @@ test('0 goes back one step at a time: details to the list, the list to the menu'
 
     expect(($this->dial)('0')->json('message'))->toContain('7. Waiting for you')
         ->and(PendingEntry::where('status', PendingEntry::PENDING)->count())->toBe(1);
+});
+
+test('by default the menu has no option 7 and pressing 7 just shows the menu again', function () {
+    config(['services.ussd.waiting' => false]);
+    ($this->waitingLoan)();
+
+    ($this->dial)('', true);
+    $menu = ($this->dial)('4829');
+    expect($menu->json('message'))->not->toContain('7.');
+
+    $again = ($this->dial)('7');
+
+    expect($again->json('continueSession'))->toBeTrue()->and($again->json('message'))->toContain('1. Summary')->not->toContain('Sika');
 });
