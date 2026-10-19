@@ -81,7 +81,7 @@ test('expenditure: transport, 50, MoMo, confirm, saved on the ussd channel from 
 });
 
 test('income: 120.50 received in the bank', function () {
-    ($this->walk)('3', '4', '120.50', '3', '1');
+    ($this->walk)('3', '2', '4', '120.50', '3', '1');
 
     $transaction = Transaction::where('channel', 'ussd')->firstOrFail();
 
@@ -138,10 +138,14 @@ test('back from each logging step', function () {
 });
 
 test('Log income lists the four money-in types and Log expenditure the five money-out types', function () {
-    $income = ($this->walk)('3')->json('message');
+    $group = ($this->walk)('3')->json('message');
+    expect($group)->toContain('1. Farm sales')->toContain('2. Other money in');
+
+    $income = ($this->dial)('2')->json('message');
     expect($income)->toContain('1. I received a grant or support')->toContain('2. I hired out my land or equipment')
         ->toContain('3. I sold manure or by-products')->toContain('4. Money came in from something else');
 
+    ($this->dial)('0');
     ($this->dial)('0');
     $expense = ($this->dial)('4')->json('message');
 
@@ -150,7 +154,7 @@ test('Log income lists the four money-in types and Log expenditure the five mone
 });
 
 test('a grant and a repair are saved to their own accounts', function () {
-    ($this->walk)('3', '1', '300', '1', '1');
+    ($this->walk)('3', '2', '1', '300', '1', '1');
     ($this->walk)('4', '5', '80', '2', '1');
 
     $saved = Transaction::where('channel', 'ussd')->with('template')->get()->keyBy(fn($t) => $t->template->slug);

@@ -41,5 +41,14 @@
     "declined": "Declined.",
     "waiting_gone": "This is no longer waiting.",
     "language_pick": "Choose language.\n1. English\n2. Twi",
-    "back": "0. Back"
+    "back": "0. Back",
+    "group_income": "Money in.\n1. Farm sales\n2. Other money in",
+    "pick_sale": "Farm sales.",
+    "unit_pick": "Which farm unit?",
+    "no_unit": "You have no approved farm unit yet. Please speak to your agent.",
+    "quantity_many": "How many did you sell?",
+    "quantity_much": "How much did you sell?",
+    "method_sale": "Received in?\n1. Cash\n2. MoMo\n3. Bank\n4. Credit (not paid yet)",
+    "method_4": "Credit",
+    "confirm_sale": "Save: {name}, {quantity} sold, {amount}, {method}?\n1. Yes\n2. No"
 }

@@ -41,5 +41,14 @@
     "declined": "Wosii kwan.",
     "waiting_gone": "Ɛnte saa bio.",
     "language_pick": "Paw kasa.\n1. English\n2. Twi",
-    "back": "0. San kɔ akyi"
+    "back": "0. San kɔ akyi",
+    "group_income": "Sika a ɛba.\n1. Afuom adetɔn\n2. Sika foforo a ɛba",
+    "pick_sale": "Afuom adetɔn.",
+    "unit_pick": "Paw wo afuo no.",
+    "no_unit": "Wonni afuo a wɔapene so. Kasa kyerɛ wo agent no.",
+    "quantity_many": "Wotɔn dodow sɛn?",
+    "quantity_much": "Wotɔn dodow sɛn?",
+    "method_sale": "Wogyee wɔ he?\n1. Sika nsa mu\n2. MoMo\n3. Bɛnk\n4. Ka (wɔnntua ɛ)",
+    "method_4": "Ka",
+    "confirm_sale": "Kora: {name}, {quantity} a wɔtɔn, {amount}, {method}?\n1. Aane\n2. Daabi"
 }

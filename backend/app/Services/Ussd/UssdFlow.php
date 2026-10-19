@@ -16,7 +16,7 @@ class UssdFlow
     private const SESSION_MINUTES = 5;
 
     // every screen that waits for an answer after the PIN steps carries "0. Back", which goes one step back
-    private const BACK_STEPS = ['confirm_pin', 'period', 'pick', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act'];
+    private const BACK_STEPS = ['confirm_pin', 'period', 'group', 'pick', 'unit', 'quantity', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act'];
 
     public function __construct(
         private readonly UssdPinService $pins,
@@ -68,11 +68,14 @@ class UssdFlow
             'period' => $this->reads->isPeriod($input)
                 ? $this->end(null, $key, $this->reads->summary($user->farmerProfile, $input))
                 : $this->show($key, $state, 'period'),
-            'pick' => $this->picked($key, $state, $input),
+            'group' => $this->groupChosen($key, $state, $user, $input),
+            'pick' => $this->picked($key, $state, $user, $input),
+            'unit' => $this->unitPicked($key, $state, $input),
+            'quantity' => $this->quantityEntered($key, $state, $input),
             'amount' => $this->amountEntered($key, $state, $input),
-            'method' => $this->recorder->isMethod($input)
+            'method' => $this->recorder->isMethod($input, $state['kind'] === 'sale')
                 ? $this->confirmScreen($key, [...$state, 'method' => $input])
-                : $this->show($key, $state, 'method_' . $state['kind']),
+                : $this->show($key, $state, $this->methodScreen($state)),
             'language' => $this->languageChosen($key, $state, $user, $input),
             'waiting_pick' => $this->waitingPicked($key, $state, $user, $input),
             'waiting_act' => $this->waitingAnswered($key, $state, $user, $input),
@@ -112,9 +115,16 @@ class UssdFlow
     {
         return match ($state['step']) {
             'confirm_pin' => $this->show($key, ['user' => $user->id, 'step' => 'set_pin'], 'set_pin'),
-            'amount' => $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'])),
+            'pick' => $state['kind'] === 'expense' ? $this->menu($key, $state, $user) : $this->groupScreen($key, $state),
+            'unit' => $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $user)),
+            'quantity' => count($state['units'] ?? []) > 1
+                ? $this->show($key, [...$state, 'step' => 'unit'], null, [], $this->unitList($state['units'], $user))
+                : $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $user)),
+            'amount' => $state['kind'] === 'sale'
+                ? $this->show($key, [...$state, 'step' => 'quantity'], $this->quantityScreen($state))
+                : $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $user)),
             'method' => $this->show($key, [...$state, 'step' => 'amount'], 'amount'),
-            'confirm' => $this->show($key, [...$state, 'step' => 'method'], 'method_' . $state['kind']),
+            'confirm' => $this->show($key, [...$state, 'step' => 'method'], $this->methodScreen($state)),
             'waiting_act' => $this->startWaiting($key, ['user' => $user->id], $user),
             default => $this->menu($key, $state, $user),
         };
@@ -175,23 +185,91 @@ class UssdFlow
             return $this->end(null, $key, $reason);
         }
 
-        return $this->show($key, [...$state, 'step' => 'pick', 'kind' => $kind], null, [], $this->pickList($kind));
+        // money in has two groups: sales (a unit and a quantity) and everything else
+        return $kind === 'income'
+            ? $this->groupScreen($key, [...$state, 'kind' => 'income'])
+            : $this->show($key, [...$state, 'step' => 'pick', 'kind' => $kind], null, [], $this->pickList($kind, $user));
     }
 
-    private function pickList(string $kind): string
+    private function groupScreen(string $key, array $state): array
     {
-        $lines = $this->recorder->templates($kind)->map(fn($template, $number) => "{$number}. {$template->name}")->implode("\n");
+        return $this->show($key, [...$state, 'step' => 'group'], 'group_income');
+    }
+
+    private function groupChosen(string $key, array $state, User $user, string $input): array
+    {
+        if (! in_array($input, ['1', '2'], true)) {
+            return $this->groupScreen($key, $state);
+        }
+
+        $kind = $input === '1' ? 'sale' : 'income';
+
+        return $this->show($key, [...$state, 'step' => 'pick', 'kind' => $kind], null, [], $this->pickList($kind, $user));
+    }
+
+    private function pickList(string $kind, User $user): string
+    {
+        $lines = $this->recorder->templates($kind, $user->farmerProfile)->map(fn($template, $number) => "{$number}. {$template->name}")->implode("\n");
 
         return $this->text->get('pick_' . $kind) . "\n" . $lines;
     }
 
-    private function picked(string $key, array $state, string $input): array
+    private function picked(string $key, array $state, User $user, string $input): array
     {
-        $template = $this->recorder->templates($state['kind'])->get($input);
+        $template = $this->recorder->templates($state['kind'], $user->farmerProfile)->get($input);
 
-        return $template === null
-            ? $this->show($key, $state, null, [], $this->pickList($state['kind']))
-            : $this->show($key, [...$state, 'step' => 'amount', 'slug' => $template->slug], 'amount');
+        if ($template === null) {
+            return $this->show($key, $state, null, [], $this->pickList($state['kind'], $user));
+        }
+
+        $state = [...$state, 'slug' => $template->slug];
+
+        if (! $template->requires_farm_unit) {
+            return $this->show($key, [...$state, 'step' => 'amount'], 'amount');
+        }
+
+        $units = $this->recorder->units($user);
+
+        return match (count($units)) {
+            0 => $this->end('no_unit', $key),
+            1 => $this->show($key, [...$state, 'step' => 'quantity', 'units' => array_keys($units), 'unit' => array_key_first($units)], $this->quantityScreen($state)),
+            default => $this->show($key, [...$state, 'step' => 'unit', 'units' => array_keys($units)], null, [], $this->unitList(array_keys($units), $user)),
+        };
+    }
+
+    /** @param array<int, int> $ids */
+    private function unitList(array $ids, User $user): string
+    {
+        $names = $this->recorder->units($user);
+        $lines = collect($ids)->values()->map(fn(int $id, int $index) => ($index + 1) . '. ' . ($names[$id] ?? ''))->implode("\n");
+
+        return $this->text->get('unit_pick') . "\n" . $lines;
+    }
+
+    private function unitPicked(string $key, array $state, string $input): array
+    {
+        $id = $state['units'][(int) $input - 1] ?? null;
+
+        if ($id === null) {
+            return $this->show($key, $state, null, [], $this->unitList($state['units'], User::find($state['user'])));
+        }
+
+        return $this->show($key, [...$state, 'step' => 'quantity', 'unit' => $id], $this->quantityScreen($state));
+    }
+
+    // animals, eggs and fish are counted; produce is measured
+    private function quantityScreen(array $state): string
+    {
+        return $state['slug'] === 'produce_sale' ? 'quantity_much' : 'quantity_many';
+    }
+
+    private function quantityEntered(string $key, array $state, string $input): array
+    {
+        $quantity = $this->recorder->quantity($input);
+
+        return $quantity === null
+            ? $this->show($key, $state, $this->quantityScreen($state))
+            : $this->show($key, [...$state, 'step' => 'amount', 'quantity' => $quantity], 'amount');
     }
 
     private function amountEntered(string $key, array $state, string $input): array
@@ -200,15 +278,25 @@ class UssdFlow
 
         return $amount === null
             ? $this->show($key, $state, 'amount_invalid')
-            : $this->show($key, [...$state, 'step' => 'method', 'amount' => $amount], 'method_' . $state['kind']);
+            : $this->show($key, [...$state, 'step' => 'method', 'amount' => $amount], $this->methodScreen($state));
+    }
+
+    private function methodScreen(array $state): string
+    {
+        return 'method_' . $state['kind'];
     }
 
     private function confirmScreen(string $key, array $state): array
     {
         $state['step'] = 'confirm';
-        $name = $this->recorder->templates($state['kind'])->first(fn($template) => $template->slug === $state['slug'])->name;
+        $with = [
+            'name' => $this->recorder->find($state['slug'])->name,
+            'amount' => Money::format(Money::toMinor($state['amount'])),
+            'method' => $this->text->get('method_' . $state['method']),
+            'quantity' => $state['quantity'] ?? '',
+        ];
 
-        return $this->show($key, $state, 'confirm', ['name' => $name, 'amount' => Money::format(Money::toMinor($state['amount'])), 'method' => $this->text->get('method_' . $state['method'])]);
+        return $this->show($key, $state, $state['kind'] === 'sale' ? 'confirm_sale' : 'confirm', $with);
     }
 
     private function finish(string $key, array $state, User $user, string $input, string $session): array
@@ -217,10 +305,8 @@ class UssdFlow
             return $this->end('not_saved', $key);
         }
 
-        $template = $this->recorder->templates($state['kind'])->first(fn($template) => $template->slug === $state['slug']);
-
         try {
-            $transaction = $this->recorder->save($user, $template, $state['amount'], $state['method'], $session);
+            $transaction = $this->recorder->save($user, $this->recorder->find($state['slug']), $state['amount'], $state['method'], $session, $state['unit'] ?? null, $state['quantity'] ?? null);
         } catch (PostingFailed $failure) {
             return $this->end(null, $key, $failure->getMessage());
         }
