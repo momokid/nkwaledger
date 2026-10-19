@@ -16,7 +16,7 @@ class UssdFlow
     private const SESSION_MINUTES = 5;
 
     // every screen that waits for an answer after the PIN steps carries "0. Back", which goes one step back
-    private const BACK_STEPS = ['confirm_pin', 'period', 'group', 'pick', 'unit', 'quantity', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act'];
+    private const BACK_STEPS = ['confirm_pin', 'period', 'group', 'pick', 'unit', 'quantity', 'amount', 'method', 'confirm', 'language', 'waiting_pick', 'waiting_act', 'change_old', 'change_new', 'change_confirm'];
 
     public function __construct(
         private readonly UssdPinService $pins,
@@ -24,6 +24,7 @@ class UssdFlow
         private readonly UssdReads $reads,
         private readonly UssdRecorder $recorder,
         private readonly UssdWaiting $waiting,
+        private readonly UssdPinReset $pinReset,
     ) {}
 
     /** @return array{message: string, continue: bool} */
@@ -65,6 +66,11 @@ class UssdFlow
                 : $this->show($key, $state, 'pin_rule'),
             'confirm_pin' => $this->confirm($key, $state, $user, $input),
             'enter_pin' => $this->enter($key, $state, $user, $input),
+            'force_new' => $this->newPinEntered($key, $state, $user, $input, 'force_confirm'),
+            'force_confirm' => $this->newPinConfirmed($key, $state, $user, $input, 'force_new'),
+            'change_old' => $this->currentPinEntered($key, $state, $user, $input),
+            'change_new' => $this->newPinEntered($key, $state, $user, $input, 'change_confirm'),
+            'change_confirm' => $this->newPinConfirmed($key, $state, $user, $input, 'change_new'),
             'period' => $this->reads->isPeriod($input)
                 ? $this->end(null, $key, $this->reads->summary($user->farmerProfile, $input))
                 : $this->show($key, $state, 'period'),
@@ -92,7 +98,8 @@ class UssdFlow
             '3', '4' => $this->startLogging($key, $state, $user, $input === '3' ? 'income' : 'expense'),
             '5' => $this->show($key, [...$state, 'step' => 'language'], 'language_pick'),
             '6' => $this->end('goodbye', $key),
-            '7' => $this->waitingOn() ? $this->startWaiting($key, $state, $user) : $this->menu($key, $state, $user),
+            '7' => $this->show($key, [...$state, 'step' => 'change_old'], 'change_old'),
+            '8' => $this->waitingOn() ? $this->startWaiting($key, $state, $user) : $this->menu($key, $state, $user),
             default => $this->menu($key, $state, $user),
         };
     }
@@ -115,6 +122,7 @@ class UssdFlow
     {
         return match ($state['step']) {
             'confirm_pin' => $this->show($key, ['user' => $user->id, 'step' => 'set_pin'], 'set_pin'),
+            'change_confirm' => $this->show($key, ['user' => $user->id, 'step' => 'change_new'], 'change_new'),
             'pick' => $state['kind'] === 'expense' ? $this->menu($key, $state, $user) : $this->groupScreen($key, $state),
             'unit' => $this->show($key, [...$state, 'step' => 'pick'], null, [], $this->pickList($state['kind'], $user)),
             'quantity' => count($state['units'] ?? []) > 1
@@ -331,11 +339,59 @@ class UssdFlow
             return $this->end('pin_locked', $key);
         }
 
+        // a PIN is four digits, so a lone 0 can only mean the farmer forgot it
+        if ($input === '0') {
+            return $this->end(match ($this->pinReset->request($user)) {
+                'sent' => 'forgot_sent',
+                'already' => 'forgot_already',
+                default => 'forgot_no_agent',
+            }, $key);
+        }
+
         if ($this->pins->check($user, $input)) {
-            return $this->menu($key, $state, $user);
+            return $user->ussd_pin_must_change ? $this->show($key, ['user' => $user->id, 'step' => 'force_new'], 'force_new') : $this->menu($key, $state, $user);
         }
 
         return $this->pins->isLocked($user) ? $this->end('pin_locked', $key) : $this->show($key, $state, 'wrong_pin');
+    }
+
+    // Change PIN: the current PIN is checked first, and a wrong one counts towards the lock
+    private function currentPinEntered(string $key, array $state, User $user, string $input): array
+    {
+        if ($this->pins->isLocked($user)) {
+            return $this->end('pin_locked', $key);
+        }
+
+        if ($this->pins->check($user, $input)) {
+            return $this->show($key, ['user' => $user->id, 'step' => 'change_new'], 'change_new');
+        }
+
+        return $this->pins->isLocked($user) ? $this->end('pin_locked', $key) : $this->show($key, $state, 'change_old');
+    }
+
+    // a new PIN must be allowed and must not be the one it replaces
+    private function newPinEntered(string $key, array $state, User $user, string $input, string $next): array
+    {
+        if (! $this->pins->isAllowed($input)) {
+            return $this->show($key, $state, 'pin_rule');
+        }
+
+        if ($this->pins->matches($input, (string) $user->ussd_pin_hash)) {
+            return $this->show($key, $state, 'pin_same');
+        }
+
+        return $this->show($key, [...$state, 'step' => $next, 'hash' => $this->pins->hashOf($input)], 'confirm_pin');
+    }
+
+    private function newPinConfirmed(string $key, array $state, User $user, string $input, string $again): array
+    {
+        if (! $this->pins->matches($input, $state['hash'])) {
+            return $this->show($key, ['user' => $user->id, 'step' => $again], 'pin_mismatch');
+        }
+
+        $this->pins->save($user, $state['hash']);
+
+        return $again === 'force_new' ? $this->menu($key, $state, $user) : $this->end('pin_changed', $key);
     }
 
     private function menu(string $key, array $state, User $user): array
@@ -359,6 +415,10 @@ class UssdFlow
 
         if (in_array($state['step'] ?? null, self::BACK_STEPS, true)) {
             $text .= "\n" . $this->text->get('back');
+        }
+
+        if (($state['step'] ?? null) === 'enter_pin') {
+            $text .= "\n" . $this->text->get('forgot_hint');
         }
 
         return ['message' => $text, 'continue' => true];

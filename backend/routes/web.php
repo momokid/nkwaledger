@@ -1144,3 +1144,7 @@ Route::prefix('dev/ussd')->name('dev.ussd.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Ussd\UssdSimulatorController::class, 'page'])->name('page');
     Route::post('/dial', [\App\Http\Controllers\Ussd\UssdSimulatorController::class, 'dial'])->name('dial');
 });
+
+// the farmer's own agent sets a temporary USSD PIN
+Route::middleware(['auth', 'verified.phone', 'role:agent', 'throttle:20,1'])
+    ->post('/agent/farmers/{farmer}/ussd-pin', [\App\Http\Controllers\Ussd\UssdPinResetController::class, 'store'])->name('agent.ussd-pin.reset');

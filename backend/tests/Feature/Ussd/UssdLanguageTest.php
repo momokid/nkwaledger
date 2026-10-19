@@ -46,8 +46,8 @@ test('choosing Twi saves it and shows the welcome menu in Twi at once', function
 
     $next = ($this->dial)('', true, 's-2');
 
-    expect($next->json('message'))->toBe($twi->get('enter_pin'))
-        ->and($next->json('message'))->not->toBe(app(UssdText::class)->in('en')->get('enter_pin'));
+    expect($next->json('message'))->toStartWith($twi->get('enter_pin'))
+        ->and($next->json('message'))->not->toStartWith(app(UssdText::class)->in('en')->get('enter_pin'));
 });
 
 test('choosing English goes back to the welcome menu in English', function () {
@@ -60,7 +60,7 @@ test('choosing English goes back to the welcome menu in English', function () {
     expect($menu->json('continueSession'))->toBeTrue()
         ->and($menu->json('message'))->toContain('Hello Kofi.')
         ->and($this->farmerUser->fresh()->ussd_language)->toBeNull()
-        ->and(($this->dial)('', true, 's-2')->json('message'))->toBe(app(UssdText::class)->in('en')->get('enter_pin'));
+        ->and(($this->dial)('', true, 's-2')->json('message'))->toStartWith(app(UssdText::class)->in('en')->get('enter_pin'));
 });
 
 test('an answer that is not 1 or 2 asks again', function () {

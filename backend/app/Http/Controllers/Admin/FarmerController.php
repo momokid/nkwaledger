@@ -161,6 +161,8 @@ class FarmerController extends Controller
                 : null,
             // the buttons belong to the farmer's current agent alone; an admin only looks
             'loan_actions' => app(LoanListService::class)->canAct($request->user(), $farmer),
+            // only the farmer's own agent can set a temporary USSD PIN
+            'ussd_pin_reset' => $request->user()->hasRole('agent') && (int) $farmer->assigned_agent_id === $request->user()->id,
         ]);
     }
 

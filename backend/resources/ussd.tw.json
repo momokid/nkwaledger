@@ -7,8 +7,8 @@
     "enter_pin": "Akwaaba wɔ NkwaLedger. Hyɛ wo PIN.",
     "wrong_pin": "Wo PIN no nteɛ. Hyɛ wo PIN.",
     "pin_locked": "Wɔato wo PIN no mu. Sɔ hwɛ bio wɔ simma 30 akyi.",
-    "menu": "Maakye {name}.\n1. Nsɛm tiawa\n2. Bosea\n3. Kyerɛw sika a ɛba\n4. Kyerɛw sika a ɛfiri\n5. Sesa kasa\n6. Fi mu",
-    "menu_waiting": "7. Wɔretwɛn wo",
+    "menu": "Maakye {name}.\n1. Nsɛm tiawa\n2. Bosea\n3. Kyerɛw sika a ɛba\n4. Kyerɛw sika a ɛfiri\n5. Sesa kasa\n6. Fi mu\n7. Sesa PIN",
+    "menu_waiting": "8. Wɔretwɛn wo",
     "goodbye": "Medaase.",
     "period": "Paw bere.\n1. Nnansa 30 a atwam\n2. Bosome yi\n3. Afe yi",
     "period_1": "Nnansa 30 a atwam",
@@ -50,5 +50,16 @@
     "quantity_much": "Wotɔn dodow sɛn?",
     "method_sale": "Wogyee wɔ he?\n1. Sika nsa mu\n2. MoMo\n3. Bɛnk\n4. Ka (wɔnntua ɛ)",
     "method_4": "Ka",
-    "confirm_sale": "Kora: {name}, {quantity} a wɔtɔn, {amount}, {method}?\n1. Aane\n2. Daabi"
+    "confirm_sale": "Kora: {name}, {quantity} a wɔtɔn, {amount}, {method}?\n1. Aane\n2. Daabi",
+    "change_old": "Hyɛ wo PIN a ɛwɔ hɔ seesei.",
+    "change_new": "Hyɛ PIN foforo.",
+    "pin_same": "PIN foforo no mfata sɛ ɛte sɛ PIN a ɛwɔ hɔ no. Hyɛ PIN foforo.",
+    "pin_changed": "Wɔasesa wo PIN no.",
+    "force_new": "Wo agent no de PIN bi too hɔ ma bere tiaa. Fa PIN foforo si hɔ seesei.",
+    "forgot_hint": "0. Wo werɛ afi PIN no",
+    "forgot_sent": "Wɔde wo abisade ama wo agent no. Ɔbɛfrɛ wo.",
+    "forgot_already": "Woabisa dedaw. Twɛn wo agent no na ɔfrɛ wo.",
+    "forgot_no_agent": "Yɛanhu wo agent. Frɛ mmoa.",
+    "pin_request_notice": "{name} asked for a USSD PIN reset.",
+    "pin_reset_sms": "Wo agent no asesa wo NkwaLedger USSD PIN. Fa ntɛm si PIN foforo."
 }

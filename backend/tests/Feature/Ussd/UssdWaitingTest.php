@@ -39,11 +39,11 @@ beforeEach(function () {
 test('the menu offers Waiting for you', function () {
     ($this->dial)('', true);
 
-    expect(($this->dial)('4829')->json('message'))->toContain('7. Waiting for you');
+    expect(($this->dial)('4829')->json('message'))->toContain('8. Waiting for you');
 });
 
 test('with nothing waiting it says so and ends', function () {
-    $reply = ($this->walk)('7');
+    $reply = ($this->walk)('8');
 
     expect($reply->json('continueSession'))->toBeFalse()->and($reply->json('message'))->toContain('Nothing is waiting');
 });
@@ -51,7 +51,7 @@ test('with nothing waiting it says so and ends', function () {
 test('a waiting loan is listed and its details carry the date as DD/MM/YYYY and the not-counted notice', function () {
     ($this->waitingLoan)();
 
-    $list = ($this->walk)('7');
+    $list = ($this->walk)('8');
     expect($list->json('continueSession'))->toBeTrue()->and($list->json('message'))->toContain('1.')->toContain('Sika Microfinanc')->toContain('GHS 500.00');
 
     $detail = ($this->dial)('1');
@@ -63,7 +63,7 @@ test('a waiting loan is listed and its details carry the date as DD/MM/YYYY and 
 test('accepting makes the loan, marks it as accepted by USSD and tells the agent', function () {
     $entry = ($this->waitingLoan)();
 
-    $done = ($this->walk)('7', '1', '1');
+    $done = ($this->walk)('8', '1', '1');
     $entry->refresh();
 
     expect($done->json('continueSession'))->toBeFalse()
@@ -76,7 +76,7 @@ test('accepting makes the loan, marks it as accepted by USSD and tells the agent
 test('declining makes no loan and tells the agent', function () {
     $entry = ($this->waitingLoan)();
 
-    $done = ($this->walk)('7', '1', '2');
+    $done = ($this->walk)('8', '1', '2');
     $entry->refresh();
 
     expect($done->json('continueSession'))->toBeFalse()
@@ -89,7 +89,7 @@ test('a waiting repayment is listed and accepted the same way', function () {
     $loan = ($this->openLoan)();
     $entry = $this->entries->recordRepayment($loan, $this->agent, ($this->repayForm)('100'));
 
-    $list = ($this->walk)('7');
+    $list = ($this->walk)('8');
     expect($list->json('message'))->toContain('Repayment');
 
     ($this->dial)('1');
@@ -102,14 +102,14 @@ test('a waiting repayment is listed and accepted the same way', function () {
 test('another farmer\'s waiting entry is never shown', function () {
     $this->entries->recordLoan($this->clean, $this->agent, ($this->moneyEntry)(['lender_name' => 'Not Yours']));
 
-    $reply = ($this->walk)('7');
+    $reply = ($this->walk)('8');
 
     expect($reply->json('message'))->not->toContain('Not Yours')->toContain('Nothing is waiting');
 });
 
 test('an answer that is not on the list shows the list again', function () {
     ($this->waitingLoan)();
-    ($this->walk)('7');
+    ($this->walk)('8');
 
     $again = ($this->dial)('9');
 
@@ -118,7 +118,7 @@ test('an answer that is not on the list shows the list again', function () {
 
 test('0 goes back one step at a time: details to the list, the list to the menu', function () {
     ($this->waitingLoan)();
-    ($this->walk)('7');
+    ($this->walk)('8');
 
     $detail = ($this->dial)('1');
     expect($detail->json('message'))->toContain('0. Back');
@@ -126,7 +126,7 @@ test('0 goes back one step at a time: details to the list, the list to the menu'
     $list = ($this->dial)('0');
     expect($list->json('message'))->toContain('Waiting for you.')->toContain('0. Back');
 
-    expect(($this->dial)('0')->json('message'))->toContain('7. Waiting for you')
+    expect(($this->dial)('0')->json('message'))->toContain('8. Waiting for you')
         ->and(PendingEntry::where('status', PendingEntry::PENDING)->count())->toBe(1);
 });
 
@@ -136,9 +136,9 @@ test('by default the menu has no option 7 and pressing 7 just shows the menu aga
 
     ($this->dial)('', true);
     $menu = ($this->dial)('4829');
-    expect($menu->json('message'))->not->toContain('7.');
+    expect($menu->json('message'))->not->toContain('8.');
 
-    $again = ($this->dial)('7');
+    $again = ($this->dial)('8');
 
     expect($again->json('continueSession'))->toBeTrue()->and($again->json('message'))->toContain('1. Summary')->not->toContain('Sika');
 });

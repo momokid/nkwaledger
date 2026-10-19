@@ -55,6 +55,7 @@ class User extends Authenticatable
             'is_active'                    => 'boolean',
             'locked_at'                    => 'datetime',
             'ussd_pin_locked_at'           => 'datetime',
+            'ussd_pin_must_change'         => 'boolean',
             'logins_since_verification'    => 'integer',
             'verification_login_threshold' => 'integer',
             // turns the stored text into a date object

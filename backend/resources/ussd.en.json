@@ -7,8 +7,8 @@
     "enter_pin": "Welcome to NkwaLedger. Enter your PIN.",
     "wrong_pin": "Wrong PIN. Enter your PIN.",
     "pin_locked": "Your PIN is locked. Try again in 30 minutes.",
-    "menu": "Hello {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n5. Choose Language\n6. Exit",
-    "menu_waiting": "7. Waiting for you",
+    "menu": "Hello {name}.\n1. Summary\n2. Loans\n3. Log income\n4. Log expenditure\n5. Choose Language\n6. Exit\n7. Change PIN",
+    "menu_waiting": "8. Waiting for you",
     "goodbye": "Thank you.",
     "period": "Choose a period.\n1. Last 30 days\n2. This month\n3. This year",
     "period_1": "Last 30 days",
@@ -50,5 +50,16 @@
     "quantity_much": "How much did you sell?",
     "method_sale": "Received in?\n1. Cash\n2. MoMo\n3. Bank\n4. Credit (not paid yet)",
     "method_4": "Credit",
-    "confirm_sale": "Save: {name}, {quantity} sold, {amount}, {method}?\n1. Yes\n2. No"
+    "confirm_sale": "Save: {name}, {quantity} sold, {amount}, {method}?\n1. Yes\n2. No",
+    "change_old": "Enter your current PIN.",
+    "change_new": "Enter a new PIN.",
+    "pin_same": "The new PIN cannot be the same as your current PIN. Enter a new PIN.",
+    "pin_changed": "Your PIN has been changed.",
+    "force_new": "Your agent set a temporary PIN. Set a new PIN now.",
+    "forgot_hint": "0. Forgot PIN",
+    "forgot_sent": "Your request has been sent to your agent. They will contact you.",
+    "forgot_already": "You already asked. Please wait for your agent to contact you.",
+    "forgot_no_agent": "We could not find an agent for you. Please contact support.",
+    "pin_request_notice": "{name} asked for a USSD PIN reset.",
+    "pin_reset_sms": "Your NkwaLedger USSD PIN was reset by your agent. Dial in and set a new PIN."
 }

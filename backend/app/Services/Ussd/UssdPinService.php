@@ -41,7 +41,13 @@ class UssdPinService
 
     public function save(User $user, string $hash): void
     {
-        $user->forceFill(['ussd_pin_hash' => $hash, 'ussd_pin_attempts' => 0, 'ussd_pin_locked_at' => null])->save();
+        $user->forceFill(['ussd_pin_hash' => $hash, 'ussd_pin_attempts' => 0, 'ussd_pin_locked_at' => null, 'ussd_pin_must_change' => false])->save();
+    }
+
+    // a PIN the agent hands over after checking who is asking: it opens the door once, to a forced change
+    public function setTemporary(User $user, string $pin): void
+    {
+        $user->forceFill(['ussd_pin_hash' => $this->hashOf($pin), 'ussd_pin_attempts' => 0, 'ussd_pin_locked_at' => null, 'ussd_pin_must_change' => true])->save();
     }
 
     // true for the right PIN; a wrong one is counted and may lock
