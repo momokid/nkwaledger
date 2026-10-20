@@ -9,6 +9,7 @@ import {
     IconChevronLeft,
     IconChevronRight,
     IconClipboardList,
+    IconDots,
     IconCloudRain,
     IconCreditCard,
     IconHelpCircle,
@@ -37,7 +38,7 @@ import {
 } from "react";
 import FlashMessages from "@/Components/FlashMessages";
 import SessionEndedBanner from "@/Components/SessionEndedBanner";
-import { buildMarketplaceNavGroup, disabledPlaceholder } from "@/lib/navHelpers";
+import { buildMarketplaceNavGroup, disabledPlaceholder, splitMobileNav } from "@/lib/navHelpers";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import VerificationGate from "@/Components/VerificationGate";
 import useIsVerified from "@/hooks/useIsVerified";
@@ -132,6 +133,16 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconChecklist,
                 ready: true,
                 badge: "approvals",
+            },
+            {
+                label: "Credit",
+                href: "#",
+                icon: IconCreditCard,
+                ready: true,
+                children: [
+                    { label: "View Loans", href: "/agent/loans", ready: true },
+                    { label: "New Loan", href: "/agent/loans/new", ready: true },
+                ],
             },
             { label: "Record", href: "#", icon: IconPencilPlus, ready: false },
             {
@@ -442,7 +453,8 @@ export default function AuthenticatedLayout({ children, title }: Props) {
         tools: withCount(built.tools),
     };
 
-    const mobileNav = nav.main.slice(0, 5);
+    const { bar: mobileNav, more: moreNav } = splitMobileNav(nav.main, nav.tools);
+    const [moreOpen, setMoreOpen] = useState(false);
 
     // opens whichever group holds the current page by default, same as AdminLayout
     const [expandedNavGroup, setExpandedNavGroup] = useState<string | null>(
@@ -1178,7 +1190,93 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                 </Link>
                             );
                         })}
+                        {moreNav.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setMoreOpen(true)}
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    fontSize: "0.9375rem",
+                                    paddingTop: "6px",
+                                    background: "transparent",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    color: textSecondary,
+                                    fontFamily: "'Inter', system-ui, sans-serif",
+                                }}
+                            >
+                                <IconDots size={24} stroke={1.6} />
+                                More
+                            </button>
+                        )}
                     </nav>
+                )}
+                {isMobile && moreOpen && (
+                    <div
+                        onClick={() => setMoreOpen(false)}
+                        style={{
+                            position: "fixed",
+                            inset: 0,
+                            background: "rgba(0,0,0,0.4)",
+                            zIndex: 50,
+                        }}
+                    >
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                position: "absolute",
+                                left: 0,
+                                right: 0,
+                                bottom: "72px",
+                                maxHeight: "60vh",
+                                overflowY: "auto",
+                                background: surface,
+                                padding: "8px 0",
+                            }}
+                        >
+                            {moreNav.map((item) => {
+                                const Icon = item.icon;
+                                const row = {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "12px",
+                                    padding: "14px 20px",
+                                    fontSize: "1rem",
+                                    textDecoration: "none",
+                                    fontFamily: "'Inter', system-ui, sans-serif",
+                                };
+
+                                if (!item.ready) {
+                                    return (
+                                        <div key={item.label} style={{ ...row, color: textSecondary, opacity: 0.5 }}>
+                                            {Icon && <Icon size={24} stroke={1.6} />}
+                                            {item.label}
+                                        </div>
+                                    );
+                                }
+
+                                const active = currentPath === item.href;
+
+                                return (
+                                    <Link
+                                        key={item.label}
+                                        href={item.href}
+                                        onClick={() => setMoreOpen(false)}
+                                        style={{
+                                            ...row,
+                                            color: active ? primary : text,
+                                            fontWeight: active ? 600 : 400,
+                                        }}
+                                    >
+                                        {Icon && <Icon size={24} stroke={1.6} />}
+                                        {item.label}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
                 )}
             </div>
         </ThemeContext.Provider>

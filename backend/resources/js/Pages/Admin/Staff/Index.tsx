@@ -1,5 +1,6 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import UssdPinReset from "@/Components/UssdPinReset";
 import { type } from "@/theme/typography";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
@@ -515,6 +516,16 @@ function IndexContent({ staff, roles, permissions }: ContentProps) {
                                                                     ? "Disable"
                                                                     : "Enable"}
                                                             </button>
+                                                        )}
+
+                                                    {member.is_activated &&
+                                                        member.role === "agent" &&
+                                                        permissions.update &&
+                                                        !isSelf && (
+                                                            <UssdPinReset
+                                                                url={`/admin/staff/${member.uuid}/ussd-pin`}
+                                                                person="agent"
+                                                            />
                                                         )}
 
                                                     {permissions.force_logout &&

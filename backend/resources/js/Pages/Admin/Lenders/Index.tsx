@@ -1,4 +1,5 @@
 import AdminLayout from "@/Layouts/AdminLayout";
+import { wording } from "@/lib/wording";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import Button from "@/Components/Button";
 import { csrfToken } from "@/lib/syncHttp";
@@ -18,16 +19,15 @@ interface Props extends PageProps {
     types: string[];
 }
 
-// placeholder keys: the wording for these is not approved yet
 const TEXT = {
-    name: "lender.name",
-    type: "lender.type",
-    add: "lender.add",
-    edit: "lender.edit",
-    save: "lender.save",
-    cancel: "lender.cancel",
-    saved: "lender.saved",
-    failed: "lender.save_failed",
+    name: wording("lender.name"),
+    type: wording("lender.type"),
+    add: wording("lender.add"),
+    edit: wording("lender.edit"),
+    save: wording("lender.save"),
+    cancel: wording("lender.cancel"),
+    saved: wording("lender.saved"),
+    failed: wording("lender.save_failed"),
 };
 
 export default function Index(props: Props) {
@@ -139,7 +139,7 @@ function IndexContent({ lenders, pagination, types }: ContentProps) {
                 <select aria-label={TEXT.type} style={field} value={adding.type} onChange={(event) => setAdding({ ...adding, type: event.target.value })}>
                     {types.map((type) => (
                         <option key={type} value={type}>
-                            {`lender.type.${type}`}
+                            {wording(`lender.type.${type}`)}
                         </option>
                     ))}
                 </select>
@@ -182,7 +182,7 @@ function IndexContent({ lenders, pagination, types }: ContentProps) {
                                     >
                                         {types.map((type) => (
                                             <option key={type} value={type}>
-                                                {`lender.type.${type}`}
+                                                {wording(`lender.type.${type}`)}
                                             </option>
                                         ))}
                                     </select>

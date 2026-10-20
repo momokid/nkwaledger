@@ -150,3 +150,21 @@ describe("Force logout on the staff list", () => {
         expect(text()).not.toContain("User signed out.");
     });
 });
+
+describe("Setting an agent's temporary USSD PIN", () => {
+    it("shows for an activated agent who is not the signed-in admin, and only with the update permission", async () => {
+        await render(props({}));
+
+        expect(rowOf("Kofi")!.textContent).toContain("Set a new USSD PIN");
+        expect(rowOf("Self")!.textContent).not.toContain("Set a new USSD PIN");
+
+        await render(props({ update: false }));
+        expect(buttons("Set a new USSD PIN")).toHaveLength(0);
+    });
+
+    it("does not show for staff who are not agents", async () => {
+        await render(props({}, [member(2, "uuid-vet", "Vera", { role: "vet" })]));
+
+        expect(buttons("Set a new USSD PIN")).toHaveLength(0);
+    });
+});

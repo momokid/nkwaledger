@@ -5,6 +5,7 @@ import { PageProps } from "@/types";
 import { compressImage } from "@/lib/compressImage";
 import { FormEvent, ReactNode, useMemo, useState } from "react";
 import FarmerLoans, { FarmerLoanRow } from "@/Components/FarmerLoans";
+import UssdPinReset from "@/Components/UssdPinReset";
 
 interface Option {
     id: number;
@@ -59,6 +60,7 @@ interface Props extends PageProps {
     // an admin and the farmer's current agent are sent these; only the agent also gets the actions
     loans?: FarmerLoanRow[] | null;
     loan_actions?: boolean;
+    ussd_pin_reset?: boolean;
     permissions: {
         update: boolean;
         capture_identity: boolean;
@@ -90,6 +92,7 @@ export default function Show(props: Props) {
     return (
         <Frame layout={props.layout} title={props.farmer.name}>
             <ShowContent {...props} />
+            {props.ussd_pin_reset && <UssdPinReset url={`/agent/farmers/${props.farmer.id}/ussd-pin`} />}
             {props.loans && (
                 <FarmerLoans loans={props.loans} farmerUuid={props.loan_actions ? String(props.farmer.id) : undefined} />
             )}

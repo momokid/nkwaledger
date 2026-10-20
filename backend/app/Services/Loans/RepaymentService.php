@@ -23,15 +23,11 @@ use InvalidArgumentException;
 // part and an EXPENSE record for the interest part out, both or neither. Repayments are never edited
 class RepaymentService
 {
-    public const EXCESS_PROMPT = 'This is more than you still owe on this loan. Is the extra amount interest or fees?';
-
-    // placeholders: the wording for these is not approved yet
-    public const EXCESS_NOT_CONFIRMED = 'repayment.excess_not_confirmed';
-    public const CONFIRMATION_NOT_NEEDED = 'repayment.confirmation_not_needed';
+    public const OVER_TOTAL = 'repayment.over_total';
+    public const FULLY_REPAID = 'repayment.fully_repaid';
     public const LOAN_NOT_ACTIVE = 'repayment.loan_not_active';
     public const PAID_FROM_INVALID = 'repayment.paid_from_invalid';
     public const DATE_BEFORE_LOAN = 'repayment.date_before_loan';
-    public const CODE_NOT_ALLOWED = 'repayment.code_not_allowed';
 
     public function __construct(
         private readonly PostingService $posting,
@@ -47,9 +43,11 @@ class RepaymentService
             'lender' => $loan->lender_name,
             'amount' => $loan->principal_minor,
             'agreed_interest' => $loan->agreed_interest_minor,
+            'granted_on' => $loan->loan_date->toDateString(),
             'balance' => $loan->balanceMinor(),
             'interest_remaining' => $loan->isCancelled() ? 0 : $loan->remainingInterestMinor(),
             'status' => $loan->displayStatus(),
+            'check' => LoanCheckService::present($loan->currentCheck),
         ];
     }
 
@@ -79,7 +77,24 @@ class RepaymentService
     /** @return array{principal: int, interest: int, excess: int, remaining_principal: int, remaining_interest: int} */
     public function preview(Loan $loan, string $amount): array
     {
-        return $this->split($loan, $this->amountMinor($amount));
+        $minor = $this->amountMinor($amount);
+        $this->mustFit($loan, $minor);
+
+        return $this->split($loan, $minor);
+    }
+
+    // a loan takes back what it is owed and no more; once both the principal and the interest are paid it takes nothing
+    public function mustFit(Loan $loan, int $amountMinor): void
+    {
+        $owed = $loan->remainingPrincipalMinor() + $loan->remainingInterestMinor();
+
+        if ($owed === 0) {
+            throw PostingFailed::because(self::FULLY_REPAID);
+        }
+
+        if ($amountMinor > $owed) {
+            throw PostingFailed::because(self::OVER_TOTAL);
+        }
     }
 
     /** @return array{amount_minor: int, date: string, paid_from: int} every rule that needs no lock */
@@ -113,7 +128,7 @@ class RepaymentService
     }
 
     /**
-     * @param array{amount: string, date: string, paid_from: int, confirm_excess?: bool, idempotency_key?: ?string} $data
+     * @param array{amount: string, date: string, paid_from: int, idempotency_key?: ?string} $data
      * @param array{remaining_principal: int, remaining_interest: int}|null $snapshot an agent's entry: the loan must still be exactly this
      */
     public function record(Loan $loan, User $by, array $data, ?string $via = null, ?array $snapshot = null): LoanRepayment
@@ -143,16 +158,9 @@ class RepaymentService
                 throw new RepaymentSnapshotChanged();
             }
 
+            $this->mustFit($locked, $checked['amount_minor']);
+
             $split = $this->split($locked, $checked['amount_minor']);
-            $confirmed = (bool) ($data['confirm_excess'] ?? false);
-
-            if ($split['excess'] > 0 && ! $confirmed) {
-                throw PostingFailed::because(self::EXCESS_NOT_CONFIRMED);
-            }
-
-            if ($split['excess'] === 0 && $confirmed) {
-                throw PostingFailed::because(self::CONFIRMATION_NOT_NEEDED);
-            }
 
             $principal = $split['principal'] > 0 ? $this->post('loan_repayment_principal', $locked, $by, $checked, $split['principal'], 'rp', $key) : null;
             $interest = $split['interest'] > 0 ? $this->post('loan_repayment_interest', $locked, $by, $checked, $split['interest'], 'ri', $key) : null;
@@ -168,7 +176,7 @@ class RepaymentService
                     'interest_transaction_id' => $interest?->id,
                     'paid_from_account_id' => $checked['paid_from'],
                     'repaid_on' => $checked['date'],
-                    'excess_confirmed' => $split['excess'] > 0,
+                    'excess_confirmed' => false,
                     'recorded_by' => $by->id,
                     'accepted_via' => $via,
                     'idempotency_key' => $key,
@@ -183,7 +191,6 @@ class RepaymentService
                 'amount_minor' => $repayment->amount_minor,
                 'principal_minor' => $repayment->principal_minor,
                 'interest_minor' => $repayment->interest_minor,
-                'excess_confirmed' => $repayment->excess_confirmed,
                 'accepted_via' => $via,
             ], $by);
 

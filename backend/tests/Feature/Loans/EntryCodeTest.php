@@ -226,3 +226,18 @@ test('the code is in no log, no error, no notification and no flash, on any path
 
     expect($everything)->not->toContain($code);
 });
+
+test('a long lender name is cut in the loan SMS so it fits 160 characters, and the rest of the words and the code stay whole', function () {
+    $name = mb_substr(str_repeat('Asante Akim North Rural Bank ', 9), 0, 255);
+    $entry = ($this->pendingMoney)(['lender_name' => $name]);
+
+    $this->codes->send($entry, $this->agent);
+
+    $sent = ($this->sms)()[0]['message'];
+    $code = ($this->lastCode)();
+
+    expect(mb_strlen($sent))->toBeLessThanOrEqual(160)
+        ->and($sent)->toStartWith('NkwaLedger: Your agent recorded a loan of GHS 500.00 from Asante')
+        ->and($sent)->toEndWith("... Give the code {$code} to your agent only if you agree. It works for 10 minutes.")
+        ->and($entry->lenderName())->toBe($name);
+});

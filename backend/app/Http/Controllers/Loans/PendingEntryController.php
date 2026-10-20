@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PendingEntry;
 use App\Services\Loans\PendingEntryService;
 use Illuminate\Http\RedirectResponse;
+use App\Support\Wording;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -21,17 +22,16 @@ class PendingEntryController extends Controller
         Gate::authorize('respond', $entry);
 
         try {
-            $result = $this->entries->accept($entry, $request->user(), PendingEntry::VIA_APP, $request->boolean('confirm_excess'));
+            $result = $this->entries->accept($entry, $request->user(), PendingEntry::VIA_APP);
         } catch (PostingFailed|EntryRefused $refusal) {
             return redirect('/loans')->with('error', $refusal->getMessage());
         }
 
-        // placeholders for a repayment: the wording is not approved yet
         if ($result === null) {
-            return redirect('/loans')->with('error', 'repayment.stale');
+            return redirect('/loans')->with('error', Wording::get('repayment.stale'));
         }
 
-        return redirect('/loans')->with('success', $entry->isRepayment() ? 'repayment.accepted' : 'Loan accepted.');
+        return redirect('/loans')->with('success', $entry->isRepayment() ? Wording::get('repayment.accepted') : 'Loan accepted.');
     }
 
     public function decline(Request $request, PendingEntry $entry): RedirectResponse

@@ -13,7 +13,9 @@ use App\Models\PendingEntryCode;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Support\AgentLoanLink;
 use App\Support\Money;
+use App\Support\Wording;
 use Illuminate\Support\Facades\DB;
 
 // an agent's entry for a farmer: recorded, then accepted, declined or withdrawn. Nothing here touches the books
@@ -25,7 +27,6 @@ class PendingEntryService
 
     public const FARMER_NOTICE = 'Your agent recorded a loan for you. It is not counted until you accept it.';
 
-    // placeholder: the wording is not approved yet
     public const REPAYMENT_NOTICE = 'repayment.pending_notice';
 
     public function __construct(
@@ -72,6 +73,7 @@ class PendingEntryService
         $checked = $this->repayments->validated($data);
         $this->repayments->mustNotPrecede($loan, $checked['date']);
         $snapshot = $this->repayments->snapshot($loan);
+        $this->repayments->mustFit($loan, $checked['amount_minor']);
 
         return DB::transaction(function () use ($loan, $agent, $checked, $snapshot) {
             $payload = [
@@ -80,7 +82,6 @@ class PendingEntryService
                 'date' => $checked['date'],
                 'paid_from' => $checked['paid_from'],
                 'snapshot' => $snapshot,
-                'excess' => $checked['amount_minor'] > $snapshot['remaining_principal'] + $snapshot['remaining_interest'],
             ];
 
             $entry = PendingEntry::create([
@@ -100,7 +101,7 @@ class PendingEntryService
             $user = $loan->farmerProfile->user;
 
             if ($user !== null) {
-                $this->notifications->send($user, 'loan.pending', self::REPAYMENT_NOTICE, '/loans');
+                $this->notifications->send($user, 'loan.pending', Wording::get(self::REPAYMENT_NOTICE), '/loans');
             }
 
             return $entry;
@@ -109,9 +110,9 @@ class PendingEntryService
 
     // by either route: one lock, every check again, one loan or repayment, or nothing at all.
     // Null means a repayment was rejected because the loan is no longer as the agent saw it
-    public function accept(PendingEntry $entry, User $actor, string $via, bool $confirmExcess = false): Loan|LoanRepayment|null
+    public function accept(PendingEntry $entry, User $actor, string $via): Loan|LoanRepayment|null
     {
-        return DB::transaction(function () use ($entry, $actor, $via, $confirmExcess) {
+        return DB::transaction(function () use ($entry, $actor, $via) {
             $locked = $this->lock($entry);
 
             if ($locked->status === PendingEntry::ACCEPTED) {
@@ -121,7 +122,7 @@ class PendingEntryService
             $this->mustBePending($locked);
 
             if ($locked->isRepayment()) {
-                return $this->acceptRepayment($locked, $actor, $via, $confirmExcess);
+                return $this->acceptRepayment($locked, $actor, $via);
             }
 
             $farmer = $locked->farmerProfile;
@@ -144,8 +145,8 @@ class PendingEntryService
                 'loan_uuid' => $loan->uuid,
             ], $actor);
 
-            if ($via === PendingEntry::VIA_APP) {
-                $this->tellAgent($locked, 'loan.accepted', 'accepted');
+            if ($via !== PendingEntry::VIA_CODE) {
+                $this->tellAgent($locked, 'loan.accepted', 'accepted', AgentLoanLink::to($loan->uuid, $loan->uuid));
             }
 
             return $loan;
@@ -183,34 +184,33 @@ class PendingEntryService
                     'reason' => 'loan_cancelled',
                 ], $by);
 
-                $this->tellAgent($locked, 'loan.rejected', 'rejected');
+                $this->tellAgent($locked, 'loan.rejected', 'rejected', AgentLoanLink::to($loan->uuid, $locked->uuid));
 
-                // placeholder wording: the existing rejected key
                 if ($locked->farmerProfile->user !== null) {
-                    $this->notifications->send($locked->farmerProfile->user, 'loan.rejected', 'repayment.rejected', "/loans/{$loan->uuid}");
+                    $this->notifications->send($locked->farmerProfile->user, 'loan.rejected', Wording::get('repayment.rejected'), "/loans/{$loan->uuid}");
                 }
             });
     }
 
-    public function decline(PendingEntry $entry, User $farmerUser): void
+    public function decline(PendingEntry $entry, User $farmerUser, string $via = PendingEntry::VIA_APP): void
     {
-        DB::transaction(function () use ($entry, $farmerUser) {
+        DB::transaction(function () use ($entry, $farmerUser, $via) {
             $locked = $this->lock($entry);
             $this->mustBePending($locked);
 
             $locked->forceFill([
                 'status' => PendingEntry::DECLINED,
                 'decided_by' => $farmerUser->id,
-                'decided_via' => PendingEntry::VIA_APP,
+                'decided_via' => $via,
                 'decided_at' => now(),
             ])->save();
 
             $this->audit->recordOn('pending_entry.declined', $locked, ['status' => PendingEntry::PENDING], [
                 'status' => PendingEntry::DECLINED,
-                'via' => PendingEntry::VIA_APP,
+                'via' => $via,
             ], $farmerUser);
 
-            $this->tellAgent($locked, 'loan.declined', 'declined');
+            $this->tellAgent($locked, 'loan.declined', 'declined', "/agent/farmers/{$locked->farmerProfile->uuid}");
         });
     }
 
@@ -247,13 +247,9 @@ class PendingEntryService
     }
 
     // an agent's repayment at the moment of acceptance: the loan must still be exactly as the agent saw it
-    private function acceptRepayment(PendingEntry $locked, User $actor, string $via, bool $confirmExcess): ?LoanRepayment
+    private function acceptRepayment(PendingEntry $locked, User $actor, string $via): ?LoanRepayment
     {
         $payload = $locked->payload;
-
-        if ($via === PendingEntry::VIA_CODE && $payload['excess']) {
-            throw EntryRefused::because(RepaymentService::CODE_NOT_ALLOWED);
-        }
 
         $loan = Loan::where('uuid', $payload['loan_uuid'])->firstOrFail();
 
@@ -262,8 +258,6 @@ class PendingEntryService
                 'amount' => Money::toDecimal($payload['amount_minor']),
                 'date' => $payload['date'],
                 'paid_from' => $payload['paid_from'],
-                // a code can never carry the farmer's yes to an extra amount
-                'confirm_excess' => $via === PendingEntry::VIA_APP && $confirmExcess,
                 'idempotency_key' => 'entry.' . $locked->uuid,
             ], $via, $payload['snapshot']);
         } catch (RepaymentSnapshotChanged) {
@@ -279,7 +273,7 @@ class PendingEntryService
                 'via' => $via,
             ], $actor);
 
-            $this->tellAgent($locked, 'loan.rejected', 'rejected');
+            $this->tellAgent($locked, 'loan.rejected', 'rejected', AgentLoanLink::to($loan->uuid, $locked->uuid));
 
             return null;
         }
@@ -299,8 +293,8 @@ class PendingEntryService
             'repayment_uuid' => $repayment->uuid,
         ], $actor);
 
-        if ($via === PendingEntry::VIA_APP) {
-            $this->tellAgent($locked, 'loan.accepted', 'accepted');
+        if ($via !== PendingEntry::VIA_CODE) {
+            $this->tellAgent($locked, 'loan.accepted', 'accepted', AgentLoanLink::to($loan->uuid, $repayment->uuid));
         }
 
         return $repayment;
@@ -324,7 +318,7 @@ class PendingEntryService
         ];
     }
 
-    private function tellAgent(PendingEntry $entry, string $kind, string $word): void
+    private function tellAgent(PendingEntry $entry, string $kind, string $word, string $link): void
     {
         $agent = $entry->recordedBy;
         $user = $entry->farmerProfile->user;
@@ -333,9 +327,9 @@ class PendingEntryService
             return;
         }
 
-        // placeholder wording for a repayment: not approved yet
-        $words = $entry->isRepayment() ? "repayment.{$word}" : "{$word} the loan.";
+        $name = trim("{$user->surname} {$user->first_name}");
+        $message = $entry->isRepayment() ? "{$name}: " . Wording::get("repayment.{$word}") : "{$name} {$word} the loan.";
 
-        $this->notifications->send($agent, $kind, trim("{$user->surname} {$user->first_name}") . " {$words}", "/agent/farmers/{$entry->farmerProfile->uuid}");
+        $this->notifications->send($agent, $kind, $message, $link);
     }
 }

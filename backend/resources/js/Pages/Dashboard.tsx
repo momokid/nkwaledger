@@ -1,6 +1,6 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import useAuthGuard from "@/hooks/useAuthGuard";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import { cedis, shortDate } from "@/lib/format";
 import { useState } from "react";
 import GreetingHeader from "@/Components/GreetingHeader";
@@ -180,7 +180,7 @@ function DashboardContent({
             secondary: null,
             trend: null,
             soon: false,
-            clickable: false,
+            clickable: true,
         },
     ];
 
@@ -201,12 +201,18 @@ function DashboardContent({
                 {kpis.map((kpi) => (
                     <div
                         key={kpi.label}
-                        onClick={() =>
+                        onClick={() => {
+                            if (kpi.key === "loans") {
+                                router.visit("/loans");
+
+                                return;
+                            }
+
                             kpi.clickable &&
-                            setOpenDetail(
-                                kpi.key as "income" | "expense" | "net",
-                            )
-                        }
+                                setOpenDetail(
+                                    kpi.key as "income" | "expense" | "net",
+                                );
+                        }}
                         style={{
                             background: surface,
                             border: `1px solid ${border}`,

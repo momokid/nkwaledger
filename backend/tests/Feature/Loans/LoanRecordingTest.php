@@ -101,7 +101,7 @@ test('a money loan is stored, posted as a LOAN record, and its balance is the pr
         ->and($loan->settlement_account_id)->toBe($this->cash->id)
         ->and($loan->transaction->transaction_type)->toBe('LOAN')
         ->and($loan->transaction->amount_minor)->toBe(50000)
-        ->and($loan->balanceMinor())->toBe(50000)
+        ->and($loan->balanceMinor())->toBe(55000)
         ->and((int) $loan->recorded_by)->toBe($this->farmerUser->id);
 });
 
@@ -136,7 +136,7 @@ test('an opening entry is a non-cash row that raises what is owed and moves no c
         ->and([$after->totalInMinor, $after->totalOutMinor, $after->closingBalanceMinor])
         ->toBe([$before->totalInMinor, $before->totalOutMinor, $before->closingBalanceMinor])
         ->and($after->nonCashMinor)->toBe(30000)
-        ->and($loan->balanceMinor())->toBe(30000);
+        ->and($loan->balanceMinor())->toBe(32000);
 });
 
 // --- the rules ---

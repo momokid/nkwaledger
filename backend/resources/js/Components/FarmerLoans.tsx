@@ -1,10 +1,12 @@
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
+import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
-import { cedis } from "@/lib/format";
+import { cedis, LATE_STATUS } from "@/lib/format";
+import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { router, usePage } from "@inertiajs/react";
 import { useState } from "react";
 
-type Status = "active" | "repaid" | "cancelled" | "pending" | "declined" | "withdrawn" | "rejected";
+type Status = "active" | "overdue" | "default" | "repaid" | "cancelled" | "pending" | "declined" | "withdrawn" | "rejected";
 
 export interface FarmerLoanRow {
     row: "loan" | "entry";
@@ -14,16 +16,19 @@ export interface FarmerLoanRow {
     amount: number;
     balance: number | null;
     status: Status;
+    check?: LoanCheck | null;
 }
 
 const STATUS_LABELS: Record<Status, string> = {
     active: "Active",
+    overdue: LATE_STATUS.overdue.label,
+    default: LATE_STATUS.default.label,
     repaid: "Repaid",
     cancelled: "Cancelled",
     pending: "Waiting for the farmer to accept",
     declined: "Declined by the farmer",
     withdrawn: "Withdrawn",
-    rejected: "repayment.rejected",
+    rejected: wording("repayment.rejected"),
 };
 
 interface Props {
@@ -121,7 +126,7 @@ export default function FarmerLoans({ loans, farmerUuid }: Props) {
                 <tr style={{ borderBottom: waiting ? "none" : `1px solid ${border}` }}>
                     <td className="px-4 py-3" style={{ color: text }}>
                         {loan.lender}
-                        {loan.kind === "repayment" && <span style={{ color: textSecondary }}> - repayment.entry</span>}
+                        {loan.kind === "repayment" && <span style={{ color: textSecondary }}> - {wording("repayment.entry")}</span>}
                         {acting && loan.row === "loan" && loan.status === "active" && (
                             <Button
                                 type="button"
@@ -133,6 +138,7 @@ export default function FarmerLoans({ loans, farmerUuid }: Props) {
                                 Record a repayment
                             </Button>
                         )}
+                        {loan.row === "loan" && <LoanCheckNotice check={loan.check} whenNone="nothing" size="0.9375rem" />}
                     </td>
                     <td className="px-4 py-3" style={{ color: text }}>
                         GHS {cedis(loan.amount)}
@@ -142,7 +148,7 @@ export default function FarmerLoans({ loans, farmerUuid }: Props) {
                     </td>
                     <td
                         className="px-4 py-3"
-                        style={{ color: ["cancelled", "declined", "withdrawn"].includes(loan.status) ? textSecondary : text }}
+                        style={{ color: LATE_STATUS[loan.status]?.color ?? (["cancelled", "declined", "withdrawn"].includes(loan.status) ? textSecondary : text) }}
                     >
                         {STATUS_LABELS[loan.status]}
                     </td>

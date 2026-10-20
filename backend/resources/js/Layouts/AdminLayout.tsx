@@ -9,6 +9,7 @@ import { PropsWithChildren, useEffect, useState } from "react";
 import {
     IconBook,
     IconChecklist,
+    IconCreditCard,
     IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
@@ -64,6 +65,7 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 const ICONS: Record<string, typeof IconLayoutDashboard> = {
     "layout-dashboard": IconLayoutDashboard,
     checklist: IconChecklist,
+    "credit-card": IconCreditCard,
     plant: IconPlant,
     book: IconBook,
     "shield-lock": IconShieldLock,

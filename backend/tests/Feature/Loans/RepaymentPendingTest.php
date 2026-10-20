@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../Support/LoanWorld.php';
 
+use App\Support\Wording;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Exceptions\Loans\EntryRefused;
 use App\Models\AuditLog;
@@ -38,9 +39,8 @@ test('recording stores a pending entry with a snapshot of the loan and touches n
         ->and($entry->status)->toBe('pending')
         ->and($entry->payload['amount_minor'])->toBe(60000)
         ->and($entry->payload['snapshot'])->toBe(['remaining_principal' => 100000, 'remaining_interest' => 20000])
-        ->and($entry->payload['excess'])->toBeFalse()
         ->and([Transaction::count(), LoanRepayment::count()])->toBe([$transactions, 0])
-        ->and($this->loan->fresh()->balanceMinor())->toBe(100000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(120000);
 
     $log = AuditLog::where('auditable_type', PendingEntry::class)->where('auditable_id', $entry->id)->first();
 
@@ -64,7 +64,7 @@ test('accepting in the app posts the repayment, linked to the agent who recorded
         ->and((int) $repayment->recorded_by)->toBe($this->agent->id)
         ->and($entry->fresh()->status)->toBe('accepted')
         ->and($entry->fresh()->result_type)->toBe('loan_repayment')
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000);
 
     $actions = AuditLog::where('auditable_type', PendingEntry::class)->where('auditable_id', $entry->id)->orderBy('id')->pluck('action')->all();
 
@@ -80,7 +80,7 @@ test('accepting with the SMS code posts the repayment', function () {
 
     expect($repayment)->toBeInstanceOf(LoanRepayment::class)
         ->and($repayment->accepted_via)->toBe('code')
-        ->and($this->loan->fresh()->balanceMinor())->toBe(50000);
+        ->and($this->loan->fresh()->balanceMinor())->toBe(60000);
 });
 
 test('if the loan changed since the agent typed it, the entry is rejected and nothing posts', function () {
@@ -110,44 +110,23 @@ test('the snapshot is also checked on the code path', function () {
     expect($result)->toBeNull()->and($entry->fresh()->status)->toBe('rejected');
 });
 
-test('an amount above what is owed is flagged, and the SMS code is refused for it', function () {
-    $entry = ($this->pendingRepay)('1300');
-
-    expect($entry->payload['excess'])->toBeTrue();
-
-    expect(fn() => $this->codes->send($entry, $this->agent))->toThrow(EntryRefused::class, RepaymentService::CODE_NOT_ALLOWED);
-
-    // even with a code in hand, the server refuses on entry
-    \App\Models\PendingEntryCode::create([
-        'pending_entry_id' => $entry->id,
-        'code_hash' => hash_hmac('sha256', $entry->uuid . '|123456', (string) config('app.key')),
-        'expires_at' => now()->addMinutes(5),
-        'created_at' => now(),
-    ]);
-
-    expect(fn() => $this->codes->enter($entry, $this->agent, '123456'))->toThrow(EntryRefused::class, RepaymentService::CODE_NOT_ALLOWED)
-        ->and($entry->fresh()->status)->toBe('pending')
-        ->and(LoanRepayment::count())->toBe(0)
-        ->and(Transaction::where('transaction_type', 'LOAN')->count())->toBe(1);
+test('an agent cannot record an amount above what is owed, so there is never an extra amount to refuse', function () {
+    expect(fn() => ($this->pendingRepay)('1300'))->toThrow(PostingFailed::class, Wording::get(RepaymentService::OVER_TOTAL))
+        ->and(PendingEntry::count())->toBe(0);
 });
 
-test('an amount above what is owed is accepted in the app only with the farmer confirming', function () {
-    $entry = ($this->pendingRepay)('1300');
+test('an entry for exactly what is owed can be accepted in the app and by the SMS code alike', function () {
+    $entry = ($this->pendingRepay)('1200');
+    $other = ($this->pendingRepay)('1200');
 
-    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app'))->toThrow(PostingFailed::class, RepaymentService::EXCESS_NOT_CONFIRMED)
-        ->and($entry->fresh()->status)->toBe('pending');
+    $this->codes->send($other, $this->agent);
 
-    $repayment = $this->entries->accept($entry, $this->farmerUser, 'app', true);
+    $byApp = $this->entries->accept($entry, $this->farmerUser, 'app');
 
-    expect([$repayment->principal_minor, $repayment->interest_minor, $repayment->excess_confirmed])->toBe([100000, 30000, true])
-        ->and($entry->fresh()->status)->toBe('accepted');
-});
-
-test('a forged confirmation on an entry with no excess is refused', function () {
-    $entry = ($this->pendingRepay)('600');
-
-    expect(fn() => $this->entries->accept($entry, $this->farmerUser, 'app', true))->toThrow(PostingFailed::class, RepaymentService::CONFIRMATION_NOT_NEEDED)
-        ->and($entry->fresh()->status)->toBe('pending');
+    expect([$byApp->principal_minor, $byApp->interest_minor])->toBe([100000, 20000])
+        ->and($entry->fresh()->status)->toBe('accepted')
+        ->and($this->codes->enter($other, $this->agent, ($this->smsCode)()))->toBeNull()
+        ->and($other->fresh()->status)->toBe('rejected');
 });
 
 test('a loan cancelled in the meantime cannot take the repayment', function () {

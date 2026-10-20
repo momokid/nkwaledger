@@ -31,6 +31,16 @@ class LoanPolicy
         return Response::denyAsNotFound();
     }
 
+    // the agent's Loans menu: only the loans of the farmers assigned to them
+    public function viewAsAgent(User $user, Loan $loan): Response|bool
+    {
+        if ($user->hasRole('agent') && (int) $loan->farmerProfile?->assigned_agent_id === $user->id) {
+            return true;
+        }
+
+        return Response::denyAsNotFound();
+    }
+
     public function create(User $user): bool
     {
         return $user->hasRole('farmer');

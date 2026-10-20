@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Lender;
 use App\Services\Loans\LenderService;
+use App\Support\Wording;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,17 +35,22 @@ class LenderController extends Controller
         $data = $request->validate([
             'type' => ['required', 'string', 'in:' . implode(',', Lender::TYPES)],
             'name' => ['required', 'string', 'max:255'],
-        ], ['type.in' => 'lender.type_invalid', 'name.required' => 'lender.name_required']);
+        ], ['type.in' => Wording::get('lender.type_invalid'), 'name.required' => Wording::get('lender.name_required')]);
 
         return response()->json($this->row($this->lenders->addInstitution($data['type'], $data['name'], $request->user())), 201);
     }
 
     public function update(Request $request, Lender $lender): JsonResponse
     {
+        // a request with neither field gets one plain message, not the name and type errors together
+        if (! $request->hasAny(['name', 'type'])) {
+            throw ValidationException::withMessages(['name' => Wording::get('lender.nothing_to_save')]);
+        }
+
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:255', 'required_without:type'],
             'type' => ['nullable', 'string', 'in:' . implode(',', Lender::TYPES), 'required_without:name'],
-        ], ['name.required_without' => 'lender.name_required', 'type.required_without' => 'lender.type_invalid', 'type.in' => 'lender.type_invalid']);
+        ], ['name.required_without' => Wording::get('lender.name_required'), 'type.required_without' => Wording::get('lender.type_invalid'), 'type.in' => Wording::get('lender.type_invalid')]);
 
         return response()->json($this->row($this->lenders->update($lender, $data['name'] ?? null, $data['type'] ?? null, $request->user())));
     }

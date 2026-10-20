@@ -57,6 +57,15 @@ afterEach(async () => {
     container.remove();
 });
 
+describe("Late loans", () => {
+    it("shows Overdue and Default as the status", async () => {
+        await show([row({ status: "overdue" }), row({ uuid: "2", status: "default" })]);
+
+        expect(container.textContent).toContain("Overdue");
+        expect(container.textContent).toContain("Default");
+    });
+});
+
 describe("The admin's read-only loans section", () => {
     it("lists the loans under the approved names, and has no button at all", async () => {
         await show([row(), row({ uuid: "2", lender: "Uncle Kofi", balance: 0, status: "cancelled" })]);
@@ -79,6 +88,26 @@ describe("The admin's read-only loans section", () => {
         expect(text).toContain("Declined by the farmer");
         expect(text).toContain("Withdrawn");
         expect(container.querySelectorAll("button, input")).toHaveLength(0);
+    });
+
+    it("marks a repayment entry and a rejected repayment in the approved words, with no raw key", async () => {
+        await show([entry({ kind: "repayment" }), entry({ uuid: "e-4", kind: "repayment", status: "rejected" })]);
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("Sika Microfinance - Repayment");
+        expect(text).toContain("Repayment rejected");
+        expect(text).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
+    });
+
+    it("shows a loan's check with the lender and its note, and nothing about it for a loan nobody has checked", async () => {
+        await show([row({ check: { status: "unreachable", note: "Phone off all day", date: "2026-10-16" } }), row({ uuid: "2", lender: "Uncle Kofi" })]);
+
+        const text = container.textContent ?? "";
+
+        expect(text).toContain("Lender could not be reached");
+        expect(text).toContain("Phone off all day");
+        expect(text).not.toContain("not been checked with the lender");
     });
 
     it("shows nothing when the farmer has no loans", async () => {

@@ -37,7 +37,7 @@ class LoanController extends Controller
             'pending' => $this->list->pendingFor($farmer),
             'loans' => Loan::query()
                 ->where('farmer_profile_id', $farmer->id)
-                ->with('lender')
+                ->with(['lender', 'currentCheck'])
                 ->orderByDesc('id')
                 ->get()
                 ->map(fn(Loan $loan) => [
@@ -46,6 +46,7 @@ class LoanController extends Controller
                     'amount' => $loan->principal_minor,
                     'balance' => $loan->balanceMinor(),
                     'status' => $loan->displayStatus(),
+                    'check' => \App\Services\Loans\LoanCheckService::present($loan->currentCheck),
                 ])
                 ->values(),
         ]);
@@ -92,6 +93,7 @@ class LoanController extends Controller
             'paidInto' => $this->loans->paidIntoOptions(),
             'idempotencyKey' => (string) Str::uuid(),
             'agent' => false,
+            'requestFor' => null,
             'postUrl' => '/loans',
             'backUrl' => '/loans',
         ]);
