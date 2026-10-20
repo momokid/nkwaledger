@@ -45,3 +45,4 @@ desktop.ini
 HANDOFF.md
 
 Context.md
+!docs/**/context.md
