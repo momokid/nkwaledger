@@ -4,7 +4,7 @@ Written: 2026-10-20. Rewrite this at every stopping point.
 
 ## Where we are
 - Branch: `feature/ai-health-review` (cut from `origin/develop`). Run `git log --oneline -8` to see the latest commits.
-- Nothing is pushed. Push rule: [rules/git-and-commits.md](../rules/git-and-commits.md). Blocked for now: the full PostgreSQL suite is still pending for this batch. Finished so far on this branch: health categories, the AI adapter, and the photo disk and S3 fix.
+- Nothing is pushed. Push rule: [rules/git-and-commits.md](../rules/git-and-commits.md). Blocked for now: the full PostgreSQL suite is still pending for this batch. The owner said not now (2026-10-20), so do not run it or push until asked. Finished so far on this branch: health categories, the AI adapter, and the photo disk and S3 fix.
 - Last code work: web report photos and voice notes now use `PHOTO_DISK`, and the S3 package is installed. Docs restructure and the handoff folder are committed after it.
 
 ## Active task
