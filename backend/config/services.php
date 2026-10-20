@@ -40,6 +40,12 @@ return [
         'sender' => env('ARKESEL_SENDER_ID', 'NkwaLedger'),
     ],
 
+    'openrouter' => [
+        'key'   => env('OPENROUTER_API_KEY'),
+        'model' => env('OPENROUTER_MODEL', 'qwen/qwen3-vl-235b-a22b-instruct'),
+        'url'   => env('OPENROUTER_URL', 'https://openrouter.ai/api/v1'),
+    ],
+
     'ussd' => [
         'secret' => env('USSD_CALLBACK_SECRET'),
         'waiting' => (bool) env('USSD_WAITING', true),

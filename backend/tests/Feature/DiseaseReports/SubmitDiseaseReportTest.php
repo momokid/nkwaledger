@@ -17,6 +17,7 @@ beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
     Storage::fake('public');
+    config(['filesystems.photo_disk' => 'public']);
 
     $this->agent = User::factory()->create();
     $this->agent->assignRole('agent');
@@ -202,4 +203,22 @@ it('routes a crop farm unit to the adviser role', function () {
     ]);
 
     expect(DiseaseReport::first()->routed_role)->toBe(OfficerRole::Adviser);
+});
+
+it('keeps the photo and voice note on the photo disk and records which disk that is', function () {
+    config(['filesystems.photo_disk' => 'local']);
+    Storage::fake('local');
+
+    $this->actingAs($this->farmerUser)->post("/my-farm/{$this->unit->id}/report-problem", [
+        'description' => 'Some birds look weak.',
+        'photo' => UploadedFile::fake()->image('sick.jpg'),
+        'audio' => fakeAudioUpload(12),
+    ]);
+
+    $report = DiseaseReport::first();
+
+    expect($report->media_disk)->toBe('local');
+    Storage::disk('local')->assertExists($report->photo_path);
+    Storage::disk('local')->assertExists($report->audio_path);
+    Storage::disk('public')->assertMissing($report->photo_path);
 });
