@@ -6,6 +6,6 @@
 - Hosting: Railway (production and staging), Docker (php-fpm + nginx + supervisor).
 - CI: GitHub Actions, one job named `test` (the check a pull request waits for).
 - SMS and OTP: Arkesel (sandbox flag for staging).
-- AI review: Qwen vision model through OpenRouter (see domain/health-ai-review.md).
+- AI review: Qwen vision model through OpenRouter (see domain/health-ai-review/context.md).
 - Photo storage: `PHOTO_DISK` (see ops/env-and-seeders.md).
 - Git model: `feature/* -> develop (staging) -> master (production)` through reviewed pull requests.

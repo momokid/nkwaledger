@@ -6,7 +6,7 @@ Status: active, not started. Branch: `feature/ai-health-review`.
 After a disease report has its photo stored, a background job asks the AI for a draft review and saves it on the report. The officer can use it later (slice 4). The farmer never sees it.
 
 ## Read first
-- [domain/health-ai-review.md](../domain/health-ai-review.md): the design and what is built
+- [domain/health-ai-review/context.md](../domain/health-ai-review/context.md): the design and what is built
 - [decisions/2026-10-20-ai-review-design.md](../decisions/2026-10-20-ai-review-design.md): what the owner decided
 - [rules/tdd-and-testing.md](../rules/tdd-and-testing.md) and [rules/git-and-commits.md](../rules/git-and-commits.md)
 - [ops/gotchas.md](../ops/gotchas.md): fake the photo disk in tests; DatabaseSeeder runs with model events off

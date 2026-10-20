@@ -11,4 +11,4 @@
 
 **Why:** a smallholder farmer should never act on an unchecked AI answer, and cost per report is tiny (well under one US cent).
 
-Details: domain/health-ai-review.md.
+Details: domain/health-ai-review/context.md.

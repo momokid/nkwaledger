@@ -6,7 +6,7 @@ Status: not started. Needs slice 3.
 The vet or adviser sees the AI draft next to the photo and confirms or edits it. Their final answer and whether it matched the AI are stored.
 
 ## Read first
-- [domain/health-ai-review.md](../domain/health-ai-review.md)
+- [domain/health-ai-review/context.md](../domain/health-ai-review/context.md)
 - [decisions/2026-10-20-ai-review-design.md](../decisions/2026-10-20-ai-review-design.md)
 - [rules/ui-and-frontend.md](../rules/ui-and-frontend.md) and [rules/reply-style.md](../rules/reply-style.md)
 - [ai-review-slice-3-job.md](ai-review-slice-3-job.md): the columns this screen reads

@@ -6,7 +6,7 @@ Status: not started.
 An admin can add, rename, reorder and switch off health categories without a deploy.
 
 ## Read first
-- [domain/health-ai-review.md](../domain/health-ai-review.md)
+- [domain/health-ai-review/context.md](../domain/health-ai-review/context.md)
 - [domain/identity-and-permissions.md](../domain/identity-and-permissions.md): admin routes and permissions
 - [rules/ui-and-frontend.md](../rules/ui-and-frontend.md): skeletons, field errors, AJAX saves
 

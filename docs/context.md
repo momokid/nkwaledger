@@ -21,5 +21,6 @@ Start here. Find the topic, open the folder, read its `context.md`, then only th
 - Update docs/todo.md at the end of every task.
 - When a fact changes, change it in the one file that owns it, not in several places.
 - A new topic gets its own file and a line in the folder `context.md`.
-- Keep every file short, about 100 lines at most. When one grows past that, split it into smaller files in the same folder, update the folder `context.md`, and link instead of copying. Never keep appending to one big file.
+- Split by feature or by instruction, never by line count. One file covers one feature or one instruction. A topic with several features (USSD, AI review) gets its own folder, a `context.md` that lists the files, and one file per feature. Never keep appending to one big file.
+- When a new feature or instruction does not fit an existing file, give it its own file, add a line to the folder `context.md`, and link to related files instead of copying their facts.
 - Read only the files a task needs. Start at this router, then the folder `context.md`, then the one file.
