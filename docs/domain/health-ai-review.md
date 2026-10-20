@@ -1,5 +1,7 @@
 # Health reports and AI review
 
+Related: decisions in [../decisions/2026-10-20-ai-review-design.md](../decisions/2026-10-20-ai-review-design.md) · settings in [../ops/env-and-seeders.md](../ops/env-and-seeders.md) · storage in [../ops/deployment-railway.md](../ops/deployment-railway.md) · task steps in [../tasks/](../tasks/context.md).
+
 ## Existing flow
 A farmer reports a problem on a farm unit with a photo, a description and an optional voice note. The report is routed by the unit's farm category: Crop goes to an adviser, Livestock and Aquatic go to a vet (`OfficerRole::fromFarmCategory`). The officer responds. Services are in `app/Services/DiseaseReports/`. Offline reports wait without a photo until it arrives (status `waiting_for_photo`).
 

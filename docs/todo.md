@@ -37,6 +37,7 @@ Legend: [x] done · [~] in progress · [ ] not started · [?] unverified, check 
 - [ ] Full PostgreSQL suite for the batch
 
 ### 4. Crop and vet AI review (branch `feature/ai-health-review`, not pushed)
+Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · [slice 4](tasks/ai-review-slice-4-officer-screen.md) · [slice 5](tasks/ai-review-slice-5-category-admin.md) · [bucket check](tasks/verify-bucket-on-staging.md)
 - [x] Slice 1: health categories (table, model, seeder)
 - [x] Slice 2: OpenRouter adapter `HealthImageReviewer`
 - [x] Web report photos and voice notes on `PHOTO_DISK`; S3 package installed
@@ -79,6 +80,7 @@ Legend: [x] done · [~] in progress · [ ] not started · [?] unverified, check 
 
 ## Docs
 - [x] Restructure the .md files into docs/ (2026-10-20)
+- [x] Handoff folder and task files so a new chat can just "continue" (2026-10-20)
 
 ## Older items from the archived phase-2 handoff (unverified)
 - Railway has no scheduler, so `verification:expire` may never run in production

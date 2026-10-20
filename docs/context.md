@@ -4,6 +4,8 @@ Start here. Find the topic, open the folder, read its `context.md`, then only th
 
 | You are about to... | Go to |
 |---|---|
+| Start a session ("continue", "let's continue") or end one | handoff/ (read current.md first) |
+| Do the steps of one piece of work | tasks/ |
 | Pick the next task, or record that one is done | todo.md |
 | Understand what the product is, the stack or the roadmap | project/ |
 | Commit, test, write a reply, write UI or touch security | rules/ |
