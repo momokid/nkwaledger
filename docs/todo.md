@@ -41,7 +41,8 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 - [x] Slice 1: health categories (table, model, seeder)
 - [x] Slice 2: OpenRouter adapter `HealthImageReviewer`
 - [x] Web report photos and voice notes on `PHOTO_DISK`; S3 package installed
-- [~] Slice 3: queued job after the photo is stored (web and offline); columns on `disease_reports` for the draft, confidence, model, urgent flag and the officer verdict; 70% rule
+- [x] Slice 3: queued job `ReviewDiseaseReport` after the photo is stored (web and offline), `ai_*` columns on `disease_reports`, 70% rule in `services.openrouter.min_confidence`. The officer verdict columns come in slice 4.
+- [ ] Confirm a queue worker runs on Railway (the job needs one)
 - [ ] Slice 4: officer screen to confirm or edit the draft
 - [ ] Slice 5: admin page to add and rename categories
 - [ ] Photo-quality check and its wording (needs owner approval)
