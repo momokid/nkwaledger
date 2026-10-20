@@ -18,6 +18,7 @@ beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
     Storage::fake('public');
+    config(['filesystems.photo_disk' => 'public']);
 
     $this->agent = User::factory()->create();
     $this->agent->assignRole('agent');
