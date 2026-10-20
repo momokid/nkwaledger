@@ -35,6 +35,7 @@ class DiseaseReport extends Model
 
     protected $attributes = [
         'status' => 'new',
+        'ai_urgent' => false,
     ];
 
     protected function casts(): array
@@ -43,6 +44,8 @@ class DiseaseReport extends Model
             'routed_role' => OfficerRole::class,
             'status' => DiseaseReportStatus::class,
             'contact_method' => ContactMethod::class,
+            'ai_urgent' => 'boolean',
+            'ai_reviewed_at' => 'datetime',
         ];
     }
 
@@ -112,6 +115,11 @@ class DiseaseReport extends Model
             ->where('farm_unit_id', $farmUnitId)
             ->when($excludingReportId, fn(Builder $q) => $q->where('id', '!=', $excludingReportId))
             ->orderByDesc('created_at');
+    }
+
+    public function healthCategory(): BelongsTo
+    {
+        return $this->belongsTo(HealthCategory::class);
     }
 
     public function farmUnit(): BelongsTo

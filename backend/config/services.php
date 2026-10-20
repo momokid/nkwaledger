@@ -44,6 +44,8 @@ return [
         'key'   => env('OPENROUTER_API_KEY'),
         'model' => env('OPENROUTER_MODEL', 'qwen/qwen3-vl-235b-a22b-instruct'),
         'url'   => env('OPENROUTER_URL', 'https://openrouter.ai/api/v1'),
+        // at or above this the officer sees the AI category as a suggestion
+        'min_confidence' => 0.70,
     ],
 
     'ussd' => [

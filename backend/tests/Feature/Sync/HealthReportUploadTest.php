@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\OfficerRole;
+use App\Jobs\ReviewDiseaseReport;
 use App\Models\AgentOfficerAssignment;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -463,4 +465,15 @@ it('says both files are stored when the web form already sent the report', funct
 
     $this->actingAs($this->farmerUser)->getJson(hrUrl($uuid, 'photo'))->assertJson(['state' => 'complete']);
     $this->actingAs($this->farmerUser)->getJson(hrUrl($uuid, 'audio'))->assertJson(['state' => 'complete']);
+});
+
+it('queues an AI review once the photo arrives, and not for a voice note', function () {
+    Queue::fake();
+    $uuid = hrWaiting();
+
+    hrSend($uuid, 'audio', hrVoiceBytes())->assertJson(['state' => 'complete']);
+    Queue::assertNothingPushed();
+
+    hrSend($uuid, 'photo', hrPhotoBytes())->assertJson(['state' => 'complete']);
+    Queue::assertPushed(ReviewDiseaseReport::class, fn($job) => $job->reportId === hrReport()->id);
 });
