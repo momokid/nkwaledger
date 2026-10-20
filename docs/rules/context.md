@@ -11,4 +11,5 @@ How to work on this project. One topic per file.
 | report-format.md | When ending a task with a report |
 | ui-and-frontend.md | Before any page or component work |
 | security.md | Before anything touching login, phones, PINs, data or permissions |
+| session-hygiene.md | At the end of every task, to decide whether to suggest a new session |
 | chat-sessions.md | Only in a chat session, not in Claude Code |

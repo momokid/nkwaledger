@@ -20,4 +20,4 @@ Read `docs/context.md` first. It routes you to the right folder, and each folder
 - Never invent user-facing text. Use only wording the owner approved. Dates shown are DD/MM/YYYY.
 - No numeric database id in any page prop, response, link or notification. Use uuids.
 - Keep replies short and plain, like for an 8th grader. Go into detail only for risks to money, security or user data.
-- End every task with the report in `docs/rules/report-format.md`.
+- End every task with the report in `docs/rules/report-format.md`, and say whether a new session would be safer (`docs/rules/session-hygiene.md`).
