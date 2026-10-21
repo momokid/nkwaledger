@@ -37,6 +37,18 @@ interface ReportDetail {
     contact_method: string | null;
     response_note: string | null;
     created_at: string;
+    ai: {
+        category_uuid: string | null;
+        category: string | null;
+        note: string | null;
+        urgent: boolean;
+    };
+    officer_category_uuid: string | null;
+}
+
+interface CategoryOption {
+    uuid: string;
+    name: string;
 }
 
 interface HistoryRow {
@@ -49,6 +61,7 @@ interface HistoryRow {
 interface Props {
     report: ReportDetail;
     history: HistoryRow[];
+    categories: CategoryOption[];
     basePath: string;
 }
 
@@ -61,7 +74,7 @@ export default function ReportShow(props: Props) {
     );
 }
 
-function ReportShowContent({ report, history, basePath }: Props) {
+function ReportShowContent({ report, history, categories, basePath }: Props) {
     const { errors, flash } = usePage().props as unknown as {
         errors: Record<string, string>;
         flash: { success?: string };
@@ -155,6 +168,19 @@ function ReportShowContent({ report, history, basePath }: Props) {
 
         form.post(`${basePath}/reports/${report.uuid}/respond`, {
             preserveScroll: true,
+        });
+    };
+
+    const categoryForm = useForm({
+        health_category: report.officer_category_uuid ?? report.ai.category_uuid ?? "",
+    });
+    const [changing, setChanging] = useState(false);
+
+    const saveCategory = (uuid: string) => {
+        categoryForm.transform(() => ({ health_category: uuid }));
+        categoryForm.post(`${basePath}/reports/${report.uuid}/category`, {
+            preserveScroll: true,
+            onSuccess: () => setChanging(false),
         });
     };
 
@@ -385,6 +411,91 @@ function ReportShowContent({ report, history, basePath }: Props) {
                     {flash.success}
                 </div>
             )}
+
+            {(report.ai.category !== null || report.ai.urgent) && (
+                <div
+                    className="p-6 mb-5"
+                    style={{ background: surface, border: `1px solid ${border}` }}
+                >
+                    {report.ai.urgent && (
+                        <p style={{ color: "#B91C1C", fontWeight: 700, fontSize: "1.0625rem" }}>
+                            Possible urgent case
+                        </p>
+                    )}
+
+                    {report.ai.category !== null && (
+                        <>
+                            <p
+                                style={{
+                                    fontSize: "0.9375rem",
+                                    fontWeight: 600,
+                                    color: textSecondary,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.03em",
+                                }}
+                            >
+                                AI suggestion
+                            </p>
+                            <p style={{ color: text, fontWeight: 600, fontSize: "1.1875rem", marginTop: "4px" }}>
+                                {report.ai.category}
+                            </p>
+                            {report.ai.note && (
+                                <p style={{ color: text, marginTop: "6px", fontSize: "1.0625rem" }}>
+                                    {report.ai.note}
+                                </p>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+
+            <div
+                className="p-6 mb-5"
+                style={{ background: surface, border: `1px solid ${border}` }}
+            >
+                <label style={label}>Category</label>
+                {changing || report.ai.category === null ? (
+                    <select
+                        style={field}
+                        value={categoryForm.data.health_category}
+                        onChange={(event) => {
+                            categoryForm.setData("health_category", event.target.value);
+                            if (event.target.value) saveCategory(event.target.value);
+                        }}
+                    >
+                        <option value="">Choose one</option>
+                        {categories.map((option) => (
+                            <option key={option.uuid} value={option.uuid}>
+                                {option.name}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    <div className="flex gap-3 flex-wrap">
+                        <Button
+                            type="button"
+                            busy={categoryForm.processing}
+                            busyLabel="Saving..."
+                            onClick={() => saveCategory(report.ai.category_uuid as string)}
+                        >
+                            Confirm
+                        </Button>
+                        <button
+                            type="button"
+                            onClick={() => setChanging(true)}
+                            style={{ ...field, width: "auto", cursor: "pointer", fontWeight: 600 }}
+                        >
+                            Choose a different category
+                        </button>
+                    </div>
+                )}
+                {errors.health_category && <p style={errorText}>{errors.health_category}</p>}
+                {report.officer_category_uuid && (
+                    <p style={{ color: textSecondary, marginTop: "6px", fontSize: "1rem" }}>
+                        {categories.find((c) => c.uuid === report.officer_category_uuid)?.name}
+                    </p>
+                )}
+            </div>
 
             <div
                 className="p-6 mb-5"

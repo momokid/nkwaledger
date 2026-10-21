@@ -46,6 +46,7 @@ class DiseaseReport extends Model
             'contact_method' => ContactMethod::class,
             'ai_urgent' => 'boolean',
             'ai_reviewed_at' => 'datetime',
+            'officer_reviewed_at' => 'datetime',
         ];
     }
 
@@ -102,6 +103,18 @@ class DiseaseReport extends Model
         ])->save();
     }
 
+    // the verdict is only measured against a draft the officer was actually shown
+    public function setOfficerCategory(HealthCategory $category): void
+    {
+        $shown = $this->ai_status === 'ready' && $this->health_category_id !== null;
+
+        $this->forceFill([
+            'officer_health_category_id' => $category->id,
+            'officer_verdict' => ! $shown ? null : ($this->health_category_id === $category->id ? 'agreed' : 'edited'),
+            'officer_reviewed_at' => now(),
+        ])->save();
+    }
+
     public function scopeAwaitingOfficer(Builder $query): Builder
     {
         return $query->whereNull('assigned_officer_id');
@@ -120,6 +133,11 @@ class DiseaseReport extends Model
     public function healthCategory(): BelongsTo
     {
         return $this->belongsTo(HealthCategory::class);
+    }
+
+    public function officerHealthCategory(): BelongsTo
+    {
+        return $this->belongsTo(HealthCategory::class, 'officer_health_category_id');
     }
 
     public function farmUnit(): BelongsTo

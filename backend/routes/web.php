@@ -192,6 +192,8 @@ Route::middleware(['auth', 'role:vet', 'verified.phone'])->prefix('vet')->name('
     Route::middleware('access:disease-reports.respond')->group(function () {
         Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
             ->name('reports.respond');
+        Route::post('/reports/{report:uuid}/category', [OfficerDiseaseReportController::class, 'setCategory'])
+            ->name('reports.category');
     });
 });
 
@@ -204,6 +206,8 @@ Route::middleware(['auth', 'role:adviser', 'verified.phone'])->prefix('adviser')
     Route::middleware('access:disease-reports.respond')->group(function () {
         Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
             ->name('reports.respond');
+        Route::post('/reports/{report:uuid}/category', [OfficerDiseaseReportController::class, 'setCategory'])
+            ->name('reports.category');
     });
 });
 
