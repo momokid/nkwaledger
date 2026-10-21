@@ -6,4 +6,4 @@
 - The AI is given the current active list each time.
 - `HealthCategorySeeder` fills the first list: 9 Crop, 9 Livestock and 7 Aquatic, each ending with "Not sure". It skips a farm category that already has a list, so admin edits survive a re-seed. Run it once after deploy (see [../../ops/env-and-seeders.md](../../ops/env-and-seeders.md)).
 - Seeder note: DatabaseSeeder runs with model events off, so the seeder sets the uuid itself.
-- The admin page to manage them is not built yet: [../../tasks/ai-review-slice-5-category-admin.md](../../tasks/ai-review-slice-5-category-admin.md).
+- Admin page: `/admin/health-categories`, permission `health-categories.manage` (admin default). Add (goes last), rename, move up/down (renumbers the list), switch on/off. No delete route. The farm category is sent by name because `farm_type_categories` has no uuid. Task: [../../tasks/ai-review-slice-5-category-admin.md](../../tasks/ai-review-slice-5-category-admin.md).

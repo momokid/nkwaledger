@@ -1,13 +1,13 @@
 # Current handoff
 
-Written: 2026-10-21 (after slice 4). Rewrite this at every stopping point.
+Written: 2026-10-21 (after slice 5). Rewrite this at every stopping point.
 
 ## Where we are
 - Branch: `feature/ai-health-review`. `develop` was merged into it (conflicts resolved). The owner pushes it. The full PostgreSQL suite is still pending for this batch; do not run it until asked.
-- Last code work: slice 4, the officer screen and verdict columns, plus a PostgreSQL test fix. The owner pushes. Run `git log --oneline -5` for the latest commits.
+- Last code work: slice 5, the admin page for health categories ([task](../tasks/ai-review-slice-5-category-admin.md)). The owner pushes. Run `git log --oneline -5` for the latest commits.
 
 ## Active task
-[tasks/ai-review-slice-5-category-admin.md](../tasks/ai-review-slice-5-category-admin.md): admin page to add and rename categories. Ask before adding routes, UI or wording.
+None. Slices 1 to 5 of the AI health review are built. Next: the owner decides on the full PostgreSQL run, the push, and the items below.
 
 ## Waiting on the owner
 - Railway had a build pause on 21/10; hold the staging checks until it clears.

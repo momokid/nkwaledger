@@ -44,7 +44,7 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 - [x] Slice 3: queued job `ReviewDiseaseReport` after the photo is stored (web and offline), `ai_*` columns on `disease_reports`, 70% rule in `services.openrouter.min_confidence`. The officer verdict columns come in slice 4.
 - [ ] Confirm a queue worker runs on Railway (the job needs one)
 - [x] Slice 4: officer screen shows the draft (only when `ai_status` is `ready`; urgent always), Confirm or pick another category, stores `officer_health_category_id`, `officer_verdict` (`agreed`/`edited`/`disagreed` (Reject suggestion), null when no draft was shown) and `officer_reviewed_at`
-- [ ] Slice 5: admin page to add and rename categories
+- [x] Slice 5: admin page `/admin/health-categories` (permission `health-categories.manage`): add, rename, move up/down, switch on/off. No delete route.
 - [ ] Photo-quality check and its wording (needs owner approval)
 - [ ] EPA pesticide list as a CSV from the owner
 - [ ] Fallback model; daily cap per farmer
