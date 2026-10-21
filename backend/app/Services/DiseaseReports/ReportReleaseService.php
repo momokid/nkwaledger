@@ -4,6 +4,7 @@ namespace App\Services\DiseaseReports;
 
 use App\Enums\DiseaseReportStatus;
 use App\Enums\OfficerRole;
+use App\Jobs\ReviewDiseaseReport;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
@@ -47,6 +48,10 @@ class ReportReleaseService
 
         if ($released === null) {
             Storage::disk($disk)->delete($photoPath);
+        }
+
+        if ($released !== null) {
+            ReviewDiseaseReport::send($reportId);
         }
 
         return $released !== null;

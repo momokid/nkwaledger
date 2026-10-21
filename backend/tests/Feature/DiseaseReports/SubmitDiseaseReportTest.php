@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\OfficerRole;
+use App\Jobs\ReviewDiseaseReport;
 use App\Models\AgentOfficerAssignment;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
@@ -10,7 +11,9 @@ use App\Models\FarmUnit;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
@@ -221,4 +224,27 @@ it('keeps the photo and voice note on the photo disk and records which disk that
     Storage::disk('local')->assertExists($report->photo_path);
     Storage::disk('local')->assertExists($report->audio_path);
     Storage::disk('public')->assertMissing($report->photo_path);
+});
+
+it('queues an AI review for a new web report', function () {
+    Queue::fake();
+
+    $this->actingAs($this->farmerUser)->post("/my-farm/{$this->unit->id}/report-problem", [
+        'description' => 'Some birds look weak.',
+        'photo' => UploadedFile::fake()->image('sick.jpg'),
+    ])->assertRedirect(route('my-farm.index'));
+
+    Queue::assertPushed(ReviewDiseaseReport::class, fn($job) => $job->reportId === DiseaseReport::first()->id);
+});
+
+it('still saves the report when the queue is down', function () {
+    // a thrown error, not a bad SQL table: on PostgreSQL a failed statement aborts the test's open transaction
+    $this->mock(Dispatcher::class)->shouldReceive('dispatch')->andThrow(new RuntimeException('queue down'));
+
+    $this->actingAs($this->farmerUser)->post("/my-farm/{$this->unit->id}/report-problem", [
+        'description' => 'Some birds look weak.',
+        'photo' => UploadedFile::fake()->image('sick.jpg'),
+    ])->assertRedirect(route('my-farm.index'))->assertSessionHas('success');
+
+    expect(DiseaseReport::count())->toBe(1);
 });

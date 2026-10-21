@@ -1,20 +1,17 @@
 # Current handoff
 
-Written: 2026-10-20. Rewrite this at every stopping point.
+Written: 2026-10-21 (after slice 4). Rewrite this at every stopping point.
 
 ## Where we are
-- Branch: `feature/ai-health-review` (cut from `origin/develop`). Run `git log --oneline -8` to see the latest commits.
-- Nothing is pushed. Push rule: [rules/git-and-commits.md](../rules/git-and-commits.md). Blocked for now: the full PostgreSQL suite is still pending for this batch. The owner said not now (2026-10-20), so do not run it or push until asked. Finished so far on this branch: health categories, the AI adapter, and the photo disk and S3 fix.
-- Last code work: web report photos and voice notes now use `PHOTO_DISK`, and the S3 package is installed. Docs restructure and the handoff folder are committed after it.
+- Branch: `feature/ai-health-review`. `develop` was merged into it (conflicts resolved). The owner pushes it. The full PostgreSQL suite is still pending for this batch; do not run it until asked.
+- Last code work: slice 4, the officer screen and verdict columns, plus a PostgreSQL test fix. The owner pushes. Run `git log --oneline -5` for the latest commits.
 
 ## Active task
-[tasks/ai-review-slice-3-job.md](../tasks/ai-review-slice-3-job.md) — the queued job that asks the AI for a draft review after a photo is stored. Not started. Tests come first.
-
-## Next after that
-- [tasks/ai-review-slice-4-officer-screen.md](../tasks/ai-review-slice-4-officer-screen.md)
-- [tasks/ai-review-slice-5-category-admin.md](../tasks/ai-review-slice-5-category-admin.md)
+[tasks/ai-review-slice-5-category-admin.md](../tasks/ai-review-slice-5-category-admin.md): admin page to add and rename categories. Ask before adding routes, UI or wording.
 
 ## Waiting on the owner
+- Railway had a build pause on 21/10; hold the staging checks until it clears.
+- Confirm a queue worker runs on Railway; the AI job needs one.
 - [tasks/verify-bucket-on-staging.md](../tasks/verify-bucket-on-staging.md): set `PHOTO_DISK=s3` on staging, submit one test report, check the photo loads.
 - The EPA pesticide list as a CSV.
 - Approval of any new wording (photo-quality message, officer screen labels).

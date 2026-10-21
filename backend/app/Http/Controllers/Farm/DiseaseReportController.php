@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Farm;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DiseaseReports\StoreDiseaseReportRequest;
+use App\Jobs\ReviewDiseaseReport;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
@@ -102,6 +103,7 @@ class DiseaseReportController extends Controller
             [$report, $officer, $role] = $created;
 
             $this->release->notifySubmission($report, $user, $farmer, $farmUnit, $officer, $role);
+            ReviewDiseaseReport::send($report->id);
         }
 
         return redirect()

@@ -1,6 +1,6 @@
 # AI review, slice 3: the queued job
 
-Status: active, not started. Branch: `feature/ai-health-review`.
+Status: built, committed once the full suite is green. Branch: `feature/ai-health-review`.
 
 ## Goal
 After a disease report has its photo stored, a background job asks the AI for a draft review and saves it on the report. The officer can use it later (slice 4). The farmer never sees it.
@@ -34,4 +34,5 @@ After a disease report has its photo stored, a background job asks the AI for a 
 Full suite green, committed, `docs/todo.md` ticked, this file's log updated, `docs/handoff/current.md` rewritten.
 
 ## Log
-- 2026-10-20: task written. Nothing built yet.
+- 2026-10-20: task written.
+- 2026-10-20: built. Migration `add_ai_review_to_disease_reports_table`, job `app/Jobs/ReviewDiseaseReport.php`, dispatch in both paths. The officer verdict columns are left for slice 4. Open: confirm a queue worker runs on Railway.
