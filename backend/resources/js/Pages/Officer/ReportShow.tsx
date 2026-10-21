@@ -175,9 +175,13 @@ function ReportShowContent({ report, history, categories, basePath }: Props) {
         health_category: report.officer_category_uuid ?? report.ai.category_uuid ?? "",
     });
     const [changing, setChanging] = useState(false);
+    const [rejecting, setRejecting] = useState(false);
 
     const saveCategory = (uuid: string) => {
-        categoryForm.transform(() => ({ health_category: uuid }));
+        categoryForm.transform(() => ({
+            health_category: uuid,
+            ...(rejecting ? { rejected: true } : {}),
+        }));
         categoryForm.post(`${basePath}/reports/${report.uuid}/category`, {
             preserveScroll: true,
             onSuccess: () => setChanging(false),
@@ -486,6 +490,16 @@ function ReportShowContent({ report, history, categories, basePath }: Props) {
                             style={{ ...field, width: "auto", cursor: "pointer", fontWeight: 600 }}
                         >
                             Choose a different category
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setRejecting(true);
+                                setChanging(true);
+                            }}
+                            style={{ ...field, width: "auto", cursor: "pointer", fontWeight: 600 }}
+                        >
+                            Reject suggestion
                         </button>
                     </div>
                 )}

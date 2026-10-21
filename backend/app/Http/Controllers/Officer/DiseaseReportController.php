@@ -79,7 +79,7 @@ class DiseaseReportController extends Controller
     {
         $this->guardOfficer($request, $report);
 
-        $report->setOfficerCategory($request->category());
+        $report->setOfficerCategory($request->category(), $request->boolean('rejected'));
 
         return back()->with('success', 'Category saved.');
     }

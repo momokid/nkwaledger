@@ -104,13 +104,13 @@ class DiseaseReport extends Model
     }
 
     // the verdict is only measured against a draft the officer was actually shown
-    public function setOfficerCategory(HealthCategory $category): void
+    public function setOfficerCategory(HealthCategory $category, bool $rejected = false): void
     {
         $shown = $this->ai_status === 'ready' && $this->health_category_id !== null;
 
         $this->forceFill([
             'officer_health_category_id' => $category->id,
-            'officer_verdict' => ! $shown ? null : ($this->health_category_id === $category->id ? 'agreed' : 'edited'),
+            'officer_verdict' => ! $shown ? null : ($rejected ? 'disagreed' : ($this->health_category_id === $category->id ? 'agreed' : 'edited')),
             'officer_reviewed_at' => now(),
         ])->save();
     }

@@ -101,6 +101,23 @@ describe('saving the category', function () {
             ->and($report->fresh()->officer_health_category_id)->toBe($this->other->id);
     });
 
+    it('stores disagreed when the officer rejects the draft, even with the same category', function () {
+        $report = ($this->ready)();
+
+        $this->actingAs($this->vet)->post("/vet/reports/{$report->uuid}/category", ['health_category' => $this->weak->uuid, 'rejected' => true]);
+
+        expect($report->fresh()->officer_verdict)->toBe('disagreed')
+            ->and($report->fresh()->officer_health_category_id)->toBe($this->weak->id);
+    });
+
+    it('stores no verdict for a reject when there was no shown draft', function () {
+        $report = ($this->makeReport)();
+
+        $this->actingAs($this->vet)->post("/vet/reports/{$report->uuid}/category", ['health_category' => $this->other->uuid, 'rejected' => true]);
+
+        expect($report->fresh()->officer_verdict)->toBeNull();
+    });
+
     it('stores no verdict when there was no shown draft', function () {
         $report = ($this->makeReport)();
 

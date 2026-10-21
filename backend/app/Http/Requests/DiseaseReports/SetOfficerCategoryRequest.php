@@ -16,6 +16,7 @@ class SetOfficerCategoryRequest extends FormRequest
             'health_category' => ['required', 'uuid', Rule::exists('health_categories', 'uuid')
                 ->where('farm_type_category_id', $farmCategoryId)
                 ->where('is_active', true)],
+            'rejected' => ['sometimes', 'boolean'],
         ];
     }
 
