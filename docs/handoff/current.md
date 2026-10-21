@@ -10,7 +10,6 @@ Written: 2026-10-21 (after slice 4). Rewrite this at every stopping point.
 [tasks/ai-review-slice-5-category-admin.md](../tasks/ai-review-slice-5-category-admin.md): admin page to add and rename categories. Ask before adding routes, UI or wording.
 
 ## Waiting on the owner
-- Whether the officer screen needs a reject button (the `disagreed` verdict is unused).
 - Railway had a build pause on 21/10; hold the staging checks until it clears.
 - Confirm a queue worker runs on Railway; the AI job needs one.
 - [tasks/verify-bucket-on-staging.md](../tasks/verify-bucket-on-staging.md): set `PHOTO_DISK=s3` on staging, submit one test report, check the photo loads.

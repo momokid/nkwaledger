@@ -25,5 +25,6 @@ Full suite plus the TypeScript check and production build pass, committed, todo 
 
 ## Log
 - 2026-10-20: task written.
-- 2026-10-21: owner approved the columns and wording. Built: `POST /{vet|adviser}/reports/{uuid}/category`, `SetOfficerCategoryRequest`, `DiseaseReport::setOfficerCategory`, the card in `Officer/ReportShow.tsx`. Verdict is `agreed` or `edited`; `disagreed` is not used because the screen has no reject button (ask the owner if wanted). Full suite, tsc and build passed.
+- 2026-10-21: owner approved the columns and wording. Built: `POST /{vet|adviser}/reports/{uuid}/category`, `SetOfficerCategoryRequest`, `DiseaseReport::setOfficerCategory`, the card in `Officer/ReportShow.tsx`. Verdict is `agreed` or `edited`.
+- 2026-10-21: owner approved a "Reject suggestion" button; it stores `disagreed` (route field `rejected`). Full suite, tsc and build passed.
 - 2026-10-21: GitHub CI (PostgreSQL) failed on the queue-down test in `SubmitDiseaseReportTest`; a bad SQL table aborts the PG test transaction. Fixed by making the dispatcher throw instead.
