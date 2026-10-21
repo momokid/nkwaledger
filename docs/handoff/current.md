@@ -1,18 +1,17 @@
 # Current handoff
 
-Written: 2026-10-20 (after slice 3). Rewrite this at every stopping point.
+Written: 2026-10-21 (after slice 4). Rewrite this at every stopping point.
 
 ## Where we are
 - Branch: `feature/ai-health-review`. `develop` was merged into it (conflicts resolved). The owner pushes it. The full PostgreSQL suite is still pending for this batch; do not run it until asked.
-- Last code work: slice 3, the queued AI review job and the `ai_*` columns. Run `git log --oneline -5` for the latest commits.
+- Last code work: slice 4, the officer screen and verdict columns, plus a PostgreSQL test fix. The owner pushes. Run `git log --oneline -5` for the latest commits.
 
 ## Active task
-[tasks/ai-review-slice-4-officer-screen.md](../tasks/ai-review-slice-4-officer-screen.md): the officer screen to confirm or edit the draft. Needs the officer verdict columns and owner-approved wording. Ask first.
-
-## Next after that
-- [tasks/ai-review-slice-5-category-admin.md](../tasks/ai-review-slice-5-category-admin.md)
+[tasks/ai-review-slice-5-category-admin.md](../tasks/ai-review-slice-5-category-admin.md): admin page to add and rename categories. Ask before adding routes, UI or wording.
 
 ## Waiting on the owner
+- Whether the officer screen needs a reject button (the `disagreed` verdict is unused).
+- Railway had a build pause on 21/10; hold the staging checks until it clears.
 - Confirm a queue worker runs on Railway; the AI job needs one.
 - [tasks/verify-bucket-on-staging.md](../tasks/verify-bucket-on-staging.md): set `PHOTO_DISK=s3` on staging, submit one test report, check the photo loads.
 - The EPA pesticide list as a CSV.
