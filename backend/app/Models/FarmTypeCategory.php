@@ -40,4 +40,9 @@ class FarmTypeCategory extends Model
     {
         return $this->hasMany(FarmType::class, 'category_id');
     }
+
+    public function healthCategories(): HasMany
+    {
+        return $this->hasMany(HealthCategory::class);
+    }
 }

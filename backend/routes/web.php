@@ -640,6 +640,18 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
             ->name('disease-reports.index');
     });
 
+    // no delete route: a category reports use is switched off, never removed
+    Route::middleware('access:health-categories.manage')->group(function () {
+        Route::get('/health-categories', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'index'])
+            ->name('health-categories.index');
+        Route::post('/health-categories', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'store'])
+            ->name('health-categories.store');
+        Route::patch('/health-categories/{healthCategory}', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'update'])
+            ->name('health-categories.update');
+        Route::patch('/health-categories/{healthCategory}/move', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'move'])
+            ->name('health-categories.move');
+    });
+
     // links an agent to the vets/advisers who handle their farmers' reports
     Route::middleware('access:officer-assignments.view')->group(function () {
         Route::get('/officer-assignments', [OfficerAssignmentController::class, 'index'])
