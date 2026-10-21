@@ -11,6 +11,7 @@ use App\Models\FarmUnit;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -237,7 +238,8 @@ it('queues an AI review for a new web report', function () {
 });
 
 it('still saves the report when the queue is down', function () {
-    config(['queue.default' => 'database', 'queue.connections.database.table' => 'no_such_table']);
+    // a thrown error, not a bad SQL table: on PostgreSQL a failed statement aborts the test's open transaction
+    $this->mock(Dispatcher::class)->shouldReceive('dispatch')->andThrow(new RuntimeException('queue down'));
 
     $this->actingAs($this->farmerUser)->post("/my-farm/{$this->unit->id}/report-problem", [
         'description' => 'Some birds look weak.',
