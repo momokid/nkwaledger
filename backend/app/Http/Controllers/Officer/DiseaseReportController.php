@@ -36,6 +36,7 @@ class DiseaseReportController extends Controller
                 'recent' => $all->where('created_at', '>=', now()->subDays(90))->count(),
             ],
             'field' => $request->user()->hasRole('vet') ? 'livestock' : 'crops',
+            'basePath' => $request->user()->hasRole('vet') ? '/vet' : '/adviser',
         ]);
     }
 

@@ -69,7 +69,8 @@ describe('dashboard', function () {
             ->get('/vet/dashboard')
             ->assertInertia(fn($page) => $page
                 ->where('counts', ['new' => 2, 'reviewed' => 1, 'resolved' => 1, 'recent' => 3])
-                ->where('field', 'livestock'));
+                ->where('field', 'livestock')
+                ->where('basePath', '/vet'));
     });
 
     it('tells the adviser dashboard the field is crops', function () {
@@ -78,7 +79,7 @@ describe('dashboard', function () {
 
         $this->actingAs($adviser)
             ->get('/adviser/dashboard')
-            ->assertInertia(fn($page) => $page->where('field', 'crops'));
+            ->assertInertia(fn($page) => $page->where('field', 'crops')->where('basePath', '/adviser'));
     });
 
     it('marks a row when the AI suggestion is ready', function () {

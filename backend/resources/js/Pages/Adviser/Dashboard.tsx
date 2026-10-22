@@ -19,6 +19,7 @@ interface Props {
     reports: ReportRow[];
     counts: { new: number; reviewed: number; resolved: number; recent: number };
     field: "crops" | "livestock";
+    basePath: string;
 }
 
 type Filter = "new" | "reviewed" | "resolved" | "recent" | null;
@@ -65,7 +66,7 @@ export default function Dashboard(props: Props) {
     );
 }
 
-function DashboardContent({ reports, counts, field }: Props) {
+function DashboardContent({ reports, counts, field, basePath }: Props) {
     const { dark } = useTheme();
     const [filter, setFilter] = useState<Filter>(null);
     const recentLabel = field === "crops" ? "Crop reports, last 90 days" : "Livestock reports, last 90 days";
@@ -134,7 +135,7 @@ function DashboardContent({ reports, counts, field }: Props) {
                 {shown.map((report) => (
                     <Link
                         key={report.uuid}
-                        href={`/adviser/reports/${report.uuid}`}
+                        href={`${basePath}/reports/${report.uuid}`}
                         className="block mb-3 p-4"
                         style={{
                             background: surface,
