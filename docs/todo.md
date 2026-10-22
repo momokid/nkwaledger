@@ -34,7 +34,7 @@ Legend: [x] done · [~] in progress · [ ] not started · [?] unverified, check 
 - [ ] Handset test (a separate session, ussd-handset, is waiting on it)
 - [ ] Twi native-speaker review; Twi wording for "Pending Approvals"
 - [ ] Confirm the meaning of the "100" response code
-- [ ] Full PostgreSQL suite for the batch
+- [x] Full PostgreSQL suite for the batch (22/10: 3686 passed, 9 skipped; sequential-pg 6 passed)
 
 ### 4. Crop and vet AI review (branch `feature/ai-health-review`, not pushed)
 Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · [slice 4](tasks/ai-review-slice-4-officer-screen.md) · [slice 5](tasks/ai-review-slice-5-category-admin.md) · [bucket check](tasks/verify-bucket-on-staging.md)
