@@ -32,3 +32,4 @@ The owner has answered each question. Each approved item then gets its own task 
 
 ## Log
 - 2026-10-22: plan written. Owner chose all four items, plan first.
+- 2026-10-22: owner decisions. Order: (1) adviser dashboard rebuild, (2) Weather = a linked farmer's weather at a new adviser route, (3) Crops = trends from received crop and livestock reports over the last 90 days (news feed later, no source chosen), (4) Consultations = list of reports the officer answered, using existing `respond`. The vet gets the same dashboard and trends for livestock. Each slice needs wording approval first.

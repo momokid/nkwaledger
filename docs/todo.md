@@ -55,6 +55,13 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 - [ ] Run `HealthCategorySeeder` after deploy
 - [ ] Review the instruction text in `HealthImageReviewer.php`
 
+### 4b. Adviser and vet menu items
+Task file: [tasks/adviser-menu-items.md](tasks/adviser-menu-items.md)
+- [ ] 1 Adviser dashboard rebuild · [ ] 2 Weather · [ ] 3 Crops trends (90 days) · [ ] 4 Consultations list · [ ] News feed (later, source not chosen)
+
+### 4c. Loan credit score
+- [ ] Not built. Only the gate `FarmerEligibilityService::canBeCreditScored` and the text "Not yet available" in `AgentReportsController` exist. Needs its own plan: inputs, formula, who sees it, wording.
+
 ### 5. Fertilizer calculator
 - [ ] Not started. Idea notes in ideas/feature-backlog.md.
 
