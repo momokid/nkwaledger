@@ -21,15 +21,21 @@ class DiseaseReportController extends Controller
 
     public function dashboard(Request $request): Response
     {
-        $reports = DiseaseReport::query()
+        $all = DiseaseReport::query()
             ->where('assigned_officer_id', $request->user()->id)
             ->with(['farmUnit', 'farmerProfile.user'])
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn(DiseaseReport $report) => $this->summarise($report));
+            ->get();
 
         return Inertia::render($this->dashboardPage($request), [
-            'reports' => $reports,
+            'reports' => $all->map(fn(DiseaseReport $report) => $this->summarise($report)),
+            'counts' => [
+                'new' => $all->where('status', DiseaseReportStatus::New)->count(),
+                'reviewed' => $all->where('status', DiseaseReportStatus::Reviewed)->count(),
+                'resolved' => $all->where('status', DiseaseReportStatus::Resolved)->count(),
+                'recent' => $all->where('created_at', '>=', now()->subDays(90))->count(),
+            ],
+            'field' => $request->user()->hasRole('vet') ? 'livestock' : 'crops',
         ]);
     }
 
@@ -136,6 +142,7 @@ class DiseaseReportController extends Controller
             'category' => $report->category,
             'status' => $report->status->value,
             'created_at' => $report->created_at->toDateString(),
+            'ai_ready' => $report->ai_status === 'ready',
         ];
     }
 
