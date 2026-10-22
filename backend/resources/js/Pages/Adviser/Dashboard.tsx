@@ -20,6 +20,7 @@ interface Props {
     counts: { new: number; reviewed: number; resolved: number; recent: number };
     field: "crops" | "livestock";
     basePath: string;
+    categoryName: string | null;
 }
 
 type Filter = "new" | "reviewed" | "resolved" | "recent" | null;
@@ -66,7 +67,7 @@ export default function Dashboard(props: Props) {
     );
 }
 
-function DashboardContent({ reports, counts, field, basePath }: Props) {
+function DashboardContent({ reports, counts, field, basePath, categoryName }: Props) {
     const { dark } = useTheme();
     const [filter, setFilter] = useState<Filter>(null);
     const recentLabel = field === "crops" ? "Crop reports, last 90 days" : "Livestock reports, last 90 days";
@@ -106,6 +107,15 @@ function DashboardContent({ reports, counts, field, basePath }: Props) {
                     </button>
                 ))}
             </div>
+
+            {categoryName !== null && (
+                <div className="mt-4" style={{ color: textSecondary, fontSize: "1rem" }}>
+                    Showing: {categoryName}{" "}
+                    <Link href={`${basePath}/dashboard`} style={{ color: "#1D9E75", fontWeight: 600 }}>
+                        Show all
+                    </Link>
+                </div>
+            )}
 
             {filter !== null && (
                 <div className="mt-4" style={{ color: textSecondary, fontSize: "1rem" }}>

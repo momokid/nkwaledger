@@ -241,9 +241,9 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             },
             {
                 label: "Livestock",
-                href: "#",
+                href: "/vet/trends",
                 icon: IconStethoscope,
-                ready: false,
+                ready: true,
             },
             {
                 label: "Consultations",
@@ -278,7 +278,7 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
                 icon: IconLayoutDashboard,
                 ready: true,
             },
-            { label: "Crops", href: "#", icon: IconPlant, ready: false },
+            { label: "Crops", href: "/adviser/trends", icon: IconPlant, ready: true },
             {
                 label: "Consultations",
                 href: "#",

@@ -115,6 +115,13 @@ class DiseaseReport extends Model
         ])->save();
     }
 
+    // what the officer chose, else the AI draft they were shown, else nothing
+    public function effectiveHealthCategory(): ?HealthCategory
+    {
+        return $this->officerHealthCategory
+            ?? ($this->ai_status === 'ready' ? $this->healthCategory : null);
+    }
+
     public function scopeAwaitingOfficer(Builder $query): Builder
     {
         return $query->whereNull('assigned_officer_id');

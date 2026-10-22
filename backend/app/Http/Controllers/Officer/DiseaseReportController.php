@@ -23,12 +23,21 @@ class DiseaseReportController extends Controller
     {
         $all = DiseaseReport::query()
             ->where('assigned_officer_id', $request->user()->id)
-            ->with(['farmUnit', 'farmerProfile.user'])
+            ->with(['farmUnit', 'farmerProfile.user', 'officerHealthCategory', 'healthCategory'])
             ->orderByDesc('created_at')
             ->get();
 
+        // the trends page links here with ?category={health category uuid} or "none"
+        $category = $request->query('category');
+        $listed = $category === null ? $all : $all->filter(
+            fn(DiseaseReport $report) => ($report->effectiveHealthCategory()?->uuid ?? 'none') === $category,
+        );
+
         return Inertia::render($this->dashboardPage($request), [
-            'reports' => $all->map(fn(DiseaseReport $report) => $this->summarise($report)),
+            'reports' => $listed->values()->map(fn(DiseaseReport $report) => $this->summarise($report)),
+            'categoryName' => $category === null ? null : ($category === 'none'
+                ? 'Not yet categorised'
+                : HealthCategory::query()->where('uuid', $category)->value('name')),
             'counts' => [
                 'new' => $all->where('status', DiseaseReportStatus::New)->count(),
                 'reviewed' => $all->where('status', DiseaseReportStatus::Reviewed)->count(),
