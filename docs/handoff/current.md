@@ -7,7 +7,7 @@ Written: 2026-10-21 (after slice 5). Rewrite this at every stopping point.
 - Last code work: slice 5, the admin page for health categories ([task](../tasks/ai-review-slice-5-category-admin.md)). The owner pushes. Run `git log --oneline -5` for the latest commits.
 
 ## Active task
-Adviser menu items, slice 1 (adviser dashboard) is built; see [tasks/adviser-menu-items.md](../tasks/adviser-menu-items.md). Next: the same dashboard for the vet, then Weather, Crops trends, Consultations. The full PostgreSQL run passed for AI review slices 1 to 5 only, so the dashboard change is covered by SQLite and the area tests until the next batch run. The owner pushes.
+Adviser menu items: slice 1 (adviser and vet dashboard) is built; see [tasks/adviser-menu-items.md](../tasks/adviser-menu-items.md). Next: Weather, Crops trends, Consultations, each needing the owner's wording first. The full PostgreSQL run covered AI review slices 1 to 5 only; the dashboard change is covered by SQLite and the area tests. The owner pushes.
 
 ## Waiting on the owner
 - Railway had a build pause on 21/10; hold the staging checks until it clears.
