@@ -57,7 +57,7 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 
 ### 4b. Adviser and vet menu items
 Task file: [tasks/adviser-menu-items.md](tasks/adviser-menu-items.md)
-- [x] 1 Adviser dashboard rebuild and vet page · [x] 2 Weather (done, adviser and vet) · [ ] 3 Crops trends (90 days) · [ ] 4 Consultations list · [ ] News feed (later, source not chosen)
+- [x] 1 Adviser dashboard rebuild and vet page · [x] 2 Weather (done, adviser and vet) · [x] 3 Crops and livestock trends (90 days) · [ ] 4 Consultations list · [ ] News feed (later, source not chosen)
 
 ### 4c. Loan credit score
 - [ ] Not built. Only the gate `FarmerEligibilityService::canBeCreditScored` and the text "Not yet available" in `AgentReportsController` exist. Needs its own plan: inputs, formula, who sees it, wording.

@@ -36,3 +36,4 @@ The owner has answered each question. Each approved item then gets its own task 
 - 2026-10-22: slice 1 built for the adviser: 4 cards (New, Reviewed, Resolved, Crop reports last 90 days) that filter the list, AI tag, DD/MM/YYYY dates. Vet page not changed yet (props already sent). Wording approved by owner.
 - 2026-10-22: vet dashboard done: Vet/Dashboard re-exports the adviser page; server sends field and basePath. Next: Weather, Crops trends, Consultations.
 - 2026-10-22: Weather done for adviser and vet: /adviser|vet/weather (list of farmers who sent the officer a report) and /weather/{farmer uuid} reusing MyWeather/Index; Weather now live in both menus. Next: Crops trends, Consultations.
+- 2026-10-22: Trends done: /adviser|vet/trends (reports received, most reported problems, by week, by community), category link filters the dashboard (?category=uuid|none). Menu items Crops (adviser) and Livestock (vet) live. Wording approved. Next: Consultations list.
