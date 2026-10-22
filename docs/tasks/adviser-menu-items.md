@@ -1,6 +1,6 @@
 # Adviser and vet menu items
 
-Status: plan only. Nothing built. Waiting on the owner's answers below.
+Status: done except the news feed (later).
 
 ## Goal
 Decide what each greyed-out adviser menu item does, and whether to add a link to the report queue.
@@ -37,3 +37,4 @@ The owner has answered each question. Each approved item then gets its own task 
 - 2026-10-22: vet dashboard done: Vet/Dashboard re-exports the adviser page; server sends field and basePath. Next: Weather, Crops trends, Consultations.
 - 2026-10-22: Weather done for adviser and vet: /adviser|vet/weather (list of farmers who sent the officer a report) and /weather/{farmer uuid} reusing MyWeather/Index; Weather now live in both menus. Next: Crops trends, Consultations.
 - 2026-10-22: Trends done: /adviser|vet/trends (reports received, most reported problems, by week, by community), category link filters the dashboard (?category=uuid|none). Menu items Crops (adviser) and Livestock (vet) live. Wording approved. Next: Consultations list.
+- 2026-10-22: Consultations done: /adviser|vet/consultations, new column disease_reports.responded_at (set on respond, backfilled from updated_at). Wording approved. All four menu items done; news feed still later.
