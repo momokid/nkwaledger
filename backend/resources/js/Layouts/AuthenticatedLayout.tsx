@@ -247,9 +247,9 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             },
             {
                 label: "Consultations",
-                href: "#",
+                href: "/vet/consultations",
                 icon: IconHelpCircle,
-                ready: false,
+                ready: true,
             },
         ],
         tools: [
@@ -281,9 +281,9 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             { label: "Crops", href: "/adviser/trends", icon: IconPlant, ready: true },
             {
                 label: "Consultations",
-                href: "#",
+                href: "/adviser/consultations",
                 icon: IconHelpCircle,
-                ready: false,
+                ready: true,
             },
         ],
         tools: [

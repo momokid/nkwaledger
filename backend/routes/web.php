@@ -50,6 +50,7 @@ use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
 use App\Http\Controllers\Officer\FarmerWeatherController as OfficerFarmerWeatherController;
 use App\Http\Controllers\Officer\TrendsController as OfficerTrendsController;
+use App\Http\Controllers\Officer\ConsultationsController as OfficerConsultationsController;
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Loans\AgentLoanController;
 use App\Http\Controllers\Loans\AgentRepaymentController;
@@ -192,6 +193,7 @@ Route::middleware(['auth', 'role:vet', 'verified.phone'])->prefix('vet')->name('
             ->name('reports.show');
         Route::get('/weather', [OfficerFarmerWeatherController::class, 'index'])->name('weather.index');
         Route::get('/trends', [OfficerTrendsController::class, 'index'])->name('trends.index');
+        Route::get('/consultations', [OfficerConsultationsController::class, 'index'])->name('consultations.index');
         Route::get('/weather/{farmerUuid}', [OfficerFarmerWeatherController::class, 'show'])->name('weather.show');
     });
     Route::middleware('access:disease-reports.respond')->group(function () {
@@ -209,6 +211,7 @@ Route::middleware(['auth', 'role:adviser', 'verified.phone'])->prefix('adviser')
             ->name('reports.show');
         Route::get('/weather', [OfficerFarmerWeatherController::class, 'index'])->name('weather.index');
         Route::get('/trends', [OfficerTrendsController::class, 'index'])->name('trends.index');
+        Route::get('/consultations', [OfficerConsultationsController::class, 'index'])->name('consultations.index');
         Route::get('/weather/{farmerUuid}', [OfficerFarmerWeatherController::class, 'show'])->name('weather.show');
     });
     Route::middleware('access:disease-reports.respond')->group(function () {
