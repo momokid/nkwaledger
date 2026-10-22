@@ -254,6 +254,12 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
         ],
         tools: [
             {
+                label: "Weather",
+                href: "/vet/weather",
+                icon: IconCloudRain,
+                ready: true,
+            },
+            {
                 ...buildMarketplaceNavGroup<NavItem>([
                     { label: "Market Center", href: "/market-center", ready: true },
                 ]),
@@ -281,7 +287,12 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             },
         ],
         tools: [
-            { label: "Weather", href: "#", icon: IconCloudRain, ready: false },
+            {
+                label: "Weather",
+                href: "/adviser/weather",
+                icon: IconCloudRain,
+                ready: true,
+            },
             {
                 ...buildMarketplaceNavGroup<NavItem>([
                     { label: "Market Center", href: "/market-center", ready: true },
