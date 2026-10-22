@@ -34,7 +34,7 @@ Legend: [x] done · [~] in progress · [ ] not started · [?] unverified, check 
 - [ ] Handset test (a separate session, ussd-handset, is waiting on it)
 - [ ] Twi native-speaker review; Twi wording for "Pending Approvals"
 - [ ] Confirm the meaning of the "100" response code
-- [x] Full PostgreSQL suite for the batch (22/10: 3686 passed, 9 skipped; sequential-pg 6 passed)
+- [ ] Full PostgreSQL suite for the batch (on the USSD branch)
 
 ### 4. Crop and vet AI review (branch `feature/ai-health-review`, not pushed)
 Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · [slice 4](tasks/ai-review-slice-4-officer-screen.md) · [slice 5](tasks/ai-review-slice-5-category-admin.md) · [bucket check](tasks/verify-bucket-on-staging.md)
@@ -42,6 +42,7 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 - [x] Slice 2: OpenRouter adapter `HealthImageReviewer`
 - [x] Web report photos and voice notes on `PHOTO_DISK`; S3 package installed
 - [x] Slice 3: queued job `ReviewDiseaseReport` after the photo is stored (web and offline), `ai_*` columns on `disease_reports`, 70% rule in `services.openrouter.min_confidence`. The officer verdict columns come in slice 4.
+- [x] Full PostgreSQL suite for slices 1 to 5 (22/10: 3686 passed, 9 skipped; sequential-pg 6 passed)
 - [ ] Confirm a queue worker runs on Railway (the job needs one)
 - [x] Slice 4: officer screen shows the draft (only when `ai_status` is `ready`; urgent always), Confirm or pick another category, stores `officer_health_category_id`, `officer_verdict` (`agreed`/`edited`/`disagreed` (Reject suggestion), null when no draft was shown) and `officer_reviewed_at`
 - [x] Slice 5: admin page `/admin/health-categories` (permission `health-categories.manage`): add, rename, move up/down, switch on/off. No delete route.
