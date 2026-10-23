@@ -42,7 +42,7 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 - [x] Slice 2: OpenRouter adapter `HealthImageReviewer`
 - [x] Web report photos and voice notes on `PHOTO_DISK`; S3 package installed
 - [x] Slice 3: queued job `ReviewDiseaseReport` after the photo is stored (web and offline), `ai_*` columns on `disease_reports`, 70% rule in `services.openrouter.min_confidence`. The officer verdict columns come in slice 4.
-- [x] Full PostgreSQL suite for slices 1 to 5 (22/10: 3686 passed, 9 skipped; sequential-pg 6 passed)
+- [x] Full PostgreSQL suite for the AI review batch including the adviser and vet menu items (23/10: 3702 passed, 9 skipped; sequential-pg 6 passed)
 - [ ] Confirm a queue worker runs on Railway (the job needs one)
 - [x] Slice 4: officer screen shows the draft (only when `ai_status` is `ready`; urgent always), Confirm or pick another category, stores `officer_health_category_id`, `officer_verdict` (`agreed`/`edited`/`disagreed` (Reject suggestion), null when no draft was shown) and `officer_reviewed_at`
 - [x] Slice 5: admin page `/admin/health-categories` (permission `health-categories.manage`): add, rename, move up/down, switch on/off. No delete route.

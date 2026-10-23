@@ -7,7 +7,7 @@ Written: 2026-10-21 (after slice 5). Rewrite this at every stopping point.
 - Last code work: slice 5, the admin page for health categories ([task](../tasks/ai-review-slice-5-category-admin.md)). The owner pushes. Run `git log --oneline -5` for the latest commits.
 
 ## Active task
-Adviser and vet menu items are all built (dashboard, Weather, Trends, Consultations; new column `responded_at`, run `php artisan migrate` after deploy). Left: the news feed (source not chosen) and the credit score plan (todo 4c). The full PostgreSQL run covered AI review slices 1 to 5 only; the later changes passed SQLite and the PostgreSQL area tests, so run the full PostgreSQL suite again before the owner pushes.
+Adviser and vet menu items are all built (dashboard, Weather, Trends, Consultations; new column `responded_at`, run `php artisan migrate` after deploy). The full PostgreSQL suite passed on 23/10 (3702 passed, 9 skipped; sequential-pg 6 passed), so the branch is ready for the owner to push. Left: the news feed (source not chosen) and the credit score plan (todo 4c).
 
 ## Waiting on the owner
 - Railway had a build pause on 21/10; hold the staging checks until it clears.
