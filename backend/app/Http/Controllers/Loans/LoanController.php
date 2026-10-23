@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Loans;
 
 use App\Exceptions\Ledger\PostingFailed;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Loans\StoreLoanRequest;
+use App\Http\Requests\Loans\StoreFarmerLoanRequest;
 use App\Models\FarmerProfile;
 use App\Models\Loan;
 use App\Services\Loans\LoanListService;
@@ -56,17 +56,17 @@ class LoanController extends Controller
     {
         Gate::authorize('create', Loan::class);
 
-        return $this->form(Loan::KIND_MONEY);
+        return $this->form(Loan::KIND_MONEY, $this->farmer($request));
     }
 
     public function createExisting(Request $request): Response
     {
         Gate::authorize('create', Loan::class);
 
-        return $this->form(Loan::KIND_EXISTING);
+        return $this->form(Loan::KIND_EXISTING, $this->farmer($request));
     }
 
-    public function store(StoreLoanRequest $request): RedirectResponse
+    public function store(StoreFarmerLoanRequest $request): RedirectResponse
     {
         Gate::authorize('create', Loan::class);
 
@@ -86,11 +86,13 @@ class LoanController extends Controller
         return redirect('/loans');
     }
 
-    private function form(string $kind): Response
+    private function form(string $kind, FarmerProfile $farmer): Response
     {
         return Inertia::render('Loans/Create', [
             'kind' => $kind,
             'paidInto' => $this->loans->paidIntoOptions(),
+            // the farm units a new loan can be spread over, by public id
+            'farms' => $kind === Loan::KIND_MONEY ? $farmer->farmUnits()->orderBy('name')->get(['uuid', 'name']) : [],
             'idempotencyKey' => (string) Str::uuid(),
             'agent' => false,
             'requestFor' => null,

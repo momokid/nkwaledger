@@ -168,7 +168,7 @@ test('the agent records an entry with the same rules and the same words as the f
 });
 
 test('a farmer own loan needs no acceptance', function () {
-    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)())->assertRedirect('/loans');
+    $this->actingAs($this->farmerUser)->post('/loans', ($this->form)(['farms' => wholeLoanOnOneFarm($this->profile, '200')]))->assertRedirect('/loans');
 
     expect(Loan::count())->toBe(1)->and(PendingEntry::count())->toBe(1);
 });

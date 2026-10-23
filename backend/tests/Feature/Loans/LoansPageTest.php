@@ -54,6 +54,7 @@ beforeEach(function () {
         'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid,
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
         'idempotency_key' => 'form-key-1',
+        'farms' => wholeLoanOnOneFarm($this->profile, $over['amount'] ?? '500'),
     ], $over);
 });
 
