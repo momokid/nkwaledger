@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: plan only. Nothing built. Waiting on the owner's answers below.
+Status: task 1 (web loan form) built. Tasks 2 to 6 not started.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -58,3 +58,15 @@ Slice B, the score: worked out when shown, from purchases, cash movements, credi
 | Button on the banner | Record how I used it |
 | Choice for money not spent on the farm | I used some of it for something else |
 | Notification reminder | Please record how you used your loan. |
+
+## Task 1 done (web loan form, 2026-10-23)
+Owner approved: new table `loan_farm_allocations` (uuid, loan_id, farm_unit_id, amount_minor; one row per farm per loan) and a `uuid` column on `farm_units` (backfilled). Branch: stayed on `feature/ai-health-review`.
+- Only the farmer's own web form (`StoreFarmerLoanRequest`, used by `LoanController`) asks for farms, and only for `money` loans. The farmer ticks farms, gives "Amount for this farm" for each; the amounts must add up to the loan. `LoanService::record` re-checks (own farms, no repeats, above zero, exact sum) when `farms` is sent.
+- `existing` loans, old loans, and the agent, USSD and offline paths are unchanged. No backfill.
+- Wording used: only the four approved lines. The farm names are the farmer's own data (checkbox labels).
+
+### What the later tasks will need
+- Agent loans (task 4): `AgentLoanController` uses the plain `StoreLoanRequest`. The farms must be stored on the pending entry (its payload) and passed to `LoanService::record` as `farms` on acceptance (`PendingEntryService::inputFrom`). The agent picks from the farmer's farm units; the same checks apply.
+- USSD (task 5): `UssdLoanFlow` needs steps to pick farms and amounts, then the same `farms` array. Needs its own wording proposal. Farm units now have a uuid, but USSD screens use a menu number.
+- Offline (task 5): the offline queue payload needs `farms` and the sync endpoint must use the farmer request rules.
+- Task 2 reads `loan_farm_allocations` for planned vs accounted per farm.

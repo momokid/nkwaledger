@@ -60,7 +60,7 @@ Task file: [tasks/adviser-menu-items.md](tasks/adviser-menu-items.md)
 - [x] 1 Adviser dashboard rebuild and vet page · [x] 2 Weather (done, adviser and vet) · [x] 3 Crops and livestock trends (90 days) · [x] 4 Consultations list · [ ] News feed (later, source not chosen)
 
 ### 4c. Loan credit score
-- [ ] Not built. Plan: [tasks/credit-score-and-loan-use.md](tasks/credit-score-and-loan-use.md). First the loan is recorded against a farm and its use (slice A), then the score (slice B). Waiting on the owner's answers. Also: the farmer dashboard shows a made-up score of 720; report only.
+- [x] Task 1 (web loan form names farms and amounts) done. Tasks 2 to 6 open. Plan: [tasks/credit-score-and-loan-use.md](tasks/credit-score-and-loan-use.md). First the loan is recorded against a farm and its use (slice A), then the score (slice B). Waiting on the owner's answers. Also: the farmer dashboard shows a made-up score of 720; report only.
 
 ### 5. Fertilizer calculator
 - [ ] Not started. Idea notes in ideas/feature-backlog.md.
