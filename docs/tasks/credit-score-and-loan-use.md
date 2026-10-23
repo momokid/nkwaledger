@@ -40,3 +40,5 @@ Slice B, the score: worked out when shown, from purchases, cash movements, credi
 
 ## Log
 - 2026-10-23: plan written from the owner's message.
+- 2026-10-23: owner decisions. (1) One loan can be spread over several farms. (2) Spending is linked afterwards, but when the loan is taken the farmer says which farms it will be used on. (3) Existing loans in the system are practice data: ignore them (they may be linked to one of the farmer's farms, but no backfill and no rule for them). (4) An agent, USSD and offline loans follow the same rule everywhere.
+- Still open: does the farmer give an amount per farm at loan time, and must the amounts add up to the loan? Is it enough for each farm to be named, with amounts left to the later purchases? Wording for the farm choice, "paid from this loan" and "not yet accounted for".
