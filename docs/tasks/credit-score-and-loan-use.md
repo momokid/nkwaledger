@@ -42,3 +42,19 @@ Slice B, the score: worked out when shown, from purchases, cash movements, credi
 - 2026-10-23: plan written from the owner's message.
 - 2026-10-23: owner decisions. (1) One loan can be spread over several farms. (2) Spending is linked afterwards, but when the loan is taken the farmer says which farms it will be used on. (3) Existing loans in the system are practice data: ignore them (they may be linked to one of the farmer's farms, but no backfill and no rule for them). (4) An agent, USSD and offline loans follow the same rule everywhere.
 - Still open: does the farmer give an amount per farm at loan time, and must the amounts add up to the loan? Is it enough for each farm to be named, with amounts left to the later purchases? Wording for the farm choice, "paid from this loan" and "not yet accounted for".
+- 2026-10-23: more owner decisions. The farm amounts on a new money loan must add up exactly to the loan amount. While any amount is not yet accounted for, the farmer sees an alert (banner on the loan page and dashboard, plus a notification in the bell). Reminder after 7 days, then every 14 days until cleared. A purchase above the planned amount for a farm is allowed but flagged. A choice "I used some of it for something else" lets money be marked as not spent on the farm. The proposed wording is approved (see the table below). USSD comes after the web form, with its own proposal.
+- Order of work: (1) loan form on web: farms and amounts that add up; (2) "Paid from a loan" on purchase records and the per-farm figures on the loan page; (3) the alert and reminders; (4) agent loans; (5) USSD and offline; (6) the score.
+
+## Approved wording
+| Where | Wording |
+|---|---|
+| Loan form, farms section heading | Which farms will use this loan? |
+| Amount field for each farm | Amount for this farm |
+| Running line while filling in | Left to place: GHS {amount} |
+| Error if the amounts differ | The farm amounts must add up to the loan amount. |
+| Choice on a purchase record | Paid from a loan |
+| Loan page, per farm | {Farm}: planned GHS {a}, accounted GHS {b}, not yet accounted GHS {c} |
+| Banner on the loan page and dashboard | You have not yet recorded how GHS {amount} of your loan was used. |
+| Button on the banner | Record how I used it |
+| Choice for money not spent on the farm | I used some of it for something else |
+| Notification reminder | Please record how you used your loan. |
