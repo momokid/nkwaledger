@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) 4 (agent loans) and 4b (purpose of each farm amount) built. 5a (offline "Paid from a loan") built. Tasks 5b and 6 not started.
+Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) 4 (agent loans) and 4b (purpose of each farm amount) built. 5a (offline "Paid from a loan") and 5b (USSD) built. Task 6 (the score) not started.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -118,5 +118,10 @@ Offline loans do not exist: the offline queue carries records and health reports
 ### Task 5a done (offline records keep "Paid from a loan")
 No new column, table or wording. A record saved offline carries `loan` (the loan uuid) in its queued payload (`buildBatchRecord`, `QueuedBatchRecord`); `SyncBatchRequest` accepts `records.*.loan`; `SyncSubmissionService::postingRequest` turns it into `loanId`, and `PostingService` runs the same `Loan::refusalForPurchase` check as the web form. A refused record goes to "needs fixing" with the same approved text (loan not the farmer's, unknown, wrong farm, credit). Tests: `tests/Feature/Loans/OfflineLoanLinkTest.php`, `resources/js/lib/batchRecord.test.ts`.
 
-### Task 5b (not started): the agent's USSD money loan names farms and purposes
+### Task 5b done (2026-10-24): the agent's USSD money loan names farms and purposes
 Owner defaults (2026-10-24): several farms in a loop, the last farm takes the remainder automatically; the purposes (the farmer's expense records) shown 5 at a time with "More", plus "Something else" with a typed note; Twi lines added as a marked draft like the existing Twi text. A farmer with no farm unit gets an end screen. The farms and purposes are kept in the pending entry payload, as for the web agent form (`PendingEntryService`). USSD text lives in two files (English and Twi): see [domain/ussd/text-and-simulator.md](../domain/ussd/text-and-simulator.md). Next step: propose the exact English and Twi lines for the owner to approve, then build with failing tests first. No new column or table expected.
+
+Built as agreed (owner approved the English lines, the Twi drafts and the 20-character cut on 2026-10-24). In `UssdLoanFlow`, after the due-date step of a new money loan: pick a farm (the farmer's units, 5 to a page with "More") -> amount for that farm with "Left to place" (skipped when only one farm is left: it takes the rest) -> pick what it is for (the farmer's expense records, 5 to a page with "More"; "Something else" closes the last page and asks for a typed note) -> if money is left, "Another farm" or "Put the rest on this farm". A farmer with no farm unit ends at "This farmer has no farm yet, so a loan cannot be recorded." when the agent picks New loan. Names are cut at 20 characters. The farms and purposes go into `PendingEntryService::recordLoan` (payload), and are written on acceptance. Existing loans (menu 2) are unchanged. Back steps through the new screens; the new steps are in `UssdScreens::BACK_STEPS`.
+- Wording: 10 new keys in `resources/ussd.en.json` and `resources/ussd.tw.json`: `loan_farm_pick`, `loan_farm_amount`, `loan_farm_too_much`, `loan_purpose_pick`, `more`, `loan_purpose_other`, `loan_purpose_note`, `loan_purpose_note_empty`, `loan_farm_more`, `loan_no_farm`. **The Twi for these ten is a draft and needs a native-speaker review**, like the rest of the Twi text.
+- Tests: `tests/Feature/Ussd/UssdLoanFarmsTest.php`; `UssdLoanEntryTest` now walks the extra farm and purpose screens.
+- Still open: task 6 (the score). Not done: comparing later purchases with the planned purpose.
