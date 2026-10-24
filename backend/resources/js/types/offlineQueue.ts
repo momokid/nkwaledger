@@ -20,6 +20,7 @@ export interface QueuedBatchRecord {
     is_credit?: boolean;
     quantity?: string;
     narration?: string;
+    loan?: string;
 }
 
 // a photo or voice note kept on the phone as base64, so it is encrypted with the rest of the queue

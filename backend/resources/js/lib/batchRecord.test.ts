@@ -33,6 +33,14 @@ describe("buildBatchRecord", () => {
         expect(Number.isNaN(Date.parse(record.device_created_at))).toBe(false);
     });
 
+    it("carries the loan a purchase was paid from, and leaves it out when there is none", () => {
+        const LOAN = "7c1d2a3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+
+        expect(buildBatchRecord(FARMER, { ...data, loan: LOAN }, "").loan).toBe(LOAN);
+        expect("loan" in buildBatchRecord(FARMER, { ...data, loan: "" }, "")).toBe(false);
+        expect("loan" in buildBatchRecord(FARMER, data, "")).toBe(false);
+    });
+
     it("leaves out what was not entered and marks credit", () => {
         const record = buildBatchRecord(
             FARMER,

@@ -20,5 +20,7 @@ export function buildBatchRecord(
         is_credit: data.is_credit === "1",
         ...(quantity ? { quantity } : {}),
         ...(data.narration ? { narration: data.narration } : {}),
+        // the loan a purchase was paid from, by its public id
+        ...(data.loan ? { loan: data.loan } : {}),
     };
 }

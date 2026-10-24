@@ -27,6 +27,8 @@ class SyncBatchRequest extends FormRequest
             'records.*.description' => ['nullable', 'string'],
             'records.*.settlement_account_id' => ['nullable', 'integer'],
             'records.*.is_credit' => ['nullable', 'boolean'],
+            // the loan a purchase was paid from, by its public id; whether it may be used is decided per record
+            'records.*.loan' => ['nullable', 'uuid'],
             'records.*.quantity' => ['nullable', 'string'],
             // same limit as the web form (RecordTransactionRequest); trimming and empty-to-null come from the global input middleware
             'records.*.narration' => ['nullable', 'string', 'max:255'],

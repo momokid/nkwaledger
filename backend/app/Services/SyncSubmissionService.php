@@ -6,6 +6,7 @@ use App\Exceptions\Ledger\PostingFailed;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
+use App\Models\Loan;
 use App\Models\LedgerAccount;
 use App\Models\SyncSubmission;
 use App\Models\Transaction;
@@ -478,7 +479,24 @@ class SyncSubmissionService
             quantityLost: $template?->transaction_type === Transaction::LOSS ? $quantity : null,
             quantitySold: $template?->is_produce_sale ? $quantity : null,
             quantityPurchased: $template?->is_stock_purchase ? $quantity : null,
+            loanId: $this->loanIdOf($record),
         );
+    }
+
+    // "Paid from a loan": an id nobody can find is refused with the same words as a loan out of reach; posting checks the rest
+    private function loanIdOf(array $record): ?int
+    {
+        if (blank($record['loan'] ?? null)) {
+            return null;
+        }
+
+        $loan = Loan::where('uuid', $record['loan'])->first();
+
+        if ($loan === null) {
+            throw PostingFailed::because(Loan::refusalForPurchase(null, 0, null, false));
+        }
+
+        return $loan->id;
     }
 
     // the person who sent it, and the farmer's agent when the farmer sent it themselves
