@@ -45,6 +45,8 @@ Slice B, the score: worked out when shown, from purchases, cash movements, credi
 - 2026-10-23: more owner decisions. The farm amounts on a new money loan must add up exactly to the loan amount. While any amount is not yet accounted for, the farmer sees an alert (banner on the loan page and dashboard, plus a notification in the bell). Reminder after 7 days, then every 14 days until cleared. A purchase above the planned amount for a farm is allowed but flagged. A choice "I used some of it for something else" lets money be marked as not spent on the farm. The proposed wording is approved (see the table below). USSD comes after the web form, with its own proposal.
 - Order of work: (1) loan form on web: farms and amounts that add up; (2) "Paid from a loan" on purchase records and the per-farm figures on the loan page; (3) the alert and reminders; (4) agent loans; (5) USSD and offline; (6) the score.
 
+- 2026-10-24: task 2 design approved on branch `feature/loan-paid-from-loan` (cut from `feature/ai-health-review`). New nullable indexed column `transactions.loan_id`. A purchase sets it via "Paid from a loan". Checks: loan is the farmer's own, `money`, not cancelled; purchase has a farm unit that is one of the loan's allocated farms; not a credit purchase. Per-farm planned / accounted / not yet accounted are worked out when shown (accounted = non-cancelled purchases linked to the loan and farm); a purchase above plan is allowed and shown as over. "I used some of it for something else" moves to task 3 (needs its own storage). Waiting on the owner for wording: loan picker label (suggested "{lender} – GHS {amount}, {DD/MM/YYYY}"), the check error messages, the over-plan flag. No code written yet.
+
 ## Approved wording
 | Where | Wording |
 |---|---|
