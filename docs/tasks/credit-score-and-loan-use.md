@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) and 4 (agent loans) built. Task 4b (purpose of each farm amount), 5 and 6 not started.
+Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) 4 (agent loans) and 4b (purpose of each farm amount) built. Tasks 5 and 6 not started.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -102,5 +102,12 @@ Owner approved the plan with four defaults: farms required on an agent's money l
 - Tests: `tests/Feature/Loans/LoanAgentFarmsTest.php`; `LoanEntryHttpTest` agent posts now carry farms; the old "agent form is not changed" test was removed.
 - Still open: USSD and offline (task 5).
 
-## Open request: what each farm amount is for (task 4b, 2026-10-24)
-The owner wants the farmer to say, beside each farm's amount, what the money is for (for example buying new produce, transport). Not built. Proposal sent, waiting for answers: pick from the existing record types ("I bought seed", "I paid for transport", "I paid someone to work", ...) plus a typed note for anything else; one purpose or several per farm (each with an amount); required or not; shown where; new table or column and wording to be proposed after the answers. Applies to the farmer's form and the agent's form (then USSD and offline).
+## Task 4b done (what each farm amount is for, 2026-10-24)
+Owner approved: two new nullable columns on `loan_farm_allocations`, `purpose_template_id` (the chosen record type) and `purpose_note` (typed, for "something else"); one purpose per farm, required; the record names shown as they are (past tense). Run `php artisan migrate`.
+- The choices are the expense records on the farmer's own record form (`TransactionTemplate::loanPurposesFor`), sent by slug, plus "other" with a note. A note typed beside a chosen record type is not kept. Older rows have neither column set.
+- Required at the request layer on both the farmer's form and the agent's form (`StoreFarmerLoanRequest`); `LoanService::record` checks a purpose when one is sent and accepts none (older entries, USSD, offline until task 5).
+- The agent's pending entry keeps `purpose` and `purpose_note` next to each farm in its payload; they are written when the farmer accepts.
+- Loan page: the farm lines carry `purpose` (the record name or the note) and show "{Farm}: {purpose}".
+- Wording used (approved 2026-10-24): "What will this money be used for?", "Something else", "What will you use it for?", "Please say what this money is for.", "Please say what you will use it for.", "{Farm}: {purpose}".
+- Not done: matching later purchases to the planned purpose (the loan page does not compare them yet); USSD and offline (task 5).
+- Tests: `tests/Feature/Loans/LoanPurposeTest.php`; the older farm tests now send a purpose.
