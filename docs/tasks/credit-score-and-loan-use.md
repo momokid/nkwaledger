@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: tasks 1 (web loan form) and 2 (paid from a loan) built. Tasks 3 to 6 not started.
+Status: tasks 1 (web loan form), 2 (paid from a loan) and 3 (alert, other uses, reminders) built. Tasks 4 to 6 not started.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -81,3 +81,16 @@ Branch `feature/loan-paid-from-loan`. New column `transactions.loan_id` (nullabl
 - Wording used: only the approved lines (see the 2026-10-24 log and table above); the over-plan line is "{Farm}: GHS {amount} more than planned".
 - Not done, on purpose: "I used some of it for something else" (task 3); the offline queue and the sync path do not carry `loan` yet (task 5), so an offline purchase saves without the loan link; the server does not limit `loan` to EXPENSE templates, only the form shows it for them.
 - Tests: `tests/Feature/Loans/LoanPaidFromTest.php`.
+
+## Task 2 fix (2026-10-24)
+A record that asks for no farm (for example labour) could not be paid from a loan: the farm was dropped and the loan check failed. Now, when "Paid from a loan" is ticked, the form always asks "Which farm did this happen on" and the farm is kept on the record. Without a loan such a record still keeps no farm.
+
+## Task 3 done (alert, other uses, reminders, 2026-10-24)
+Owner decisions: one "something else" row per use, each with an amount and a typed note (no fixed list); the 7-day clock starts the day the loan was recorded; alerts and reminders stop when the loan is repaid or cancelled. New tables `loan_other_uses` (uuid, loan_id, amount_minor, note, recorded_by, created_at; never edited) and `loan_reminders` (loan_id, created_at). Run `php artisan migrate`.
+- Amount not yet accounted for = `Loan::unaccountedMinor()`: each farm's not-yet-accounted amount (floored at 0, so over-spending one farm does not hide money left on another) less the "something else" rows; 0 for a loan that is repaid, cancelled, not a money loan or without farm amounts. Never stored.
+- Loan page: banner, the saved uses as "{note}: GHS {amount}", the choice "I used some of it for something else" opening a form (amount, note, Save). Dashboard: one banner per loan (`loan_alerts`). Endpoint `POST /loans/{loan}/other-uses` (the loan's own farmer only; others get 404).
+- Reminder: command `loans:remind-use`, daily 04:15. First after 7 days, then every 14, only while something is unaccounted. Bell text "Please record how you used your loan.", links to the loan page.
+- Wording added (approved 2026-10-24): "What did you use it for?", "Save", "Please say what you used it for.", "That is more than what is left to place.", "{note}: GHS {amount}". "How much, in cedis?" and "The amount needs to be more than zero." were reused.
+- The banner button goes to the record form (`/my-records/create`) on both pages.
+- Not done: agent, USSD and offline loans still have no farms, so they raise no alert (tasks 4 and 5).
+- Tests: `tests/Feature/Loans/LoanUseTest.php`.
