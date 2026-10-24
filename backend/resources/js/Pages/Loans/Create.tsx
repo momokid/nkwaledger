@@ -32,6 +32,14 @@ interface FarmOption {
 interface FarmPart {
     farm_unit: string;
     amount: string;
+    // a record type's slug, or "other" with a note
+    purpose: string;
+    purpose_note: string;
+}
+
+interface PurposeOption {
+    slug: string;
+    name: string;
 }
 
 interface Props extends PageProps {
@@ -39,6 +47,8 @@ interface Props extends PageProps {
     paidInto: PaidIntoOption[];
     // the farmer's own farm units a new money loan can be spread over
     farms?: FarmOption[];
+    // the spending records a farmer can name as what a farm amount is for
+    purposes?: PurposeOption[];
     idempotencyKey: string;
     // an agent filling the form in for a farmer: another address to post to and to go back to
     agent: boolean;
@@ -56,9 +66,9 @@ export default function Create(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "kind" | "paidInto" | "farms" | "idempotencyKey" | "agent" | "requestFor" | "postUrl" | "backUrl">;
+type ContentProps = Pick<Props, "kind" | "paidInto" | "farms" | "purposes" | "idempotencyKey" | "agent" | "requestFor" | "postUrl" | "backUrl">;
 
-function CreateContent({ kind, paidInto, farms = [], idempotencyKey, agent, requestFor, postUrl, backUrl }: ContentProps) {
+function CreateContent({ kind, paidInto, farms = [], purposes = [], idempotencyKey, agent, requestFor, postUrl, backUrl }: ContentProps) {
     const { errors, old } = usePage<Props>().props as unknown as {
         errors: Record<string, string>;
         old: Record<string, string>;
@@ -156,7 +166,12 @@ function CreateContent({ kind, paidInto, farms = [], idempotencyKey, agent, requ
                 ? parts.filter((part) => part.farm_unit !== uuid)
                 : parts.some((part) => part.farm_unit === uuid)
                   ? parts.map((part) => (part.farm_unit === uuid ? { ...part, amount } : part))
-                  : [...parts, { farm_unit: uuid, amount }],
+                  : [...parts, { farm_unit: uuid, amount, purpose: "", purpose_note: "" }],
+        );
+    const setPurpose = (uuid: string, change: Partial<FarmPart>) =>
+        form.setData(
+            "farms",
+            parts.map((part) => (part.farm_unit === uuid ? { ...part, ...change } : part)),
         );
     const toMinor = (value: string) => Math.round((parseFloat(value) || 0) * 100);
     const left = toMinor(form.data.amount) - parts.reduce((sum, part) => sum + toMinor(part.amount), 0);
@@ -342,6 +357,39 @@ function CreateContent({ kind, paidInto, farms = [], idempotencyKey, agent, requ
                                                 value={part.amount}
                                                 onChange={(event) => setPart(farm.uuid, event.target.value)}
                                             />
+                                            <label htmlFor={`purpose_${farm.uuid}`} style={label}>
+                                                What will this money be used for?
+                                            </label>
+                                            <select
+                                                id={`purpose_${farm.uuid}`}
+                                                style={field}
+                                                value={part.purpose}
+                                                onChange={(event) => setPurpose(farm.uuid, { purpose: event.target.value })}
+                                            >
+                                                <option value=""></option>
+                                                {purposes.map((purpose) => (
+                                                    <option key={purpose.slug} value={purpose.slug}>
+                                                        {purpose.name}
+                                                    </option>
+                                                ))}
+                                                <option value="other">Something else</option>
+                                            </select>
+                                            {errors[`farms.${parts.indexOf(part)}.purpose`] && <p style={errorText}>{errors[`farms.${parts.indexOf(part)}.purpose`]}</p>}
+                                            {part.purpose === "other" && (
+                                                <>
+                                                    <label htmlFor={`purpose_note_${farm.uuid}`} style={label}>
+                                                        What will you use it for?
+                                                    </label>
+                                                    <input
+                                                        id={`purpose_note_${farm.uuid}`}
+                                                        type="text"
+                                                        style={field}
+                                                        value={part.purpose_note}
+                                                        onChange={(event) => setPurpose(farm.uuid, { purpose_note: event.target.value })}
+                                                    />
+                                                    {errors[`farms.${parts.indexOf(part)}.purpose_note`] && <p style={errorText}>{errors[`farms.${parts.indexOf(part)}.purpose_note`]}</p>}
+                                                </>
+                                            )}
                                         </>
                                     )}
                                 </div>

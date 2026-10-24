@@ -9,6 +9,7 @@ use App\Http\Requests\Loans\StoreFarmerLoanRequest;
 use App\Models\FarmerProfile;
 use App\Models\Loan;
 use App\Models\PendingEntry;
+use App\Models\TransactionTemplate;
 use App\Services\Loans\EntryCodeService;
 use App\Services\Loans\LoanService;
 use App\Services\Loans\PendingEntryService;
@@ -147,6 +148,7 @@ class AgentLoanController extends Controller
             'kind' => $kind,
             'paidInto' => $this->loans->paidIntoOptions(),
             'farms' => $kind === Loan::KIND_MONEY ? $farmer->farmUnits()->orderBy('name')->get(['uuid', 'name']) : [],
+            'purposes' => $kind === Loan::KIND_MONEY ? TransactionTemplate::loanPurposesFor($farmer)->map->only(['slug', 'name'])->values() : [],
             'idempotencyKey' => (string) Str::uuid(),
             'agent' => true,
             'requestFor' => $farmer->uuid,

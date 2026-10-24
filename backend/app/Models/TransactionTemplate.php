@@ -146,6 +146,20 @@ class TransactionTemplate extends Model
     }
 
     // why this farmer may not record against this template, or null when they may
+    // the spending records a farmer can name as what a loan amount is for: the expense ones on his own record form
+    public static function loanPurposesFor(FarmerProfile $farmer): \Illuminate\Support\Collection
+    {
+        return self::query()
+            ->where('is_active', true)
+            ->where('is_hidden', false)
+            ->where('transaction_type', Transaction::EXPENSE)
+            ->where(fn($query) => $query
+                ->whereIn('farm_type_category_id', $farmer->farmTypes()->pluck('category_id'))
+                ->orWhereNull('farm_type_category_id'))
+            ->orderBy('name')
+            ->get(['id', 'slug', 'name']);
+    }
+
     public static function refusalFor(mixed $id, FarmerProfile $farmer): ?string
     {
         $id = filter_var($id, FILTER_VALIDATE_INT);

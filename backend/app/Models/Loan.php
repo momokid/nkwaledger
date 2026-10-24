@@ -200,12 +200,13 @@ class Loan extends Model
         $accounted = Transaction::query()->live()->where('loan_id', $this->id)
             ->groupBy('farm_unit_id')->selectRaw('farm_unit_id, SUM(amount_minor) as total')->pluck('total', 'farm_unit_id');
 
-        return $this->farmAllocations()->with('farmUnit:id,uuid,name')->get()->map(function (LoanFarmAllocation $row) use ($accounted) {
+        return $this->farmAllocations()->with(['farmUnit:id,uuid,name', 'purposeTemplate:id,name'])->get()->map(function (LoanFarmAllocation $row) use ($accounted) {
             $spent = (int) ($accounted[$row->farm_unit_id] ?? 0);
 
             return [
                 'uuid' => $row->farmUnit->uuid,
                 'name' => $row->farmUnit->name,
+                'purpose' => $row->purposeTemplate?->name ?? $row->purpose_note,
                 'planned' => $row->amount_minor,
                 'accounted' => $spent,
                 'not_yet_accounted' => max(0, $row->amount_minor - $spent),

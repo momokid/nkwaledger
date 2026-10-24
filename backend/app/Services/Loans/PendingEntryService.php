@@ -67,7 +67,12 @@ class PendingEntryService
     private function farmsOf(array $data): array
     {
         return array_map(
-            fn($row) => ['farm_unit' => $row['farm_unit'], 'amount_minor' => Money::toMinor((string) $row['amount'])],
+            fn($row) => [
+                'farm_unit' => $row['farm_unit'],
+                'amount_minor' => Money::toMinor((string) $row['amount']),
+                'purpose' => $row['purpose'] ?? null,
+                'purpose_note' => ($row['purpose'] ?? null) === LoanService::OTHER_PURPOSE ? trim((string) ($row['purpose_note'] ?? '')) : null,
+            ],
             array_values($data['farms'] ?? []),
         );
     }
@@ -326,7 +331,12 @@ class PendingEntryService
             'paid_into' => $payload['settlement_account_id'],
             // an entry recorded before farms were asked has none, and is accepted as it always was
             'farms' => ($payload['farms'] ?? []) === [] ? null : array_map(
-                fn($row) => ['farm_unit' => $row['farm_unit'], 'amount' => Money::toDecimal($row['amount_minor'])],
+                fn($row) => [
+                    'farm_unit' => $row['farm_unit'],
+                    'amount' => Money::toDecimal($row['amount_minor']),
+                    'purpose' => $row['purpose'] ?? null,
+                    'purpose_note' => $row['purpose_note'] ?? null,
+                ],
                 $payload['farms'],
             ),
         ];

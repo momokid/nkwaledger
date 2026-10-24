@@ -41,7 +41,7 @@ function wholeLoanOnOneFarm(App\Models\FarmerProfile $farmer, string $amount): a
 {
     $unit = App\Models\FarmUnit::factory()->approved()->create(['farmer_profile_id' => $farmer->id, 'community_id' => $farmer->community_id]);
 
-    return [['farm_unit' => $unit->uuid, 'amount' => $amount]];
+    return [['farm_unit' => $unit->uuid, 'amount' => $amount, 'purpose' => 'other', 'purpose_note' => 'Fencing']];
 }
 
 function buildLockedFigures($t): void

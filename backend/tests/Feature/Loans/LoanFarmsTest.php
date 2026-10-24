@@ -18,8 +18,8 @@ beforeEach(function () {
         'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid,
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id, 'idempotency_key' => 'k-' . uniqid(),
         'farms' => [
-            ['farm_unit' => $this->unitA->uuid, 'amount' => '300'],
-            ['farm_unit' => $this->unitB->uuid, 'amount' => '200'],
+            ['farm_unit' => $this->unitA->uuid, 'amount' => '300', 'purpose' => 'other', 'purpose_note' => 'Fencing'],
+            ['farm_unit' => $this->unitB->uuid, 'amount' => '200', 'purpose' => 'other', 'purpose_note' => 'Fencing'],
         ],
     ], $over);
 });
@@ -47,7 +47,7 @@ test('farm amounts that add up are saved with the loan', function () {
 });
 
 test('farm amounts that do not add up are refused and no loan is made', function () {
-    $this->actingAs($this->farmerUser)->post('/loans', ($this->body)(['amount' => '600']))
+    $this->actingAs($this->farmerUser)->post('/loans', ($this->body)(['amount' => '600', 'purpose' => 'other', 'purpose_note' => 'Fencing']))
         ->assertSessionHasErrors(['farms' => 'The farm amounts must add up to the loan amount.']);
 
     expect(Loan::count())->toBe(0);
@@ -60,7 +60,7 @@ test('a money loan with no farm is refused', function (mixed $farms) {
 })->with(['missing' => [null], 'empty' => [[]]]);
 
 test('another farmer farm unit, a repeated farm and a zero amount are refused', function (array $farms) {
-    $farms = array_map(fn($row) => ['farm_unit' => is_callable($row[0]) ? ($row[0])($this)->uuid : $row[0], 'amount' => $row[1]], $farms);
+    $farms = array_map(fn($row) => ['farm_unit' => is_callable($row[0]) ? ($row[0])($this)->uuid : $row[0], 'amount' => $row[1], 'purpose' => 'other', 'purpose_note' => 'Fencing'], $farms);
 
     $this->actingAs($this->farmerUser)->post('/loans', ($this->body)(['farms' => $farms]))->assertSessionHasErrors();
 

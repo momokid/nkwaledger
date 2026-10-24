@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class LoanFarmAllocation extends Model
 {
-    protected $fillable = ['uuid', 'loan_id', 'farm_unit_id', 'amount_minor'];
+    protected $fillable = ['uuid', 'loan_id', 'farm_unit_id', 'amount_minor', 'purpose_template_id', 'purpose_note'];
 
     protected function casts(): array
     {
@@ -23,6 +23,11 @@ class LoanFarmAllocation extends Model
     public function loan(): BelongsTo
     {
         return $this->belongsTo(Loan::class);
+    }
+
+    public function purposeTemplate(): BelongsTo
+    {
+        return $this->belongsTo(TransactionTemplate::class, 'purpose_template_id');
     }
 
     public function farmUnit(): BelongsTo

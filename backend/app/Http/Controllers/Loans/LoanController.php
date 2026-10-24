@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Loans\StoreFarmerLoanRequest;
 use App\Models\FarmerProfile;
 use App\Models\Loan;
+use App\Models\TransactionTemplate;
 use App\Services\Loans\LoanListService;
 use App\Services\Loans\LoanService;
 use App\Services\RecordLock;
@@ -93,6 +94,7 @@ class LoanController extends Controller
             'paidInto' => $this->loans->paidIntoOptions(),
             // the farm units a new loan can be spread over, by public id
             'farms' => $kind === Loan::KIND_MONEY ? $farmer->farmUnits()->orderBy('name')->get(['uuid', 'name']) : [],
+            'purposes' => $kind === Loan::KIND_MONEY ? TransactionTemplate::loanPurposesFor($farmer)->map->only(['slug', 'name'])->values() : [],
             'idempotencyKey' => (string) Str::uuid(),
             'agent' => false,
             'requestFor' => null,

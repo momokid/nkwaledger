@@ -72,7 +72,7 @@ test('the loan page gives planned, accounted and not yet accounted for each farm
 
     $this->actingAs($this->farmerUser)->get("/loans/{$this->loan->uuid}")->assertInertia(function ($page) {
         expect($page->toArray()['props']['farms'])->toBe([
-            ['uuid' => $this->unitA->uuid, 'name' => $this->unitA->name, 'planned' => 50000, 'accounted' => 20000, 'not_yet_accounted' => 30000, 'over' => 0],
+            ['uuid' => $this->unitA->uuid, 'name' => $this->unitA->name, 'purpose' => null, 'planned' => 50000, 'accounted' => 20000, 'not_yet_accounted' => 30000, 'over' => 0],
         ]);
     });
 });

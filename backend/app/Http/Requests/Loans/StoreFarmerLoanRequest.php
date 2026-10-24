@@ -4,6 +4,7 @@ namespace App\Http\Requests\Loans;
 
 use App\Models\FarmerProfile;
 use App\Models\Loan;
+use App\Models\TransactionTemplate;
 use App\Services\Loans\LoanService;
 use App\Support\Money;
 use Illuminate\Validation\Validator;
@@ -16,12 +17,15 @@ class StoreFarmerLoanRequest extends StoreLoanRequest
     {
         $money = $this->input('kind') === Loan::KIND_MONEY;
         $mine = $this->farmer()?->farmUnits()->pluck('uuid')->all() ?? [];
+        $purposes = $this->farmer() ? TransactionTemplate::loanPurposesFor($this->farmer())->pluck('slug')->all() : [];
         $amount = ['required', 'string', 'regex:/^\d+(\.\d{1,2})?$/'];
 
         return parent::rules() + ($money ? [
             'farms' => ['required', 'array', 'min:1'],
             'farms.*.farm_unit' => ['required', 'uuid', 'distinct', 'in:' . implode(',', $mine ?: ['-'])],
             'farms.*.amount' => $amount,
+            'farms.*.purpose' => ['required', 'string', 'in:' . implode(',', [LoanService::OTHER_PURPOSE, ...$purposes])],
+            'farms.*.purpose_note' => ['required_if:farms.*.purpose,' . LoanService::OTHER_PURPOSE, 'nullable', 'string', 'max:255'],
         ] : []);
     }
 
@@ -40,6 +44,12 @@ class StoreFarmerLoanRequest extends StoreLoanRequest
         foreach (['required', 'uuid', 'distinct', 'in'] as $rule) {
             $messages["farms.*.farm_unit.{$rule}"] = LoanService::FARMS_REFUSAL;
         }
+
+        foreach (['required', 'string', 'in'] as $rule) {
+            $messages["farms.*.purpose.{$rule}"] = LoanService::PURPOSE_REFUSAL;
+        }
+
+        $messages['farms.*.purpose_note.required_if'] = LoanService::PURPOSE_NOTE_REFUSAL;
 
         foreach (['required', 'string', 'regex'] as $rule) {
             $messages["farms.*.amount.{$rule}"] = LoanService::AMOUNT_REFUSAL;

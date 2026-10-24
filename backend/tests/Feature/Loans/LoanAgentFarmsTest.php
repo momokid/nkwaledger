@@ -20,8 +20,8 @@ beforeEach(function () {
         'kind' => 'money', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid,
         'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id, 'idempotency_key' => 'k-' . uniqid(),
         'farms' => [
-            ['farm_unit' => $this->unitA->uuid, 'amount' => '300'],
-            ['farm_unit' => $this->unitB->uuid, 'amount' => '200'],
+            ['farm_unit' => $this->unitA->uuid, 'amount' => '300', 'purpose' => 'other', 'purpose_note' => 'Fencing'],
+            ['farm_unit' => $this->unitB->uuid, 'amount' => '200', 'purpose' => 'other', 'purpose_note' => 'Fencing'],
         ],
     ], $over);
     $this->record = fn(array $over = []) => $this->actingAs($this->agent)->post("{$this->url}/loans", ($this->body)($over));
@@ -44,8 +44,8 @@ test('the farms are kept on the waiting entry, as uuids and pesewas', function (
     ($this->record)()->assertSessionHasNoErrors()->assertRedirect($this->url);
 
     expect(PendingEntry::firstOrFail()->payload['farms'])->toBe([
-        ['farm_unit' => $this->unitA->uuid, 'amount_minor' => 30000],
-        ['farm_unit' => $this->unitB->uuid, 'amount_minor' => 20000],
+        ['farm_unit' => $this->unitA->uuid, 'amount_minor' => 30000, 'purpose' => 'other', 'purpose_note' => 'Fencing'],
+        ['farm_unit' => $this->unitB->uuid, 'amount_minor' => 20000, 'purpose' => 'other', 'purpose_note' => 'Fencing'],
     ]);
 });
 
@@ -56,10 +56,10 @@ test('farms that are missing, not the farmer own, repeated, zero or not adding u
 })->with([
     'missing' => [['farms' => null]],
     'empty' => [['farms' => []]],
-    'another farmer' => [fn() => ['farms' => [['farm_unit' => test()->foreignUnit->uuid, 'amount' => '500']]]],
-    'twice' => [fn() => ['farms' => [['farm_unit' => test()->unitA->uuid, 'amount' => '250'], ['farm_unit' => test()->unitA->uuid, 'amount' => '250']]]],
-    'zero' => [fn() => ['farms' => [['farm_unit' => test()->unitA->uuid, 'amount' => '500'], ['farm_unit' => test()->unitB->uuid, 'amount' => '0']]]],
-    'not adding up' => [['amount' => '600']],
+    'another farmer' => [fn() => ['farms' => [['farm_unit' => test()->foreignUnit->uuid, 'amount' => '500', 'purpose' => 'other', 'purpose_note' => 'Fencing']]]],
+    'twice' => [fn() => ['farms' => [['farm_unit' => test()->unitA->uuid, 'amount' => '250', 'purpose' => 'other', 'purpose_note' => 'Fencing'], ['farm_unit' => test()->unitA->uuid, 'amount' => '250', 'purpose' => 'other', 'purpose_note' => 'Fencing']]]],
+    'zero' => [fn() => ['farms' => [['farm_unit' => test()->unitA->uuid, 'amount' => '500', 'purpose' => 'other', 'purpose_note' => 'Fencing'], ['farm_unit' => test()->unitB->uuid, 'amount' => '0', 'purpose' => 'other', 'purpose_note' => 'Fencing']]]],
+    'not adding up' => [['amount' => '600', 'purpose' => 'other', 'purpose_note' => 'Fencing']],
 ]);
 
 test('an existing loan needs no farms', function () {

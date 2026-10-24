@@ -26,6 +26,11 @@ class LoanService
     public const AMOUNT_REFUSAL = 'Enter an amount above zero.';
     public const FUTURE_REFUSAL = 'This date is in the future.';
     public const FARMS_REFUSAL = 'The farm amounts must add up to the loan amount.';
+    public const PURPOSE_REFUSAL = 'Please say what this money is for.';
+    public const PURPOSE_NOTE_REFUSAL = 'Please say what you will use it for.';
+
+    // the last choice in the list of purposes: the farmer types what it is for
+    public const OTHER_PURPOSE = 'other';
 
     // what the form says about the lender; the loan itself keeps only a link to it
     public const LENDER_INPUT = ['lender', 'lender_type', 'lender_name'];
@@ -57,7 +62,7 @@ class LoanService
     /**
      * @param array{kind: string, lender: string, amount: string, date?: ?string, interest?: ?string,
      *              due_date?: ?string, note?: ?string, paid_into?: ?int, idempotency_key?: ?string,
-     *              farms?: list<array{farm_unit: string, amount: string}>} $data
+     *              farms?: list<array{farm_unit: string, amount: string, purpose?: ?string, purpose_note?: ?string}>} $data
      */
     public function record(FarmerProfile $farmer, User $by, array $data, ?string $idempotencyKey = null, ?string $via = null): Loan
     {
@@ -109,8 +114,8 @@ class LoanService
                 throw PostingFailed::because('Something went wrong. Please try again.');
             }
 
-            foreach ($parts as $unitId => $minor) {
-                $record->farmAllocations()->create(['farm_unit_id' => $unitId, 'amount_minor' => $minor]);
+            foreach ($parts as $unitId => $part) {
+                $record->farmAllocations()->create(['farm_unit_id' => $unitId] + $part);
             }
 
             $this->audit->recordOn('loan.created', $record, null, [
@@ -126,10 +131,10 @@ class LoanService
     }
 
     /**
-     * The farms a loan will be used on: farm unit id => pesewas. Null when none were named (agent, USSD, offline and
+     * The farms a loan will be used on: farm unit id => amount_minor and the purpose columns. Null when none were named (agent, USSD, offline and
      * opening entries); when named they must be the farmer's own and add up exactly to the loan.
      *
-     * @return array<int, int>
+     * @return array<int, array{amount_minor: int, purpose_template_id: ?int, purpose_note: ?string}>
      */
     private function allocations(FarmerProfile $farmer, int $principal, ?array $farms): array
     {
@@ -138,6 +143,7 @@ class LoanService
         }
 
         $units = $farmer->farmUnits()->pluck('id', 'uuid');
+        $purposes = TransactionTemplate::loanPurposesFor($farmer)->pluck('id', 'slug');
         $parts = [];
 
         foreach ($farms as $row) {
@@ -153,14 +159,34 @@ class LoanService
                 throw PostingFailed::because(self::FARMS_REFUSAL);
             }
 
-            $parts[$unit] = $minor;
+            $parts[$unit] = ['amount_minor' => $minor] + $this->purposeOf($row, $purposes);
         }
 
-        if ($parts === [] || array_sum($parts) !== $principal) {
+        if ($parts === [] || array_sum(array_column($parts, 'amount_minor')) !== $principal) {
             throw PostingFailed::because(self::FARMS_REFUSAL);
         }
 
         return $parts;
+    }
+
+    // what one farm's money is for. A row that names none (older entries) has none; one that names a purpose must name
+    // a record type the farmer can use, or "other" with a note
+    private function purposeOf(array $row, \Illuminate\Support\Collection $allowed): array
+    {
+        $none = ['purpose_template_id' => null, 'purpose_note' => null];
+        $purpose = $row['purpose'] ?? null;
+
+        if ($purpose === null || $purpose === '') {
+            return $none;
+        }
+
+        if ($purpose === self::OTHER_PURPOSE) {
+            $note = trim((string) ($row['purpose_note'] ?? ''));
+
+            return $note === '' ? throw PostingFailed::because(self::PURPOSE_NOTE_REFUSAL) : ['purpose_template_id' => null, 'purpose_note' => $note];
+        }
+
+        return isset($allowed[$purpose]) ? ['purpose_template_id' => $allowed[$purpose], 'purpose_note' => null] : throw PostingFailed::because(self::PURPOSE_REFUSAL);
     }
 
     public function activeFor(Transaction $original): ?Loan
