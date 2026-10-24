@@ -214,6 +214,23 @@ class Loan extends Model
         })->values();
     }
 
+    public function otherUses(): HasMany
+    {
+        return $this->hasMany(LoanOtherUse::class);
+    }
+
+    // money the farmer named for a farm and has not yet said how it was used: the planned amounts less what was bought
+    // and what was marked "something else". Worked out here, never stored. Nothing for a loan that is repaid,
+    // cancelled, or has no farm amounts (older loans, existing loans, agent, USSD and offline loans)
+    public function unaccountedMinor(): int
+    {
+        if ($this->kind !== self::KIND_MONEY || $this->isCancelled() || $this->balanceMinor() === 0) {
+            return 0;
+        }
+
+        return max(0, (int) $this->farmFigures()->sum('not_yet_accounted') - (int) $this->otherUses()->sum('amount_minor'));
+    }
+
     public function repayments(): HasMany
     {
         return $this->hasMany(LoanRepayment::class);

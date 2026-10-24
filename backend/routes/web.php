@@ -282,6 +282,7 @@ Route::middleware(['auth', 'verified.phone'])->group(function () {
         Route::get('/', [RepaymentController::class, 'show'])->name('show');
         Route::post('/repayments/preview', [RepaymentController::class, 'preview'])->name('repayments.preview');
         Route::post('/repayments', [RepaymentController::class, 'store'])->name('repayments.store');
+        Route::post('/other-uses', [\App\Http\Controllers\Loans\LoanOtherUseController::class, 'store'])->name('other-uses.store');
     });
 
     Route::prefix('agent/loans/{loan}/repayments')->name('agent.loans.repayments.')->whereUuid('loan')->group(function () {

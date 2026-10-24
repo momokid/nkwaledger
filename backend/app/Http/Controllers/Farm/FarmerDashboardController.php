@@ -41,6 +41,7 @@ class FarmerDashboardController extends Controller
                 'breakdown' => $this->emptyBreakdown(),
                 'recent_transactions' => [],
                 'weather' => [],
+                'loan_alerts' => [],
                 'filters' => ['from' => $from, 'to' => $to],
             ]);
         }
@@ -57,6 +58,7 @@ class FarmerDashboardController extends Controller
             'breakdown' => $this->breakdownFrom($report),
             'recent_transactions' => $this->recentTransactionsFor($farmer->id),
             'weather' => $this->weatherFor($farmer->id),
+            'loan_alerts' => $this->loans->alertsFor($farmer),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
     }

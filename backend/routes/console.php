@@ -16,6 +16,9 @@ Schedule::command('weather:snapshot-advisories')->dailyAt('03:00')->withoutOverl
 // nudges farmers about credit still outstanding, repeating every three days until settled
 Schedule::command('credit:remind')->dailyAt('04:00')->withoutOverlapping();
 
+// asks farmers to record how a loan was used: after 7 days, then every 14 until it is cleared
+Schedule::command('loans:remind-use')->dailyAt('04:15')->withoutOverlapping();
+
 // once per stale period, not daily - the flag it sets is what stops the daily repeat
 Schedule::command('marketplace:alert-stale-prices')->dailyAt('05:00')->withoutOverlapping();
 

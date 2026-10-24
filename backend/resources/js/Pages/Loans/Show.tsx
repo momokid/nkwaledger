@@ -8,6 +8,8 @@ import { PageProps } from "@/types";
 import { cedis, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useEffect, useState } from "react";
+import { useForm } from "@inertiajs/react";
+import LoanUseBanner from "@/Components/LoanUseBanner";
 
 interface LoanSummary {
     uuid: string;
@@ -45,7 +47,15 @@ interface FarmFigures {
     over: number;
 }
 
+interface OtherUse {
+    uuid: string;
+    note: string;
+    amount: number;
+}
+
 interface Props extends PageProps {
+    unaccounted: number;
+    otherUses: OtherUse[];
     farms: FarmFigures[];
     loan: LoanSummary;
     repayments: RepaymentRow[];
@@ -65,11 +75,16 @@ export default function Show(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "farms" | "loan" | "repayments" | "rejected" | "paidFrom" | "idempotencyKey" | "previewUrl" | "postUrl" | "today">;
+type ContentProps = Pick<Props, "unaccounted" | "otherUses" | "farms" | "loan" | "repayments" | "rejected" | "paidFrom" | "idempotencyKey" | "previewUrl" | "postUrl" | "today">;
 
-function ShowContent({ farms, loan: firstLoan, repayments: firstRepayments, rejected: firstRejected, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
+function ShowContent({ unaccounted, otherUses, farms, loan: firstLoan, repayments: firstRepayments, rejected: firstRejected, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
     const { dark } = useTheme();
     const [open, setOpen] = useState(false);
+    const [otherOpen, setOtherOpen] = useState(false);
+    const other = useForm({ amount: "", note: "" });
+
+    const field = { width: "100%", padding: "10px 12px", border: `1px solid ${dark ? "#4B5563" : "#9CA3AF"}`, background: dark ? "#111827" : "#FFFFFF", color: dark ? "#F9FAFB" : "#111827", fontSize: "1.125rem" } as const;
+    const errorText = { fontSize: "0.9375rem", color: "#B91C1C", marginTop: "4px" } as const;
     const [loan, setLoan] = useState(firstLoan);
     const [repayments, setRepayments] = useState(firstRepayments);
     const [rejected, setRejected] = useState(firstRejected);
@@ -108,6 +123,52 @@ function ShowContent({ farms, loan: firstLoan, repayments: firstRepayments, reje
                     {farm.over > 0 && <span style={{ color: "#B45309" }}> · {farm.name}: GHS {cedis(farm.over)} more than planned</span>}
                 </p>
             ))}
+
+            {unaccounted > 0 && <LoanUseBanner amount={unaccounted} />}
+
+            {otherUses.map((use) => (
+                <p key={use.uuid} className="mt-2" style={{ color: text, fontSize: "1.0625rem" }}>
+                    {use.note}: GHS {cedis(use.amount)}
+                </p>
+            ))}
+
+            {unaccounted > 0 && !otherOpen && (
+                <div className="mt-3">
+                    <Button type="button" look="secondary" onClick={() => setOtherOpen(true)}>
+                        I used some of it for something else
+                    </Button>
+                </div>
+            )}
+
+            {otherOpen && (
+                <form
+                    className="mt-3"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        other.post(`/loans/${loan.uuid}/other-uses`, {
+                            preserveScroll: true,
+                            onSuccess: () => {
+                                other.reset();
+                                setOtherOpen(false);
+                            },
+                        });
+                    }}
+                >
+                    <label style={{ display: "block", fontWeight: 600, color: text, marginBottom: "6px" }}>How much, in cedis?</label>
+                    <input type="text" inputMode="decimal" style={field} value={other.data.amount} onChange={(event) => other.setData("amount", event.target.value)} />
+                    {other.errors.amount && <p style={errorText}>{other.errors.amount}</p>}
+
+                    <label className="mt-3" style={{ display: "block", fontWeight: 600, color: text, marginBottom: "6px" }}>What did you use it for?</label>
+                    <input type="text" style={field} value={other.data.note} onChange={(event) => other.setData("note", event.target.value)} />
+                    {other.errors.note && <p style={errorText}>{other.errors.note}</p>}
+
+                    <div className="mt-3">
+                        <Button type="submit" busy={other.processing}>
+                            Save
+                        </Button>
+                    </div>
+                </form>
+            )}
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments

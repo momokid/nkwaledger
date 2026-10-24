@@ -38,6 +38,8 @@ class RepaymentController extends Controller
             'repayments' => $this->list->repaymentRows($loan),
             'rejected' => $this->list->rejectedRepayments($loan),
             'farms' => $loan->farmFigures(),
+            'unaccounted' => $loan->unaccountedMinor(),
+            'otherUses' => $loan->otherUses()->orderBy('id')->get()->map(fn($use) => ['uuid' => $use->uuid, 'note' => $use->note, 'amount' => $use->amount_minor])->values(),
             'paidFrom' => $this->repayments->paidFromOptions(),
             'idempotencyKey' => (string) Str::uuid(),
             'previewUrl' => "/loans/{$loan->uuid}/repayments/preview",

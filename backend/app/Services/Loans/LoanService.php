@@ -193,6 +193,16 @@ class LoanService
             ->sum(fn(Loan $loan) => $loan->balanceMinor());
     }
 
+    // the loans on the farmer's dashboard banner: each with money not yet accounted for
+    public function alertsFor(FarmerProfile $farmer): array
+    {
+        return Loan::where('farmer_profile_id', $farmer->id)->where('status', Loan::ACTIVE)->where('kind', Loan::KIND_MONEY)->orderBy('id')->get()
+            ->map(fn(Loan $loan) => ['uuid' => $loan->uuid, 'unaccounted' => $loan->unaccountedMinor()])
+            ->filter(fn(array $row) => $row['unaccounted'] > 0)
+            ->values()
+            ->all();
+    }
+
     /** @return array<string, mixed> the loan's own columns, every rule checked */
     public function validated(array $data): array
     {

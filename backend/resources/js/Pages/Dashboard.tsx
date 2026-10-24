@@ -5,6 +5,7 @@ import { cedis, shortDate } from "@/lib/format";
 import { useState } from "react";
 import GreetingHeader from "@/Components/GreetingHeader";
 import UnsentRecordsCount from "@/Components/UnsentRecordsCount";
+import LoanUseBanner from "@/Components/LoanUseBanner";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
@@ -91,6 +92,7 @@ interface Props {
     recent_transactions: RecentTransaction[];
     farm_produce: FarmProduce;
     weather: WeatherEntry[];
+    loan_alerts: { uuid: string; unaccounted: number }[];
     filters: Filters;
 }
 
@@ -103,6 +105,7 @@ function DashboardContent({
     recent_transactions,
     farm_produce,
     weather,
+    loan_alerts,
     filters,
 }: Props) {
     const [openDetail, setOpenDetail] = useState<
@@ -189,6 +192,10 @@ function DashboardContent({
             <GreetingHeader subtitle="Here is your farm's financial snapshot for today." />
 
             <UnsentRecordsCount />
+
+            {loan_alerts.map((alert) => (
+                <LoanUseBanner key={alert.uuid} amount={alert.unaccounted} />
+            ))}
 
             <div
                 style={{
@@ -859,6 +866,7 @@ export default function Dashboard(props: Props) {
                 recent_transactions={props.recent_transactions}
                 farm_produce={props.farm_produce}
                 weather={props.weather}
+                loan_alerts={props.loan_alerts}
                 filters={props.filters}
             />
         </AuthenticatedLayout>
