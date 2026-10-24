@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) 4 (agent loans) and 4b (purpose of each farm amount) built. Tasks 5 and 6 not started.
+Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) 4 (agent loans) and 4b (purpose of each farm amount) built. 5a (offline "Paid from a loan") built. Tasks 5b and 6 not started.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -111,3 +111,12 @@ Owner approved: two new nullable columns on `loan_farm_allocations`, `purpose_te
 - Wording used (approved 2026-10-24): "What will this money be used for?", "Something else", "What will you use it for?", "Please say what this money is for.", "Please say what you will use it for.", "{Farm}: {purpose}".
 - Not done: matching later purchases to the planned purpose (the loan page does not compare them yet); USSD and offline (task 5).
 - Tests: `tests/Feature/Loans/LoanPurposeTest.php`; the older farm tests now send a purpose.
+
+## Task 5 split (2026-10-24)
+Offline loans do not exist: the offline queue carries records and health reports only. USSD loans are recorded by the agent only (the farmer's USSD loans menu is read-only). So task 5 became 5a (offline) and 5b (USSD).
+
+### Task 5a done (offline records keep "Paid from a loan")
+No new column, table or wording. A record saved offline carries `loan` (the loan uuid) in its queued payload (`buildBatchRecord`, `QueuedBatchRecord`); `SyncBatchRequest` accepts `records.*.loan`; `SyncSubmissionService::postingRequest` turns it into `loanId`, and `PostingService` runs the same `Loan::refusalForPurchase` check as the web form. A refused record goes to "needs fixing" with the same approved text (loan not the farmer's, unknown, wrong farm, credit). Tests: `tests/Feature/Loans/OfflineLoanLinkTest.php`, `resources/js/lib/batchRecord.test.ts`.
+
+### Task 5b (not started): the agent's USSD money loan names farms and purposes
+Owner defaults (2026-10-24): several farms in a loop, the last farm takes the remainder automatically; the purposes (the farmer's expense records) shown 5 at a time with "More", plus "Something else" with a typed note; Twi lines added as a marked draft like the existing Twi text. A farmer with no farm unit gets an end screen. The farms and purposes are kept in the pending entry payload, as for the web agent form (`PendingEntryService`). USSD text lives in two files (English and Twi): see [domain/ussd/text-and-simulator.md](../domain/ussd/text-and-simulator.md). Next step: propose the exact English and Twi lines for the owner to approve, then build with failing tests first. No new column or table expected.

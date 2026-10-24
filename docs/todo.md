@@ -60,7 +60,7 @@ Task file: [tasks/adviser-menu-items.md](tasks/adviser-menu-items.md)
 - [x] 1 Adviser dashboard rebuild and vet page · [x] 2 Weather (done, adviser and vet) · [x] 3 Crops and livestock trends (90 days) · [x] 4 Consultations list · [ ] News feed (later, source not chosen)
 
 ### 4c. Loan credit score
-- [x] Tasks 1 (web loan form names farms and amounts) 2 ("Paid from a loan" on purchase records, per-farm figures on the loan page) 3 (alert, "something else" uses, reminders) and 4 (agent loans name the farms; branch `feature/loan-paid-from-loan`) done. and 4b (what each farm amount is for) done. Open: 5 (USSD and offline), 6 (the score). Plan: [tasks/credit-score-and-loan-use.md](tasks/credit-score-and-loan-use.md). First the loan is recorded against a farm and its use (slice A), then the score (slice B). Waiting on the owner's answers. Also: the farmer dashboard shows a made-up score of 720; report only.
+- [x] Tasks 1 (web loan form names farms and amounts) 2 ("Paid from a loan" on purchase records, per-farm figures on the loan page) 3 (alert, "something else" uses, reminders) and 4 (agent loans name the farms; branch `feature/loan-paid-from-loan`) done. 4b (what each farm amount is for) and 5a (offline records keep "Paid from a loan") done. Open: 5b (USSD agent loan names farms and purposes; wording to plan), 6 (the score). Plan: [tasks/credit-score-and-loan-use.md](tasks/credit-score-and-loan-use.md). First the loan is recorded against a farm and its use (slice A), then the score (slice B). Waiting on the owner's answers. Also: the farmer dashboard shows a made-up score of 720; report only.
 
 ### 5. Fertilizer calculator
 - [ ] Not started. Idea notes in ideas/feature-backlog.md.
