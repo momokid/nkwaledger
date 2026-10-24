@@ -71,22 +71,30 @@ class LoanListService
             ->values();
     }
 
-    /** @return Collection<int, array<string, mixed>> the repayments made on a loan, newest first, public ids only */
+    /** @return Collection<int, array<string, mixed>> the repayments made on a loan, oldest first, each with what was still owed after it; public ids only */
     public function repaymentRows(Loan $loan): Collection
     {
+        $owed = $loan->principal_minor + ($loan->agreed_interest_minor ?? 0);
+
         return $loan->repayments()
             ->with(['principalTransaction.reversedBy', 'interestTransaction.reversedBy'])
-            ->orderByDesc('repaid_on')
-            ->orderByDesc('id')
+            ->orderBy('repaid_on')
+            ->orderBy('id')
             ->get()
-            ->map(fn(\App\Models\LoanRepayment $repayment) => [
-                'uuid' => $repayment->uuid,
-                'date' => $repayment->repaid_on->toDateString(),
-                'amount' => $repayment->amount_minor,
-                'principal' => $repayment->principal_minor,
-                'interest' => $repayment->interest_minor,
-                'cancelled' => $repayment->principalTransaction?->reversedBy !== null || $repayment->interestTransaction?->reversedBy !== null,
-            ])
+            ->map(function (\App\Models\LoanRepayment $repayment) use (&$owed) {
+                $cancelled = $repayment->principalTransaction?->reversedBy !== null || $repayment->interestTransaction?->reversedBy !== null;
+                $owed -= $cancelled ? 0 : $repayment->amount_minor;
+
+                return [
+                    'uuid' => $repayment->uuid,
+                    'date' => $repayment->repaid_on->toDateString(),
+                    'amount' => $repayment->amount_minor,
+                    'principal' => $repayment->principal_minor,
+                    'interest' => $repayment->interest_minor,
+                    'balance' => $owed,
+                    'cancelled' => $cancelled,
+                ];
+            })
             ->values();
     }
 

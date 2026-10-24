@@ -1,7 +1,8 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import BackLink from "@/Components/BackLink";
+import LoanGrantedDetails from "@/Components/LoanGrantedDetails";
 import { wording } from "@/lib/wording";
-import { cedis, shortDate } from "@/lib/format";
+import { cedis, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck, CheckStatus, checkOptionLabel } from "@/Components/LoanCheckNotice";
 import useFocusFlash from "@/hooks/useFocusFlash";
 import { PageProps } from "@/types";
@@ -20,6 +21,7 @@ interface RepaymentRow {
     amount: number;
     principal: number;
     interest: number;
+    balance: number;
     cancelled: boolean;
 }
 
@@ -30,7 +32,7 @@ interface RejectedRow {
 }
 
 interface Props extends PageProps {
-    loan: { uuid: string; lender: string; amount: number; balance: number; status: string; check: LoanCheck | null };
+    loan: { uuid: string; lender: string; amount: number; agreed_interest: number | null; granted_on: string; balance: number; status: string; check: LoanCheck | null };
     farmer: string;
     repayments: RepaymentRow[];
     rejected: RejectedRow[];
@@ -81,7 +83,7 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
                     {checks.map((row) => (
                         <div key={row.uuid} data-focus={row.uuid} className="mt-2" style={{ borderTop: `1px solid ${border}`, paddingTop: "8px" }}>
                             <p style={{ color: text, fontSize: "1.0625rem", fontWeight: 600 }}>
-                                {checkOptionLabel(row.status)} · {shortDate(row.date)} · {row.by}
+                                {checkOptionLabel(row.status)} · {slashDate(row.date)} · {row.by}
                             </p>
                             {row.note && <p style={{ color: textSecondary, fontSize: "1.0625rem", whiteSpace: "pre-wrap" }}>{row.note}</p>}
                         </div>
@@ -89,13 +91,15 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
                 </div>
             )}
 
+            <LoanGrantedDetails grantedOn={loan.granted_on} amount={loan.amount} interest={loan.agreed_interest} />
+
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments
             </h3>
 
             {rejected.map((row) => (
                 <p key={row.uuid} data-focus={row.uuid} className="mt-2" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
-                    {shortDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
+                    {slashDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
                 </p>
             ))}
 
@@ -108,15 +112,17 @@ function ShowContent({ loan, farmer, repayments, rejected, checks }: ContentProp
                                 <th style={head}>{wording("repayment.amount")}</th>
                                 <th style={head}>{wording("repayment.principal_part")}</th>
                                 <th style={head}>{wording("repayment.interest_part")}</th>
+                                <th style={head}>{wording("repayment.loan_balance")}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {repayments.map((row) => (
                                 <tr key={row.uuid} data-focus={row.uuid} style={{ borderTop: `1px solid ${border}`, opacity: row.cancelled ? 0.6 : 1 }}>
-                                    <td className="px-4 py-3">{shortDate(row.date)}</td>
+                                    <td className="px-4 py-3">{slashDate(row.date)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.amount)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.principal)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.interest)}</td>
+                                    <td className="px-4 py-3">GHS {cedis(row.balance)}</td>
                                 </tr>
                             ))}
                         </tbody>

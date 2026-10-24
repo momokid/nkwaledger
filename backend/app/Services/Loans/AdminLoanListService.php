@@ -88,7 +88,7 @@ class AdminLoanListService
             'lender' => $loan->lender_name,
             'amount' => $loan->principal_minor,
             'balance' => $balance,
-            'status' => $loan->isCancelled() ? Loan::CANCELLED : ($balance === 0 ? 'repaid' : Loan::ACTIVE),
+            'status' => Loan::statusFor($loan->status, $balance, $loan->due_date, today()),
         ];
     }
 

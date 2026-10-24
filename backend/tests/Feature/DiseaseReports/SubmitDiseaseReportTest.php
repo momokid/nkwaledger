@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\OfficerRole;
+use App\Jobs\ReviewDiseaseReport;
 use App\Models\AgentOfficerAssignment;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
@@ -10,13 +11,16 @@ use App\Models\FarmUnit;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(PermissionsSeeder::class);
     Storage::fake('public');
+    config(['filesystems.photo_disk' => 'public']);
 
     $this->agent = User::factory()->create();
     $this->agent->assignRole('agent');
@@ -202,4 +206,45 @@ it('routes a crop farm unit to the adviser role', function () {
     ]);
 
     expect(DiseaseReport::first()->routed_role)->toBe(OfficerRole::Adviser);
+});
+
+it('keeps the photo and voice note on the photo disk and records which disk that is', function () {
+    config(['filesystems.photo_disk' => 'local']);
+    Storage::fake('local');
+
+    $this->actingAs($this->farmerUser)->post("/my-farm/{$this->unit->id}/report-problem", [
+        'description' => 'Some birds look weak.',
+        'photo' => UploadedFile::fake()->image('sick.jpg'),
+        'audio' => fakeAudioUpload(12),
+    ]);
+
+    $report = DiseaseReport::first();
+
+    expect($report->media_disk)->toBe('local');
+    Storage::disk('local')->assertExists($report->photo_path);
+    Storage::disk('local')->assertExists($report->audio_path);
+    Storage::disk('public')->assertMissing($report->photo_path);
+});
+
+it('queues an AI review for a new web report', function () {
+    Queue::fake();
+
+    $this->actingAs($this->farmerUser)->post("/my-farm/{$this->unit->id}/report-problem", [
+        'description' => 'Some birds look weak.',
+        'photo' => UploadedFile::fake()->image('sick.jpg'),
+    ])->assertRedirect(route('my-farm.index'));
+
+    Queue::assertPushed(ReviewDiseaseReport::class, fn($job) => $job->reportId === DiseaseReport::first()->id);
+});
+
+it('still saves the report when the queue is down', function () {
+    // a thrown error, not a bad SQL table: on PostgreSQL a failed statement aborts the test's open transaction
+    $this->mock(Dispatcher::class)->shouldReceive('dispatch')->andThrow(new RuntimeException('queue down'));
+
+    $this->actingAs($this->farmerUser)->post("/my-farm/{$this->unit->id}/report-problem", [
+        'description' => 'Some birds look weak.',
+        'photo' => UploadedFile::fake()->image('sick.jpg'),
+    ])->assertRedirect(route('my-farm.index'))->assertSessionHas('success');
+
+    expect(DiseaseReport::count())->toBe(1);
 });

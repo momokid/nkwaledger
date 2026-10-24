@@ -25,6 +25,7 @@ class PendingEntry extends Model
 
     public const VIA_APP = 'app';
     public const VIA_CODE = 'code';
+    public const VIA_USSD = 'ussd';
 
     protected $fillable = [
         'uuid',

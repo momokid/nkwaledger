@@ -145,7 +145,7 @@ class PendingEntryService
                 'loan_uuid' => $loan->uuid,
             ], $actor);
 
-            if ($via === PendingEntry::VIA_APP) {
+            if ($via !== PendingEntry::VIA_CODE) {
                 $this->tellAgent($locked, 'loan.accepted', 'accepted', AgentLoanLink::to($loan->uuid, $loan->uuid));
             }
 
@@ -192,22 +192,22 @@ class PendingEntryService
             });
     }
 
-    public function decline(PendingEntry $entry, User $farmerUser): void
+    public function decline(PendingEntry $entry, User $farmerUser, string $via = PendingEntry::VIA_APP): void
     {
-        DB::transaction(function () use ($entry, $farmerUser) {
+        DB::transaction(function () use ($entry, $farmerUser, $via) {
             $locked = $this->lock($entry);
             $this->mustBePending($locked);
 
             $locked->forceFill([
                 'status' => PendingEntry::DECLINED,
                 'decided_by' => $farmerUser->id,
-                'decided_via' => PendingEntry::VIA_APP,
+                'decided_via' => $via,
                 'decided_at' => now(),
             ])->save();
 
             $this->audit->recordOn('pending_entry.declined', $locked, ['status' => PendingEntry::PENDING], [
                 'status' => PendingEntry::DECLINED,
-                'via' => PendingEntry::VIA_APP,
+                'via' => $via,
             ], $farmerUser);
 
             $this->tellAgent($locked, 'loan.declined', 'declined', "/agent/farmers/{$locked->farmerProfile->uuid}");
@@ -293,7 +293,7 @@ class PendingEntryService
             'repayment_uuid' => $repayment->uuid,
         ], $actor);
 
-        if ($via === PendingEntry::VIA_APP) {
+        if ($via !== PendingEntry::VIA_CODE) {
             $this->tellAgent($locked, 'loan.accepted', 'accepted', AgentLoanLink::to($loan->uuid, $repayment->uuid));
         }
 

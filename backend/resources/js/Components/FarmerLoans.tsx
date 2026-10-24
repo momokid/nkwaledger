@@ -1,12 +1,12 @@
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
 import Button from "@/Components/Button";
-import { cedis } from "@/lib/format";
+import { cedis, LATE_STATUS } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { router, usePage } from "@inertiajs/react";
 import { useState } from "react";
 
-type Status = "active" | "repaid" | "cancelled" | "pending" | "declined" | "withdrawn" | "rejected";
+type Status = "active" | "overdue" | "default" | "repaid" | "cancelled" | "pending" | "declined" | "withdrawn" | "rejected";
 
 export interface FarmerLoanRow {
     row: "loan" | "entry";
@@ -21,6 +21,8 @@ export interface FarmerLoanRow {
 
 const STATUS_LABELS: Record<Status, string> = {
     active: "Active",
+    overdue: LATE_STATUS.overdue.label,
+    default: LATE_STATUS.default.label,
     repaid: "Repaid",
     cancelled: "Cancelled",
     pending: "Waiting for the farmer to accept",
@@ -146,7 +148,7 @@ export default function FarmerLoans({ loans, farmerUuid }: Props) {
                     </td>
                     <td
                         className="px-4 py-3"
-                        style={{ color: ["cancelled", "declined", "withdrawn"].includes(loan.status) ? textSecondary : text }}
+                        style={{ color: LATE_STATUS[loan.status]?.color ?? (["cancelled", "declined", "withdrawn"].includes(loan.status) ? textSecondary : text) }}
                     >
                         {STATUS_LABELS[loan.status]}
                     </td>

@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: ['ussd/*', 'dev/ussd/*']);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
@@ -52,6 +54,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn(Request $request) => $request->is('api/*')
-                || ($request->expectsJson() && $request->is('sync/*', 'admin/sync-submissions/*', 'pin-reset/*', 'lenders/*', 'admin/lenders', 'admin/lenders/*', 'admin/loans', 'agent/loans', 'admin/loan-analysis', 'admin/loans/*/checks', 'admin/loans/*/checks/withdraw', 'loans/*/repayments/preview', 'agent/loans/*/repayments/preview')),
+                || ($request->expectsJson() && $request->is('sync/*', 'admin/sync-submissions/*', 'pin-reset/*', 'lenders/*', 'admin/lenders', 'admin/lenders/*', 'lender-requests', 'admin/lender-requests', 'admin/lender-requests/*', 'admin/loans', 'agent/loans', 'admin/loan-analysis', 'admin/loans/*/checks', 'admin/loans/*/checks/withdraw', 'loans/*/repayments', 'loans/*/repayments/preview', 'agent/loans/*/repayments/preview')),
         );
     })->create();

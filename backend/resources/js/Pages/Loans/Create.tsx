@@ -2,9 +2,11 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
 import BackLink from "@/Components/BackLink";
 import Button from "@/Components/Button";
+import LenderRequestForm from "@/Components/LenderRequestForm";
 import { router, useForm, usePage } from "@inertiajs/react";
 import { PageProps } from "@/types";
 import { csrfToken } from "@/lib/syncHttp";
+import { cedis } from "@/lib/format";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 const LENDER_TEXT = { notInList: wording("lender.not_in_list") };
@@ -22,12 +24,26 @@ interface PaidIntoOption {
     label: string;
 }
 
+interface FarmOption {
+    uuid: string;
+    name: string;
+}
+
+interface FarmPart {
+    farm_unit: string;
+    amount: string;
+}
+
 interface Props extends PageProps {
     kind: "money" | "existing";
     paidInto: PaidIntoOption[];
+    // the farmer's own farm units a new money loan can be spread over; absent on the agent's form
+    farms?: FarmOption[];
     idempotencyKey: string;
     // an agent filling the form in for a farmer: another address to post to and to go back to
     agent: boolean;
+    // the farmer a lender request is for when an agent fills the form in; null for the farmer themselves
+    requestFor: string | null;
     postUrl: string;
     backUrl: string;
 }
@@ -40,9 +56,9 @@ export default function Create(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "kind" | "paidInto" | "idempotencyKey" | "agent" | "postUrl" | "backUrl">;
+type ContentProps = Pick<Props, "kind" | "paidInto" | "farms" | "idempotencyKey" | "agent" | "requestFor" | "postUrl" | "backUrl">;
 
-function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl }: ContentProps) {
+function CreateContent({ kind, paidInto, farms = [], idempotencyKey, agent, requestFor, postUrl, backUrl }: ContentProps) {
     const { errors, old } = usePage<Props>().props as unknown as {
         errors: Record<string, string>;
         old: Record<string, string>;
@@ -58,6 +74,8 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
     const isMoney = kind === "money";
     const today = new Date().toISOString().slice(0, 10);
 
+    const askFarms = isMoney && !agent;
+
     const form = useForm({
         kind,
         lender_name: old?.lender_name ?? "",
@@ -68,11 +86,13 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
         interest: old?.interest ?? "",
         due_date: old?.due_date ?? "",
         note: old?.note ?? "",
+        farms: ((old as unknown as { farms?: FarmPart[] })?.farms ?? []) as FarmPart[],
         idempotency_key: idempotencyKey,
     });
 
     const [found, setFound] = useState<Found[] | null>(null);
     const [pickedType, setPickedType] = useState("");
+    const [requesting, setRequesting] = useState(false);
     const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
     // a lender is picked from the list: what is typed here only searches, and only the picked id is sent
@@ -127,6 +147,19 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
         color: "#B91C1C",
         marginTop: "4px",
     } as const;
+
+    const parts = form.data.farms;
+    const setPart = (uuid: string, amount: string | null) =>
+        form.setData(
+            "farms",
+            amount === null
+                ? parts.filter((part) => part.farm_unit !== uuid)
+                : parts.some((part) => part.farm_unit === uuid)
+                  ? parts.map((part) => (part.farm_unit === uuid ? { ...part, amount } : part))
+                  : [...parts, { farm_unit: uuid, amount }],
+        );
+    const toMinor = (value: string) => Math.round((parseFloat(value) || 0) * 100);
+    const left = toMinor(form.data.amount) - parts.reduce((sum, part) => sum + toMinor(part.amount), 0);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -247,6 +280,14 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
                     )}
                     {pickedType !== "" && form.data.lender !== "" && <p style={{ fontSize: "0.9375rem", marginTop: "4px", color: text }}>{typeLabel(pickedType)}</p>}
                     {found !== null && found.length === 0 && <p style={errorText}>{LENDER_TEXT.notInList}</p>}
+                    {found !== null && found.length === 0 && !requesting && (
+                        <div className="mt-2">
+                            <Button type="button" look="secondary" size="small" onClick={() => setRequesting(true)}>
+                                {wording("lender.request_button")}
+                            </Button>
+                        </div>
+                    )}
+                    {requesting && <LenderRequestForm name={form.data.lender_name} farmer={requestFor} onClose={() => setRequesting(false)} />}
                     {errors.lender && <p style={errorText}>{errors.lender}</p>}
                 </div>
 
@@ -274,6 +315,41 @@ function CreateContent({ kind, paidInto, idempotencyKey, agent, postUrl, backUrl
                         </select>
                         {errors.paid_into && <p style={errorText}>{errors.paid_into}</p>}
                     </div>
+                )}
+
+                {askFarms && (
+                    <fieldset className="mb-4">
+                        <legend style={label}>Which farms will use this loan?</legend>
+                        {farms.map((farm) => {
+                            const part = parts.find((row) => row.farm_unit === farm.uuid);
+
+                            return (
+                                <div key={farm.uuid} className="mb-2">
+                                    <label style={{ ...label, fontWeight: 400, display: "flex", gap: "8px", alignItems: "center" }}>
+                                        <input type="checkbox" checked={part !== undefined} onChange={(event) => setPart(farm.uuid, event.target.checked ? "" : null)} />
+                                        {farm.name}
+                                    </label>
+                                    {part !== undefined && (
+                                        <>
+                                            <label htmlFor={`farm_${farm.uuid}`} style={label}>
+                                                Amount for this farm
+                                            </label>
+                                            <input
+                                                id={`farm_${farm.uuid}`}
+                                                type="text"
+                                                inputMode="decimal"
+                                                style={field}
+                                                value={part.amount}
+                                                onChange={(event) => setPart(farm.uuid, event.target.value)}
+                                            />
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        <p style={{ fontSize: "1.0625rem", color: text }}>Left to place: GHS {cedis(left)}</p>
+                        {errors.farms && <p style={errorText}>{errors.farms}</p>}
+                    </fieldset>
                 )}
 
                 {text_(

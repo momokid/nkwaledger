@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
+    'uuid',
     'farmer_profile_id',
     'farm_type_id',
     'community_id',
@@ -41,6 +42,8 @@ class FarmUnit extends Model
 
     protected static function booted(): void
     {
+        static::creating(fn(FarmUnit $unit) => $unit->uuid ??= (string) \Illuminate\Support\Str::uuid7());
+
         // entries are blessed on the strength of an approval, so it cannot be taken back
         static::updating(function (FarmUnit $unit) {
             if ($unit->getOriginal('approved_at') !== null) {

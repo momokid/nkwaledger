@@ -28,6 +28,7 @@ use Illuminate\Support\Str;
     'description',
     'contact_method',
     'response_note',
+    'responded_at',
 ])]
 class DiseaseReport extends Model
 {
@@ -35,6 +36,7 @@ class DiseaseReport extends Model
 
     protected $attributes = [
         'status' => 'new',
+        'ai_urgent' => false,
     ];
 
     protected function casts(): array
@@ -43,6 +45,10 @@ class DiseaseReport extends Model
             'routed_role' => OfficerRole::class,
             'status' => DiseaseReportStatus::class,
             'contact_method' => ContactMethod::class,
+            'ai_urgent' => 'boolean',
+            'ai_reviewed_at' => 'datetime',
+            'officer_reviewed_at' => 'datetime',
+            'responded_at' => 'datetime',
         ];
     }
 
@@ -96,7 +102,27 @@ class DiseaseReport extends Model
             'status' => $status,
             'contact_method' => $contactMethod,
             'response_note' => $note,
+            'responded_at' => now(),
         ])->save();
+    }
+
+    // the verdict is only measured against a draft the officer was actually shown
+    public function setOfficerCategory(HealthCategory $category, bool $rejected = false): void
+    {
+        $shown = $this->ai_status === 'ready' && $this->health_category_id !== null;
+
+        $this->forceFill([
+            'officer_health_category_id' => $category->id,
+            'officer_verdict' => ! $shown ? null : ($rejected ? 'disagreed' : ($this->health_category_id === $category->id ? 'agreed' : 'edited')),
+            'officer_reviewed_at' => now(),
+        ])->save();
+    }
+
+    // what the officer chose, else the AI draft they were shown, else nothing
+    public function effectiveHealthCategory(): ?HealthCategory
+    {
+        return $this->officerHealthCategory
+            ?? ($this->ai_status === 'ready' ? $this->healthCategory : null);
     }
 
     public function scopeAwaitingOfficer(Builder $query): Builder
@@ -112,6 +138,16 @@ class DiseaseReport extends Model
             ->where('farm_unit_id', $farmUnitId)
             ->when($excludingReportId, fn(Builder $q) => $q->where('id', '!=', $excludingReportId))
             ->orderByDesc('created_at');
+    }
+
+    public function healthCategory(): BelongsTo
+    {
+        return $this->belongsTo(HealthCategory::class);
+    }
+
+    public function officerHealthCategory(): BelongsTo
+    {
+        return $this->belongsTo(HealthCategory::class, 'officer_health_category_id');
     }
 
     public function farmUnit(): BelongsTo

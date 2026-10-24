@@ -52,7 +52,7 @@ class RepaymentController extends Controller
         return $this->previewFor($request, $loan);
     }
 
-    public function store(StoreRepaymentRequest $request, Loan $loan): RedirectResponse
+    public function store(StoreRepaymentRequest $request, Loan $loan): RedirectResponse|JsonResponse
     {
         Gate::authorize('repay', $loan);
 
@@ -65,7 +65,21 @@ class RepaymentController extends Controller
                 fn() => $this->repayments->record($loan, $request->user(), $data),
             );
         } catch (PostingFailed $failure) {
-            return back()->withInput()->with('error', $failure->getMessage());
+            return $request->expectsJson()
+                ? response()->json(['message' => $failure->getMessage()], 422)
+                : back()->withInput()->with('error', $failure->getMessage());
+        }
+
+        // saved in place: the page gets the new figures and a fresh key, and clears its form without reloading
+        if ($request->expectsJson()) {
+            $loan->refresh();
+
+            return response()->json([
+                'loan' => $this->repayments->summary($loan),
+                'repayments' => $this->list->repaymentRows($loan),
+                'rejected' => $this->list->rejectedRepayments($loan),
+                'idempotencyKey' => (string) Str::uuid(),
+            ], 201);
         }
 
         return redirect("/loans/{$loan->uuid}");

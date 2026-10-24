@@ -2,16 +2,19 @@ import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording } from "@/lib/wording";
 import BackLink from "@/Components/BackLink";
 import Button from "@/Components/Button";
-import RepaymentForm, { PaidFromOption } from "@/Components/RepaymentForm";
+import LoanGrantedDetails from "@/Components/LoanGrantedDetails";
+import RepaymentForm, { PaidFromOption, SavedRepayment } from "@/Components/RepaymentForm";
 import { PageProps } from "@/types";
-import { cedis, shortDate } from "@/lib/format";
+import { cedis, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface LoanSummary {
     uuid: string;
     lender: string;
     amount: number;
+    agreed_interest: number | null;
+    granted_on: string;
     balance: number;
     status: string;
     check?: LoanCheck | null;
@@ -23,6 +26,7 @@ interface RepaymentRow {
     amount: number;
     principal: number;
     interest: number;
+    balance: number;
     cancelled: boolean;
 }
 
@@ -53,9 +57,19 @@ export default function Show(props: Props) {
 
 type ContentProps = Pick<Props, "loan" | "repayments" | "rejected" | "paidFrom" | "idempotencyKey" | "previewUrl" | "postUrl" | "today">;
 
-function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
+function ShowContent({ loan: firstLoan, repayments: firstRepayments, rejected: firstRejected, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
     const { dark } = useTheme();
     const [open, setOpen] = useState(false);
+    const [loan, setLoan] = useState(firstLoan);
+    const [repayments, setRepayments] = useState(firstRepayments);
+    const [rejected, setRejected] = useState(firstRejected);
+
+    // a save updates these in place; fresh data from the server (another visit or reload) replaces them
+    useEffect(() => {
+        setLoan(firstLoan);
+        setRepayments(firstRepayments);
+        setRejected(firstRejected);
+    }, [firstLoan, firstRepayments, firstRejected]);
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
     const border = dark ? "#374151" : "#E5E7EB";
@@ -76,6 +90,8 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                 <LoanCheckNotice check={loan.check} />
             </div>
 
+            <LoanGrantedDetails grantedOn={loan.granted_on} amount={loan.amount} interest={loan.agreed_interest} />
+
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments
             </h3>
@@ -88,20 +104,25 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                 </div>
             )}
 
-            {open && (
+            {open && loan.status === "active" && (
                 <RepaymentForm
                     paidFrom={paidFrom}
                     previewUrl={previewUrl}
                     postUrl={postUrl}
                     today={today}
                     idempotencyKey={idempotencyKey}
+                    onSaved={(saved: SavedRepayment) => {
+                        setLoan(saved.loan as unknown as typeof firstLoan);
+                        setRepayments(saved.repayments as typeof firstRepayments);
+                        setRejected(saved.rejected as typeof firstRejected);
+                    }}
                     onCancel={() => setOpen(false)}
                 />
             )}
 
             {rejected.map((row) => (
                 <p key={row.uuid} className="mt-3" style={{ color: textSecondary, fontSize: "1.0625rem" }}>
-                    {shortDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
+                    {slashDate(row.date)} · GHS {cedis(row.amount)} · {wording("repayment.rejected")}
                 </p>
             ))}
 
@@ -114,15 +135,17 @@ function ShowContent({ loan, repayments, rejected, paidFrom, idempotencyKey, pre
                                 <th style={head}>{wording("repayment.amount")}</th>
                                 <th style={head}>{wording("repayment.principal_part")}</th>
                                 <th style={head}>{wording("repayment.interest_part")}</th>
+                                <th style={head}>{wording("repayment.loan_balance")}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {repayments.map((row) => (
                                 <tr key={row.uuid} style={{ borderBottom: `1px solid ${border}`, color: row.cancelled ? textSecondary : text }}>
-                                    <td className="px-4 py-3">{shortDate(row.date)}</td>
+                                    <td className="px-4 py-3">{slashDate(row.date)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.amount)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.principal)}</td>
                                     <td className="px-4 py-3">GHS {cedis(row.interest)}</td>
+                                    <td className="px-4 py-3">GHS {cedis(row.balance)}</td>
                                 </tr>
                             ))}
                         </tbody>

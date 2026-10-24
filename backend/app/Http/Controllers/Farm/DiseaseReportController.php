@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Farm;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DiseaseReports\StoreDiseaseReportRequest;
+use App\Jobs\ReviewDiseaseReport;
 use App\Models\DiseaseReport;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
@@ -102,6 +103,7 @@ class DiseaseReportController extends Controller
             [$report, $officer, $role] = $created;
 
             $this->release->notifySubmission($report, $user, $farmer, $farmUnit, $officer, $role);
+            ReviewDiseaseReport::send($report->id);
         }
 
         return redirect()
@@ -122,10 +124,12 @@ class DiseaseReportController extends Controller
         [$category, $role] = $this->routing->routeFor($farmUnit);
         $officer = $this->routing->officerFor($farmer, $role);
 
-        $photoPath = PhotoUpload::store($request->file('photo'), 'disease-reports');
+        $disk = config('filesystems.photo_disk');
+
+        $photoPath = PhotoUpload::store($request->file('photo'), 'disease-reports', $disk);
 
         $audioPath = $request->hasFile('audio')
-            ? AudioUpload::store($request->file('audio'), 'disease-reports')
+            ? AudioUpload::store($request->file('audio'), 'disease-reports', $disk)
             : null;
 
         $report = DiseaseReport::create([
@@ -139,6 +143,7 @@ class DiseaseReportController extends Controller
             'description' => $request->validated('description'),
             'photo_path' => $photoPath,
             'audio_path' => $audioPath,
+            'media_disk' => $disk,
         ]);
 
         return [$report, $officer, $role];

@@ -1,6 +1,6 @@
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import { wording, fill } from "@/lib/wording";
-import { shortDate } from "@/lib/format";
+import { slashDate } from "@/lib/format";
 import { LOAN_NOTICE } from "@/lib/loanNotice";
 
 export type CheckStatus = "confirmed" | "not_confirmed" | "does_not_match" | "unreachable";
@@ -44,7 +44,7 @@ export default function LoanCheckNotice({ check, whenNone = "notice", size = "1r
     return (
         <div role="note">
             <p style={{ color: COLORS[check.status], fontSize: size, fontWeight: 600 }}>
-                {fill(`lender.check_line_${check.status}`, { date: shortDate(check.date) })}
+                {fill(`lender.check_line_${check.status}`, { date: slashDate(check.date) })}
             </p>
             {check.note && <p style={{ color: textSecondary, fontSize: size, whiteSpace: "pre-wrap" }}>{check.note}</p>}
         </div>

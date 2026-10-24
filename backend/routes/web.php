@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\StaffUssdPinController;
 use App\Http\Controllers\KioskReportController;
 use App\Http\Controllers\DiseaseReportMediaController;
 use App\Http\Controllers\Sync\HealthReportUploadController;
@@ -47,6 +48,9 @@ use App\Http\Controllers\Admin\FarmUnitStockController;
 use App\Http\Controllers\Farm\DiseaseReportController;
 use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
+use App\Http\Controllers\Officer\FarmerWeatherController as OfficerFarmerWeatherController;
+use App\Http\Controllers\Officer\TrendsController as OfficerTrendsController;
+use App\Http\Controllers\Officer\ConsultationsController as OfficerConsultationsController;
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Loans\AgentLoanController;
 use App\Http\Controllers\Loans\AgentRepaymentController;
@@ -187,10 +191,16 @@ Route::middleware(['auth', 'role:vet', 'verified.phone'])->prefix('vet')->name('
     Route::middleware('access:disease-reports.view')->group(function () {
         Route::get('/reports/{report:uuid}', [OfficerDiseaseReportController::class, 'show'])
             ->name('reports.show');
+        Route::get('/weather', [OfficerFarmerWeatherController::class, 'index'])->name('weather.index');
+        Route::get('/trends', [OfficerTrendsController::class, 'index'])->name('trends.index');
+        Route::get('/consultations', [OfficerConsultationsController::class, 'index'])->name('consultations.index');
+        Route::get('/weather/{farmerUuid}', [OfficerFarmerWeatherController::class, 'show'])->name('weather.show');
     });
     Route::middleware('access:disease-reports.respond')->group(function () {
         Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
             ->name('reports.respond');
+        Route::post('/reports/{report:uuid}/category', [OfficerDiseaseReportController::class, 'setCategory'])
+            ->name('reports.category');
     });
 });
 
@@ -199,10 +209,16 @@ Route::middleware(['auth', 'role:adviser', 'verified.phone'])->prefix('adviser')
     Route::middleware('access:disease-reports.view')->group(function () {
         Route::get('/reports/{report:uuid}', [OfficerDiseaseReportController::class, 'show'])
             ->name('reports.show');
+        Route::get('/weather', [OfficerFarmerWeatherController::class, 'index'])->name('weather.index');
+        Route::get('/trends', [OfficerTrendsController::class, 'index'])->name('trends.index');
+        Route::get('/consultations', [OfficerConsultationsController::class, 'index'])->name('consultations.index');
+        Route::get('/weather/{farmerUuid}', [OfficerFarmerWeatherController::class, 'show'])->name('weather.show');
     });
     Route::middleware('access:disease-reports.respond')->group(function () {
         Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
             ->name('reports.respond');
+        Route::post('/reports/{report:uuid}/category', [OfficerDiseaseReportController::class, 'setCategory'])
+            ->name('reports.category');
     });
 });
 
@@ -250,12 +266,15 @@ Route::middleware(['auth', 'verified.phone', 'role:agent'])->prefix('agent')->na
     Route::post('/loan-entries/{entry}/send-code', [AgentLoanController::class, 'sendCode'])->middleware('throttle:loan-code')->name('send-code');
     Route::post('/loan-entries/{entry}/code', [AgentLoanController::class, 'enterCode'])->middleware('throttle:loan-code')->name('code');
     Route::post('/loan-entries/{entry}/withdraw', [AgentLoanController::class, 'withdraw'])->name('withdraw');
+    Route::get('/loans/new', [AgentLoanController::class, 'newLoan'])->name('new');
+    Route::post('/loans/farmer-search', [AgentLoanController::class, 'searchFarmers'])->middleware('throttle:lender-search')->name('farmer-search');
     Route::get('/loans', [\App\Http\Controllers\Agent\AgentLoanViewController::class, 'index'])->name('index');
     Route::get('/loans/{loan}', [\App\Http\Controllers\Agent\AgentLoanViewController::class, 'show'])->whereUuid('loan')->name('show');
 });
 
 // finding an institution for a loan: a POST, so nothing typed lands in an address
 Route::middleware(['auth', 'verified.phone', 'throttle:lender-search'])->post('/lenders/search', LenderSearchController::class)->name('lenders.search');
+Route::middleware(['auth', 'verified.phone', 'throttle:20,1'])->post('/lender-requests', [\App\Http\Controllers\Loans\LenderRequestController::class, 'store'])->name('lender-requests.store');
 
 // repayments on one loan. Any signed-in person may knock; the policy answers 404 to everyone out of reach
 Route::middleware(['auth', 'verified.phone'])->group(function () {
@@ -564,6 +583,11 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::post('/lenders', [AdminLenderController::class, 'store'])->name('lenders.store');
     Route::patch('/lenders/{lender}', [AdminLenderController::class, 'update'])->name('lenders.update');
 
+    Route::get('/lender-requests', [\App\Http\Controllers\Admin\LenderRequestController::class, 'index'])->name('lender-requests.index');
+    Route::post('/lender-requests/{lenderRequest}/add', [\App\Http\Controllers\Admin\LenderRequestController::class, 'add'])->name('lender-requests.add');
+    Route::post('/lender-requests/{lenderRequest}/use-existing', [\App\Http\Controllers\Admin\LenderRequestController::class, 'useExisting'])->name('lender-requests.use-existing');
+    Route::post('/lender-requests/{lenderRequest}/reject', [\App\Http\Controllers\Admin\LenderRequestController::class, 'reject'])->name('lender-requests.reject');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
@@ -625,6 +649,18 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::middleware('access:disease-reports.manage')->group(function () {
         Route::get('/disease-reports', [DiseaseReportQueueController::class, 'index'])
             ->name('disease-reports.index');
+    });
+
+    // no delete route: a category reports use is switched off, never removed
+    Route::middleware('access:health-categories.manage')->group(function () {
+        Route::get('/health-categories', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'index'])
+            ->name('health-categories.index');
+        Route::post('/health-categories', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'store'])
+            ->name('health-categories.store');
+        Route::patch('/health-categories/{healthCategory}', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'update'])
+            ->name('health-categories.update');
+        Route::patch('/health-categories/{healthCategory}/move', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'move'])
+            ->name('health-categories.move');
     });
 
     // links an agent to the vets/advisers who handle their farmers' reports
@@ -870,6 +906,7 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::middleware('access:staff.update')->group(function () {
         Route::patch('/staff/{user}/disable', [StaffController::class, 'disable'])->name('staff.disable');
         Route::patch('/staff/{user}/enable', [StaffController::class, 'enable'])->name('staff.enable');
+        Route::post('/staff/{user:uuid}/ussd-pin', [StaffUssdPinController::class, 'store'])->middleware('throttle:20,1')->name('staff.ussd-pin');
     });
 
     Route::middleware('access:staff.delete')->group(function () {
@@ -1127,3 +1164,16 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
         Route::post('/farmers/{farmer}/records/{transaction}/cancel', [ReversalController::class, 'store'])->name('records.cancel');
     });
 });
+
+// the gateway calls this, so it has no session or CSRF; the secret in the address is the only door
+Route::post('/ussd/callback/{secret}', [\App\Http\Controllers\Ussd\UssdController::class, 'callback'])->middleware('throttle:ussd')->name('ussd.callback');
+
+// the USSD simulator page: the controller answers 404 everywhere but local and testing
+Route::prefix('dev/ussd')->name('dev.ussd.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Ussd\UssdSimulatorController::class, 'page'])->name('page');
+    Route::post('/dial', [\App\Http\Controllers\Ussd\UssdSimulatorController::class, 'dial'])->name('dial');
+});
+
+// the farmer's own agent sets a temporary USSD PIN
+Route::middleware(['auth', 'verified.phone', 'role:agent', 'throttle:20,1'])
+    ->post('/agent/farmers/{farmer}/ussd-pin', [\App\Http\Controllers\Ussd\UssdPinResetController::class, 'store'])->name('agent.ussd-pin.reset');
