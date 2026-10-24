@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Loans;
 use App\Exceptions\Ledger\PostingFailed;
 use App\Exceptions\Loans\EntryRefused;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Loans\StoreLoanRequest;
+use App\Http\Requests\Loans\StoreFarmerLoanRequest;
 use App\Models\FarmerProfile;
 use App\Models\Loan;
 use App\Models\PendingEntry;
@@ -81,7 +81,7 @@ class AgentLoanController extends Controller
         return $this->form($farmer, Loan::KIND_EXISTING);
     }
 
-    public function store(StoreLoanRequest $request, FarmerProfile $farmer): RedirectResponse
+    public function store(StoreFarmerLoanRequest $request, FarmerProfile $farmer): RedirectResponse
     {
         Gate::authorize('record', [PendingEntry::class, $farmer]);
 
@@ -146,6 +146,7 @@ class AgentLoanController extends Controller
         return Inertia::render('Loans/Create', [
             'kind' => $kind,
             'paidInto' => $this->loans->paidIntoOptions(),
+            'farms' => $kind === Loan::KIND_MONEY ? $farmer->farmUnits()->orderBy('name')->get(['uuid', 'name']) : [],
             'idempotencyKey' => (string) Str::uuid(),
             'agent' => true,
             'requestFor' => $farmer->uuid,

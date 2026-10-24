@@ -41,11 +41,11 @@ class PendingEntryService
     {
         $checked = $this->loans->validated($data);
 
-        return DB::transaction(function () use ($farmer, $agent, $checked) {
+        return DB::transaction(function () use ($farmer, $agent, $checked, $data) {
             $entry = PendingEntry::create([
                 'farmer_profile_id' => $farmer->id,
                 'entry_type' => $checked['kind'] === Loan::KIND_MONEY ? PendingEntry::LOAN_MONEY : PendingEntry::LOAN_EXISTING,
-                'payload' => $checked,
+                'payload' => $checked + ['farms' => $this->farmsOf($data)],
                 'recorded_by' => $agent->id,
             ]);
 
@@ -61,6 +61,15 @@ class PendingEntryService
 
             return $entry;
         });
+    }
+
+    // the farms the agent named, kept as uuid and pesewas; none for an existing loan or an entry that named none
+    private function farmsOf(array $data): array
+    {
+        return array_map(
+            fn($row) => ['farm_unit' => $row['farm_unit'], 'amount_minor' => Money::toMinor((string) $row['amount'])],
+            array_values($data['farms'] ?? []),
+        );
     }
 
     /** @param array<string, mixed> $data the same input the farmer's own repayment form takes */
@@ -315,6 +324,11 @@ class PendingEntryService
             'due_date' => $payload['due_date'],
             'note' => $payload['note'],
             'paid_into' => $payload['settlement_account_id'],
+            // an entry recorded before farms were asked has none, and is accepted as it always was
+            'farms' => ($payload['farms'] ?? []) === [] ? null : array_map(
+                fn($row) => ['farm_unit' => $row['farm_unit'], 'amount' => Money::toDecimal($row['amount_minor'])],
+                $payload['farms'],
+            ),
         ];
     }
 

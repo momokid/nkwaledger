@@ -37,7 +37,7 @@ interface FarmPart {
 interface Props extends PageProps {
     kind: "money" | "existing";
     paidInto: PaidIntoOption[];
-    // the farmer's own farm units a new money loan can be spread over; absent on the agent's form
+    // the farmer's own farm units a new money loan can be spread over
     farms?: FarmOption[];
     idempotencyKey: string;
     // an agent filling the form in for a farmer: another address to post to and to go back to
@@ -74,7 +74,7 @@ function CreateContent({ kind, paidInto, farms = [], idempotencyKey, agent, requ
     const isMoney = kind === "money";
     const today = new Date().toISOString().slice(0, 10);
 
-    const askFarms = isMoney && !agent;
+    const askFarms = isMoney;
 
     const form = useForm({
         kind,

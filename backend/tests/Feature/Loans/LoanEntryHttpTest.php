@@ -49,6 +49,8 @@ beforeEach(function () {
         'date' => now()->toDateString(), 'paid_into' => $this->cash->id, 'idempotency_key' => 'k-' . uniqid(),
     ], $over);
     $this->farmerUrl = "/agent/farmers/{$this->profile->uuid}";
+    // an agent's money loan names the farms too
+    $this->agentForm = fn(array $over = []) => ($this->form)(['farms' => wholeLoanOnOneFarm($this->profile, '200')] + $over);
 });
 
 // --- the access matrix: agent routes ---
@@ -56,7 +58,7 @@ beforeEach(function () {
 test('the agent routes: who gets what', function (string $who, int $createStatus, int $storeStatus) {
     ($this->as)($who)->get("{$this->farmerUrl}/loans/create")->assertStatus($createStatus);
     ($this->as)($who)->get("{$this->farmerUrl}/loans/existing/create")->assertStatus($createStatus);
-    ($this->as)($who)->post("{$this->farmerUrl}/loans", ($this->form)())->assertStatus($storeStatus);
+    ($this->as)($who)->post("{$this->farmerUrl}/loans", ($this->agentForm)())->assertStatus($storeStatus);
 })->with([
     'the assigned agent' => ['agent', 200, 302],
     'an agent who is not assigned' => ['otherAgent', 404, 404],
@@ -117,7 +119,7 @@ test('after the farmer is reassigned the new agent controls the entries and the 
 test('an agent can still record for a locked farmer and use the code path', function () {
     $this->farmerUser->forceFill(['is_active' => false])->save();
 
-    ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)())->assertRedirect($this->farmerUrl);
+    ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->agentForm)())->assertRedirect($this->farmerUrl);
 
     ($this->as)('agent')->post("/agent/loan-entries/{$this->entry->uuid}/send-code")->assertRedirect();
     $code = ($this->lastCode)();
@@ -162,7 +164,7 @@ test('the agent records an entry with the same rules and the same words as the f
 
     expect(PendingEntry::count())->toBe(1);
 
-    ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)())->assertRedirect($this->farmerUrl);
+    ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->agentForm)())->assertRedirect($this->farmerUrl);
 
     expect(PendingEntry::count())->toBe(2)->and(Loan::count())->toBe(0);
 });
@@ -308,9 +310,10 @@ test('sending a code to a farmer with no phone shows an error and sends nothing'
 });
 
 test('pending, accepted and declined entries leave the figures where they were until acceptance', function () {
+    $form = ($this->agentForm)();
     $before = figureSnapshot($this, withLoanFigures: true);
 
-    ($this->as)('agent')->post("{$this->farmerUrl}/loans", ($this->form)())->assertRedirect();
+    ($this->as)('agent')->post("{$this->farmerUrl}/loans", $form)->assertRedirect();
     ($this->as)('agent')->post("/agent/loan-entries/{$this->entry->uuid}/send-code");
     ($this->as)('agent')->post("/agent/loan-entries/{$this->entry->uuid}/code", ['code' => '000000']);
 

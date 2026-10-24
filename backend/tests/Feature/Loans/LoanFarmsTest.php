@@ -78,10 +78,3 @@ test('an existing loan needs no farms and gets none', function () {
 
     expect(Loan::firstOrFail()->farmAllocations()->count())->toBe(0);
 });
-
-test('the agent form is not changed: no farms asked', function () {
-    $this->actingAs($this->agent)->post("/agent/farmers/{$this->profile->uuid}/loans", [
-        'kind' => 'money', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid, 'amount' => '200',
-        'date' => now()->toDateString(), 'paid_into' => $this->cash->id, 'idempotency_key' => 'a1',
-    ])->assertRedirect();
-});
