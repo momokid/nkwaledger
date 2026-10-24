@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: task 1 (web loan form) built. Tasks 2 to 6 not started.
+Status: tasks 1 (web loan form) and 2 (paid from a loan) built. Tasks 3 to 6 not started.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -72,3 +72,12 @@ Owner approved: new table `loan_farm_allocations` (uuid, loan_id, farm_unit_id, 
 - USSD (task 5): `UssdLoanFlow` needs steps to pick farms and amounts, then the same `farms` array. Needs its own wording proposal. Farm units now have a uuid, but USSD screens use a menu number.
 - Offline (task 5): the offline queue payload needs `farms` and the sync endpoint must use the farmer request rules.
 - Task 2 reads `loan_farm_allocations` for planned vs accounted per farm.
+
+## Task 2 done (paid from a loan, 2026-10-24)
+Branch `feature/loan-paid-from-loan`. New column `transactions.loan_id` (nullable, restrict on delete); run `php artisan migrate`.
+- Request field `loan` (the loan uuid) on `RecordTransactionRequest`; `PostingRequest.loanId`; the rule is `Loan::refusalForPurchase`, used by the request and again by `PostingService`.
+- Loan page (`Loans/Show`) gets `farms` from `Loan::farmFigures()`: planned, accounted (live purchases only), not yet accounted, over. Never stored.
+- Purchase form (`Transactions/Create`): checkbox "Paid from a loan", then a picker of the farmer's active money loans, shown for EXPENSE records that take money.
+- Wording used: only the approved lines (see the 2026-10-24 log and table above); the over-plan line is "{Farm}: GHS {amount} more than planned".
+- Not done, on purpose: "I used some of it for something else" (task 3); the offline queue and the sync path do not carry `loan` yet (task 5), so an offline purchase saves without the loan link; the server does not limit `loan` to EXPENSE templates, only the form shows it for them.
+- Tests: `tests/Feature/Loans/LoanPaidFromTest.php`.
