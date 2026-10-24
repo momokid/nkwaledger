@@ -9,6 +9,7 @@ use App\Http\Requests\Transactions\SettleTransactionRequest;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\LedgerAccount;
+use App\Models\Loan;
 use App\Models\TransactionTemplate;
 use App\Models\User;
 use App\Services\Ledger\CreditSettlementService;
@@ -158,6 +159,21 @@ class RecordTransactionController extends Controller
                 ->whereNotIn('name', ['Accounts Receivable', 'Accounts Payable'])
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            // the loans a purchase can be marked "Paid from a loan" for; uuids only
+            'loans' => Loan::query()
+                ->where('farmer_profile_id', $farmer->id)
+                ->where('kind', Loan::KIND_MONEY)
+                ->where('status', Loan::ACTIVE)
+                ->with('lender')
+                ->orderByDesc('loan_date')
+                ->get()
+                ->map(fn(Loan $loan) => [
+                    'uuid' => $loan->uuid,
+                    'lender' => $loan->lender_name,
+                    'amount' => $loan->principal_minor,
+                    'date' => $loan->loan_date->toDateString(),
+                ])
+                ->values(),
             'farmUnits' => $farmer->farmUnits()
                 ->where('is_active', true)
                 ->orderBy('name')
@@ -197,6 +213,7 @@ class RecordTransactionController extends Controller
                 quantitySold: $data['quantity_sold'] ?? null,
                 quantityPurchased: $data['quantity_purchased'] ?? null,
                 idempotencyKey: $data['idempotency_key'] ?? null,
+                loanId: $request->loan()?->id,
             );
 
             $transaction = $this->lock->around(

@@ -54,6 +54,7 @@ class Transaction extends Model
         'settlement_account_id',
         'is_credit',
         'farm_unit_id',
+        'loan_id',
         'narration',
         'channel',
         'is_provisional',

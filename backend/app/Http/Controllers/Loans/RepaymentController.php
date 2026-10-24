@@ -37,6 +37,7 @@ class RepaymentController extends Controller
             'loan' => $this->repayments->summary($loan),
             'repayments' => $this->list->repaymentRows($loan),
             'rejected' => $this->list->rejectedRepayments($loan),
+            'farms' => $loan->farmFigures(),
             'paidFrom' => $this->repayments->paidFromOptions(),
             'idempotencyKey' => (string) Str::uuid(),
             'previewUrl' => "/loans/{$loan->uuid}/repayments/preview",

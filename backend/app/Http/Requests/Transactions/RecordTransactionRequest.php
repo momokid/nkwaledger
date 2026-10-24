@@ -5,6 +5,7 @@ namespace App\Http\Requests\Transactions;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\LedgerAccount;
+use App\Models\Loan;
 use App\Models\TransactionTemplate;
 use App\Support\Money;
 use Illuminate\Foundation\Http\FormRequest;
@@ -33,6 +34,8 @@ class RecordTransactionRequest extends FormRequest
                 // nobody records against another farmer's pen
                 Rule::exists('farm_units', 'id')->where('farmer_profile_id', $farmer->id),
             ],
+            // the uuid of the loan this was paid from; the rules are in after()
+            'loan' => ['nullable', 'string'],
             'quantity_lost' => ['nullable', 'string'],
             'quantity_sold' => ['nullable', 'string'],
             'quantity_purchased' => ['nullable', 'string'],
@@ -178,6 +181,23 @@ class RecordTransactionRequest extends FormRequest
                 }
             },
             // a template that never allows credit cannot be forced into it by hand-crafting the request
+            // "Paid from a loan": the same rule posting applies, so the farmer sees it under the field
+            function (Validator $validator) {
+                if (! filled($this->input('loan')) || $validator->errors()->hasAny(['loan', 'farm_unit_id'])) {
+                    return;
+                }
+
+                $refusal = Loan::refusalForPurchase(
+                    $this->loan(),
+                    $this->farmer()->id,
+                    filled($this->input('farm_unit_id')) ? (int) $this->input('farm_unit_id') : null,
+                    $this->boolean('is_credit'),
+                );
+
+                if ($refusal !== null) {
+                    $validator->errors()->add('loan', $refusal);
+                }
+            },
             function (Validator $validator) {
                 if (! $this->boolean('is_credit') || $validator->errors()->has('transaction_template_id')) {
                     return;
@@ -190,6 +210,11 @@ class RecordTransactionRequest extends FormRequest
                 }
             },
         ];
+    }
+
+    public function loan(): ?Loan
+    {
+        return filled($this->input('loan')) ? Loan::where('uuid', $this->input('loan'))->first() : null;
     }
 
     // the same whole-number rule posting applies, so the farmer sees it under the field

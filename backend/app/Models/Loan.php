@@ -107,6 +107,24 @@ class Loan extends Model
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    // why a purchase may not be marked "Paid from a loan"; null when it may. One text for every way the loan can be wrong, so it never says whether someone else's loan exists
+    public static function refusalForPurchase(?self $loan, int $farmerId, ?int $farmUnitId, bool $isCredit): ?string
+    {
+        if ($loan === null || $loan->farmer_profile_id !== $farmerId || $loan->kind !== self::KIND_MONEY || $loan->isCancelled()) {
+            return 'Please choose one of your loans that is still active.';
+        }
+
+        if ($isCredit) {
+            return 'A purchase on credit cannot be paid from a loan.';
+        }
+
+        if ($farmUnitId === null) {
+            return 'Please choose the farm this was bought for.';
+        }
+
+        return $loan->farmAllocations()->where('farm_unit_id', $farmUnitId)->exists() ? null : 'This farm is not on that loan.';
+    }
+
     public function isCancelled(): bool
     {
         return $this->status === self::CANCELLED;
@@ -172,6 +190,28 @@ class Loan extends Model
     public function farmAllocations(): HasMany
     {
         return $this->hasMany(LoanFarmAllocation::class);
+    }
+
+    // per farm: planned (what the farmer said at the start), accounted (live purchases paid from this loan on that farm),
+    // and what is left. Worked out here and never stored. A farm with more bought than planned is over, not negative.
+    // Amounts in pesewas; the page prop uses the farm's uuid, never its id.
+    public function farmFigures(): Collection
+    {
+        $accounted = Transaction::query()->live()->where('loan_id', $this->id)
+            ->groupBy('farm_unit_id')->selectRaw('farm_unit_id, SUM(amount_minor) as total')->pluck('total', 'farm_unit_id');
+
+        return $this->farmAllocations()->with('farmUnit:id,uuid,name')->get()->map(function (LoanFarmAllocation $row) use ($accounted) {
+            $spent = (int) ($accounted[$row->farm_unit_id] ?? 0);
+
+            return [
+                'uuid' => $row->farmUnit->uuid,
+                'name' => $row->farmUnit->name,
+                'planned' => $row->amount_minor,
+                'accounted' => $spent,
+                'not_yet_accounted' => max(0, $row->amount_minor - $spent),
+                'over' => max(0, $spent - $row->amount_minor),
+            ];
+        })->values();
     }
 
     public function repayments(): HasMany

@@ -22,5 +22,7 @@ class PostingRequest
         // existing one keeps whatever unit/date it already had
         public readonly ?string $unitOfMeasure = null,
         public readonly ?string $expectedReadyOn = null,
+        // the loan this purchase was paid from, if the farmer said so
+        public readonly ?int $loanId = null,
     ) {}
 }

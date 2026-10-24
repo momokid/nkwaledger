@@ -12,7 +12,7 @@ import {
     remove,
 } from "@/lib/offlineStore";
 import { buildBatchRecord } from "@/lib/batchRecord";
-import { shortDate } from "@/lib/format";
+import { cedis, shortDate, slashDate } from "@/lib/format";
 import { createRecordKey } from "@/lib/recordKey";
 import { isHealthReport, QueuedBatchRecord, QueuedHealthReport, QueuedSubmission } from "@/types/offlineQueue";
 import { OFFLINE_SYNC_RAN_EVENT } from "@/hooks/useOfflineSync";
@@ -43,7 +43,15 @@ interface UnitOption {
     is_approved: boolean;
 }
 
+interface LoanOption {
+    uuid: string;
+    lender: string;
+    amount: number;
+    date: string;
+}
+
 interface Props extends PageProps {
+    loans: LoanOption[];
     farmer: { id: string; name: string };
     templates: Template[];
     settlementAccounts: AccountOption[];
@@ -66,6 +74,7 @@ type ContentProps = Pick<
     | "templates"
     | "settlementAccounts"
     | "farmUnits"
+    | "loans"
     | "layout"
     | "basePath"
 >;
@@ -75,6 +84,7 @@ function CreateContent({
     templates,
     settlementAccounts,
     farmUnits,
+    loans,
     layout,
     basePath,
 }: ContentProps) {
@@ -107,6 +117,7 @@ function CreateContent({
                 : (old.settlement_account_id ?? ""),
         transaction_date: old.transaction_date ?? today,
         farm_unit_id: old.farm_unit_id ?? "",
+        loan: old.loan ?? "",
         quantity_lost: old.quantity_lost ?? "",
         quantity_sold: old.quantity_sold ?? "",
         quantity_purchased: old.quantity_purchased ?? "",
@@ -414,6 +425,7 @@ function CreateContent({
                             );
                             form.setData("settlement_account_id", "");
                             form.setData("farm_unit_id", "");
+                            form.setData("loan", "");
                             form.setData("quantity_lost", "");
                             form.setData("quantity_sold", "");
                         }}
@@ -550,6 +562,35 @@ function CreateContent({
                         {errors.is_credit && (
                             <p style={errorText}>{errors.is_credit}</p>
                         )}
+                    </div>
+                )}
+
+                {needsAccount && chosen?.transaction_type === "EXPENSE" && loans.length > 0 && (
+                    <div className="mb-4">
+                        <label style={{ ...label, display: "flex", alignItems: "center", gap: "8px" }}>
+                            <input
+                                type="checkbox"
+                                checked={form.data.loan !== ""}
+                                onChange={(event) =>
+                                    form.setData("loan", event.target.checked ? loans[0].uuid : "")
+                                }
+                            />
+                            Paid from a loan
+                        </label>
+                        {form.data.loan !== "" && (
+                            <select
+                                style={field}
+                                value={form.data.loan}
+                                onChange={(event) => form.setData("loan", event.target.value)}
+                            >
+                                {loans.map((loan) => (
+                                    <option key={loan.uuid} value={loan.uuid}>
+                                        {loan.lender} – GHS {cedis(loan.amount)}, {slashDate(loan.date)}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                        {errors.loan && <p style={errorText}>{errors.loan}</p>}
                     </div>
                 )}
 

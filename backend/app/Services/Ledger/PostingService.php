@@ -12,6 +12,7 @@ use App\Models\FarmUnitStockMovement;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\LedgerAccount;
+use App\Models\Loan;
 use App\Models\Transaction;
 use App\Models\TransactionTemplate;
 use App\Support\Money;
@@ -42,6 +43,14 @@ class PostingService
         $loss = $this->resolveQuantityLost($request, $template, $farmUnit);
         $sale = $this->resolveQuantitySold($request, $template, $farmUnit);
         $purchase = $this->resolveQuantityPurchased($request, $template, $farmUnit);
+
+        if ($request->loanId !== null) {
+            $refusal = Loan::refusalForPurchase(Loan::find($request->loanId), $request->farmerProfileId, $farmUnit?->id, $this->isCreditSettlement($settlementAccountId));
+
+            if ($refusal !== null) {
+                throw PostingFailed::because($refusal);
+            }
+        }
 
         return $this->write($request, $template, $period, $farmUnit, $settlementAccountId, $amountMinor, $loss, $sale, $purchase);
     }
@@ -483,6 +492,7 @@ class PostingService
             'settlement_account_id' => $settlementAccountId,
             'is_credit' => $this->isCreditSettlement($settlementAccountId),
             'farm_unit_id' => $farmUnit?->id,
+            'loan_id' => $request->loanId,
             'narration' => $request->narration,
             'channel' => $request->channel,
             'is_provisional' => $farmUnit !== null && $farmUnit->approved_at === null,

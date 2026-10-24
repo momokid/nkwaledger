@@ -36,7 +36,17 @@ interface RejectedRow {
     amount: number;
 }
 
+interface FarmFigures {
+    uuid: string;
+    name: string;
+    planned: number;
+    accounted: number;
+    not_yet_accounted: number;
+    over: number;
+}
+
 interface Props extends PageProps {
+    farms: FarmFigures[];
     loan: LoanSummary;
     repayments: RepaymentRow[];
     rejected: RejectedRow[];
@@ -55,9 +65,9 @@ export default function Show(props: Props) {
     );
 }
 
-type ContentProps = Pick<Props, "loan" | "repayments" | "rejected" | "paidFrom" | "idempotencyKey" | "previewUrl" | "postUrl" | "today">;
+type ContentProps = Pick<Props, "farms" | "loan" | "repayments" | "rejected" | "paidFrom" | "idempotencyKey" | "previewUrl" | "postUrl" | "today">;
 
-function ShowContent({ loan: firstLoan, repayments: firstRepayments, rejected: firstRejected, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
+function ShowContent({ farms, loan: firstLoan, repayments: firstRepayments, rejected: firstRejected, paidFrom, idempotencyKey, previewUrl, postUrl, today }: ContentProps) {
     const { dark } = useTheme();
     const [open, setOpen] = useState(false);
     const [loan, setLoan] = useState(firstLoan);
@@ -91,6 +101,13 @@ function ShowContent({ loan: firstLoan, repayments: firstRepayments, rejected: f
             </div>
 
             <LoanGrantedDetails grantedOn={loan.granted_on} amount={loan.amount} interest={loan.agreed_interest} />
+
+            {farms.map((farm) => (
+                <p key={farm.uuid} className="mt-2" style={{ color: text, fontSize: "1.0625rem" }}>
+                    {farm.name}: planned GHS {cedis(farm.planned)}, accounted GHS {cedis(farm.accounted)}, not yet accounted GHS {cedis(farm.not_yet_accounted)}
+                    {farm.over > 0 && <span style={{ color: "#B45309" }}> · {farm.name}: GHS {cedis(farm.over)} more than planned</span>}
+                </p>
+            ))}
 
             <h3 className="mt-5" style={{ fontSize: "1.1875rem", fontWeight: 700, color: text }}>
                 Repayments
