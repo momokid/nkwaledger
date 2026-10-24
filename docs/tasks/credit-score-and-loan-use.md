@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: tasks 1 (web loan form), 2 (paid from a loan) and 3 (alert, other uses, reminders) built. Tasks 4 to 6 not started.
+Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) and 4 (agent loans) built. Task 4b (purpose of each farm amount), 5 and 6 not started.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -94,3 +94,13 @@ Owner decisions: one "something else" row per use, each with an amount and a typ
 - The banner button goes to the record form (`/my-records/create`) on both pages.
 - Not done: agent, USSD and offline loans still have no farms, so they raise no alert (tasks 4 and 5).
 - Tests: `tests/Feature/Loans/LoanUseTest.php`.
+
+## Task 4 done (agent loans name the farms, 2026-10-24)
+Owner approved the plan with four defaults: farms required on an agent's money loan; entries waiting before this change are accepted with no farm amounts; the farmer sees the split on the loan page after accepting (not on the waiting card); the agent's own loan page is unchanged. No new column, table, route or wording.
+- The agent form (`AgentLoanController::store`) uses `StoreFarmerLoanRequest`, which now takes the farmer from the address (agent) or the signed-in user (farmer) and checks the farms against that farmer's units. The money form gets `farms` (uuid, name).
+- `PendingEntryService::recordLoan` keeps the farms in the entry payload as `[{farm_unit: uuid, amount_minor}]`; `inputFrom` gives them back as `farms` on acceptance (app or SMS code), and `LoanService::record` re-checks them and writes `loan_farm_allocations`.
+- Tests: `tests/Feature/Loans/LoanAgentFarmsTest.php`; `LoanEntryHttpTest` agent posts now carry farms; the old "agent form is not changed" test was removed.
+- Still open: USSD and offline (task 5).
+
+## Open request: what each farm amount is for (task 4b, 2026-10-24)
+The owner wants the farmer to say, beside each farm's amount, what the money is for (for example buying new produce, transport). Not built. Proposal sent, waiting for answers: pick from the existing record types ("I bought seed", "I paid for transport", "I paid someone to work", ...) plus a typed note for anything else; one purpose or several per farm (each with an amount); required or not; shown where; new table or column and wording to be proposed after the answers. Applies to the farmer's form and the agent's form (then USSD and offline).
