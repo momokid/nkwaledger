@@ -7,8 +7,10 @@ use App\Exceptions\Ledger\PostingFailed;
 use App\Exceptions\Loans\EntryRefused;
 use App\Models\Loan;
 use App\Models\PendingEntry;
+use App\Models\TransactionTemplate;
 use App\Models\User;
 use App\Services\Loans\LenderService;
+use App\Services\Loans\LoanService;
 use App\Services\Loans\LoanListService;
 use App\Services\Loans\PendingEntryService;
 use App\Support\Money;
@@ -59,6 +61,11 @@ class UssdLoanFlow
             'loan_interest_amount' => $this->interestTyped($key, $state, $input),
             'loan_due' => $this->dueChoice($key, $state, $farmer, $input),
             'loan_due_date' => $this->dueTyped($key, $state, $farmer, $input),
+            'loan_farm' => $this->farmPicked($key, $state, $farmer, $input),
+            'loan_farm_amount' => $this->farmAmount($key, $state, $farmer, $input),
+            'loan_purpose' => $this->purposePicked($key, $state, $farmer, $input),
+            'loan_purpose_note' => $this->purposeNote($key, $state, $farmer, $input),
+            'loan_farm_more' => $this->moreChoice($key, $state, $farmer, $input),
             'loan_confirm' => $this->confirmed($key, $state, $agent, $farmer, $input),
             'loan_rep_pick' => $this->repaymentPicked($key, $state, $farmer, $input),
             'loan_rep_amount' => $this->repaymentAmount($key, $state, $input),
@@ -83,9 +90,16 @@ class UssdLoanFlow
             'loan_interest_amount' => $this->screens->show($key, $this->at($state, 'loan_interest'), 'loan_interest'),
             'loan_due' => $this->screens->show($key, $this->at($state, 'loan_interest'), 'loan_interest'),
             'loan_due_date' => $this->screens->show($key, $this->at($state, 'loan_due'), 'loan_due'),
+            'loan_farm' => ($state['loan_parts'] ?? []) === []
+                ? $this->screens->show($key, $this->at($state, 'loan_due'), 'loan_due')
+                : $this->moreScreen($key, $state),
+            'loan_farm_amount' => $this->farmList($key, $state, $farmer, 0),
+            'loan_purpose' => ($state['loan_cur']['asked'] ?? false) ? $this->amountScreen($key, $state) : $this->farmList($key, $state, $farmer, 0),
+            'loan_purpose_note' => $this->purposeScreen($key, $state, $farmer, 0),
+            'loan_farm_more' => $this->lastPartReopened($key, $state, $farmer),
             'loan_confirm' => ($state['loan_kind'] ?? '') === Loan::KIND_EXISTING
                 ? $this->screens->show($key, $this->at($state, 'loan_amount'), 'amount')
-                : $this->screens->show($key, $this->at($state, 'loan_due'), 'loan_due'),
+                : $this->farmStart($key, $state, $farmer),
             'loan_rep_pick', 'loan_pending' => $this->screens->show($key, $this->at($state, 'loan_menu'), 'loan_menu'),
             'loan_rep_amount' => $this->repaymentList($key, $state, $farmer),
             'loan_rep_from' => $this->screens->show($key, $this->at($state, 'loan_rep_amount'), 'amount'),
@@ -98,7 +112,11 @@ class UssdLoanFlow
     private function menu(string $key, array $state, User $agent, User $farmer, string $input): array
     {
         return match ($input) {
-            '1', '2' => $this->screens->show($key, [...$this->at($state, 'loan_lender'), 'loan_kind' => $input === '1' ? Loan::KIND_MONEY : Loan::KIND_EXISTING], 'loan_lender'),
+            // a money loan names the farms it will be used on, so a farmer with none cannot be given one
+            '1' => $farmer->farmerProfile->farmUnits()->exists()
+                ? $this->screens->show($key, [...$this->at($state, 'loan_lender'), 'loan_kind' => Loan::KIND_MONEY], 'loan_lender')
+                : $this->screens->end('loan_no_farm', $key),
+            '2' => $this->screens->show($key, [...$this->at($state, 'loan_lender'), 'loan_kind' => Loan::KIND_EXISTING], 'loan_lender'),
             '3' => $this->repaymentList($key, $state, $farmer),
             '4' => $this->pendingList($key, $state, $farmer),
             default => $this->screens->show($key, $state, 'loan_menu'),
@@ -174,7 +192,7 @@ class UssdLoanFlow
     private function dueChoice(string $key, array $state, User $farmer, string $input): array
     {
         return match ($input) {
-            '1' => $this->loanConfirm($key, [...$state, 'loan_due' => null]),
+            '1' => $this->farmStart($key, [...$state, 'loan_due' => null], $farmer),
             '2' => $this->screens->show($key, $this->at($state, 'loan_due_date'), 'loan_due_date'),
             default => $this->screens->show($key, $state, 'loan_due'),
         };
@@ -187,7 +205,7 @@ class UssdLoanFlow
 
         return $due === null
             ? $this->screens->show($key, $state, 'loan_due_date')
-            : $this->loanConfirm($key, [...$state, 'loan_due' => $due]);
+            : $this->farmStart($key, [...$state, 'loan_due' => $due], $farmer);
     }
 
     private function dueDate(string $input): ?string
@@ -230,6 +248,7 @@ class UssdLoanFlow
                 'paid_into' => $state['loan_into'] ?? null,
                 'interest' => $state['loan_interest'] ?? null,
                 'due_date' => $state['loan_due'] ?? null,
+                'farms' => $this->farmsOf($state),
             ]);
         } catch (PostingFailed|InvalidArgumentException $refusal) {
             return $this->screens->end(null, $key, $refusal->getMessage());
@@ -238,6 +257,191 @@ class UssdLoanFlow
         $this->tellFarmer($farmer, 'loan', $state['loan_lender_name'], $state['loan_amount']);
 
         return $this->screens->end(null, $key, $this->text->get('loan_saved', ['name' => trim($farmer->first_name)]));
+    }
+
+    // --- the farms a new money loan will be used on ---
+
+    private function farmStart(string $key, array $state, User $farmer): array
+    {
+        return $this->farmList($key, [...$state, 'loan_parts' => [], 'loan_cur' => null], $farmer, 0);
+    }
+
+    // the farmer's farm units not yet given a share, five to a page
+    private function farmList(string $key, array $state, User $farmer, int $page): array
+    {
+        $unused = $this->unusedFarms($state, $farmer);
+        $shown = $unused->slice($page * self::SHOWN, self::SHOWN)->values();
+        $more = $unused->count() > ($page + 1) * self::SHOWN;
+
+        $lines = $shown->map(fn(array $unit, int $index) => ($index + 1) . '. ' . Str::limit($unit['name'], self::NAME_WIDTH, ''))
+            ->when($more, fn($lines) => $lines->push(($shown->count() + 1) . '. ' . $this->text->get('more')))
+            ->implode("\n");
+
+        return $this->screens->show(
+            $key,
+            [...$this->at($state, 'loan_farm'), 'loan_page' => $page, 'loan_page_uuids' => $shown->pluck('uuid')->all(), 'loan_page_more' => $more],
+            null,
+            [],
+            $this->text->get('loan_farm_pick') . "\n" . $lines,
+        );
+    }
+
+    /** @return \Illuminate\Support\Collection<int, array{uuid: string, name: string}> */
+    private function unusedFarms(array $state, User $farmer)
+    {
+        $taken = array_column($state['loan_parts'] ?? [], 'uuid');
+
+        return $farmer->farmerProfile->farmUnits()->orderBy('name')->get(['uuid', 'name'])
+            ->reject(fn($unit) => in_array($unit->uuid, $taken, true))
+            ->map(fn($unit) => ['uuid' => $unit->uuid, 'name' => $unit->name])
+            ->values();
+    }
+
+    private function farmPicked(string $key, array $state, User $farmer, string $input): array
+    {
+        $index = (int) $input;
+        $uuids = $state['loan_page_uuids'] ?? [];
+
+        if ($index === count($uuids) + 1 && ($state['loan_page_more'] ?? false)) {
+            return $this->farmList($key, $state, $farmer, ($state['loan_page'] ?? 0) + 1);
+        }
+
+        $unit = $index >= 1 ? $this->unusedFarms($state, $farmer)->firstWhere('uuid', $uuids[$index - 1] ?? null) : null;
+
+        if ($unit === null) {
+            return $this->farmList($key, $state, $farmer, $state['loan_page'] ?? 0);
+        }
+
+        // the last farm to be named takes whatever is left, so the amounts always add up
+        if ($this->unusedFarms($state, $farmer)->count() === 1) {
+            return $this->purposeScreen($key, [...$state, 'loan_cur' => $unit + ['amount_minor' => $this->leftMinor($state), 'asked' => false]], $farmer, 0);
+        }
+
+        return $this->amountScreen($key, [...$state, 'loan_cur' => $unit + ['amount_minor' => 0, 'asked' => true]]);
+    }
+
+    private function amountScreen(string $key, array $state): array
+    {
+        return $this->screens->show($key, $this->at($state, 'loan_farm_amount'), 'loan_farm_amount', ['left' => Money::format($this->leftMinor($state))]);
+    }
+
+    private function farmAmount(string $key, array $state, User $farmer, string $input): array
+    {
+        $amount = $this->recorder->amount($input);
+
+        if ($amount === null) {
+            return $this->screens->show($key, $state, 'amount_invalid');
+        }
+
+        if (Money::toMinor($amount) > $this->leftMinor($state)) {
+            return $this->screens->show($key, $state, 'loan_farm_too_much');
+        }
+
+        return $this->purposeScreen($key, [...$state, 'loan_cur' => [...$state['loan_cur'], 'amount_minor' => Money::toMinor($amount)]], $farmer, 0);
+    }
+
+    // what is still to be placed on a farm: the loan less the shares already given
+    private function leftMinor(array $state): int
+    {
+        return Money::toMinor($state['loan_amount']) - array_sum(array_column($state['loan_parts'] ?? [], 'amount_minor'));
+    }
+
+    // the farmer's spending records, five to a page; "Something else" closes the last page
+    private function purposeScreen(string $key, array $state, User $farmer, int $page): array
+    {
+        $all = TransactionTemplate::loanPurposesFor($farmer->farmerProfile)->map(fn($template) => ['slug' => $template->slug, 'name' => $template->name])->values();
+        $shown = $all->slice($page * self::SHOWN, self::SHOWN)->values();
+        $more = $all->count() > ($page + 1) * self::SHOWN;
+
+        $lines = $shown->map(fn(array $row, int $index) => ($index + 1) . '. ' . Str::limit($row['name'], self::NAME_WIDTH, ''))
+            ->push(($shown->count() + 1) . '. ' . $this->text->get($more ? 'more' : 'loan_purpose_other'))
+            ->implode("\n");
+
+        return $this->screens->show(
+            $key,
+            [...$this->at($state, 'loan_purpose'), 'loan_purpose_page' => $page, 'loan_purpose_slugs' => $shown->pluck('slug')->all(), 'loan_purpose_more' => $more],
+            null,
+            [],
+            $this->text->get('loan_purpose_pick') . "\n" . $lines,
+        );
+    }
+
+    private function purposePicked(string $key, array $state, User $farmer, string $input): array
+    {
+        $index = (int) $input;
+        $slugs = $state['loan_purpose_slugs'] ?? [];
+
+        if ($index >= 1 && $index <= count($slugs)) {
+            return $this->partDone($key, $state, $farmer, $slugs[$index - 1], null);
+        }
+
+        if ($index === count($slugs) + 1) {
+            return ($state['loan_purpose_more'] ?? false)
+                ? $this->purposeScreen($key, $state, $farmer, ($state['loan_purpose_page'] ?? 0) + 1)
+                : $this->screens->show($key, $this->at($state, 'loan_purpose_note'), 'loan_purpose_note');
+        }
+
+        return $this->purposeScreen($key, $state, $farmer, $state['loan_purpose_page'] ?? 0);
+    }
+
+    private function purposeNote(string $key, array $state, User $farmer, string $input): array
+    {
+        $note = trim($input);
+
+        return $note === ''
+            ? $this->screens->show($key, $state, 'loan_purpose_note_empty')
+            : $this->partDone($key, $state, $farmer, LoanService::OTHER_PURPOSE, mb_substr($note, 0, 255));
+    }
+
+    // one farm is complete: the loan is ready to confirm when nothing is left, otherwise another farm is asked for
+    private function partDone(string $key, array $state, User $farmer, string $purpose, ?string $note): array
+    {
+        $state['loan_parts'] = [...($state['loan_parts'] ?? []), [...$state['loan_cur'], 'purpose' => $purpose, 'purpose_note' => $note]];
+        $state['loan_cur'] = null;
+
+        return $this->leftMinor($state) === 0 ? $this->loanConfirm($key, $state) : $this->moreScreen($key, $state);
+    }
+
+    private function moreScreen(string $key, array $state): array
+    {
+        return $this->screens->show($key, $this->at($state, 'loan_farm_more'), 'loan_farm_more', ['left' => Money::format($this->leftMinor($state))]);
+    }
+
+    private function moreChoice(string $key, array $state, User $farmer, string $input): array
+    {
+        if ($input === '1') {
+            return $this->farmList($key, $state, $farmer, 0);
+        }
+
+        if ($input !== '2') {
+            return $this->moreScreen($key, $state);
+        }
+
+        // the rest goes on the farm just given a share
+        $last = array_key_last($state['loan_parts']);
+        $state['loan_parts'][$last]['amount_minor'] += $this->leftMinor($state);
+
+        return $this->loanConfirm($key, $state);
+    }
+
+    // back from "another farm?": the farm just finished is open again, at its purpose
+    private function lastPartReopened(string $key, array $state, User $farmer): array
+    {
+        $cur = array_pop($state['loan_parts']);
+        unset($cur['purpose'], $cur['purpose_note']);
+
+        return $this->purposeScreen($key, [...$state, 'loan_cur' => $cur], $farmer, 0);
+    }
+
+    /** @return list<array{farm_unit: string, amount: string, purpose: string, purpose_note: ?string}> */
+    private function farmsOf(array $state): array
+    {
+        return array_map(fn(array $part) => [
+            'farm_unit' => $part['uuid'],
+            'amount' => Money::toDecimal($part['amount_minor']),
+            'purpose' => $part['purpose'],
+            'purpose_note' => $part['purpose_note'],
+        ], $state['loan_parts'] ?? []);
     }
 
     // --- a repayment ---

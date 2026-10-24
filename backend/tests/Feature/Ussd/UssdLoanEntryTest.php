@@ -55,6 +55,9 @@ test('a new loan: lender, amount, paid into, no interest, no due date, confirm, 
     expect(($this->dial)('1')->json('message'))->toContain('1. No interest');
     expect(($this->dial)('1')->json('message'))->toContain('1. No due date');
 
+    expect(($this->dial)('1')->json('message'))->toContain('Which farm will use this loan?');
+    expect(($this->dial)('1')->json('message'))->toContain('What will this money be used for?');
+
     $confirm = ($this->dial)('1');
     expect($confirm->json('message'))->toContain('Sika Microfinance')->toContain('GHS 500.00')->toContain('1. Yes');
 
@@ -75,7 +78,9 @@ test('interest and a due date can be added, the date typed as DD/MM/YYYY', funct
     expect(($this->dial)('2')->json('message'))->toContain('Enter the interest');
     expect(($this->dial)('50')->json('message'))->toContain('1. No due date');
     expect(($this->dial)('2')->json('message'))->toContain('DD/MM/YYYY');
-    expect(($this->dial)('31/12/2099')->json('message'))->toContain('1. Yes');
+    expect(($this->dial)('31/12/2099')->json('message'))->toContain('Which farm will use this loan?');
+    ($this->dial)('1');
+    expect(($this->dial)('1')->json('message'))->toContain('1. Yes');
     ($this->dial)('1');
 
     $payload = ($this->entries)()->firstOrFail()->payload;
@@ -157,7 +162,7 @@ test('with no loans to repay it says so', function () {
 });
 
 test('Pending entries lists what is waiting, and the agent can withdraw one', function () {
-    ($this->walk)('1', 'sika', '1', '500', '1', '1', '1', '1');
+    ($this->walk)('1', 'sika', '1', '500', '1', '1', '1', '1', '1', '1');
     $entry = ($this->entries)()->firstOrFail();
 
     $list = ($this->walk)('4');

@@ -92,5 +92,15 @@
     "loan_pending_none": "Hwee nni hɔ a ɛretwɛn okuafo yi.",
     "loan_pending_detail": "{kind}: {lender}\n{amount}\n{date}\n1. Yi fi hɔ",
     "loan_withdrawn": "Wɔayi afi hɔ.",
-    "loan_entry_sms": "Wo agent no akyerɛw {kind} {amount} wɔ {lender} nkyɛn. Bue Wɔretwɛn wo na gye tom anaa si kwan."
+    "loan_entry_sms": "Wo agent no akyerɛw {kind} {amount} wɔ {lender} nkyɛn. Bue Wɔretwɛn wo na gye tom anaa si kwan.",
+    "loan_farm_pick": "Paw afuo a ɛbɛdi bosea no dwuma.",
+    "loan_farm_amount": "Sika dodow a ɛbɛkɔ afuo yi so\nNea aka a wɔmfa nhyɛ so: {left}",
+    "loan_farm_too_much": "Ɛboro nea aka a wɔmfa nhyɛ so.",
+    "loan_purpose_pick": "Dɛn na wode sika yi bedi dwuma?",
+    "more": "Pii bio",
+    "loan_purpose_other": "Biribi foforo",
+    "loan_purpose_note": "Dɛn na wode bedi dwuma?",
+    "loan_purpose_note_empty": "Kyerɛ nea wode bedi dwuma.",
+    "loan_farm_more": "Nea aka: {left}\n1. Afuo foforo\n2. De nea aka no to afuo yi so",
+    "loan_no_farm": "Okuafo yi nni afuo, enti wɔrentumi nkyerɛw bosea."
 }

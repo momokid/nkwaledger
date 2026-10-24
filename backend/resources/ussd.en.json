@@ -92,5 +92,15 @@
     "loan_pending_none": "Nothing is waiting for this farmer.",
     "loan_pending_detail": "{kind}: {lender}\n{amount}\n{date}\n1. Withdraw",
     "loan_withdrawn": "Withdrawn.",
-    "loan_entry_sms": "Your agent recorded a {kind} of {amount} with {lender}. Open Waiting for you to accept or decline."
+    "loan_entry_sms": "Your agent recorded a {kind} of {amount} with {lender}. Open Waiting for you to accept or decline.",
+    "loan_farm_pick": "Which farm will use this loan?",
+    "loan_farm_amount": "Amount for this farm\nLeft to place: {left}",
+    "loan_farm_too_much": "That is more than what is left to place.",
+    "loan_purpose_pick": "What will this money be used for?",
+    "more": "More",
+    "loan_purpose_other": "Something else",
+    "loan_purpose_note": "What will you use it for?",
+    "loan_purpose_note_empty": "Please say what you will use it for.",
+    "loan_farm_more": "Left to place: {left}\n1. Another farm\n2. Put the rest on this farm",
+    "loan_no_farm": "This farmer has no farm yet, so a loan cannot be recorded."
 }

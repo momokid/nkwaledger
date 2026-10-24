@@ -16,6 +16,7 @@ class UssdScreens
         'change_old', 'change_new', 'change_confirm', 'farmer_phone', 'target_menu', 'pin_for_farmer',
         'loan_menu', 'loan_lender', 'loan_lender_pick', 'loan_amount', 'loan_into', 'loan_interest', 'loan_interest_amount', 'loan_due',
         'loan_due_date', 'loan_confirm', 'loan_rep_pick', 'loan_rep_amount', 'loan_rep_from', 'loan_rep_confirm', 'loan_pending', 'loan_pending_detail',
+        'loan_farm', 'loan_farm_amount', 'loan_purpose', 'loan_purpose_note', 'loan_farm_more',
     ];
 
     public function __construct(private readonly UssdText $text) {}
