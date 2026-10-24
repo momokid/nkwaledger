@@ -49,6 +49,52 @@ describe('dashboard', function () {
                 ->where('reports.0.uuid', $mine->uuid));
     });
 
+    it('counts the reports of the officer by status and for the last 90 days', function () {
+        $make = fn(array $extra) => DiseaseReport::factory()->create($extra + [
+            'farm_unit_id' => $this->unit->id,
+            'farmer_profile_id' => $this->profile->id,
+            'assigned_officer_id' => $this->vet->id,
+        ]);
+        $make(['status' => 'new']);
+        $make(['status' => 'new', 'created_at' => now()->subDays(120)]);
+        $make(['status' => 'reviewed']);
+        $make(['status' => 'resolved']);
+        DiseaseReport::factory()->create([
+            'farm_unit_id' => $this->unit->id,
+            'farmer_profile_id' => $this->profile->id,
+            'assigned_officer_id' => $this->otherVet->id,
+        ]);
+
+        $this->actingAs($this->vet)
+            ->get('/vet/dashboard')
+            ->assertInertia(fn($page) => $page
+                ->where('counts', ['new' => 2, 'reviewed' => 1, 'resolved' => 1, 'recent' => 3])
+                ->where('field', 'livestock')
+                ->where('basePath', '/vet'));
+    });
+
+    it('tells the adviser dashboard the field is crops', function () {
+        $adviser = User::factory()->create();
+        $adviser->assignRole('adviser');
+
+        $this->actingAs($adviser)
+            ->get('/adviser/dashboard')
+            ->assertInertia(fn($page) => $page->where('field', 'crops')->where('basePath', '/adviser'));
+    });
+
+    it('marks a row when the AI suggestion is ready', function () {
+        $ready = DiseaseReport::factory()->create([
+            'farm_unit_id' => $this->unit->id,
+            'farmer_profile_id' => $this->profile->id,
+            'assigned_officer_id' => $this->vet->id,
+            'ai_status' => 'ready',
+        ]);
+
+        $this->actingAs($this->vet)
+            ->get('/vet/dashboard')
+            ->assertInertia(fn($page) => $page->where('reports.0.ai_ready', true));
+    });
+
     it('turns an unassigned role away from the vet dashboard', function () {
         $adviser = User::factory()->create();
         $adviser->assignRole('adviser');

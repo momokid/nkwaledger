@@ -30,7 +30,7 @@ class FarmerWeatherController extends Controller
 
     // one card per community, not per farm unit — two units on the same land
     // share the same sky, so they share the same forecast
-    private function locationsFor(int $farmerId): array
+    public function locationsFor(int $farmerId): array
     {
         $units = FarmUnit::query()
             ->where('farmer_profile_id', $farmerId)

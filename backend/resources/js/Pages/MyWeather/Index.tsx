@@ -47,17 +47,20 @@ interface LocationWeather {
 
 interface Props extends PageProps {
     locations: LocationWeather[];
+    // set when an officer looks at one farmer's weather
+    farmerName?: string;
+    backHref?: string;
 }
 
 export default function Index(props: Props) {
     return (
         <AuthenticatedLayout title="Weather">
-            <IndexContent locations={props.locations} />
+            <IndexContent locations={props.locations} farmerName={props.farmerName} backHref={props.backHref} />
         </AuthenticatedLayout>
     );
 }
 
-type ContentProps = Pick<Props, "locations">;
+type ContentProps = Pick<Props, "locations" | "farmerName" | "backHref">;
 
 const iconFor = (condition: Condition) => {
     if (condition === "heavy_rain")
@@ -84,7 +87,7 @@ const weekdayLabel = (isoDate: string): string =>
         day: "numeric",
     });
 
-function IndexContent({ locations }: ContentProps) {
+function IndexContent({ locations, farmerName, backHref }: ContentProps) {
     const { dark } = useTheme();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -150,6 +153,11 @@ function IndexContent({ locations }: ContentProps) {
                 @keyframes weatherWind { 0%,100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
             `}</style>
 
+            {backHref && (
+                <Link href={backHref} style={{ color: "#1D9E75", fontWeight: 600, fontSize: "1.0625rem" }}>
+                    Back to farmers
+                </Link>
+            )}
             <p
                 style={{
                     fontSize: "1.625rem",
@@ -158,7 +166,7 @@ function IndexContent({ locations }: ContentProps) {
                     marginBottom: "20px",
                 }}
             >
-                Weather
+                {farmerName ? `Weather · ${farmerName}` : "Weather"}
             </p>
 
             <div

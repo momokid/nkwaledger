@@ -230,4 +230,44 @@ describe("Errors", () => {
         expect(text("Date received")).toContain("This date is in the future.");
         expect(text("Lender name")).not.toContain("Enter an amount above zero.");
     });
+
+    describe("the farms a new loan will be used on", () => {
+        const farms = [
+            { uuid: "f-1", name: "North pen" },
+            { uuid: "f-2", name: "Maize plot" },
+        ];
+
+        it("is asked on the farmer's money form, with one choice per farm and the running line", async () => {
+            await show("money", { farms });
+
+            expect(container.textContent).toContain("Which farms will use this loan?");
+            expect(container.textContent).toContain("North pen");
+            expect(container.textContent).toContain("Maize plot");
+            expect(container.textContent).toContain("Left to place: GHS 0.00");
+            expect(labels()).not.toContain("Amount for this farm");
+        });
+
+        it("shows the amount field only for a farm that was picked, and counts what is left", async () => {
+            mockOld = { lender: "u-1", lender_name: "Sika", amount: "500", farms: [{ farm_unit: "f-1", amount: "120.50" }] } as never;
+            await show("money", { farms });
+
+            expect(labels().filter((label) => label === "Amount for this farm")).toHaveLength(1);
+            expect(container.textContent).toContain("Left to place: GHS 379.50");
+        });
+
+        it("shows the error under the section", async () => {
+            mockErrors = { farms: "The farm amounts must add up to the loan amount." };
+            await show("money", { farms });
+
+            expect(container.textContent).toContain("The farm amounts must add up to the loan amount.");
+        });
+
+        it("is not asked for an existing loan or on the agent's form", async () => {
+            await show("existing", { farms: [] });
+            expect(container.textContent).not.toContain("Which farms will use this loan?");
+
+            await show("money", { agent: true });
+            expect(container.textContent).not.toContain("Which farms will use this loan?");
+        });
+    });
 });
