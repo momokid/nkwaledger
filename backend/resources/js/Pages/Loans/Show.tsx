@@ -105,7 +105,7 @@ function ShowContent({ farms, loan: firstLoan, repayments: firstRepayments, reje
             {farms.map((farm) => (
                 <p key={farm.uuid} className="mt-2" style={{ color: text, fontSize: "1.0625rem" }}>
                     {farm.name}: planned GHS {cedis(farm.planned)}, accounted GHS {cedis(farm.accounted)}, not yet accounted GHS {cedis(farm.not_yet_accounted)}
-                    {farm.over > 0 && <span style={{ color: "#B45309" }}> · {farm.name}: GHS {cedis(farm.over)} more than planned</span>}
+                    {farm.over > 0 && <span style={{ color: "#B45309" }}> Â· {farm.name}: GHS {cedis(farm.over)} more than planned</span>}
                 </p>
             ))}
 

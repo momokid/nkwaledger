@@ -105,3 +105,26 @@ test('the record form offers the farmer active money loans by uuid, and never a 
         expect(array_keys($loans[0]))->toBe(['uuid', 'lender', 'amount', 'date']);
     });
 });
+
+test('a record that needs no farm can still be paid from a loan, and counts on the farm named', function () {
+    $labour = $this->feedTemplate->replicate();
+    $labour->fill(['name' => 'Labour cost', 'slug' => 'labour-cost-test', 'requires_farm_unit' => false])->save();
+
+    ($this->buy)(['transaction_template_id' => $labour->id])->assertSessionHasNoErrors();
+
+    $row = Transaction::where('narration', 'loan-test')->firstOrFail();
+    expect([$row->loan_id, $row->farm_unit_id])->toBe([$this->loan->id, $this->unitA->id]);
+
+    $this->actingAs($this->farmerUser)->get("/loans/{$this->loan->uuid}")->assertInertia(
+        fn($page) => expect($page->toArray()['props']['farms'][0]['accounted'])->toBe(12000)
+    );
+});
+
+test('a record that needs no farm and is not from a loan keeps no farm', function () {
+    $labour = $this->feedTemplate->replicate();
+    $labour->fill(['name' => 'Labour cost', 'slug' => 'labour-cost-test', 'requires_farm_unit' => false])->save();
+
+    ($this->buy)(['transaction_template_id' => $labour->id, 'loan' => null])->assertSessionHasNoErrors();
+
+    expect(Transaction::where('narration', 'loan-test')->firstOrFail()->farm_unit_id)->toBeNull();
+});

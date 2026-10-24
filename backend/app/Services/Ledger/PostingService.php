@@ -276,7 +276,9 @@ class PostingService
 
     private function resolveFarmUnit(PostingRequest $request, TransactionTemplate $template): ?FarmUnit
     {
-        if (! $template->requires_farm_unit) {
+        // a record that asks for no farm keeps none, unless it is paid from a loan: then the farm named is
+        // where the loan money was used
+        if (! $template->requires_farm_unit && ($request->loanId === null || $request->farmUnitId === null)) {
             return null;
         }
 

@@ -585,7 +585,7 @@ function CreateContent({
                             >
                                 {loans.map((loan) => (
                                     <option key={loan.uuid} value={loan.uuid}>
-                                        {loan.lender} – GHS {cedis(loan.amount)}, {slashDate(loan.date)}
+                                        {loan.lender} â€“ GHS {cedis(loan.amount)}, {slashDate(loan.date)}
                                     </option>
                                 ))}
                             </select>
@@ -610,7 +610,7 @@ function CreateContent({
                     )}
                 </div>
 
-                {needsUnit && (
+                {(needsUnit || form.data.loan !== "") && (
                     <div className="mb-4">
                         <label style={label}>
                             Which farm did this happen on
