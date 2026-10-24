@@ -48,6 +48,9 @@ use App\Http\Controllers\Admin\FarmUnitStockController;
 use App\Http\Controllers\Farm\DiseaseReportController;
 use App\Http\Controllers\Farm\FarmerDashboardController;
 use App\Http\Controllers\Officer\DiseaseReportController as OfficerDiseaseReportController;
+use App\Http\Controllers\Officer\FarmerWeatherController as OfficerFarmerWeatherController;
+use App\Http\Controllers\Officer\TrendsController as OfficerTrendsController;
+use App\Http\Controllers\Officer\ConsultationsController as OfficerConsultationsController;
 use App\Http\Controllers\Farm\MyFarmController;
 use App\Http\Controllers\Loans\AgentLoanController;
 use App\Http\Controllers\Loans\AgentRepaymentController;
@@ -188,6 +191,10 @@ Route::middleware(['auth', 'role:vet', 'verified.phone'])->prefix('vet')->name('
     Route::middleware('access:disease-reports.view')->group(function () {
         Route::get('/reports/{report:uuid}', [OfficerDiseaseReportController::class, 'show'])
             ->name('reports.show');
+        Route::get('/weather', [OfficerFarmerWeatherController::class, 'index'])->name('weather.index');
+        Route::get('/trends', [OfficerTrendsController::class, 'index'])->name('trends.index');
+        Route::get('/consultations', [OfficerConsultationsController::class, 'index'])->name('consultations.index');
+        Route::get('/weather/{farmerUuid}', [OfficerFarmerWeatherController::class, 'show'])->name('weather.show');
     });
     Route::middleware('access:disease-reports.respond')->group(function () {
         Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
@@ -202,6 +209,10 @@ Route::middleware(['auth', 'role:adviser', 'verified.phone'])->prefix('adviser')
     Route::middleware('access:disease-reports.view')->group(function () {
         Route::get('/reports/{report:uuid}', [OfficerDiseaseReportController::class, 'show'])
             ->name('reports.show');
+        Route::get('/weather', [OfficerFarmerWeatherController::class, 'index'])->name('weather.index');
+        Route::get('/trends', [OfficerTrendsController::class, 'index'])->name('trends.index');
+        Route::get('/consultations', [OfficerConsultationsController::class, 'index'])->name('consultations.index');
+        Route::get('/weather/{farmerUuid}', [OfficerFarmerWeatherController::class, 'show'])->name('weather.show');
     });
     Route::middleware('access:disease-reports.respond')->group(function () {
         Route::post('/reports/{report:uuid}/respond', [OfficerDiseaseReportController::class, 'respond'])
@@ -638,6 +649,18 @@ Route::middleware(['auth', 'role:admin', 'verified.phone'])->prefix('admin')->na
     Route::middleware('access:disease-reports.manage')->group(function () {
         Route::get('/disease-reports', [DiseaseReportQueueController::class, 'index'])
             ->name('disease-reports.index');
+    });
+
+    // no delete route: a category reports use is switched off, never removed
+    Route::middleware('access:health-categories.manage')->group(function () {
+        Route::get('/health-categories', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'index'])
+            ->name('health-categories.index');
+        Route::post('/health-categories', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'store'])
+            ->name('health-categories.store');
+        Route::patch('/health-categories/{healthCategory}', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'update'])
+            ->name('health-categories.update');
+        Route::patch('/health-categories/{healthCategory}/move', [\App\Http\Controllers\Admin\HealthCategoryController::class, 'move'])
+            ->name('health-categories.move');
     });
 
     // links an agent to the vets/advisers who handle their farmers' reports

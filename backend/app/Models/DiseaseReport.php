@@ -28,6 +28,7 @@ use Illuminate\Support\Str;
     'description',
     'contact_method',
     'response_note',
+    'responded_at',
 ])]
 class DiseaseReport extends Model
 {
@@ -47,6 +48,7 @@ class DiseaseReport extends Model
             'ai_urgent' => 'boolean',
             'ai_reviewed_at' => 'datetime',
             'officer_reviewed_at' => 'datetime',
+            'responded_at' => 'datetime',
         ];
     }
 
@@ -100,6 +102,7 @@ class DiseaseReport extends Model
             'status' => $status,
             'contact_method' => $contactMethod,
             'response_note' => $note,
+            'responded_at' => now(),
         ])->save();
     }
 
@@ -113,6 +116,13 @@ class DiseaseReport extends Model
             'officer_verdict' => ! $shown ? null : ($rejected ? 'disagreed' : ($this->health_category_id === $category->id ? 'agreed' : 'edited')),
             'officer_reviewed_at' => now(),
         ])->save();
+    }
+
+    // what the officer chose, else the AI draft they were shown, else nothing
+    public function effectiveHealthCategory(): ?HealthCategory
+    {
+        return $this->officerHealthCategory
+            ?? ($this->ai_status === 'ready' ? $this->healthCategory : null);
     }
 
     public function scopeAwaitingOfficer(Builder $query): Builder

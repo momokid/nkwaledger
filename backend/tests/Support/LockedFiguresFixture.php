@@ -36,6 +36,14 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
+// the farms part of a farmer's new money loan form: the whole amount placed on one new farm unit of theirs
+function wholeLoanOnOneFarm(App\Models\FarmerProfile $farmer, string $amount): array
+{
+    $unit = App\Models\FarmUnit::factory()->approved()->create(['farmer_profile_id' => $farmer->id, 'community_id' => $farmer->community_id]);
+
+    return [['farm_unit' => $unit->uuid, 'amount' => $amount]];
+}
+
 function buildLockedFigures($t): void
 {
     Cache::flush();

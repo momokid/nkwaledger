@@ -25,6 +25,7 @@ class LoanService
 {
     public const AMOUNT_REFUSAL = 'Enter an amount above zero.';
     public const FUTURE_REFUSAL = 'This date is in the future.';
+    public const FARMS_REFUSAL = 'The farm amounts must add up to the loan amount.';
 
     // what the form says about the lender; the loan itself keeps only a link to it
     public const LENDER_INPUT = ['lender', 'lender_type', 'lender_name'];
@@ -55,13 +56,15 @@ class LoanService
 
     /**
      * @param array{kind: string, lender: string, amount: string, date?: ?string, interest?: ?string,
-     *              due_date?: ?string, note?: ?string, paid_into?: ?int, idempotency_key?: ?string} $data
+     *              due_date?: ?string, note?: ?string, paid_into?: ?int, idempotency_key?: ?string,
+     *              farms?: list<array{farm_unit: string, amount: string}>} $data
      */
     public function record(FarmerProfile $farmer, User $by, array $data, ?string $idempotencyKey = null, ?string $via = null): Loan
     {
         $loan = $this->validated($data);
+        $parts = $this->allocations($farmer, $loan['principal_minor'], $data['farms'] ?? null);
 
-        return DB::transaction(function () use ($farmer, $by, $loan, $data, $idempotencyKey, $via) {
+        return DB::transaction(function () use ($farmer, $by, $loan, $parts, $data, $idempotencyKey, $via) {
             $key = $idempotencyKey ?? $data['idempotency_key'] ?? null;
 
             if ($key !== null && $key !== '') {
@@ -106,6 +109,10 @@ class LoanService
                 throw PostingFailed::because('Something went wrong. Please try again.');
             }
 
+            foreach ($parts as $unitId => $minor) {
+                $record->farmAllocations()->create(['farm_unit_id' => $unitId, 'amount_minor' => $minor]);
+            }
+
             $this->audit->recordOn('loan.created', $record, null, [
                 'uuid' => $record->uuid,
                 'kind' => $record->kind,
@@ -116,6 +123,44 @@ class LoanService
 
             return $record;
         });
+    }
+
+    /**
+     * The farms a loan will be used on: farm unit id => pesewas. Null when none were named (agent, USSD, offline and
+     * opening entries); when named they must be the farmer's own and add up exactly to the loan.
+     *
+     * @return array<int, int>
+     */
+    private function allocations(FarmerProfile $farmer, int $principal, ?array $farms): array
+    {
+        if ($farms === null) {
+            return [];
+        }
+
+        $units = $farmer->farmUnits()->pluck('id', 'uuid');
+        $parts = [];
+
+        foreach ($farms as $row) {
+            $unit = $units[$row['farm_unit'] ?? ''] ?? null;
+
+            try {
+                $minor = Money::toMinor((string) ($row['amount'] ?? ''));
+            } catch (InvalidArgumentException) {
+                throw PostingFailed::because(self::AMOUNT_REFUSAL);
+            }
+
+            if ($unit === null || isset($parts[$unit]) || $minor <= 0) {
+                throw PostingFailed::because(self::FARMS_REFUSAL);
+            }
+
+            $parts[$unit] = $minor;
+        }
+
+        if ($parts === [] || array_sum($parts) !== $principal) {
+            throw PostingFailed::because(self::FARMS_REFUSAL);
+        }
+
+        return $parts;
     }
 
     public function activeFor(Transaction $original): ?Loan

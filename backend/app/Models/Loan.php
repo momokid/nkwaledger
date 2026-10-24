@@ -169,6 +169,11 @@ class Loan extends Model
         return $this->hasOne(LoanCheck::class)->latestOfMany('id');
     }
 
+    public function farmAllocations(): HasMany
+    {
+        return $this->hasMany(LoanFarmAllocation::class);
+    }
+
     public function repayments(): HasMany
     {
         return $this->hasMany(LoanRepayment::class);

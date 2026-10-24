@@ -24,6 +24,7 @@ beforeEach(function () {
     $this->search = fn($who, string $q, array $extra = []) => $this->actingAs($who)->postJson('/lenders/search', ['q' => $q] + $extra);
     $this->postLoan = fn(array $over = []) => $this->actingAs($this->farmerUser)->post('/loans', array_merge([
         'kind' => 'money', 'lender' => $this->institution->uuid, 'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
+        'farms' => wholeLoanOnOneFarm($this->profile, $over['amount'] ?? '500'),
     ], $over));
 });
 
@@ -147,6 +148,7 @@ test('a type sent by the browser is ignored: the type is read from the lender', 
 test('a loan form needs only the lender id', function () {
     $this->actingAs($this->farmerUser)->post('/loans', [
         'kind' => 'money', 'lender' => $this->institution->uuid, 'amount' => '500', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
+        'farms' => wholeLoanOnOneFarm($this->profile, '500'),
     ])->assertSessionHasNoErrors()->assertRedirect('/loans');
 
     expect(Loan::count())->toBe(1);

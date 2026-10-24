@@ -21,15 +21,31 @@ class DiseaseReportController extends Controller
 
     public function dashboard(Request $request): Response
     {
-        $reports = DiseaseReport::query()
+        $all = DiseaseReport::query()
             ->where('assigned_officer_id', $request->user()->id)
-            ->with(['farmUnit', 'farmerProfile.user'])
+            ->with(['farmUnit', 'farmerProfile.user', 'officerHealthCategory', 'healthCategory'])
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn(DiseaseReport $report) => $this->summarise($report));
+            ->get();
+
+        // the trends page links here with ?category={health category uuid} or "none"
+        $category = $request->query('category');
+        $listed = $category === null ? $all : $all->filter(
+            fn(DiseaseReport $report) => ($report->effectiveHealthCategory()?->uuid ?? 'none') === $category,
+        );
 
         return Inertia::render($this->dashboardPage($request), [
-            'reports' => $reports,
+            'reports' => $listed->values()->map(fn(DiseaseReport $report) => $this->summarise($report)),
+            'categoryName' => $category === null ? null : ($category === 'none'
+                ? 'Not yet categorised'
+                : HealthCategory::query()->where('uuid', $category)->value('name')),
+            'counts' => [
+                'new' => $all->where('status', DiseaseReportStatus::New)->count(),
+                'reviewed' => $all->where('status', DiseaseReportStatus::Reviewed)->count(),
+                'resolved' => $all->where('status', DiseaseReportStatus::Resolved)->count(),
+                'recent' => $all->where('created_at', '>=', now()->subDays(90))->count(),
+            ],
+            'field' => $request->user()->hasRole('vet') ? 'livestock' : 'crops',
+            'basePath' => $request->user()->hasRole('vet') ? '/vet' : '/adviser',
         ]);
     }
 
@@ -136,6 +152,7 @@ class DiseaseReportController extends Controller
             'category' => $report->category,
             'status' => $report->status->value,
             'created_at' => $report->created_at->toDateString(),
+            'ai_ready' => $report->ai_status === 'ready',
         ];
     }
 

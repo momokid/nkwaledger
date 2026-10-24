@@ -64,6 +64,7 @@ beforeEach(function () {
         'kind' => 'money', 'lender_name' => 'Sika Microfinance', 'lender' => institutionNamed('Sika Microfinance', 'microfinance')->uuid,
         'amount' => '100', 'date' => now()->toDateString(), 'paid_into' => $this->cash->id,
         'idempotency_key' => 'k-' . uniqid(),
+        'farms' => wholeLoanOnOneFarm($this->profile, '100'),
     ];
 });
 
@@ -111,7 +112,7 @@ test('a farmer sees only their own loans', function () {
 });
 
 test('a loan saved by a farmer always belongs to that farmer', function () {
-    $this->actingAs($this->otherFarmerUser)->post('/loans', ($this->post)() + ['farmer_profile_id' => $this->profile->id])->assertRedirect('/loans');
+    $this->actingAs($this->otherFarmerUser)->post('/loans', ['farms' => wholeLoanOnOneFarm($this->otherFarmer, '100')] + ($this->post)() + ['farmer_profile_id' => $this->profile->id])->assertRedirect('/loans');
 
     expect(Loan::where('farmer_profile_id', $this->otherFarmer->id)->count())->toBe(1)
         ->and(Loan::where('farmer_profile_id', $this->profile->id)->count())->toBe(1);

@@ -1,6 +1,6 @@
 # AI review, slice 5: admin page for health categories
 
-Status: not started.
+Status: done, awaiting commit.
 
 ## Goal
 An admin can add, rename, reorder and switch off health categories without a deploy.
@@ -24,3 +24,4 @@ Full suite plus TypeScript check and build pass, committed, todo and handoff upd
 
 ## Log
 - 2026-10-20: task written.
+- 2026-10-21: built. Owner approved permission `health-categories.manage` (hyphen, as the other modules), four routes and the wording. Farm category is identified by name in the store request (no uuid column; a column needs owner approval).

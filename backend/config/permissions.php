@@ -161,6 +161,13 @@ return [
                 'delete' => 'Remove',
             ],
         ],
+        // one action covers add, rename, reorder and switch on or off; categories are never deleted
+        'health-categories' => [
+            'label' => 'Health Categories',
+            'actions' => [
+                'manage' => 'Manage',
+            ],
+        ],
         'marketplace-settings' => [
             'label' => 'Marketplace Settings',
             'actions' => [
@@ -295,6 +302,7 @@ return [
             'officer-assignments.view',
             'officer-assignments.create',
             'officer-assignments.delete',
+            'health-categories.manage',
             'marketplace-settings.view',
             'marketplace-settings.update',
             'marketplace-suppliers.view',

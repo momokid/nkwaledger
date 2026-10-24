@@ -34,7 +34,7 @@ Legend: [x] done · [~] in progress · [ ] not started · [?] unverified, check 
 - [ ] Handset test (a separate session, ussd-handset, is waiting on it)
 - [ ] Twi native-speaker review; Twi wording for "Pending Approvals"
 - [ ] Confirm the meaning of the "100" response code
-- [ ] Full PostgreSQL suite for the batch
+- [ ] Full PostgreSQL suite for the batch (on the USSD branch)
 
 ### 4. Crop and vet AI review (branch `feature/ai-health-review`, not pushed)
 Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · [slice 4](tasks/ai-review-slice-4-officer-screen.md) · [slice 5](tasks/ai-review-slice-5-category-admin.md) · [bucket check](tasks/verify-bucket-on-staging.md)
@@ -42,9 +42,10 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 - [x] Slice 2: OpenRouter adapter `HealthImageReviewer`
 - [x] Web report photos and voice notes on `PHOTO_DISK`; S3 package installed
 - [x] Slice 3: queued job `ReviewDiseaseReport` after the photo is stored (web and offline), `ai_*` columns on `disease_reports`, 70% rule in `services.openrouter.min_confidence`. The officer verdict columns come in slice 4.
+- [x] Full PostgreSQL suite for the AI review batch including the adviser and vet menu items (23/10: 3702 passed, 9 skipped; sequential-pg 6 passed)
 - [ ] Confirm a queue worker runs on Railway (the job needs one)
 - [x] Slice 4: officer screen shows the draft (only when `ai_status` is `ready`; urgent always), Confirm or pick another category, stores `officer_health_category_id`, `officer_verdict` (`agreed`/`edited`/`disagreed` (Reject suggestion), null when no draft was shown) and `officer_reviewed_at`
-- [ ] Slice 5: admin page to add and rename categories
+- [x] Slice 5: admin page `/admin/health-categories` (permission `health-categories.manage`): add, rename, move up/down, switch on/off. No delete route.
 - [ ] Photo-quality check and its wording (needs owner approval)
 - [ ] EPA pesticide list as a CSV from the owner
 - [ ] Fallback model; daily cap per farmer
@@ -53,6 +54,13 @@ Task files: [tasks/ai-review-slice-3-job.md](tasks/ai-review-slice-3-job.md) · 
 - [ ] Set `PHOTO_DISK=s3` on staging and submit a test report to confirm the Bucket works
 - [ ] Run `HealthCategorySeeder` after deploy
 - [ ] Review the instruction text in `HealthImageReviewer.php`
+
+### 4b. Adviser and vet menu items
+Task file: [tasks/adviser-menu-items.md](tasks/adviser-menu-items.md)
+- [x] 1 Adviser dashboard rebuild and vet page · [x] 2 Weather (done, adviser and vet) · [x] 3 Crops and livestock trends (90 days) · [x] 4 Consultations list · [ ] News feed (later, source not chosen)
+
+### 4c. Loan credit score
+- [x] Task 1 (web loan form names farms and amounts) done. Tasks 2 to 6 open. Plan: [tasks/credit-score-and-loan-use.md](tasks/credit-score-and-loan-use.md). First the loan is recorded against a farm and its use (slice A), then the score (slice B). Waiting on the owner's answers. Also: the farmer dashboard shows a made-up score of 720; report only.
 
 ### 5. Fertilizer calculator
 - [ ] Not started. Idea notes in ideas/feature-backlog.md.
