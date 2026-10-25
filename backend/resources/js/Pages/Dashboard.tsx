@@ -93,11 +93,9 @@ interface Props {
     farm_produce: FarmProduce;
     weather: WeatherEntry[];
     loan_alerts: { uuid: string; unaccounted: number }[];
+    credit_score: { text: string; lines: string[]; note: string | null };
     filters: Filters;
 }
-
-const creditScore = 720;
-const creditMax = 850;
 
 function DashboardContent({
     summary,
@@ -106,6 +104,7 @@ function DashboardContent({
     farm_produce,
     weather,
     loan_alerts,
+    credit_score,
     filters,
 }: Props) {
     const [openDetail, setOpenDetail] = useState<
@@ -117,11 +116,8 @@ function DashboardContent({
     const border = dark ? "#374151" : "#E5E7EB";
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
-    const track = dark ? "#374151" : "#E5E7EB";
     const primary = "#1D9E75";
     const danger = "#DC2626";
-
-    const scorePercent = Math.round((creditScore / creditMax) * 100);
 
     const trendMeta = (trend: Trend) => {
         const TrendIcon =
@@ -370,7 +366,6 @@ function DashboardContent({
                             background: surface,
                             border: `1px solid ${border}`,
                             padding: "18px",
-                            opacity: 0.5,
                         }}
                     >
                         <p
@@ -381,43 +376,26 @@ function DashboardContent({
                                 marginBottom: "12px",
                             }}
                         >
-                            Credit score (Soon)
+                            Credit score
                         </p>
                         <p
                             style={{
-                                fontSize: "1.875rem",
+                                fontSize: "1.375rem",
                                 fontWeight: 700,
                                 color: primary,
-                                marginBottom: "4px",
-                                letterSpacing: "-0.5px",
+                                marginBottom: "8px",
                             }}
                         >
-                            {creditScore}
+                            {credit_score.text}
                         </p>
-                        <p
-                            style={{
-                                fontSize: "0.9375rem",
-                                color: textSecondary,
-                                marginBottom: "12px",
-                            }}
-                        >
-                            out of {creditMax} — Good standing
-                        </p>
-                        <div
-                            style={{
-                                height: "8px",
-                                background: track,
-                                width: "100%",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    height: "8px",
-                                    width: `${scorePercent}%`,
-                                    background: primary,
-                                }}
-                            />
-                        </div>
+                        {credit_score.lines.map((line) => (
+                            <p key={line} style={{ fontSize: "0.9375rem", color: textSecondary, marginBottom: "4px" }}>
+                                {line}
+                            </p>
+                        ))}
+                        {credit_score.note && (
+                            <p style={{ fontSize: "0.875rem", color: textSecondary, marginTop: "8px" }}>{credit_score.note}</p>
+                        )}
                     </div>
 
                     <div
@@ -867,6 +845,7 @@ export default function Dashboard(props: Props) {
                 farm_produce={props.farm_produce}
                 weather={props.weather}
                 loan_alerts={props.loan_alerts}
+                credit_score={props.credit_score}
                 filters={props.filters}
             />
         </AuthenticatedLayout>

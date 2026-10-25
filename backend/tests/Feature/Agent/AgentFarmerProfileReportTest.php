@@ -177,7 +177,7 @@ test('shows the financial summary for the period', function () {
 
 test('shows credit score as not yet available', function () {
     $this->actingAs($this->agentUser)->get("/agent/farmers/{$this->farmer->uuid}/profile-report")
-        ->assertInertia(fn($page) => $page->where('credit_score', 'Not yet available'));
+        ->assertInertia(fn($page) => $page->where('credit_score.text', 'Not yet available')->where('credit_score.lines', [])->where('credit_score.note', null));
 });
 
 test('the print view renders for an agent', function () {

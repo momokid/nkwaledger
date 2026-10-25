@@ -196,7 +196,13 @@
     </div>
 
     <h2>Credit score</h2>
-    <p>{{ $creditScore }}</p>
+    <p>{{ $creditScore['text'] }}</p>
+    @foreach ($creditScore['lines'] as $line)
+        <p>{{ $line }}</p>
+    @endforeach
+    @if ($creditScore['note'])
+        <p>{{ $creditScore['note'] }}</p>
+    @endif
 </body>
 
 </html>

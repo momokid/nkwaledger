@@ -41,11 +41,17 @@ interface Summary {
     net: number;
 }
 
+interface CreditScoreView {
+    text: string;
+    lines: string[];
+    note: string | null;
+}
+
 interface Props {
     farmer: Farmer;
     farm_units: FarmUnit[];
     summary: Summary;
-    credit_score: string;
+    credit_score: CreditScoreView;
     filters: { from: string; to: string };
 }
 
@@ -103,7 +109,7 @@ function FarmerProfileContent({
     farmer: Farmer;
     farmUnits: FarmUnit[];
     summary: Summary;
-    creditScore: string;
+    creditScore: CreditScoreView;
     filters: { from: string; to: string };
 }) {
     const { dark } = useTheme();
@@ -479,8 +485,16 @@ function FarmerProfileContent({
                     Credit score
                 </p>
                 <p style={{ fontSize: "1.0625rem", color: textSecondary }}>
-                    {creditScore}
+                    {creditScore.text}
                 </p>
+                {creditScore.lines.map((line) => (
+                    <p key={line} style={{ fontSize: "1rem", color: textSecondary, marginTop: "4px" }}>
+                        {line}
+                    </p>
+                ))}
+                {creditScore.note && (
+                    <p style={{ fontSize: "0.9375rem", color: textSecondary, marginTop: "8px" }}>{creditScore.note}</p>
+                )}
             </div>
         </div>
     );

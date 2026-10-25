@@ -128,3 +128,34 @@ test('a record that needs no farm and is not from a loan keeps no farm', functio
 
     expect(Transaction::where('narration', 'loan-test')->firstOrFail()->farm_unit_id)->toBeNull();
 });
+
+// The animals are recorded with the purchase and the purchase is the loan record, but the count only rises once someone else
+// has checked it: the same rule as for any animal purchase, loan or not.
+test('buying animals from a loan is one record, linked to the loan, and the new animals wait to be checked', function () {
+    ($this->buy)(['transaction_template_id' => $this->purchaseTemplate->id, 'quantity_purchased' => '5'])->assertSessionHasNoErrors();
+
+    $records = Transaction::where('narration', 'loan-test')->get();
+    $record = $records->firstOrFail();
+
+    expect($records)->toHaveCount(1);
+    expect([$record->loan_id, $record->farm_unit_id, (float) $record->quantity_purchased])->toBe([$this->loan->id, $this->unitA->id, 5.0]);
+
+    $batch = \App\Models\FarmUnitStock::where('farm_unit_id', $this->unitA->id)->firstOrFail();
+
+    expect([$batch->opening_quantity, $batch->current_quantity, $batch->isConfirmed()])->toBe(['5.00', '0.00', false]);
+    expect(\App\Models\FarmUnitStockMovement::where('transaction_id', $record->id)->exists())->toBeTrue();
+
+    $this->actingAs($this->farmerUser)->get("/loans/{$this->loan->uuid}")->assertInertia(
+        fn($page) => expect($page->toArray()['props']['farms'][0]['accounted'])->toBe(12000)
+    );
+});
+
+test('animals bought from a loan are added to a farm that already has a checked count, and stay out of it until checked', function () {
+    $batch = \App\Models\FarmUnitStock::factory()->confirmed()->create(['farm_unit_id' => $this->unitA->id, 'opening_quantity' => 100]);
+
+    ($this->buy)(['transaction_template_id' => $this->purchaseTemplate->id, 'quantity_purchased' => '5'])->assertSessionHasNoErrors();
+
+    $move = \App\Models\FarmUnitStockMovement::where('farm_unit_stock_id', $batch->id)->where('quantity', 5)->firstOrFail();
+
+    expect([$batch->fresh()->current_quantity, $move->isConfirmed(), $move->transaction->loan_id])->toBe(['100.00', false, $this->loan->id]);
+});

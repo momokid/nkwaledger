@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\FarmUnit;
 use App\Models\Transaction;
+use App\Services\CreditScoreService;
 use App\Services\Ledger\Reports\IncomeAndExpenditure;
 use App\Services\Ledger\Reports\IncomeAndExpenditureService;
 use App\Services\Loans\LoanService;
@@ -25,6 +26,7 @@ class FarmerDashboardController extends Controller
         private readonly WeatherService $weather,
         private readonly WeatherAdvisor $advisor,
         private readonly LoanService $loans,
+        private readonly CreditScoreService $scores,
     ) {}
 
     public function index(Request $request): Response
@@ -42,6 +44,7 @@ class FarmerDashboardController extends Controller
                 'recent_transactions' => [],
                 'weather' => [],
                 'loan_alerts' => [],
+                'credit_score' => ['text' => 'Not yet available', 'lines' => [], 'note' => null],
                 'filters' => ['from' => $from, 'to' => $to],
             ]);
         }
@@ -59,6 +62,7 @@ class FarmerDashboardController extends Controller
             'recent_transactions' => $this->recentTransactionsFor($farmer->id),
             'weather' => $this->weatherFor($farmer->id),
             'loan_alerts' => $this->loans->alertsFor($farmer),
+            'credit_score' => $this->scores->display($farmer, 'farmer'),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
     }

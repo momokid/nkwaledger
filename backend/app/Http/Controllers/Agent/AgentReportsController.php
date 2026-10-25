@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FarmerProfile;
 use App\Models\User;
 use App\Services\Agent\FarmerRosterService;
+use App\Services\CreditScoreService;
 use Illuminate\Contracts\View\View as ViewResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -164,7 +165,7 @@ class AgentReportsController extends Controller
             'farmer' => $this->profileData($farmer),
             'farm_units' => $this->farmUnitsData($farmer),
             'summary' => $this->financialSummary($farmer, $from, $to),
-            'credit_score' => 'Not yet available',
+            'credit_score' => app(CreditScoreService::class)->display($farmer, 'staff'),
             'filters' => ['from' => $from, 'to' => $to],
         ]);
     }
@@ -179,7 +180,7 @@ class AgentReportsController extends Controller
             'farmer' => $this->profileData($farmer),
             'farmUnits' => $this->farmUnitsData($farmer),
             'summary' => $this->financialSummary($farmer, $from, $to),
-            'creditScore' => 'Not yet available',
+            'creditScore' => app(CreditScoreService::class)->display($farmer, 'staff'),
             'from' => $from,
             'to' => $to,
             'generatedAt' => now(),
