@@ -209,13 +209,27 @@ class CreditScoreService
     {
         $total = collect($pillars)->where('counted', true)->sum('weight');
 
-        return array_map(function (array $pillar) use ($total) {
-            $factor = $pillar['counted'] && $total > 0 ? 100 / $total : 0;
-            $max = $pillar['weight'] * $factor;
-            $points = $pillar['raw_points'] * $factor;
+        $factors = array_map(fn(array $pillar) => $pillar['counted'] && $total > 0 ? 100 / $total : 0, $pillars);
+        $scaled = array_map(fn(array $pillar, $factor) => $pillar['raw_points'] * $factor, $pillars, $factors);
+        $maxes = $this->roundToSum(array_map(fn(array $pillar, $factor) => $pillar['weight'] * $factor, $pillars, $factors), $total > 0 ? 100 : 0);
+        $points = $this->roundToSum($scaled, (int) round(array_sum($scaled)));
 
-            return $pillar + ['scaled_points' => $points, 'max' => (int) round($max), 'points' => (int) round($points)];
-        }, $pillars);
+        return array_map(fn(array $pillar, $scaledPoints, $max, $point) => $pillar + ['scaled_points' => $scaledPoints, 'max' => $max, 'points' => $point], $pillars, $scaled, $maxes, $points);
+    }
+
+    // whole numbers that keep the order of the input and add up to $target, so the lines on a screen always match the total
+    private function roundToSum(array $values, int $target): array
+    {
+        $whole = array_map(fn($v) => (int) floor($v), $values);
+        $left = $target - array_sum($whole);
+        $byRemainder = array_keys($values);
+        usort($byRemainder, fn($a, $b) => ($values[$b] - $whole[$b]) <=> ($values[$a] - $whole[$a]));
+
+        foreach (array_slice($byRemainder, 0, max($left, 0)) as $i) {
+            $whole[$i]++;
+        }
+
+        return $whole;
     }
 
     private function line(array $pillar): string

@@ -222,3 +222,13 @@ test('a farmer who is not yet scored sees Not yet available on the dashboard', f
         expect($page->toArray()['props']['credit_score']['text'])->toBeIn(['Not yet available', 'Not yet available. Your agent can help you confirm your identity document.']);
     });
 });
+
+test('the lines of the pillars add up to the score and the maximums add up to 100', function () {
+    $pillar = fn(string $key, float $raw) => ['key' => $key, 'counted' => true, 'weight' => 30, 'raw_points' => $raw];
+    $scaled = (new ReflectionMethod(CreditScoreService::class, 'scaled'))->invoke(app(CreditScoreService::class), [
+        $pillar('purchases', 30.0), $pillar('cash', 30.0), $pillar('credit', 30.0),
+    ]);
+
+    expect(array_sum(array_column($scaled, 'max')))->toBe(100);
+    expect(array_sum(array_column($scaled, 'points')))->toBe(100);
+});
