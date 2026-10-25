@@ -45,7 +45,7 @@ class PostingService
         $purchase = $this->resolveQuantityPurchased($request, $template, $farmUnit);
 
         if ($request->loanId !== null) {
-            $refusal = Loan::refusalForPurchase(Loan::find($request->loanId), $request->farmerProfileId, $farmUnit?->id, $this->isCreditSettlement($settlementAccountId));
+            $refusal = Loan::refusalForPurchase(Loan::find($request->loanId), $request->farmerProfileId, $farmUnit?->id, $this->isCreditSettlement($settlementAccountId), $template->transaction_type);
 
             if ($refusal !== null) {
                 throw PostingFailed::because($refusal);

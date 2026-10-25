@@ -192,6 +192,7 @@ class RecordTransactionRequest extends FormRequest
                     $this->farmer()->id,
                     filled($this->input('farm_unit_id')) ? (int) $this->input('farm_unit_id') : null,
                     $this->boolean('is_credit'),
+                    TransactionTemplate::find($this->input('transaction_template_id'))?->transaction_type ?? Transaction::EXPENSE,
                 );
 
                 if ($refusal !== null) {

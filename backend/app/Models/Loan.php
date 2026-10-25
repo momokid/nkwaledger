@@ -108,10 +108,14 @@ class Loan extends Model
     }
 
     // why a purchase may not be marked "Paid from a loan"; null when it may. One text for every way the loan can be wrong, so it never says whether someone else's loan exists
-    public static function refusalForPurchase(?self $loan, int $farmerId, ?int $farmUnitId, bool $isCredit): ?string
+    public static function refusalForPurchase(?self $loan, int $farmerId, ?int $farmUnitId, bool $isCredit, string $transactionType = Transaction::EXPENSE): ?string
     {
         if ($loan === null || $loan->farmer_profile_id !== $farmerId || $loan->kind !== self::KIND_MONEY || $loan->isCancelled()) {
             return 'Please choose one of your loans that is still active.';
+        }
+
+        if ($transactionType !== Transaction::EXPENSE) {
+            return 'Only money spent can be paid from a loan.';
         }
 
         if ($isCredit) {

@@ -66,6 +66,24 @@ test('a credit purchase cannot be paid from a loan', function () {
         ->assertSessionHasErrors(['loan' => 'A purchase on credit cannot be paid from a loan.']);
 });
 
+test('only an expense can be paid from a loan', function () {
+    $sale = $this->feedTemplate->replicate();
+    $sale->fill(['name' => 'Other money in', 'slug' => 'not-expense-test', 'transaction_type' => Transaction::INCOME])->save();
+
+    ($this->buy)(['transaction_template_id' => $sale->id])
+        ->assertSessionHasErrors(['loan' => 'Only money spent can be paid from a loan.']);
+
+    expect(Transaction::where('narration', 'loan-test')->count())->toBe(0);
+});
+
+test('posting itself refuses a loan on a record that is not an expense', function () {
+    $sale = $this->feedTemplate->replicate();
+    $sale->fill(['name' => 'Other money in', 'slug' => 'not-expense-test', 'transaction_type' => Transaction::INCOME])->save();
+
+    expect(\App\Models\Loan::refusalForPurchase($this->loan, $this->profile->id, $this->unitA->id, false, $sale->transaction_type))
+        ->toBe('Only money spent can be paid from a loan.');
+});
+
 test('the loan page gives planned, accounted and not yet accounted for each farm', function () {
     ($this->buy)(['amount' => '120'])->assertSessionHasNoErrors();
     ($this->buy)(['amount' => '80', 'narration' => 'other'])->assertSessionHasNoErrors();
