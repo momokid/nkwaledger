@@ -75,6 +75,13 @@ test('an other use needs a note, an amount above zero, and no more than what is 
     'too much' => [['amount' => '500.01', 'note' => 'x'], 'amount', 'That is more than what is left to place.'],
 ]);
 
+test('two other uses that each fit alone but not together: the second is refused', function () {
+    ($this->other)(['amount' => '300', 'note' => 'first'])->assertSessionHasNoErrors();
+    ($this->other)(['amount' => '300', 'note' => 'second'])->assertSessionHasErrors(['amount' => 'That is more than what is left to place.']);
+
+    expect(LoanOtherUse::count())->toBe(1);
+});
+
 test('only the farmer who owns the loan can add an other use', function () {
     ($this->other)(['amount' => '10', 'note' => 'x'], $this->otherFarmerUser)->assertNotFound();
     ($this->other)(['amount' => '10', 'note' => 'x'], $this->agent)->assertNotFound();

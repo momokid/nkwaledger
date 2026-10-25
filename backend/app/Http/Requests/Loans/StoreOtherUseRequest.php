@@ -46,10 +46,9 @@ class StoreOtherUseRequest extends FormRequest
                 $minor = 0;
             }
 
+            // "no more than what is left" is checked in the controller, under a lock on the loan
             if ($minor <= 0) {
                 $validator->errors()->add('amount', 'The amount needs to be more than zero.');
-            } elseif ($minor > $this->route('loan')->unaccountedMinor()) {
-                $validator->errors()->add('amount', 'That is more than what is left to place.');
             }
         }];
     }
