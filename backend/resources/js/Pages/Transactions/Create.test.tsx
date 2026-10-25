@@ -46,13 +46,15 @@ vi.mock("@inertiajs/react", async () => {
 
 const FARMER = "5b0f9f4e-0c3e-4a67-9a52-1e0f3f2a1111";
 
+let expenseForm = false;
+
 function pageProps() {
     return {
         auth: { user: { id: 7 } },
         errors: {},
         flash: {},
         old: {
-            transaction_template_id: "1",
+            transaction_template_id: expenseForm ? "2" : "1",
             amount: "100",
             settlement_account_id: "9",
             transaction_date: "2026-03-01",
@@ -69,7 +71,18 @@ function pageProps() {
                 is_stock_purchase: false,
                 allows_credit: false,
             },
+            {
+                id: 2,
+                name: "Feed",
+                transaction_type: "EXPENSE",
+                settlement_side: "credit",
+                requires_farm_unit: false,
+                is_produce_sale: false,
+                is_stock_purchase: false,
+                allows_credit: false,
+            },
         ],
+        loans: [{ uuid: "loan-1", lender: "Bank", amount: 50000, date: "2026-03-01" }],
         settlementAccounts: [{ id: 9, name: "Cash" }],
         farmUnits: [],
         layout: "farmer" as const,
@@ -109,6 +122,24 @@ afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
     vi.restoreAllMocks();
+});
+
+describe("Paid from a loan", () => {
+    it("is not kept for the next record after a save", async () => {
+        expenseForm = true;
+        await act(async () => root.unmount());
+        root = createRoot(container);
+        await act(async () => root.render(<Create {...(pageProps() as unknown as ComponentProps<typeof Create>)} />));
+        const tick = [...container.querySelectorAll("label")].find((l) => l.textContent?.includes("Paid from a loan"))!.querySelector("input")!;
+        await act(async () => tick.click());
+
+        await tapSave();
+        await act(async () => h.posts[0].options.onSuccess());
+        await tapSave();
+
+        expect([h.posts[0].body.loan, h.posts[1].body.loan]).toEqual(["loan-1", ""]);
+        expenseForm = false;
+    });
 });
 
 describe("one record keeps one uuid", () => {

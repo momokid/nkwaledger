@@ -192,6 +192,7 @@ function CreateContent({
             "quantity_sold",
             "quantity_purchased",
             "narration",
+            "loan",
         );
     };
 
