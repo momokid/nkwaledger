@@ -262,12 +262,30 @@ describe("Errors", () => {
             expect(container.textContent).toContain("The farm amounts must add up to the loan amount.");
         });
 
-        it("is not asked for an existing loan or on the agent's form", async () => {
+        it("is not asked for an existing loan, and is asked on the agent's money form", async () => {
             await show("existing", { farms: [] });
             expect(container.textContent).not.toContain("Which farms will use this loan?");
 
-            await show("money", { agent: true });
-            expect(container.textContent).not.toContain("Which farms will use this loan?");
+            await show("money", { agent: true, farms });
+            expect(container.textContent).toContain("Which farms will use this loan?");
+        });
+
+        it("asks what each picked farm's money is for, with a note when it is something else", async () => {
+            mockOld = { lender: "u-1", lender_name: "Sika", amount: "500", farms: [{ farm_unit: "f-1", amount: "100", purpose: "other", purpose_note: "" }] } as never;
+            await show("money", { farms, purposes: [{ slug: "seed", name: "I bought seed" }] });
+
+            expect(labels()).toContain("What will this money be used for?");
+            expect(labels()).toContain("What will you use it for?");
+            expect(container.textContent).toContain("I bought seed");
+            expect(container.textContent).toContain("Something else");
+        });
+
+        it("shows the purpose errors under the farm they belong to", async () => {
+            mockOld = { lender: "u-1", lender_name: "Sika", amount: "500", farms: [{ farm_unit: "f-1", amount: "100", purpose: "", purpose_note: "" }] } as never;
+            mockErrors = { "farms.0.purpose": "Please say what this money is for." };
+            await show("money", { farms, purposes: [] });
+
+            expect(container.textContent).toContain("Please say what this money is for.");
         });
     });
 });
