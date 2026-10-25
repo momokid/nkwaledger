@@ -147,3 +147,4 @@ Owner request: a separate report for one loan with the loan amount, its interest
 - Found while adding it: the JS (vitest) tests of the loan pages and the loan form had not been run since tasks 2, 3 and 5b, and 13 of them failed because the pages gained props and the agent form now asks for farms. The test fixtures were updated, and tests were added for the purpose choice on the loan form.
 
 - 2026-10-26: review finding 1 fixed. A loan is refused on any record that is not an expense (`Loan::refusalForPurchase`, one wording approved by the owner: "Only money spent can be paid from a loan."). Findings 2 to 5 are listed in docs/handoff/current.md.
+- 2026-10-26: review finding 2 fixed. `CreditScoreService::scaled()` rounds the pillar lines together so they add up to the score and the maximums to 100.

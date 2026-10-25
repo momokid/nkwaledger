@@ -13,9 +13,9 @@ Earlier work:
 Adviser and vet menu items are all built (dashboard, Weather, Trends, Consultations; new column `responded_at`, run `php artisan migrate` after deploy). The full PostgreSQL suite passed on 23/10 (3702 passed, 9 skipped; sequential-pg 6 passed), so the branch is ready for the owner to push. Left: the news feed (source not chosen) and the credit score plan (todo 4c).
 
 ## Open: code review of this branch (2026-10-25)
-The branch `feature/loan-paid-from-loan` (cut from `feature/ai-health-review`) was reviewed before pushing. Finding 1 is fixed (26/10: `Loan::refusalForPurchase` refuses a loan unless the record is an expense; message "Only money spent can be paid from a loan." approved by the owner; full suite passed 3801). Findings 2 to 5 are not fixed yet:
+The branch `feature/loan-paid-from-loan` (cut from `feature/ai-health-review`) was reviewed before pushing. Finding 1 is fixed (26/10: `Loan::refusalForPurchase` refuses a loan unless the record is an expense; message "Only money spent can be paid from a loan." approved by the owner; full suite passed 3801). Finding 2 is fixed too (full suite 3802 passed). Findings 3 to 5 are not fixed yet:
 1. ~~A loan can be linked to income or loss records.~~ Fixed. No test yet for a loss record with stock, or for the offline path (both go through `PostingService`).
-2. `CreditScoreService::scaled()` rounds each pillar on its own, so the lines can show 33/33/33 beside a score of 100.
+2. ~~`CreditScoreService::scaled()` rounding~~ Fixed (the lines now add up to the score, the maximums to 100).
 3. `StoreOtherUseRequest` / `LoanOtherUseController`: no lock or idempotency, so a double tap can save more than what is left.
 4. `Transactions/Create.tsx` `resetEnteredFields` does not reset `loan`, so the next record stays linked.
 5. Smaller: score and loan alerts recomputed on every dashboard load; a no-farm record paid from a loan gets a farm and can become provisional; `SyncSubmissionService::loanIdOf` calls `Loan::refusalForPurchase(null, 0, null, false)` for a message; `StoreFarmerLoanRequest::farmer()` queried three times; the statement adds "{what} - {farm}" and per-kind total lines that were not in the approved wording (owner to decide).
