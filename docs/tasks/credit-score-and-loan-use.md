@@ -148,3 +148,4 @@ Owner request: a separate report for one loan with the loan amount, its interest
 
 - 2026-10-26: review finding 1 fixed. A loan is refused on any record that is not an expense (`Loan::refusalForPurchase`, one wording approved by the owner: "Only money spent can be paid from a loan."). Findings 2 to 5 are listed in docs/handoff/current.md.
 - 2026-10-26: review finding 2 fixed. `CreditScoreService::scaled()` rounds the pillar lines together so they add up to the score and the maximums to 100.
+- 2026-10-26: review finding 3 fixed. `LoanOtherUseController` checks the amount left inside a transaction with a lock on the loan row. A real double tap is not covered by a test (tests run one request at a time).
