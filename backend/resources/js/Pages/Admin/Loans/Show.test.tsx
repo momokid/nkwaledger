@@ -105,8 +105,8 @@ describe("The admin's loan page", () => {
         expect(text).not.toMatch(/\b(repayment|lender)\.[a-z_]+/);
     });
 
-    it("records no repayment: its only link goes back to the admin list and the only form is the check", () => {
-        expect(Array.from(container.querySelectorAll("a")).map((link) => link.getAttribute("href"))).toEqual(["/admin/loans"]);
+    it("records no repayment: its only links go back to the admin list and to the statement, and the only form is the check", () => {
+        expect(Array.from(container.querySelectorAll("a")).map((link) => link.getAttribute("href"))).toEqual(["/admin/loans", "/loans/l-1/statement"]);
         expect(container.querySelectorAll("form")).toHaveLength(1);
         expect(container.querySelectorAll("input[type='text']")).toHaveLength(0);
         expect(container.textContent).not.toContain("Record a repayment");

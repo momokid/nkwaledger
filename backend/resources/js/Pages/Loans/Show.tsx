@@ -8,7 +8,7 @@ import { PageProps } from "@/types";
 import { cedis, slashDate } from "@/lib/format";
 import LoanCheckNotice, { LoanCheck } from "@/Components/LoanCheckNotice";
 import { useEffect, useState } from "react";
-import { useForm } from "@inertiajs/react";
+import { Link, useForm } from "@inertiajs/react";
 import LoanUseBanner from "@/Components/LoanUseBanner";
 
 interface LoanSummary {
@@ -111,6 +111,12 @@ function ShowContent({ unaccounted, otherUses, farms, loan: firstLoan, repayment
             <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
                 GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)}
             </p>
+
+            <div className="mt-2">
+                <Link href={`/loans/${loan.uuid}/statement`} style={{ color: text, fontWeight: 600, textDecoration: "underline" }}>
+                    Loan statement
+                </Link>
+            </div>
 
             <div className="mt-2">
                 <LoanCheckNotice check={loan.check} />

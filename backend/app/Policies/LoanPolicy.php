@@ -46,6 +46,24 @@ class LoanPolicy
         return $user->hasRole('farmer');
     }
 
+    // the loan statement: the farmer it belongs to, that farmer's current agent, and an admin. Everyone else gets 404
+    public function statement(User $user, Loan $loan): Response|bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('farmer') && (int) $loan->farmerProfile?->user_id === $user->id) {
+            return true;
+        }
+
+        if ($user->hasRole('agent') && (int) $loan->farmerProfile?->assigned_agent_id === $user->id) {
+            return true;
+        }
+
+        return Response::denyAsNotFound();
+    }
+
     // a repayment, and the page it is made from: only the farmer the loan belongs to
     public function repay(User $user, Loan $loan): Response|bool
     {

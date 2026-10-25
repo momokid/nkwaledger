@@ -1,6 +1,7 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useTheme } from "@/Layouts/AuthenticatedLayout";
 import BackLink from "@/Components/BackLink";
+import { Link } from "@inertiajs/react";
 import LoanGrantedDetails from "@/Components/LoanGrantedDetails";
 import { wording } from "@/lib/wording";
 import { cedis, slashDate } from "@/lib/format";
@@ -86,6 +87,12 @@ function ShowContent({ loan, farmer, repayments, rejected, checks: firstChecks, 
             <p style={{ color: textSecondary, fontSize: "1.0625rem" }}>
                 {farmer} · GHS {cedis(loan.amount)} · Loan Balance GHS {cedis(loan.balance)} · {STATUS_LABELS[loan.status] ?? loan.status}
             </p>
+
+            <div className="mt-2">
+                <Link href={`/loans/${loan.uuid}/statement`} style={{ color: text, fontWeight: 600, textDecoration: "underline" }}>
+                    Loan statement
+                </Link>
+            </div>
 
             <div className="mt-2">
                 <LoanCheckNotice check={check} />
