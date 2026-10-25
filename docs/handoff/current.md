@@ -12,6 +12,15 @@ Written: 2026-10-21 (after slice 5). Rewrite this at every stopping point.
 Earlier work:
 Adviser and vet menu items are all built (dashboard, Weather, Trends, Consultations; new column `responded_at`, run `php artisan migrate` after deploy). The full PostgreSQL suite passed on 23/10 (3702 passed, 9 skipped; sequential-pg 6 passed), so the branch is ready for the owner to push. Left: the news feed (source not chosen) and the credit score plan (todo 4c).
 
+## Open: code review of this branch (2026-10-25)
+The branch `feature/loan-paid-from-loan` (cut from `feature/ai-health-review`) was reviewed before pushing. Nothing from the review is fixed yet. Findings, most important first:
+1. A loan can be linked to income or loss records (the web form only hides the tick box). Refuse `loan` unless the record is an expense, in `Loan::refusalForPurchase` / `PostingService`, so the web, offline and agent paths are all covered. Otherwise a sale can clear the loan alert and raise the loan-use part of the score.
+2. `CreditScoreService::scaled()` rounds each pillar on its own, so the lines can show 33/33/33 beside a score of 100.
+3. `StoreOtherUseRequest` / `LoanOtherUseController`: no lock or idempotency, so a double tap can save more than what is left.
+4. `Transactions/Create.tsx` `resetEnteredFields` does not reset `loan`, so the next record stays linked.
+5. Smaller: score and loan alerts recomputed on every dashboard load; a no-farm record paid from a loan gets a farm and can become provisional; `SyncSubmissionService::loanIdOf` calls `Loan::refusalForPurchase(null, 0, null, false)` for a message; `StoreFarmerLoanRequest::farmer()` queried three times; the statement adds "{what} - {farm}" and per-kind total lines that were not in the approved wording (owner to decide).
+Also not done: the PostgreSQL batch run, a push, and a look at the new screens in a browser (run `npm run build` first, `public/build` is ignored by git). Local dev database already ran the four new migrations of this branch by mistake (additive only; `php artisan migrate:rollback` once undoes that batch).
+
 ## Waiting on the owner
 - Railway had a build pause on 21/10; hold the staging checks until it clears.
 - Confirm a queue worker runs on Railway; the AI job needs one.
