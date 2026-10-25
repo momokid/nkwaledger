@@ -14,6 +14,9 @@ Facts below come from the owner's notes and the commit history. Check the code b
 ## Credit score
 A guide score out of 100, shown to the farmer, the agent and the admin. Never decides a loan; no lender sees it. Worked out when shown by `CreditScoreService` from live, confirmed records over the last 12 months; settings in `config/credit_score.php`. See [../tasks/credit-score-and-loan-use.md](../tasks/credit-score-and-loan-use.md) (task 6) for the pillars, the exclusions and what is not in version 1.
 
+## Loan statement
+A separate report for one loan (screen, print and PDF) with the loan details, the repayments and what the money was used for. Opened from the loan page by the farmer, the farmer's agent and the admin. See the end of [../tasks/credit-score-and-loan-use.md](../tasks/credit-score-and-loan-use.md).
+
 ## Decided but not built
 - Goods loans, and repayment in produce or animals, are parked. Recommended approach (Option A): the debt stays in cedis, the goods are kept as a description with an agreed cedi value, and stock effects come later. Open questions: cedi price or bags-for-bags, who lends goods, whether repayment reduces farm stock.
 
