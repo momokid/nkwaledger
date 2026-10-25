@@ -1,6 +1,6 @@
 # Credit score and loan use
 
-Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) 4 (agent loans) and 4b (purpose of each farm amount) built. 5a (offline "Paid from a loan") and 5b (USSD) built. Task 6 (the score) not started.
+Status: tasks 1 (web loan form), 2 (paid from a loan), 3 (alert, other uses, reminders) 4 (agent loans) and 4b (purpose of each farm amount) built. 5a (offline "Paid from a loan") and 5b (USSD) built. Task 6 (the score) built, version 1.
 
 ## Goal
 1. Every loan is recorded against a farm, with what the money was used for, so the app can see if the loan went into the farm.
@@ -125,3 +125,13 @@ Built as agreed (owner approved the English lines, the Twi drafts and the 20-cha
 - Wording: 10 new keys in `resources/ussd.en.json` and `resources/ussd.tw.json`: `loan_farm_pick`, `loan_farm_amount`, `loan_farm_too_much`, `loan_purpose_pick`, `more`, `loan_purpose_other`, `loan_purpose_note`, `loan_purpose_note_empty`, `loan_farm_more`, `loan_no_farm`. **The Twi for these ten is a draft and needs a native-speaker review**, like the rest of the Twi text.
 - Tests: `tests/Feature/Ussd/UssdLoanFarmsTest.php`; `UssdLoanEntryTest` now walks the extra farm and purpose screens.
 - Still open: task 6 (the score). Not done: comparing later purchases with the planned purpose.
+
+## Task 6 done (the credit score, version 1, 2026-10-25)
+Owner decisions (2026-10-24 and 25): the farmer, the agent and the admin see it (no lender); 0 to 100 with four bands; the last 12 calendar months with records in at least 3 of them; weights 30/30/30/10; no grace days on repayments; the made-up 720 replaced; a pillar with nothing to measure is left out and the others scale up to 100. The wording was approved as proposed, plus the two farmer lines.
+- `App\Services\CreditScoreService` (settings in `config/credit_score.php`, all provisional): worked out whenever shown, nothing stored, no new column or table. `for($farmer)` gives status (`ok`, `not_enough`, `unavailable`), score, band and the pillars; `display($farmer, 'farmer'|'staff')` gives the words shown (`text`, `lines`, `note`); `bandFor`.
+- Only records that count: live (not cancelled, not a correction row), not provisional, income / expense / loss; a produce sale does not count until `countsTowardCredit()`. Gate: `FarmerEligibilityService::canBeCreditScored` (identity verified).
+- Pillars: **Farm purchases** (months with an expense record out of 12); **Money in and out** (months with both an income and an expense); **Credit and loans** (loan payments in the window made on or before the due date out of all payments, times 0.5 while a loan is overdue and 0 in default; counted only when there was a payment or an overdue loan); **Loan money used on the farm** (farm purchases linked to loans a week old or more, as a share of the farm amounts planned; counted only when such a loan exists).
+- Shown on: the agent's farmer profile report and its print page (`AgentReportsController`), and the farmer dashboard (`FarmerDashboardController`, `Dashboard.tsx`). There is no separate admin screen for a farmer's score yet; the admin sees it where the agent report is open to them.
+- Wording used (approved): bands Building / Fair / Good / Strong; "{score} out of 100 ({band})"; the four pillar lines and "not counted yet"; the two "Not enough records yet" lines; the two "Not yet available" lines; "This score is a guide only. It does not decide a loan."
+- Tests: `tests/Feature/Loans/CreditScoreTest.php`.
+- Not in version 1: the loan amount against income (the owner mentioned "the amount taken"; no approved line for it); credit purchases settled late; a saved snapshot of a score (needed before a lender can see one); lawyer review and consent text; tuning the weights and bands with real data.
