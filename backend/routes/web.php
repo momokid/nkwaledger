@@ -63,7 +63,9 @@ use App\Http\Controllers\Transactions\RecordTransactionController;
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Transactions\ReversalController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\HelpController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Agent\AgentDashboardController;
 use App\Http\Controllers\Farm\FarmerWeatherController;
@@ -413,6 +415,8 @@ Route::middleware(['auth', 'verified.phone'])->prefix('my-reports')->name('my-re
 
 Route::middleware(['auth', 'verified.phone'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/help', HelpController::class)->name('help');
+    Route::get('/settings', SettingsController::class)->name('settings');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::patch('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');

@@ -100,9 +100,11 @@ interface NavSet {
     account: NavItem[];
 }
 
+const helpItem: NavItem = { label: "Help", href: "/help", icon: IconHelpCircle, ready: true };
+
 const account = (): NavItem[] => [
     { label: "Profile", href: "/profile", icon: IconUser, ready: true },
-    { label: "Settings", href: "#", icon: IconSettings, ready: false },
+    { label: "Settings", href: "/settings", icon: IconSettings, ready: true },
 ];
 
 // each role gets its own menu, since the same word can mean different things to different people
@@ -212,7 +214,6 @@ const navSets: Record<string, (dashboard: string) => NavSet> = {
             { label: "Credit", href: "/loans", icon: IconCreditCard, ready: true },
         ],
         tools: [
-            { label: "Help", href: "#", icon: IconHelpCircle, ready: false },
             {
                 label: "Weather",
                 href: "/my-weather",
@@ -461,7 +462,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
     const nav = {
         ...built,
         main: withCount(built.main),
-        tools: withCount(built.tools),
+        tools: [...withCount(built.tools), helpItem],
     };
 
     const { bar: mobileNav, more: moreNav } = splitMobileNav(nav.main, nav.tools);
@@ -1093,7 +1094,9 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                                 href={
                                                     label === "Profile"
                                                         ? "/profile"
-                                                        : "#"
+                                                        : label === "Settings"
+                                                          ? "/settings"
+                                                          : "#"
                                                 }
                                                 style={{
                                                     display: "block",
