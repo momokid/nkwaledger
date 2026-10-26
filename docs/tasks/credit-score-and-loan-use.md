@@ -150,3 +150,4 @@ Owner request: a separate report for one loan with the loan amount, its interest
 - 2026-10-26: review finding 2 fixed. `CreditScoreService::scaled()` rounds the pillar lines together so they add up to the score and the maximums to 100.
 - 2026-10-26: review finding 3 fixed. `LoanOtherUseController` checks the amount left inside a transaction with a lock on the loan row. A real double tap is not covered by a test (tests run one request at a time).
 - 2026-10-26: review finding 4 fixed. `resetEnteredFields` in `Transactions/Create.tsx` now resets `loan`; a frontend test ticks "Paid from a loan", saves, and checks the next record has no loan.
+- 2026-10-26: review finding 5 done. 5c and 5d fixed, 5a and 5b left on purpose, 5e wording kept (owner approved). All review findings closed.
