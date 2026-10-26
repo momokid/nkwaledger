@@ -12,14 +12,15 @@ Written: 2026-10-26 (after the review fixes). Rewrite this at every stopping poi
 Earlier work:
 Adviser and vet menu items are all built (dashboard, Weather, Trends, Consultations; new column `responded_at`, run `php artisan migrate` after deploy). The full PostgreSQL suite passed on 23/10 (3702 passed, 9 skipped; sequential-pg 6 passed), so the branch is ready for the owner to push. Left: the news feed (source not chosen) and the credit score plan (todo 4c).
 
-## Done: code review of this branch (2026-10-25). Next: PostgreSQL batch run, browser look, then the owner pushes
+## Done: code review of this branch (2026-10-25). Next: browser look, then the owner pushes
 The branch `feature/loan-paid-from-loan` (cut from `feature/ai-health-review`) was reviewed before pushing. Finding 1 is fixed (26/10: `Loan::refusalForPurchase` refuses a loan unless the record is an expense; message "Only money spent can be paid from a loan." approved by the owner; full suite passed 3801). All five findings are done (PHP suite 3803 passed; 569 frontend tests passed):
 1. ~~A loan can be linked to income or loss records.~~ Fixed. No test yet for a loss record with stock, or for the offline path (both go through `PostingService`).
 2. ~~`CreditScoreService::scaled()` rounding~~ Fixed (the lines now add up to the score, the maximums to 100).
 3. ~~Other use: no lock~~ Fixed (the amount left is checked under a lock on the loan row).
 4. ~~Record form kept the loan after a save~~ Fixed (`loan` is in the reset list).
 5. ~~Smaller items~~ Done (26/10): 5c and 5d fixed (`Loan::NOT_AVAILABLE_REFUSAL`; farmer looked up once in `StoreFarmerLoanRequest`). 5a (dashboard recompute) and 5b (no-farm record on a loan farm) left as they are, on purpose. 5e: the owner approved the statement wording "{what} – {farm}" and "{record name}: GHS {amount}".
-Also not done: the PostgreSQL batch run, a push, and a look at the new screens in a browser (run `npm run build` first, `public/build` is ignored by git). Local dev database already ran the four new migrations of this branch by mistake (additive only; `php artisan migrate:rollback` once undoes that batch).
+The full local PostgreSQL suite passed on 26/10 (3808 passed, 9 skipped; sequential-pg 6 passed), so nothing blocks the push.
+Also not done: a push, and a look at the new screens in a browser (run `npm run build` first, `public/build` is ignored by git). Local dev database already ran the four new migrations of this branch by mistake (additive only; `php artisan migrate:rollback` once undoes that batch).
 
 ## Waiting on the owner
 - Railway had a build pause on 21/10; hold the staging checks until it clears.
