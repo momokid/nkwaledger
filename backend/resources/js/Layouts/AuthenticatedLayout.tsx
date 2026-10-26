@@ -92,7 +92,7 @@ interface NavSet {
 }
 
 const account = (): NavItem[] => [
-    { label: "Profile", href: "#", icon: IconUser, ready: false },
+    { label: "Profile", href: "/profile", icon: IconUser, ready: true },
     { label: "Settings", href: "#", icon: IconSettings, ready: false },
 ];
 
@@ -956,7 +956,11 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                                         ].map((label) => (
                                             <Link
                                                 key={label}
-                                                href="#"
+                                                href={
+                                                    label === "Profile"
+                                                        ? "/profile"
+                                                        : "#"
+                                                }
                                                 style={{
                                                     display: "block",
                                                     padding: "12px 16px",
