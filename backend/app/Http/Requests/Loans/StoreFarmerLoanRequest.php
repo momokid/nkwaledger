@@ -16,8 +16,9 @@ class StoreFarmerLoanRequest extends StoreLoanRequest
     public function rules(): array
     {
         $money = $this->input('kind') === Loan::KIND_MONEY;
-        $mine = $this->farmer()?->farmUnits()->pluck('uuid')->all() ?? [];
-        $purposes = $this->farmer() ? TransactionTemplate::loanPurposesFor($this->farmer())->pluck('slug')->all() : [];
+        $farmer = $this->farmer();
+        $mine = $farmer?->farmUnits()->pluck('uuid')->all() ?? [];
+        $purposes = $farmer ? TransactionTemplate::loanPurposesFor($farmer)->pluck('slug')->all() : [];
         $amount = ['required', 'string', 'regex:/^\d+(\.\d{1,2})?$/'];
 
         return parent::rules() + ($money ? [

@@ -22,6 +22,8 @@ class Loan extends Model
     public const ACTIVE = 'active';
     public const CANCELLED = 'cancelled';
 
+    public const NOT_AVAILABLE_REFUSAL = 'Please choose one of your loans that is still active.';
+
     // shown with every loan: there is no lender check yet, so every loan is self-reported
     public const NOTICE = 'You entered this loan yourself. It has not been checked with the lender.';
 
@@ -111,7 +113,7 @@ class Loan extends Model
     public static function refusalForPurchase(?self $loan, int $farmerId, ?int $farmUnitId, bool $isCredit, string $transactionType = Transaction::EXPENSE): ?string
     {
         if ($loan === null || $loan->farmer_profile_id !== $farmerId || $loan->kind !== self::KIND_MONEY || $loan->isCancelled()) {
-            return 'Please choose one of your loans that is still active.';
+            return self::NOT_AVAILABLE_REFUSAL;
         }
 
         if ($transactionType !== Transaction::EXPENSE) {

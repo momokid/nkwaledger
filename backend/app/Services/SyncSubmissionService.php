@@ -493,7 +493,7 @@ class SyncSubmissionService
         $loan = Loan::where('uuid', $record['loan'])->first();
 
         if ($loan === null) {
-            throw PostingFailed::because(Loan::refusalForPurchase(null, 0, null, false));
+            throw PostingFailed::because(Loan::NOT_AVAILABLE_REFUSAL);
         }
 
         return $loan->id;
