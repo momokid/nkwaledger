@@ -656,6 +656,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
                 {items.map((item) => (
                     <div
                         key={item.label}
+                        data-tour={item.label}
                         style={{ position: "relative" }}
                         onMouseEnter={() => setHovered(item.label)}
                         onMouseLeave={() => setHovered(null)}

@@ -1,4 +1,8 @@
 import AuthenticatedLayout, { useTheme } from "@/Layouts/AuthenticatedLayout";
+import Tour from "@/Components/Tour";
+import { tourFor } from "@/lib/tourSteps";
+import { usePage } from "@inertiajs/react";
+import { useState } from "react";
 
 const TOPICS: { title: string; steps: string[] }[] = [
     {
@@ -54,21 +58,17 @@ const TOPICS: { title: string; steps: string[] }[] = [
             "Print it or show it to your agent or lender.",
         ],
     },
-    {
-        title: "Need a person?",
-        steps: ["Call or WhatsApp 0577915555, 24 hours."],
-    },
 ];
 
-export default function Index() {
+export default function Index({ supportPhone }: { supportPhone: string | null }) {
     return (
         <AuthenticatedLayout title="Help">
-            <IndexContent />
+            <IndexContent supportPhone={supportPhone} />
         </AuthenticatedLayout>
     );
 }
 
-function IndexContent() {
+function IndexContent({ supportPhone }: { supportPhone: string | null }) {
     const { dark } = useTheme();
 
     const surface = dark ? "#1F2937" : "#FFFFFF";
@@ -76,12 +76,37 @@ function IndexContent() {
     const text = dark ? "#F9FAFB" : "#111827";
     const textSecondary = dark ? "#9CA3AF" : "#6B7280";
 
+    const { auth } = usePage().props as unknown as { auth?: { user?: { roles?: string[] } } };
+    const steps = tourFor(auth?.user?.roles?.[0] ?? "farmer");
+    const [touring, setTouring] = useState(false);
+    const topics = supportPhone
+        ? [...TOPICS, { title: "Need a person?", steps: [`Call or WhatsApp ${supportPhone}, 24 hours.`] }]
+        : TOPICS;
+
     return (
         <div className="p-6">
             <p style={{ fontSize: "1.625rem", fontWeight: 700, color: text, marginBottom: "16px" }}>
                 Help
             </p>
-            {TOPICS.map((topic) => (
+            {steps.length > 0 && (
+                <button
+                    onClick={() => setTouring(true)}
+                    style={{
+                        padding: "12px 20px",
+                        fontSize: "1.125rem",
+                        fontWeight: 600,
+                        color: "#FFFFFF",
+                        background: "#1D9E75",
+                        border: "1px solid #1D9E75",
+                        cursor: "pointer",
+                        marginBottom: "16px",
+                    }}
+                >
+                    Take the tour
+                </button>
+            )}
+            {touring && <Tour steps={steps} onClose={() => setTouring(false)} />}
+            {topics.map((topic) => (
                 <details
                     key={topic.title}
                     style={{ background: surface, border: `1px solid ${border}`, marginBottom: "8px" }}
