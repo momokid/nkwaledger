@@ -48,6 +48,10 @@ return [
         'min_confidence' => 0.70,
     ],
 
+    'assistant' => [
+        'model' => env('OPENROUTER_ASSISTANT_MODEL', 'openai/gpt-4o-mini'),
+    ],
+
     'ussd' => [
         'secret' => env('USSD_CALLBACK_SECRET'),
         'waiting' => (bool) env('USSD_WAITING', true),

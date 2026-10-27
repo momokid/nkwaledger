@@ -38,6 +38,7 @@ import {
 } from "react";
 import FlashMessages from "@/Components/FlashMessages";
 import SessionEndedBanner from "@/Components/SessionEndedBanner";
+import AssistantChat from "@/Components/AssistantChat";
 import { buildMarketplaceNavGroup, disabledPlaceholder, splitMobileNav } from "@/lib/navHelpers";
 import OfflineNavigationNotice from "@/Components/OfflineNavigationNotice";
 import VerificationGate from "@/Components/VerificationGate";
@@ -697,6 +698,7 @@ export default function AuthenticatedLayout({ children, title }: Props) {
             <Head title={title} />
             <FlashMessages />
             <OfflineNavigationNotice />
+            <AssistantChat />
             <div
                 style={{
                     minHeight: "100vh",
