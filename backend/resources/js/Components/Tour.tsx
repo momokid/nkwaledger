@@ -56,6 +56,21 @@ export default function Tour({ steps, onClose }: Props) {
                 padding: "20px",
             }}
         >
+            {step.image && (
+                <img
+                    src={step.image}
+                    alt=""
+                    style={{
+                        display: "block",
+                        width: "100%",
+                        maxHeight: "30vh",
+                        objectFit: "cover",
+                        objectPosition: "top",
+                        border: "1px solid #D1D5DB",
+                        marginBottom: "12px",
+                    }}
+                />
+            )}
             <p style={{ fontSize: "0.9375rem", color: "#6B7280", marginBottom: "4px" }}>
                 {index + 1} / {steps.length}
             </p>

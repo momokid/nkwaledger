@@ -1,17 +1,31 @@
 export interface TourStep {
     target: string;
     text: string;
+    image?: string;
 }
 
 const TOURS: Record<string, TourStep[]> = {
     farmer: [
-        { target: "Dashboard", text: "This is your home. You see your money and your farm at a glance." },
-        { target: "My Farm", text: "Add your farms and farm units here." },
-        { target: "Record", text: "Tap here each time you earn, spend or lose something." },
-        { target: "My Money", text: "Everything you earned and spent is listed here." },
-        { target: "Credit", text: "See your loans and how you used them." },
+        {
+            target: "Dashboard",
+            text: "This is your home. You see your money and your farm at a glance.",
+            image: "/tour/farmer-dashboard.jpg",
+        },
+        { target: "My Farm", text: "Add your farms and farm units here.", image: "/tour/farmer-my-farm.jpg" },
+        {
+            target: "Record",
+            text: "Tap here each time you earn, spend or lose something.",
+            image: "/tour/farmer-record.jpg",
+        },
+        {
+            target: "My Money",
+            text: "Everything you earned and spent is listed here.",
+            image: "/tour/farmer-my-money.jpg",
+        },
+        { target: "Credit", text: "See your loans and how you used them.", image: "/tour/farmer-credit.jpg" },
         {
             target: "Reports",
+            image: "/tour/farmer-reports.jpg",
             text: "Print a report to show a lender or an agent. That is all. Open Help any time to see this again.",
         },
     ],

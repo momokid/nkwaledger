@@ -61,6 +61,18 @@ describe("Tour", () => {
         expect(onClose).toHaveBeenCalledOnce();
     });
 
+    it("shows the picture of the page for each farmer step", () => {
+        act(() => root.render(<Tour steps={steps} onClose={() => {}} />));
+        expect(host.querySelector("img")?.getAttribute("src")).toBe("/tour/farmer-dashboard.jpg");
+        act(() => button("Next")!.click());
+        expect(host.querySelector("img")?.getAttribute("src")).toBe("/tour/farmer-my-farm.jpg");
+    });
+
+    it("shows no picture for a step without one", () => {
+        act(() => root.render(<Tour steps={tourFor("agent")} onClose={() => {}} />));
+        expect(host.querySelector("img")).toBeNull();
+    });
+
     it("can be skipped", () => {
         const onClose = vi.fn();
         act(() => root.render(<Tour steps={steps} onClose={onClose} />));
