@@ -1,9 +1,12 @@
 # Current handoff
 
-Written: 2026-10-26 (after the review fixes). Rewrite this at every stopping point.
+Written: 2026-10-29 (after the account menu work). Rewrite this at every stopping point.
 
-## Where we are
-- Branch now: `feature/loan-paid-from-loan` (see Active task). Below is about `feature/ai-health-review`, which `develop` was merged into it (conflicts resolved). The owner pushes it. The full PostgreSQL suite passed on 22/10 (3686 passed, 9 skipped; sequential-pg 6 passed). The branch is ready for the owner to push.
+## Latest: account menu (branch `feature/account-menu`, cut from the loan branch, not pushed)
+Profile, Settings, Help, the quick tour (farmer pictures) and the AI help assistant are built and committed. Task file: [tasks/account-menu-help-and-assistant.md](../tasks/account-menu-help-and-assistant.md). The owner pushes with `git push -u origin feature/account-menu:feature/account-menu-loans` (the remote already has an old `feature/account-menu`; never force push). After deploy: `php artisan migrate` (new tables `app_settings`, `assistant_messages`) and set the OpenRouter key. Next: retake the tour pictures with demo data, the agent tour pictures, other roles' tours (wording first), the USSD topic and practice screen. Cut new branches from the branch that holds the needed work, not `develop` (see memory).
+
+## Where we are (loan work, earlier)
+- Branch: `feature/loan-paid-from-loan` (see Active task). Below is about `feature/ai-health-review`, which `develop` was merged into it (conflicts resolved). The owner pushes it. The full PostgreSQL suite passed on 22/10 (3686 passed, 9 skipped; sequential-pg 6 passed). The branch is ready for the owner to push.
 - Last code work: slice 5, the admin page for health categories ([task](../tasks/ai-review-slice-5-category-admin.md)). The owner pushes. Run `git log --oneline -5` for the latest commits.
 
 ## Active task

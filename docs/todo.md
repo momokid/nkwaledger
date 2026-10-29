@@ -62,6 +62,14 @@ Task file: [tasks/adviser-menu-items.md](tasks/adviser-menu-items.md)
 ### 4c. Loan credit score
 - [x] Tasks 1 (web loan form names farms and amounts) 2 ("Paid from a loan" on purchase records, per-farm figures on the loan page) 3 (alert, "something else" uses, reminders) and 4 (agent loans name the farms; branch `feature/loan-paid-from-loan`) done. 4b (what each farm amount is for) 5a (offline records keep "Paid from a loan") and 5b (the agent's USSD money loan names farms and purposes) done. 6 (the credit score, version 1) and the loan statement report done. Open: tune the score weights and bands with real data, lawyer review and consent text before any lender sees a score, compare later purchases with the planned purpose, the loan amount against income in the score. Twi lines for 5b need a native-speaker review. Plan: [tasks/credit-score-and-loan-use.md](tasks/credit-score-and-loan-use.md). First the loan is recorded against a farm and its use (slice A), then the score (slice B). Waiting on the owner's answers. Also: the farmer dashboard shows a made-up score of 720; report only.
 
+### 4d. Account menu, Help, tour and AI assistant (branch `feature/account-menu`, not pushed)
+Task file: [tasks/account-menu-help-and-assistant.md](tasks/account-menu-help-and-assistant.md)
+- [x] Profile (read-only), Settings (text size), Help (topics, support number from `app_settings`), farmer and agent tour, tour pictures for the farmer, AI help assistant (50 a day, chats stored)
+- [ ] Push, `php artisan migrate`, OpenRouter key on the server
+- [ ] Retake tour pictures with demo data; agent pictures; vet, adviser and supplier tours (wording first)
+- [ ] USSD topic in Help and a practice USSD screen (needs the USSD code and `feature/ussd-base`)
+- [ ] Settings "Sign out of other devices"; Help and Settings in the admin layout; admin screen for `app_settings`
+
 ### 5. Fertilizer calculator
 - [ ] Not started. Idea notes in ideas/feature-backlog.md.
 

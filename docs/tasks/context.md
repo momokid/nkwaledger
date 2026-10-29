@@ -9,6 +9,7 @@ One file per piece of work. Each task file has: the goal, the files to read firs
 | ai-review-slice-5-category-admin.md | Admin page for health categories | Not started |
 | adviser-menu-items.md | Plan for the greyed-out adviser and vet menu items | Waiting on owner |
 | credit-score-and-loan-use.md | Loan recorded against a farm, then the credit score | Plan, waiting on owner |
+| account-menu-help-and-assistant.md | Profile, Settings, Help, quick tour and AI help assistant | Built, waiting on push |
 | verify-bucket-on-staging.md | Check report photos work on the Railway Bucket | Waiting on owner |
 
 ## Rules for task files
